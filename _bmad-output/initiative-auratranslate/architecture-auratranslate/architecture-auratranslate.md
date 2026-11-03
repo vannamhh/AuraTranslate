@@ -214,6 +214,8 @@ graph TD
 
   🔵 2026-10-27: dịch lô lắp **một** prompt cho cả lượt nhiều câu (AD-60 mục 3). Hàm vẫn thuần; đầu vào là danh sách câu của lượt, cộng khối ngữ cảnh và Glossary/TM quét theo từng câu.
 
+  🔵 2026-11-03: đường dịch một câu nay cũng lắp bằng hàm lắp prompt của lượt, và mọi lượt mang 3 câu đứng ngay trước làm khối ngữ cảnh (AD-65).
+
 ### AD-15 — Đúng ba điểm ra mạng trong toàn bộ ứng dụng
 
 - **Binds:** tất cả
@@ -457,6 +459,8 @@ graph TD
   `glossary/` phơi ra **đúng một** truy vấn trả về mục **đủ điều kiện chèn**; `ai/` không có đường nào khác chạm dữ liệu Glossary. Điều kiện chèn nằm ở `glossary/` — nơi sở hữu dữ liệu — chứ không nằm ở chỗ gọi.
 
   Âm Hán Việt cho đề xuất bản dịch (FR113) đọc **qua cổng `DictionarySource`**, không cài lại. Thêm cạnh `glossary/ → dict/` vào đồ thị phụ thuộc; không tạo chu trình.
+
+  🔵 2026-11-03: truy vấn mục đủ điều kiện chèn trả thêm `note`, và mục được chèn mang ghi chú của nó vào prompt (AD-66).
 
 ### AD-37 — Cấu trúc đoạn là dữ liệu được lưu, không phải thứ suy ra lúc xuất
 
@@ -1240,9 +1244,11 @@ graph TD
      - Câu `is_omitted` vô hình với kế hoạch: không bao giờ được gửi, và không làm đứt tính liền nhau.
      - Một lượt là một khoảng liền nhau trong thứ tự `ord` của các câu không `is_omitted` trong một Chương, chứa tối đa `TRANSLATE_CALL_MAX_SEGMENTS` câu cần dịch.
      - Vùng chọn gồm nhiều đoạn rời thì mỗi đoạn đi một hoặc nhiều lượt, và không có khối ngữ cảnh nào bắc qua chỗ rời.
+       🔵 2026-11-03: mọi lượt nay mang câu kề ở đầu lượt, kể cả ở chế độ vùng chọn. Không lượt nào chứa khối `SEGMENT` của hai đoạn, nhưng câu kề có thể thuộc đoạn chọn đứng trước (AD-65 mục 4).
      - Các lượt chạy tuần tự. Huỷ được kiểm trước mỗi lượt và giữa các khung SSE.
      - `segment_id` đã về hưu khi tới lượt của nó thì không được gửi, và thành *thiếu kết quả AI*.
   2. **Khối ngữ cảnh (chỉ ở chế độ cả Chương).**
+     🔵 2026-11-03: khối ngữ cảnh nay có ở mọi chế độ. Lượt đầu Chương và lượt cắt vì trần cũng mang tối đa 3 câu đứng trước; phần cắt theo khe giữ nguyên (AD-65 mục 1–3).
      - Câu đã dịch nằm giữa hai câu cần dịch của cùng lượt thì đi kèm thành khối ngữ cảnh chỉ đọc: nguồn, cộng `target_text` đã lưu.
      - Khối ngữ cảnh không đánh số, không phát sự kiện, và không tính vào trần.
      - Một đoạn liền dài hơn `CONTEXT_GAP_MAX` câu đã dịch thì cắt sang lượt mới. Lượt mới mang theo tối đa `CONTEXT_GAP_MAX` câu đã dịch đứng ngay trước làm ngữ cảnh.
@@ -1301,6 +1307,7 @@ graph TD
       - Dịch một câu tại con trỏ giữ `assemble_prompt` và luồng hiện có. Khi `finish_reason` vắng mặt hoặc khác `"stop"`, kết quả mang cờ dữ liệu `maybe_truncated` (Ice 2026-10-27).
       - Mọi lô, kể cả lô chỉ có một câu, đi đường khối.
       - Proofreader không đổi và không phán `finish_reason`.
+      - 🔵 2026-11-03: đường dịch một câu nay lắp và đọc theo ngữ pháp khối, mang câu kề, và vẫn giữ `maybe_truncated` (AD-65 mục 5).
   13. **FR71, FR145.**
       - Bản ghi prompt khoá theo `(thao tác, call_index)`: prompt, system, `segment_ids` theo thứ tự n, `sent_usage` của lượt, và sổ chèn của lượt.
       - Màn xem prompt của một câu hiện bản ghi mới nhất có câu đó là khối cần dịch, đánh dấu khối của nó. Nếu câu chỉ là ngữ cảnh thì màn ghi rõ điều đó.
@@ -1315,7 +1322,7 @@ graph TD
       - (g) Nguồn có một dòng `SEGMENT>>>` ⇒ không khối nào đóng sớm. (Gỡ bước chèn U+200B.)
       - (h) Huỷ giữa hai lượt ⇒ đúng k lượt đã gửi, và `CallDone` của lượt đang chạy vẫn được phát.
       - (h2) Khối k đóng sớm rồi một khối k thứ hai xuất hiện sau ⇒ không có `Received` nào cho k, và chưa từng có sự kiện nào cho phép đưa k sang Editor. (Gỡ việc hoãn `Received` tới cuối luồng.)
-      - (i) Vùng chọn gồm hai đoạn rời ⇒ hai lượt, không có khối ngữ cảnh bắc qua.
+      - (i) Vùng chọn gồm hai đoạn rời ⇒ hai lượt, không có khối ngữ cảnh bắc qua. 🔵 2026-11-03: thay bằng AD-65 test (f).
       - (j) 250 câu cần dịch ⇒ ba lượt: 100, 100, 50.
       - (k) Đoạn 4 câu đã dịch nằm giữa ⇒ cắt lượt, lượt mới mang 3 câu ngữ cảnh.
       - (l) Câu `is_omitted` không có trong prompt nào.
@@ -1537,6 +1544,119 @@ graph TD
   13. **Đổi gì, không đổi gì.** AD-8, AD-11, AD-15, AD-30 và dòng `Ra mạng` của bảng Consistency nhận dòng 🔵 trỏ về đây. `prepare_context_reference_call` chuyển sang `resolve_quick_call_config`, nên `Dịch thử` không còn đọc tầng Work và không còn cần `OpenWork`. Hai lời hứa của `plan-cau-dich-tham-khao-bang-cho-glossary.md` về giữ trong bộ nhớ và không tự gọi khi chuyển hàng hết hiệu lực khi AD này được thi hành. Thêm một phụ thuộc trực tiếp `sha2`, đã có sẵn trong `Cargo.lock`. Rust mở tệp trực tiếp nên không đổi capability. PRD §Kết nối mạng và FR mới thuộc lượt correct-course của John.
 - **Chưa chốt:** `QUICK_BATCH_MAX_BLOCKS`, `QUICK_BATCH_MAX_CHARS`, thời gian chờ của tự chạy và giá trị N chưa có số đo; story đo trước khi chốt. Không có trần số lượt mỗi phiên, vì tự chạy chỉ theo chữ người dùng đang xem.
 
+### AD-65 — Mọi lượt dịch AI mang 3 câu đứng ngay trước dưới dạng khối ngữ cảnh; đường dịch một câu chuyển sang ngữ pháp khối của AD-60
+
+- **Binds:** C6. Các chỗ trong mã:
+  - `core/ai/batch.rs`: `plan_calls` thêm câu kề vào đầu mỗi lượt; hằng số mới `CONTEXT_BEFORE = 3`. `CONTEXT_GAP_MAX` giữ nguyên.
+  - `core/ai/rag.rs`: `assemble_call_prompt` dựng khối ngữ cảnh cho câu kề chưa dịch.
+  - `commands/aitranslate.rs`: `prepare_translate_call`, `prepare_resend_call`, `ai_translate_segment` lắp và đọc theo khối.
+  - Không đổi: `core/promptset/vars.rs`, `PromptVariable::ALL`.
+- **Prevents:**
+  1. **Dịch một câu mà không có câu kề.** Đại từ, xưng hô và tên trôi giữa các câu. Theo báo cáo LLM (R2, nguồn [1]), 3 cặp nguồn–đích đứng trước đã đem lại phần lớn lợi ích. Chiều hướng này chưa đo trên zh→vi và en→vi.
+  2. **Câu thử lại có ít ngữ cảnh hơn lần dịch đầu.** AD-60 mục 9 đưa thử lại sang chế độ vùng chọn, và chế độ đó không mang ngữ cảnh.
+  3. **Mô hình chép câu kề vào kết quả.** Đường dịch một câu đọc chữ thường, nên chữ của câu kề mà mô hình chép lại sẽ lọt thẳng vào panel AI mà không có gì lọc ra.
+  4. **Hai cơ chế ngữ cảnh lệch nhau** (AD-60 Prevents 6).
+  5. **Câu `is_omitted` bị gửi đi làm ngữ cảnh** (Ice 2026-10-27).
+- **Rule:**
+
+  1. **Câu kề ở đầu mỗi lượt.**
+     - Sau khi chia lượt theo AD-60 mục 1, `plan_calls` thêm vào đầu mỗi lượt tối đa `CONTEXT_BEFORE` câu đứng ngay trước khối đầu tiên của lượt. Không có câu kề nào đứng sau khối cuối.
+     - Câu kề lấy theo thứ tự `ord` của các câu không `is_omitted`, trong cùng Chương. Câu kề không bao giờ lấy từ Chương khác.
+     - Áp dụng cho mọi chế độ: một câu, vùng chọn, thử lại, và cả Chương.
+     - Gần đầu Chương thì có ít câu kề hơn. Không lấy câu nào thay cho phần thiếu.
+  2. **Nội dung khối ngữ cảnh.**
+     - Câu kề đã có bản dịch thì khối mang nguồn và `target_text` như hôm nay.
+     - Câu kề chưa có bản dịch thì khối chỉ mang nguồn, không có mũi tên và không có dòng đích rỗng.
+     - Chữ của câu kề đọc từ ảnh chụp của kế hoạch, và đi qua `guard_text`.
+     - Câu kề không được quét Glossary hay TM, không tính vào trần `TRANSLATE_CALL_MAX_SEGMENTS`, và không phát sự kiện nào (giữ AD-60 mục 2).
+  3. **Chế độ cả Chương.**
+     - Phần cắt lượt theo khe của AD-60 mục 2 giữ nguyên: khe tối đa `CONTEXT_GAP_MAX` câu đã dịch đi trọn trong lượt; khe dài hơn thì cắt, và lượt mới mang 3 câu cuối khe làm câu kề.
+     - Lượt đầu tiên của Chương, và lượt bị cắt vì chạm trần, nay cũng mang câu kề.
+     - Khi lượt bị cắt vì chạm trần, câu kề của lượt mới là những câu lượt trước vừa gửi đi dịch. Ảnh chụp lấy ở đầu thao tác nên chúng chưa có bản dịch, và khối chỉ mang nguồn.
+  4. **Vùng chọn gồm nhiều đoạn rời.**
+     - Mỗi đoạn vẫn đi lượt riêng, và không lượt nào chứa khối `SEGMENT` của hai đoạn khác nhau.
+     - Câu kề lấy theo thứ tự trong văn bản, nên có thể là một câu thuộc đoạn chọn đứng trước. Câu đó chỉ là ngữ cảnh của lượt này. Đây là cách đọc mới của câu "không có khối ngữ cảnh nào bắc qua chỗ rời" ở AD-60 mục 1.
+  5. **Đường dịch một câu.**
+     - `ai_translate_segment` lập kế hoạch như một vùng chọn có đúng một câu. Prompt lắp bằng `assemble_call_prompt`, và system message mang phần dặn định dạng khối (AD-60 mục 3).
+     - Kết quả đọc bằng `BlockStream`. Channel chỉ chuyển chữ của khối `SEGMENT 1`, nên webview không bao giờ thấy dấu khối hay chữ ngữ cảnh mà mô hình chép lại.
+     - Lệnh, trạng thái của panel AI, `LastAssembledPromptState` và hình dạng `AiTranslateOutcomeWire` giữ nguyên.
+     - Khối 1 đã đóng: kết quả là chữ của khối. `maybe_truncated` bật khi `finish_reason` vắng mặt hoặc khác `"stop"`, giữ đúng quyết định của Ice ngày 2026-10-27.
+     - Khối 1 chưa đóng khi luồng kết thúc: kết quả là chữ đã nhận của khối 1, với `maybe_truncated` bật. Đây là chỗ đường một câu khác dịch lô: người dùng vẫn tự quyết có đưa sang Editor hay không (FR72).
+     - Không có khối 1, hoặc khối 1 xuất hiện hai lần, hoặc chữ rỗng: kết quả là *thiếu kết quả AI*. Không bao giờ lấy chữ nằm ngoài khối thay vào.
+     - ⚠️ Mô hình cục bộ kém tuân định dạng có thể ra *thiếu kết quả AI* ở câu mà hôm nay vẫn dịch được. Đây là cái giá có chủ ý để đổi lấy Prevents 3. Đường một câu không có đường lùi về chữ thường.
+     - Gửi lại (FR145) gửi đúng prompt đã ghi, kể cả câu kề, và đọc kết quả theo mục này.
+  6. **Không có biến prompt nào cho câu kề.**
+     - Câu kề luôn được gửi, mở rộng tại marker `source_segment` cùng chuỗi khối.
+     - `{{chapter_context}}` vẫn là marker lạ, giữ nguyên chữ, như `core/promptset/vars.rs` quy định.
+     - Bộ prompt không bật hay tắt được câu kề.
+  7. **FR71.** Prompt ghi lại chứa nguyên các khối ngữ cảnh. Màn xem prompt đánh dấu câu nào là câu kề, theo AD-60 mục 13.
+  8. **Test canh.** Mỗi ca đỏ có đối chứng bằng phép GỠ thật, ghi trong ngoặc:
+     - (a) Dịch một câu ở giữa Chương ⇒ prompt có đúng 3 khối `CONTEXT` đứng trước khối `SEGMENT 1`, theo thứ tự `ord`, và không có khối `CONTEXT` nào đứng sau. Một câu `is_omitted` liền trước bị bỏ qua và câu trước nữa lấp chỗ. (Gỡ bước thêm câu kề.)
+     - (b) Dịch một câu, mô hình chép lại một khối `CONTEXT` trước khối `SEGMENT 1` ⇒ kết quả và mọi chữ đi qua Channel chỉ có chữ của khối 1. (Gỡ `BlockStream`, đọc chữ thường như cũ.)
+     - (c) Dịch một câu, luồng dừng giữa khối 1 mà không có `finish_reason` ⇒ hiện chữ đã nhận, `maybe_truncated` bật. Luồng không có khối 1 ⇒ *thiếu kết quả AI*.
+     - (d) Câu đầu Chương ⇒ 0 khối ngữ cảnh. Câu thứ hai của Chương ⇒ đúng 1 khối.
+     - (e) Câu kề chưa dịch ⇒ khối chỉ có nguồn, không có `→`. (Gỡ nhánh chưa dịch.)
+     - (f) Vùng chọn gồm hai đoạn rời ⇒ hai lượt, mỗi lượt có câu kề riêng, và không lượt nào có khối `SEGMENT` của cả hai đoạn. Ca này thay AD-60 test (i).
+     - (g) Thử lại một câu `missing` ⇒ prompt có câu kề như lần dịch đầu.
+     - (h) Cả Chương: lượt đầu mang tối đa 3 câu kề; lượt cắt vì trần mang 3 câu kề chỉ có nguồn. AD-60 test (k) giữ nguyên.
+     - (i) Câu kề có trong prompt, nhưng không có sự kiện nào mang `segment_id` của nó, và nó không được quét Glossary hay TM. Ca này mở rộng AD-60 test (m).
+     - (j) Một dòng của câu kề trùng dấu khối ⇒ được chèn U+200B.
+     - (k) Gửi lại (FR145) ở đường một câu ⇒ gửi đúng prompt có câu kề.
+     - (l) Test `chapter_context_is_excluded_from_the_ratified_vocabulary_and_reads_as_unknown` giữ nguyên và vẫn xanh.
+  9. **Đổi gì, không đổi gì.**
+     - Đổi: AD-60 mục 1, mục 2, mục 12 và test (i), cùng AD-14 và dòng `Gọi AI` của bảng Consistency, mỗi chỗ nhận một dòng 🔵 trỏ về đây.
+     - Không đổi: system prompt mặc định; bộ ba biến prompt; Proofreader; dịch nhanh (AD-64); AD-22 (không tự thử lại); AD-47 (đường đưa sang Editor); phần cắt lượt theo khe của AD-60 mục 2.
+     - PRD: FR70 hiện chỉ kể Glossary và TM là phần chèn động. Thêm câu kề vào FR70 thuộc lượt correct-course của John.
+- **Phương án bị loại:**
+  - **Biến `{{chapter_context}}` làm công tắc bật/tắt câu kề theo từng bộ prompt:** Ice bỏ ngày 2026-11-03. Khi trình bày, phương án này đi kèm hai cái giá. Một là thân prompt không có biến thì câu kề tắt mà không ai hay. Hai là bộ prompt đã lưu sẽ mất cả khối ngữ cảnh ở khe mà AD-60 đang gửi.
+  - **Đưa câu kề vào đường một câu dưới dạng chữ thường:** Prevents 3.
+  - **2 câu trước và 2 câu sau, như mockup `prompt-library.html` vẽ:** Ice chọn lúc đầu rồi đổi sang 3 câu trước ngày 2026-11-03. Số 3 khớp với R2 và với `CONTEXT_GAP_MAX`, nên phần cắt lượt theo khe của AD-60 không phải đổi.
+  - **Giữ nguyên, ai cần ngữ cảnh thì dịch cả Chương:** không đóng được Prevents 1 và 2.
+  - **Không thêm câu kề ở chế độ cả Chương:** Ice giữ câu kề ngày 2026-11-03. Trong một lượt, các câu đã nhìn thấy nhau, nên câu kề chỉ có tác dụng ở chỗ cắt lượt. Chỗ cắt ở trần 100 câu thường rơi giữa một cảnh. Chương 667 câu có 6 chỗ cắt, tức thêm khoảng 18 câu, khoảng 2–3% token vào (mô hình tính).
+  - **Câu kề vượt ranh Chương:** không chọn ngày 2026-11-03. Nó chỉ giúp vài câu đầu Chương. Sự nhất quán giữa các Chương đi qua Glossary (AD-66).
+
+  → bằng chứng:
+  - Chi phí là số mô hình tính, chưa đo. Ở đường một câu, mô hình của R2 (3 cặp trước) cho khoảng +200 token vào mỗi lượt, tức khoảng +64%. Với dịch lô, phần thêm không đáng kể so với một lượt 100 câu. Ice quyết định không đo trước ngày 2026-11-03.
+  - Hồ sơ: `research-llm-translation-cost-and-quality/research-llm-translation-cost-and-quality.md` §R2.
+  - Mã đọc ở `d5bd6af4`: `src-tauri/src/core/ai/batch.rs` (`plan_calls`), `src-tauri/src/core/ai/rag.rs` (`assemble_call_prompt`).
+
+### AD-66 — Mục Glossary được chèn vào prompt mang theo ghi chú của nó
+
+- **Binds:** C4, C6. Các chỗ trong mã:
+  - `core/glossary/`: truy vấn duy nhất trả mục đủ điều kiện chèn (AD-36) trả thêm `note`.
+  - `core/ai/rag.rs`: `InjectedGlossaryTerm` thêm trường `note`; `render_glossary_pairs` in ghi chú. Đây là chỗ in duy nhất, dùng chung cho đường một câu và đường lô.
+  - Frontend: ô ghi chú của mục Glossary.
+- **Prevents:**
+  1. **Chương sau "lạc" so với Chương trước.** Xưng hô, giới tính và cách gọi của nhân vật trôi giữa các Chương. Glossary chỉ gửi `nguồn → bản dịch`, nên mô hình biết tên nhưng không biết nhân vật xưng "ta" hay gọi người kia là "sư muội". Theo báo cáo LLM (D1, DelTA), độ nhất quán tên đến từ bảng tên tường minh, không đến từ ngữ cảnh gần.
+  2. **Ghi chú riêng bị gửi đi mà người dùng không biết.** Trước AD này, trường `note` chỉ người dùng đọc.
+  3. **Hai đường lắp prompt in Glossary theo hai cách** (AD-60 Prevents 6).
+- **Rule:**
+  1. **Mục nào mang ghi chú.** Mọi mục đã được chọn để chèn theo luật hiện có (đã chốt theo AD-36, có mặt trong câu, đã phân giải hai tầng theo AD-18), có `note` khác rỗng sau khi cắt khoảng trắng, thuộc mọi loại.
+     - Mục *chờ chốt* và ứng viên không bao giờ được gửi, nên ghi chú của chúng cũng không.
+     - Ghi chú đi cùng mục thắng ở phân giải hai tầng. Ghi chú không bao giờ được ghép từ hai tầng; mục tầng Tác phẩm có ghi chú rỗng thì không gửi ghi chú nào, kể cả khi mục tầng Global có.
+  2. **Cách in.** Mỗi mục một dòng: `nguồn → bản dịch — ghi chú`. Mục không có ghi chú giữ nguyên dạng `nguồn → bản dịch`. Xuống dòng và khoảng trắng liên tiếp trong ghi chú được gộp thành một dấu cách. Ghi chú được gửi trọn, không có trần độ dài (Ice 2026-11-03); người dùng thấy chi phí qua FR76.
+  3. **Đường lô.** Glossary của lượt vẫn bỏ trùng theo thuật ngữ nguồn (AD-60 mục 3). Mục giữ lại mang ghi chú của chính nó, nên mỗi ghi chú xuất hiện tối đa một lần mỗi lượt.
+  4. **Người dùng phải biết ghi chú được gửi đi.** Ô ghi chú của mục Glossary nói rõ rằng ghi chú được gửi cho AI kèm thuật ngữ, qua một khoá i18n. Câu chữ cụ thể thuộc story.
+  5. **FR71.** Ghi chú có mặt trong prompt đã ghi và trên màn xem prompt, như mọi phần chèn khác.
+  6. **Không đổi:** thân prompt mặc định, bộ ba biến prompt, Proofreader (không chèn Glossary), dịch nhanh (AD-64, prompt cố định), cách quét và chọn mục của AD-36.
+  7. **Test canh.** Mỗi ca đỏ có đối chứng bằng phép GỠ thật, ghi trong ngoặc:
+     - (a) Mục đã chốt có ghi chú, thuật ngữ có trong câu ⇒ prompt có dòng `nguồn → bản dịch — ghi chú`, ở cả đường một câu lẫn đường lô. (Gỡ phần in ghi chú.)
+     - (b) Mục *chờ chốt* có ghi chú ⇒ ghi chú không có trong prompt nào.
+     - (c) Tầng Tác phẩm có ghi chú rỗng, tầng Global có ghi chú ⇒ không có ghi chú nào trong prompt.
+     - (d) Ghi chú nhiều dòng ⇒ in trên đúng một dòng.
+     - (e) Lượt lô có hai câu cùng chứa một thuật ngữ ⇒ ghi chú xuất hiện đúng một lần.
+     - (f) Thân prompt không có marker `glossary_terms` ⇒ không có ghi chú nào trong prompt, sổ chèn ghi "không hỏi".
+  8. **Đổi gì.** AD-36 nhận một dòng 🔵 trỏ về đây. PRD: FR70(a) đổi "kèm bản dịch đã chốt" thành "kèm bản dịch đã chốt và ghi chú", thuộc lượt correct-course của John.
+- **Phương án bị loại:**
+  - **Trần độ dài ghi chú (ví dụ 200 ký tự), ô ghi chú báo rằng AI chỉ nhận phần đầu:** Ice chọn không có trần ngày 2026-11-03. ⚠️ Cái giá: một ghi chú dài trên nhân vật chính, tên có ở gần như mọi câu, tốn token ở mỗi lượt dịch một câu.
+  - **Thêm trường riêng "ghi chú cho AI":** Ice chọn dùng `note` hiện có ngày 2026-11-03. Cái giá là ghi chú nháp cũng được gửi đi; Rule mục 4 làm cho việc đó hiện ra với người dùng.
+  - **Tóm tắt Chương do AI viết, gửi kèm khi dịch Chương sau:** không chọn ngày 2026-11-03. Mỗi Chương thêm một lượt gọi trả tiền, và một bản tóm tắt sai sẽ lan sang các Chương sau. Để lại cho tới khi ghi chú Glossary chưa đủ.
+  - **Câu kề vượt ranh Chương:** xem AD-65.
+
+  → bằng chứng:
+  - Hồ sơ: `research-llm-translation-cost-and-quality/research-llm-translation-cost-and-quality.md` §D1 (DelTA: bảng tên riêng góp +3,95 LTCR-1; chỉ có ngữ cảnh gần thì LTCR-1 giảm từ 80,27 xuống 77,89).
+  - Mã đọc ở `d5bd6af4`: `src-tauri/src/core/ai/rag.rs` (`render_glossary_pairs`, `InjectedGlossaryTerm`), `src-tauri/src/core/glossary/entry.rs` (`GlossaryEntry::note`).
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1561,7 +1681,7 @@ graph TD
 | **Ghi dữ liệu** | Mọi ghi qua `store::Writer` của kho tương ứng (AD-11). `.atproj` ghi trước, `library-index.db` ghi sau (AD-8) |
 | **Tra cứu** | Kết quả luôn mang `source`; không hợp nhất giữa nguồn (AD-19). Đường zh hay en chọn theo **hình dạng chuỗi truy vấn**, không theo ngôn ngữ Tác phẩm; mọi nhánh lọc `dict_entry.lang` tường minh (AD-44) |
 | **Phân giải hai tầng** | Luôn qua `ScopeResolver`; ngữ nghĩa ghi đè hay hợp nhất tra ở AD-18 |
-| **Gọi AI** | Luôn qua prompt đã lắp bởi `RagInjector` (AD-14); luôn huỷ được; không bao giờ tự thử lại. Dịch lô chia thành các lượt tối đa 100 câu; chữ chỉ được nhận khi khối của nó đóng đúng, và thử lại chỉ gửi câu thiếu (AD-60) |
+| **Gọi AI** | Luôn qua prompt đã lắp bởi `RagInjector` (AD-14); luôn huỷ được; không bao giờ tự thử lại. Dịch lô chia thành các lượt tối đa 100 câu; chữ chỉ được nhận khi khối của nó đóng đúng, và thử lại chỉ gửi câu thiếu (AD-60). 🔵 2026-11-03: mọi lượt, kể cả dịch một câu, mang 3 câu đứng ngay trước dưới dạng khối ngữ cảnh (AD-65) |
 | **Nội dung ngoài** | Luôn phân tích thành mô hình dữ liệu trước khi render (AD-16) |
 | **Giấy phép** | Mỗi phụ thuộc mới phải rà tương thích GPLv3 **trước khi** thêm vào (NFR15) và ghi vào bảng Stack |
 
@@ -1850,9 +1970,9 @@ AuraTranslate/
 | **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43, AD-58, AD-61 |
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55, AD-58 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
-| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63 |
+| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63, AD-66 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57, AD-63 |
-| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63, AD-64 |
+| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63, AD-64, AD-65, AD-66 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56 |
 | **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51, AD-52, AD-63 |
 | **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43, AD-54, AD-55, AD-56, AD-57 |
