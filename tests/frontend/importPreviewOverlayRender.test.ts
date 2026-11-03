@@ -160,22 +160,14 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
     state.resetImportPreview()
   })
 
-  // 🔵 SỬA 2026-09-05 (Story 6.5) — "tầng 2/3 rỗng" đã HẾT ĐÚNG cho tầng 3: nó nay CÓ THÂN
-  // khi ứng viên mang `cleanup` (mặc định của `candidate()` từ story này). Chỉ tầng 2 còn
-  // rỗng — ca dành cho tầng 3 rỗng (ứng viên "không ra chữ") đứng riêng ngay dưới.
-  // 🔵 SỬA 2026-09-07 (Story 6.9) — lý do rỗng viết lại: "chưa dựng" đã hết đúng (tầng 2 nay
-  // CÓ THÂN cho nhánh URL) — đường dán văn bản (nhánh của CHÍNH ca này) vẫn rỗng, nhưng vì
-  // "nguồn này không bóc nội dung chính", không phải vì tính năng chưa tồn tại.
-  it('tầng 2 rỗng (đường dán văn bản) dựng đúng lý do MỚI — không bóc, không phải "chưa dựng"', async () => {
+  it('đường dán có văn bản đọc được ⇒ tầng 2 hiện cột văn bản, không có lời báo rỗng nào', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
     await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    const reasons = wrapper.findAll('.ip-tier-empty-reason')
-    expect(reasons).toHaveLength(1)
-    expect(reasons[0]?.text()).not.toContain('Story 6.9')
-    expect(reasons[0]?.text()).toContain('URL')
+    expect(wrapper.get('.ip-cleanup-text').text()).toBe('plain ascii')
+    expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(0)
 
     wrapper.unmount()
     state.resetImportPreview()
@@ -209,7 +201,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
     expect(wrapper.find('.ip-normalized-counts').exists()).toBe(false)
     expect(wrapper.find('.ip-normalized-window-note').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Han nhin ve phia ngon nui xa.')
-    expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(1)
+    expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(0)
 
     wrapper.unmount()
     state.resetImportPreview()
