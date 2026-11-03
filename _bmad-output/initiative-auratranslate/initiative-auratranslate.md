@@ -47,8 +47,7 @@ Yêu cầu nằm ở PRD (FR1–FR159 trừ FR20 đã rút, NFR1–NFR20); mỗi
 ## Notes
 
 - Decision: 2026-11-03, Ice — FR159 thành Epic 16 `epic-quy-uoc-chu-viet`, đứng cuối thứ tự, 7 story ghi ngay với `unknown` chờ AD của Winston, UX của Sally, Q10 và Q11. Xung đột FR159 với AD-53 giải bằng cách nhận thay giữ xuất xứ của câu như chấp nhận đề xuất chính tả, câu đã xác nhận giữ xác nhận; PRD FR159 sửa theo. "Thay cả Chương" là lượt ghi không-phải-người-dùng theo AD-47 ①, Winston viết hàng AD-47 ③.
-- Open question: Q10 PRD — luật quy ước đụng bản dịch Glossary đã chốt; chặn story đầu tiên của FR159. Chờ Ice.
-- Open question: Q11 PRD — định dạng file xuất và nhập quy ước chữ Việt; chặn story xuất/nhập. Chờ Ice.
+- Decision: 2026-11-03, Ice — Q10 PRD: Glossary thắng, chỗ khớp nằm trọn trong bản dịch của mục đã chốt mà câu nguồn chứa thuật ngữ thì không đánh dấu. Q11 PRD: CSV/TSV hai cột như Glossary. PRD FR159 và §13 sửa theo.
 - Decision: 2026-11-03, Ice — FR70 sửa (PRD `f2db4006`: câu kề và ghi chú Glossary, theo AD-65 và AD-66 ở spine `39f2583e`) thành entry 4.16 và 4.17 ở Epic 4; Epic 4 phủ thêm FR47. FR quy ước chữ Việt làm ở phiên khác.
 - Decision: 2026-11-01, Ice — FR153–FR158 (PRD `c950c6e7`, AD-64) thành Epic 15 `epic-dich-nhanh`, đứng cuối thứ tự xây sau Epic 14.
 - Decision: 2026-11-01, Ice — giữ thứ tự Epic 12 trước Epic 10 dù Epic 12 ghi chờ Epic 10: mọi story của Epic 12 đã xong, kể cả 12.21 là story cần `AttributionOverlay.vue` của 10.4, nên phụ thuộc đó không còn chặn gì.

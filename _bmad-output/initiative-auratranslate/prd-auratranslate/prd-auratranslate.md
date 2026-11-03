@@ -599,7 +599,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR79.** **Xuất và nhập bộ prompt** dưới dạng file văn bản mở, để người dịch chia sẻ prompt theo thể loại cho nhau.
 
-> **Ranh giới đã chốt:** v1 hỗ trợ chia sẻ cộng đồng **chỉ qua trao đổi file** — Glossary (CSV/TSV), prompt (file văn bản), TM (TMX), quy ước chữ Việt (file văn bản, FR159; 🔵 2026-11-03). **Không xây định dạng gói, không xây hạ tầng phân phối, không có server hay tài khoản.** Cộng đồng chia sẻ qua GitHub và diễn đàn, đúng cách QuickTranslator từng lan toả. Nhất quán với trụ định vị #3.
+> **Ranh giới đã chốt:** v1 hỗ trợ chia sẻ cộng đồng **chỉ qua trao đổi file** — Glossary (CSV/TSV), prompt (file văn bản), TM (TMX), quy ước chữ Việt (CSV/TSV, FR159; 🔵 2026-11-03). **Không xây định dạng gói, không xây hạ tầng phân phối, không có server hay tài khoản.** Cộng đồng chia sẻ qua GitHub và diễn đàn, đúng cách QuickTranslator từng lan toả. Nhất quán với trụ định vị #3.
 
 **FR50.** Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan ở cột nguyên văn của lưới**, để người dịch thấy ngay câu đang dịch chứa thuật ngữ nào. 🔵 *(Sửa 2026-08-18 — xem ghi chú ở FR42.)* Mục **chờ chốt bản dịch** (FR114) cũng được đánh dấu, nhưng **phân biệt được** với mục đã chốt — đó chính là cơ hội để người dịch chốt nó.
 
@@ -650,10 +650,10 @@ Glossary là nơi các quyết định biên tập của người dùng được
 **FR159.** **Danh sách quy ước chữ Việt.** Mỗi luật gồm **một cụm cần tránh** và **một cụm thay thế nếu có**: *đảm bảo → bảo đảm*, *thập kỷ → thập niên*. Luật không có cụm thay thế nghĩa là *"không dùng"*: hệ thống chỉ đánh dấu, không gợi ý thay.
 
 - **Hai tầng** Global và Tác phẩm (FR103). Tầng Tác phẩm **thêm được luật riêng** và **tắt được một luật Global** cho riêng Tác phẩm đó mà không xoá luật khỏi Global. Một luật Tác phẩm có cùng cụm cần tránh với một luật Global thì **luật Tác phẩm thắng**, như FR46.
-- **Xuất và nhập** dưới dạng file văn bản mở, để người dịch chia sẻ quy ước cho nhau. Định dạng cụ thể: Q11.
+- **Xuất và nhập** dưới dạng **CSV/TSV hai cột**, như Glossary (FR49): cột một là cụm cần tránh, cột hai là cụm thay thế, để trống nghĩa là *"không dùng"*.
 - **Quét cục bộ và tất định, không gọi AI.** Chuẩn hoá Unicode NFC **chỉ dùng để so**; văn bản đã lưu không bị đổi. **Không phân biệt hoa thường.** **Không gộp *i/y***: *kỷ* và *kỉ* là hai chuỗi khác nhau, vì chính cặp đó có thể là một luật.
 - **Ranh giới âm tiết:** một chỗ khớp phải bắt đầu và kết thúc ở đầu hoặc cuối văn bản, hoặc cạnh một ký tự không phải chữ cái hay chữ số (khoảng trắng, dấu câu, gạch nối). Luật *an* không khớp vào giữa *toàn*.
-- **Phạm vi quét:** mọi bản dịch, gồm gợi ý ở panel AI Translation và bản dịch trong Editor, **kể cả chữ người dùng tự gõ**. Chỗ khớp được đánh dấu **ngay tại chỗ**, như phát hiện của Proofreader (FR86). Gợi ý ở panel AI Translation **chỉ được đánh dấu**; mọi thao tác thay chỉ áp lên bản dịch trong Editor. Câu đã cắt khỏi bản dịch (FR133) không bị quét.
+- **Phạm vi quét:** mọi bản dịch, gồm gợi ý ở panel AI Translation và bản dịch trong Editor, **kể cả chữ người dùng tự gõ**. Chỗ khớp được đánh dấu **ngay tại chỗ**, như phát hiện của Proofreader (FR86). Gợi ý ở panel AI Translation **chỉ được đánh dấu**; mọi thao tác thay chỉ áp lên bản dịch trong Editor. Câu đã cắt khỏi bản dịch (FR133) không bị quét. **Glossary thắng:** chỗ khớp nằm trọn trong bản dịch của một mục Glossary đã chốt mà câu nguồn chứa thuật ngữ đó thì không bị đánh dấu.
 - **Thay:** người dùng nhận **từng chỗ**, hoặc **thay cả Chương** qua một bước xác nhận liệt kê **mọi chỗ khớp kèm câu chứa nó**, tất cả được chọn sẵn; người dùng bỏ chọn chỗ sai rồi mới thay. Thay cả Chương chạy **một lượt trên văn bản trước khi thay**: chữ vừa thay vào không bị luật nào khớp lại trong cùng lượt.
 - **Kiểu hoa:** cụm thay thế **lấy kiểu hoa của chỗ bị thay**. Chữ đầu viết hoa thì chữ đầu cụm thay viết hoa (*Đảm bảo → Bảo đảm*); viết hoa toàn bộ thì cụm thay viết hoa toàn bộ (*ĐẢM BẢO → BẢO ĐẢM*); mọi kiểu khác thì cụm thay giữ đúng cách viết trong luật.
 - **Bỏ qua có ghi nhớ:** người dùng đánh dấu một chỗ là *"không phải lỗi"*, ví dụ lời thoại nhân vật cố ý nói *đảm bảo*; lần quét sau không báo lại chỗ đó trong cùng Tác phẩm, như FR84.
@@ -1312,8 +1312,8 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | ~~Q7~~ | ~~Mất tối đa bao nhiêu công việc khi app sập là chấp nhận được?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR18**, ngưỡng ≤ 5 giây |
 | ~~Q8~~ | ~~Phép dùng HVTĐTD có bao gồm phân phối lại không?~~ | — | ✅ **Đóng 2026-08-02** — chủ dự án chọn **mặc định cho phép** đóng gói vào bản phát hành, **gỡ khi tác giả yêu cầu**. Không hỏi lại trước khi đóng gói. Xem §8.3, §8.6 và R12 |
 | **Q9** | **Hiệu chỉnh ngưỡng bố cục màn hình hẹp (A11)** — bốn mốc do thiết kế đặt: **≥ 1100×820** giữ bố cục đã chọn đủ ba panel · **< 820 cao** gộp Tra cứu và Đề xuất AI thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn **lưới**, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ *(🔵 2026-08-14: diễn đạt theo panel thay vì vị trí; **bốn con số không đổi**. Phạm vi rộng ra — nay phải hiệu chỉnh cho **hai** bố cục Ⓑ-1 và Ⓑ-2)* | Chủ dự án | **Đo trên máy thật khi có bản chạy được** (Giai đoạn 2 trở đi, ngay khi Workspace dựng xong). **Không chặn tiến độ** — cùng lý do A6/A7/A8: một ngưỡng tạm vẫn nghiệm thu được và vẫn buộc người dựng phải đo, một tính từ thì không. Chỉ số được hiệu chỉnh; **thứ tự hy sinh panel là quyết định, không hiệu chỉnh**. Ngưỡng gốc ở `bmad-ux` EXPERIENCE.md và `mockups/narrow-layout.html` |
-| **Q10** | **Luật quy ước chữ Việt đụng bản dịch Glossary đã chốt** (FR159): một bản dịch đã chốt, ví dụ tên riêng, có thể chứa đúng cụm một luật cần tránh. Bộ quét có bỏ qua chữ do Glossary quy định không? Hiện người dùng chỉ có *"không phải lỗi"* từng chỗ | Chủ dự án | Chốt trước story đầu tiên của FR159 |
-| **Q11** | **Định dạng file xuất và nhập quy ước chữ Việt** (FR159): FR159 mới nói *"file văn bản mở"* | Chủ dự án | Chốt trước story xuất/nhập của FR159 |
+| ~~Q10~~ | ~~Luật quy ước chữ Việt đụng bản dịch Glossary đã chốt?~~ | — | ✅ **Đóng 2026-11-03** — Glossary thắng: chỗ khớp nằm trọn trong bản dịch của mục đã chốt mà câu nguồn chứa thuật ngữ thì không đánh dấu (FR159) |
+| ~~Q11~~ | ~~Định dạng file xuất và nhập quy ước chữ Việt?~~ | — | ✅ **Đóng 2026-11-03** — CSV/TSV hai cột như Glossary (FR159) |
 
 ### Ghi chú bàn giao
 

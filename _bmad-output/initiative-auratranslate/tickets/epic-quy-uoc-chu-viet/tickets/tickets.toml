@@ -4,13 +4,13 @@
 id = 1
 type = "story"
 title = "Một luật Global đánh dấu và thay một chỗ trong Chương đang mở"
-description = "Tracer bullet. Kho luật tầng Global, bộ khớp ở Rust (NFC chỉ để so, không phân biệt hoa thường, không gộp i/y, ranh giới âm tiết), lệnh quét bản dịch của Chương đang mở trả các khoảng khớp, dấu tại chỗ trong ô bản dịch theo khuôn vẽ của Proofreader, nhận thay một chỗ với kiểu hoa theo chỗ bị thay, đi đúng lượt ghi mà AD mới quy định. Luật không có cụm thay thế chỉ có dấu."
+description = "Tracer bullet. Kho luật tầng Global, bộ khớp ở Rust (NFC chỉ để so, không phân biệt hoa thường, không gộp i/y, ranh giới âm tiết), lệnh quét bản dịch của Chương đang mở trả các khoảng khớp, dấu tại chỗ trong ô bản dịch theo khuôn vẽ của Proofreader, nhận thay một chỗ với kiểu hoa theo chỗ bị thay, đi đúng lượt ghi mà AD mới quy định. Luật không có cụm thay thế chỉ có dấu. Chỗ khớp nằm trọn trong bản dịch của mục Glossary đã chốt mà câu nguồn chứa thuật ngữ thì không có dấu."
 verify = "Spec e2e trên WKWebView: thêm luật `đảm bảo → bảo đảm`, mở một Chương có câu `Đảm bảo an toàn.` thì dấu hiện, nhận thay thì ô thành `Bảo đảm an toàn.` và xuất xứ câu không đổi."
-covers = ["R1", "R3", "R4", "R5", "R7", "R10"]
+covers = ["R1", "R3", "R4", "R5", "R7", "R10", "R12"]
 after = []
 hitl = false
 risk = "high"
-unknown = "Chờ AD của Winston (lượt ghi, chỗ quét), UX của Sally (dấu quy ước) và Ice trả lời Q10 PRD (luật đụng bản dịch Glossary đã chốt)."
+unknown = "Chờ AD của Winston (lượt ghi, chỗ quét), và UX của Sally (dấu quy ước)."
 references = ["architecture-auratranslate/architecture-auratranslate.md §AD-47, §AD-53"]
 
 [[entry]]
@@ -63,13 +63,12 @@ risk = "medium"
 id = 6
 type = "story"
 title = "Xuất và nhập danh sách quy ước"
-description = "Xuất danh sách luật của một tầng ra file văn bản mở và nhập lại, theo khuôn xuất nhập của Glossary; định dạng theo câu trả lời Q11."
+description = "Xuất danh sách luật của một tầng ra file văn bản mở và nhập lại, CSV/TSV hai cột theo khuôn xuất nhập của Glossary, cột hai trống là \"không dùng\"."
 verify = "`cargo test` xanh với ca: xuất danh sách rồi nhập vào danh sách trống cho lại đúng các luật, kể cả luật không có cụm thay thế."
 covers = ["R9", "R11"]
 after = [3]
 hitl = false
 risk = "low"
-unknown = "Chờ Ice trả lời Q11 PRD: định dạng file xuất và nhập."
 
 [[entry]]
 id = 7

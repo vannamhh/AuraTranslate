@@ -30,9 +30,10 @@ Người dịch thấy mọi chỗ vi phạm quy ước của mình ngay trong E
 - R6 (FR159): thay cả Chương qua danh sách mọi chỗ khớp kèm câu chứa nó, chọn sẵn, bỏ chọn được; chạy một lượt trên văn bản trước khi thay; chỗ bị bỏ chọn giữ nguyên từng ký tự.
 - R7 (FR159, FR117, FR56, FR101): nhận thay giữ xuất xứ của câu; câu đã xác nhận giữ xác nhận, cặp TM mang chữ mới, lịch sử phiên bản ghi lại.
 - R8 (FR159, FR84): đánh dấu một chỗ là "không phải lỗi" thì chỗ đó không hiện lại trong cùng Tác phẩm, kể cả sau khi đóng và mở lại.
-- R9 (FR159, NFR9): xuất và nhập danh sách luật dưới dạng file văn bản mở; xuất rồi nhập vào danh sách trống cho lại đúng các luật đó.
+- R9 (FR159, NFR9, FR49): xuất và nhập danh sách luật dưới dạng CSV/TSV hai cột, cột hai trống là "không dùng"; xuất rồi nhập vào danh sách trống cho lại đúng các luật đó.
 - R10 (FR159, FR85): không đường nào đổi bản dịch khi người dùng chưa nhận.
 - R11 (NFR17, NFR20): mọi thao tác của epic làm được bằng bàn phím và bằng chuột.
+- R12 (FR159, FR46): chỗ khớp nằm trọn trong bản dịch của một mục Glossary đã chốt mà câu nguồn chứa thuật ngữ đó thì không bị đánh dấu.
 
 ## Constraints
 
@@ -73,4 +74,4 @@ Người dịch thấy mọi chỗ vi phạm quy ước của mình ngay trong E
 - Decision: 2026-11-03, Sofia đề xuất, Ice duyệt — Story 16.1 là tracer bullet; 16.2 thay cả Chương đi ngay sau vì là phần ghi hàng loạt và rủi ro ghi hỏng chữ.
 - Unknown: AD của Winston cho bộ quét — hàng AD-47 ③, giữ xác nhận và ghi lại TM khác AD-53 ra sao, loại phát hiện mới hay thực thể riêng, quét ở đâu và ngân sách hiệu năng khi gõ; chặn 16.1, 16.2, 16.4.
 - Unknown: UX của Sally — dấu quy ước phân biệt với dấu Proofreader, màn xác nhận thay cả Chương; chặn 16.1, 16.2.
-- Open question: Q10 PRD (luật đụng bản dịch Glossary đã chốt) chặn 16.1; Q11 PRD (định dạng file) chặn 16.6. Chờ Ice.
+- Decision: 2026-11-03, Ice — Q10 PRD: Glossary thắng (R12). Q11 PRD: CSV/TSV hai cột như Glossary (R9).
