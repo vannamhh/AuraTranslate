@@ -42,6 +42,7 @@ Người dịch thấy mọi chỗ vi phạm quy ước của mình ngay trong E
 - AD-1: luật khớp và luật thay nằm ở Rust; webview chỉ vẽ dấu.
 - AD-13 và FR77: bộ quét không phụ thuộc `core::ai` và chạy khi không cấu hình AI.
 - AD-49: thao tác rời mang đường lui của chính nó.
+- AD-67: thực thể, nơi quét, lượt ghi, đường lui, ngân sách hiệu năng và chín ca test canh (a)–(i) của epic.
 
 ## Done when
 
@@ -63,7 +64,7 @@ Người dịch thấy mọi chỗ vi phạm quy ước của mình ngay trong E
 
 - parent — _bmad-output/initiative-auratranslate/initiative-auratranslate.md, section Requirements
 - prd — _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md, §6.4 Quy ước chữ Việt, §13 Q10 và Q11
-- architecture — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, §AD-47, §AD-53
+- architecture — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, §AD-47, §AD-53, §AD-67
 - review — _bmad-output/initiative-auratranslate/prd-auratranslate/review-rubric-fr159.md
 
 ## Notes
@@ -72,6 +73,6 @@ Người dịch thấy mọi chỗ vi phạm quy ước của mình ngay trong E
 - Decision: 2026-11-03, Ice — một epic mới thay vì gộp vào Epic 9: FR159 thuộc C4 và phải chạy không cần AI, Epic 9 là C7 và đang sắp đóng.
 - Decision: 2026-11-03, Ice — ghi epic và entry ngay, entry bị chặn mang `unknown`, thay vì chờ AD và UX như Epic 15; cắt lại nếu AD đổi hình.
 - Decision: 2026-11-03, Sofia đề xuất, Ice duyệt — Story 16.1 là tracer bullet; 16.2 thay cả Chương đi ngay sau vì là phần ghi hàng loạt và rủi ro ghi hỏng chữ.
-- Unknown: AD của Winston cho bộ quét — hàng AD-47 ③, giữ xác nhận và ghi lại TM khác AD-53 ra sao, loại phát hiện mới hay thực thể riêng, quét ở đâu và ngân sách hiệu năng khi gõ; chặn 16.1, 16.2, 16.4.
+- Decision: 2026-11-03, Ice duyệt AD-67 (`5f893cde`): thực thể riêng `core/convention/` ngoài `core::ai`, chỉ quét văn bản đã lưu (mở Chương ngoài main thread, sau mỗi flush, gợi ý AI đã trọn), lượt ghi `write_convention_target` giữ chữ ký kèm phiên bản và cặp TM, thay cả Chương là một giao dịch, ngân sách ở AD-67 mục 11. Dấu của câu đang gõ hiện lại sau lượt flush kế tiếp, không trong lúc gõ.
 - Unknown: UX của Sally — dấu quy ước phân biệt với dấu Proofreader, màn xác nhận thay cả Chương; chặn 16.1, 16.2.
 - Decision: 2026-11-03, Ice — Q10 PRD: Glossary thắng (R12). Q11 PRD: CSV/TSV hai cột như Glossary (R9).

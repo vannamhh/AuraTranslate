@@ -10,8 +10,8 @@ covers = ["R1", "R3", "R4", "R5", "R7", "R10", "R12"]
 after = []
 hitl = false
 risk = "high"
-unknown = "Chờ AD của Winston (lượt ghi, chỗ quét), và UX của Sally (dấu quy ước)."
-references = ["architecture-auratranslate/architecture-auratranslate.md §AD-47, §AD-53"]
+unknown = "Chờ UX của Sally: dấu quy ước phân biệt với dấu Proofreader."
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-67 mục 1–8, 11, 12 (a)(b)(h)", "architecture-auratranslate/architecture-auratranslate.md §AD-47, §AD-53"]
 
 [[entry]]
 id = 2
@@ -23,7 +23,8 @@ covers = ["R6", "R7", "R10", "R11"]
 after = [1]
 hitl = false
 risk = "high"
-unknown = "Chờ AD của Winston (giữ xác nhận và ghi lại TM khác AD-53 ra sao) và UX của Sally (màn xác nhận thay cả Chương)."
+unknown = "Chờ UX của Sally: màn xác nhận thay cả Chương."
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-67 mục 7, 8, 12 (c)(d)(e)"]
 
 [[entry]]
 id = 3
@@ -39,14 +40,14 @@ risk = "medium"
 [[entry]]
 id = 4
 type = "story"
-title = "Quét chữ đang gõ và gợi ý ở panel AI Translation"
-description = "Dấu cập nhật khi người dùng gõ trong ô bản dịch, trong ngân sách hiệu năng của AD; gợi ý ở panel AI Translation được đánh dấu nhưng không có thao tác thay, đưa gợi ý sang Editor thì dấu theo sang."
-verify = "Spec e2e trên WKWebView: gõ `đảm bảo` vào ô trống thì dấu hiện trước lượt flush; gợi ý chứa `đảm bảo` ở panel AI Translation có dấu và không có nút thay."
+title = "Quét lại sau flush và quét gợi ý ở panel AI Translation"
+description = "Sau mỗi lượt flush thành công, webview xin quét lại đúng các câu vừa flush và Rust đọc văn bản từ đĩa; dấu của câu đang gõ chết khi gõ và hiện lại sau lượt flush kế tiếp. Gợi ý ở panel AI Translation được quét khi đã trọn, chỉ đánh dấu, không có thao tác thay. 0 lời gọi IPC mới trên đường gõ, trong ngân sách AD-67 mục 11."
+verify = "Spec e2e trên WKWebView: gõ `đảm bảo` vào ô trống, ngừng gõ thì dấu hiện sau lượt flush và không có lời gọi IPC nào trong lúc gõ; gợi ý chứa `đảm bảo` ở panel AI Translation có dấu và không có nút thay."
 covers = ["R3", "R4", "R11"]
 after = [1]
 hitl = false
 risk = "high"
-unknown = "Chờ AD của Winston: ngân sách hiệu năng của lượt quét khi gõ và chỗ quét chạy."
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-67 mục 4, 11"]
 
 [[entry]]
 id = 5
