@@ -4,7 +4,7 @@ skill: bmad-prd
 title: "PRD: AuraTranslate"
 status: final
 created: 2026-08-02
-updated: 2026-11-01
+updated: 2026-11-03
 ---
 
 # PRD: AuraTranslate
@@ -214,7 +214,7 @@ Mọi tài liệu downstream (`bmad-ux`, `bmad-architecture`, `bmad-create-epics
 | **Glossary** | Bộ thuật ngữ do người dùng chốt, hai tầng Global và Tác phẩm. Cung cấp dữ liệu cho Smart RAG Injector | ~~từ điển cá nhân~~, ~~name database~~ |
 | **Translation Memory** *(TM)* | Kho cặp *(segment nguồn → segment đích)* tích luỹ tự động khi người dùng xác nhận segment | ~~bộ nhớ dịch~~ |
 | **Concordance** | Tra ngược trong TM: *"cụm từ này trước đây tôi dịch thế nào?"* | — |
-| **Smart RAG Injector** | Cơ chế chèn động Glossary + segment TM tương tự vào prompt trước mỗi lần gọi AI | — |
+| **Smart RAG Injector** | Cơ chế chèn động Glossary (kèm ghi chú) + segment TM tương tự + ba câu đứng trước vào prompt trước mỗi lần gọi AI (FR70) | — |
 | **Scope** | Phân cấp cấu hình hai tầng: **Global** (toàn ứng dụng) và **Tác phẩm** (ghi đè Global) | ~~Project Scope~~ *(bí danh trong PRD v8.0)* |
 | **`.atproj`** | File/thư mục dự án trên đĩa. **Nguồn sự thật** của một Tác phẩm, tự chứa mọi dữ liệu của nó | — |
 | **Chỉ mục Library** | Cơ sở dữ liệu tập trung phục vụ tìm kiếm xuyên Tác phẩm. **Dẫn xuất, không phải nguồn sự thật** — dựng lại được hoàn toàn từ `.atproj` | ~~database~~ |
@@ -588,6 +588,8 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 > **Vì sao cần trường xuất xứ:** nó cho phép người dùng đánh giá độ tin cậy của một mục, và cho phép rà soát lại toàn bộ những gì máy đã đề xuất nếu về sau phát hiện cơ chế đề xuất có lỗi hệ thống.
 
+> 🔵 2026-11-03: ghi chú của mục đã chốt được gửi cho AI cùng thuật ngữ (FR70a, AD-66). **Ô nhập ghi chú phải nói rõ điều đó ngay tại chỗ nhập**, để người dùng không viết ghi chú riêng tư mà không biết nó sẽ đi tới nhà cung cấp AI.
+
 #### Thao tác
 
 **FR48.** Thêm nhanh vào Glossary từ **bất kỳ panel nào**: bôi đen cụm từ → thêm thuật ngữ → chọn tầng. Không phải rời màn hình đang làm việc.
@@ -706,7 +708,13 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 #### Smart RAG Injector
 
-**FR70.** Trước mỗi lần gọi AI, hệ thống quét câu nguồn và **chèn động vào prompt**: (a) các thuật ngữ Glossary xuất hiện trong câu, kèm bản dịch đã chốt; (b) các segment tương tự tìm được trong TM.
+**FR70.** Trước mỗi lần gọi AI, hệ thống quét câu nguồn và **chèn động vào prompt**: (a) các thuật ngữ Glossary xuất hiện trong câu, kèm bản dịch đã chốt **và ghi chú của mục**; (b) các segment tương tự tìm được trong TM; (c) khi dịch, **ba câu đứng ngay trước** trong cùng Chương, làm ngữ cảnh chỉ đọc, kèm bản dịch đã lưu nếu câu đó đã được dịch.
+
+> 🔵 2026-11-03 qua `correct-course` (AD-65, AD-66, Ice ký): trước ngày này FR70 chỉ có (a) không kèm ghi chú, và (b).
+
+> **Câu kề (c) áp dụng cho mọi đường dịch.** Dịch một câu, dịch lô (vùng chọn hay cả Chương) và thử lại đều mang câu kề, nên câu được thử lại có cùng ngữ cảnh như lần dịch đầu. Câu kề không lấy từ Chương khác, và câu đã cắt bỏ khỏi bản dịch không bao giờ được gửi, kể cả làm ngữ cảnh. Câu kề chỉ để mô hình đọc: chữ mô hình chép lại từ câu kề không bao giờ thành kết quả. Không có biến prompt hay tuỳ chọn nào tắt phần này.
+
+> **Ghi chú của mục Glossary (a)** là chỗ giữ xưng hô, giới tính và cách gọi của nhân vật nhất quán giữa các Chương, vì câu kề không vượt ranh Chương. Ghi chú được gửi trọn, không giới hạn độ dài; người dùng thấy chi phí qua FR76. Người dùng biết ghi chú được gửi đi nhờ FR47.
 
 > **Chỉ mục đã chốt được chèn.** Mục còn ở trạng thái *chờ chốt bản dịch* (FR114) không tham gia ép AI — chèn một trường trống vào prompt là vô nghĩa, và tệ hơn là gợi ý cho mô hình rằng thuật ngữ đó không có bản dịch quy ước.
 
