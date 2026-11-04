@@ -8,7 +8,6 @@ import { topmostStrip } from './panels/inlineStripPriority'
 import { editorCaretSegmentId } from './panels/editorPanelState'
 import ProofreadDecisionRatio from './ProofreadDecisionRatio.vue'
 import { commandTitle, shortcutRows } from './config/shortcutsState'
-import { proofreadScopeCounts } from './proofreadScope'
 import type { ProofreadFindingKind } from './config/proofread'
 import {
   proofreadActionError,
@@ -207,45 +206,6 @@ const filteredText = computed<string | null>(() =>
       </div>
     </header>
 
-    <div class="pfs-scopes" role="group" :aria-label="t('proofread.scope.title')">
-      <button
-        type="button"
-        class="pfs-btn pfs-scope ui-btn"
-        data-proofread-strip-scope="segment"
-        :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.segment === 0"
-        @click="dispatch('ai.proofread.run')"
-      >
-        {{ t('proofread.scope.segment') }}
-        <span class="pfs-scope-count">{{
-          t('proofread.scope.count', { sentence_count: String(proofreadScopeCounts.segment) })
-        }}</span>
-      </button>
-      <button
-        type="button"
-        class="pfs-btn pfs-scope ui-btn"
-        data-proofread-strip-scope="selection"
-        :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.selection === 0"
-        @click="dispatch('ai.proofread.run_selection')"
-      >
-        {{ t('proofread.scope.selection') }}
-        <span class="pfs-scope-count">{{
-          t('proofread.scope.count', { sentence_count: String(proofreadScopeCounts.selection) })
-        }}</span>
-      </button>
-      <button
-        type="button"
-        class="pfs-btn pfs-scope ui-btn"
-        data-proofread-strip-scope="chapter"
-        :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.chapter === 0"
-        @click="dispatch('ai.proofread.run_chapter')"
-      >
-        {{ t('proofread.scope.chapter') }}
-        <span class="pfs-scope-count">{{
-          t('proofread.scope.count', { sentence_count: String(proofreadScopeCounts.chapter) })
-        }}</span>
-      </button>
-    </div>
-
     <div v-if="card !== null" class="pfs-card">
       <p class="pfs-status pfs-card-head">
         <!-- aura-allow-text: result of t() computed in the script. -->
@@ -259,7 +219,7 @@ const filteredText = computed<string | null>(() =>
       <p class="pfs-status">{{ card.explanation }}</p>
       <!-- aura-allow-text: result of t() computed in the script. -->
       <p class="pfs-status pfs-suggestion">{{ card.suggestion }}</p>
-      <div class="pfs-actions">
+      <div class="pfs-actions" @mousedown.prevent>
         <button type="button" class="pfs-btn ui-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.accept')">
           {{ t('proofread.strip.accept') }}
         </button>
@@ -279,7 +239,7 @@ const filteredText = computed<string | null>(() =>
         </template>
       </div>
     </div>
-    <div v-if="isJob && proofreadRevertible" class="pfs-actions">
+    <div v-if="isJob && proofreadRevertible" class="pfs-actions" @mousedown.prevent>
       <span class="pfs-status">{{ t('proofread.strip.reverted_hint') }}</span>
       <button type="button" class="pfs-btn ui-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.revert')">
         {{ t('command.ai.proofread.revert') }}
@@ -371,18 +331,6 @@ const filteredText = computed<string | null>(() =>
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin-left: auto;
-}
-
-.pfs-scopes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 1);
-}
-
-.pfs-scope-count {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
 .pfs-status {

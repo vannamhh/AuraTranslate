@@ -196,16 +196,22 @@ describe('Esc hides the strip for the caret sentence', () => {
 })
 
 describe('scope buttons and the ignored-spots link', () => {
-  it('each scope button dispatches its own scan command with the sentence count', async () => {
+  it('leaves choosing a scan scope to the grid toolbar', async () => {
     const wrapper = await mountWithScan()
-    const cells = new Map(wrapper.findAll('[data-proofread-strip-scope]').map((b) => [b.attributes('data-proofread-strip-scope'), b]))
-    expect(cells.get('segment')?.text()).toContain('1 câu')
-    expect(cells.get('chapter')?.text()).toContain('2 câu')
-    expect(cells.get('selection')?.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-proofread-strip-scope]').exists()).toBe(false)
+    expect(wrapper.find('[role="group"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
 
-    await cells.get('segment')?.trigger('click')
-    await cells.get('chapter')?.trigger('click')
-    expect(dispatchMock.mock.calls.map((c) => c[0])).toEqual(['ai.proofread.run', 'ai.proofread.run_chapter'])
+  it('every action button keeps focus in the cell on mouse down, so WebKit does not drop the strip before the click', async () => {
+    const wrapper = await mountWithScan()
+    const buttons = wrapper.findAll('.pfs-actions button')
+    expect(buttons.length).toBeGreaterThan(0)
+    for (const button of buttons) {
+      const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      button.element.dispatchEvent(press)
+      expect(press.defaultPrevented, button.text()).toBe(true)
+    }
     wrapper.unmount()
   })
 
