@@ -570,7 +570,7 @@ const parsed = files.map((file) => {
 })
 
 const allDecls = parsed.flatMap((p) =>
-  p.blocks.flatMap((b) => b.decls.map((d) => ({ ...d, file: p.file, text: p.text }))),
+  p.blocks.flatMap((b) => b.decls.map((d) => ({ ...d, prelude: b.prelude, file: p.file, text: p.text }))),
 )
 /** @param {DeclWithFile} d */
 const where = (d) => `${rel(d.file)}:${lineOf(d.text, d.index)}`
@@ -892,6 +892,17 @@ const ALLOWED_COLOR_KEYWORDS = new Set([
 ])
 
 /**
+ * CSS system colours allowed only where a rule repaints native selection through
+ * `::highlight()`: the OS selection colour is the point, not a design colour.
+ */
+const SELECTION_SYSTEM_COLORS = new Map([
+  ['highlight', '`::highlight()` vẽ lại vùng chọn của kiểu Song song, nên phải cùng màu vùng chọn của hệ điều hành'],
+])
+/** @param {{ prelude?: string }} d @param {string} word */
+const isSelectionSystemColor = (d, word) =>
+  SELECTION_SYSTEM_COLORS.has(word) && /::highlight\(/.test(d.prelude ?? '')
+
+/**
  * `!important` là chỉ thị ưu tiên, không phải một phần của giá trị.
  * @param {string} v
  * @returns {string}
@@ -938,7 +949,7 @@ for (const d of componentDecls) {
   if (PURE_COLOR_PROPS.has(d.prop) || COMPOSITE_COLOR_PROPS.has(d.prop)) {
     const outsideVar = value.replace(/var\([^)]*\)/g, ' ')
     for (const word of outsideVar.toLowerCase().match(/[a-z-]+/g) ?? []) {
-      if (NAMED_COLORS.has(word) && !ALLOWED_COLOR_KEYWORDS.has(word)) {
+      if (NAMED_COLORS.has(word) && !ALLOWED_COLOR_KEYWORDS.has(word) && !isSelectionSystemColor(d, word)) {
         fail(`${where(d)} — tên màu CSS viết thẳng: \`${d.prop}: ${d.value}\` (\`${word}\`)`)
         bLiteral += 1
       }
@@ -952,7 +963,7 @@ for (const d of componentDecls) {
     const ok =
       parts.length > 0 &&
       parts.length <= 4 &&
-      parts.every((p) => COLOR_VAR_RE.test(p) || ALLOWED_COLOR_KEYWORDS.has(p))
+      parts.every((p) => COLOR_VAR_RE.test(p) || ALLOWED_COLOR_KEYWORDS.has(p) || isSelectionSystemColor(d, p))
     if (!ok) {
       fail(`${where(d)} — \`${d.prop}\` phải là \`var(--color-…)\` hoặc từ khoá cho phép, đang là \`${d.value}\``)
       bAllowlist += 1

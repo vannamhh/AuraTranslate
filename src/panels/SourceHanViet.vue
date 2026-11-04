@@ -55,6 +55,7 @@ import { t } from '../i18n'
 // 🔵 `useSelectionSurface` GỠ khỏi tệp này 2026-08-15 (code review) cùng nhánh `'own'` chết —
 // bề mặt Hán Việt nhượng lượt đăng ký cho CỘT và chỉ ghi tên vào sổ uỷ quyền. Xem cuối tệp.
 import { registerHanVietSurface } from './hanVietSurfaces'
+import { parallelSelectionMirrorAvailable, registerParallelSelectionHost } from './hanVietParallelSelection'
 import {
   canUseParallelView,
   hanVietByChar,
@@ -475,6 +476,23 @@ const surfaceNoticeKey = computed<string | null>(() => {
 const switchEl = useTemplateRef<HTMLElement>('switchEl')
 const parallelEl = useTemplateRef<HTMLElement>('parallelEl')
 
+// WebKit fills the selection gap up from the base of the line above, over its `<rt>` row;
+// a CSS highlight paints only the selected glyph boxes.
+const mirrorsParallelSelection = parallelSelectionMirrorAvailable()
+let releaseParallelSelection: (() => void) | null = null
+watch(
+  parallelEl,
+  (el) => {
+    releaseParallelSelection?.()
+    releaseParallelSelection = el === null ? null : registerParallelSelectionHost(el)
+  },
+  { immediate: true, flush: 'post' },
+)
+onBeforeUnmount(() => {
+  releaseParallelSelection?.()
+  releaseParallelSelection = null
+})
+
 /**
  * 🔴 **BỀ MẶT ĐĂNG KÝ — ĐÚNG đoạn văn bản đang hiện, KHÔNG bọc `.hv-surface`** (lượt review
  * 2026-08-07, AC11).
@@ -888,7 +906,7 @@ onBeforeUnmount(() => {
           >{{ (j === 0 ? '' : WORD_JOINER) + (reading ?? READING_PLACEHOLDER) }}</span
         ></span></template
     ></p>
-    <p v-else ref="parallelEl" class="hv-parallel" tabindex="0"
+    <p v-else ref="parallelEl" class="hv-parallel" :class="{ 'hv-mirrored-selection': mirrorsParallelSelection }" tabindex="0"
       ><template
         v-for="(seg, i) in segments"
         :key="i"
@@ -1036,6 +1054,15 @@ onBeforeUnmount(() => {
      spacing comes from the `<rt>` padding below. */
   line-height: normal;
   color: var(--color-on-surface);
+}
+
+.hv-mirrored-selection::selection,
+.hv-mirrored-selection *::selection {
+  background-color: transparent;
+}
+
+.hv-parallel ::highlight(hv-parallel-selection) {
+  background-color: Highlight;
 }
 
 /* Chromium seats `<rt>` closer to the base and reserves less below it than WebKit does. */

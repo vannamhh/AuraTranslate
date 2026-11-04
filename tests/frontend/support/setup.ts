@@ -86,3 +86,13 @@ if (typeof document.execCommand !== 'function') {
     value: () => false,
   })
 }
+
+/** `Highlight` / `CSS.highlights`: happy-dom lacks the CSS Custom Highlight API; read by `hanVietParallelSelection.ts`. */
+if (typeof globalThis.Highlight !== 'function') {
+  Object.defineProperty(globalThis, 'Highlight', { configurable: true, value: class extends Set<AbstractRange> {} })
+}
+if (!('highlights' in CSS)) {
+  // happy-dom hands out a fresh `CSS` object per read, so a property set on one read is lost.
+  const css: unknown = Object.create(CSS, { highlights: { value: new Map<string, Highlight>() } })
+  Object.defineProperty(globalThis, 'CSS', { configurable: true, value: css })
+}
