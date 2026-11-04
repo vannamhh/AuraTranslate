@@ -29,6 +29,7 @@ const SHAPE_EXCEPTIONS: Record<string, string> = {
 const NOT_A_CONTROL: Record<string, string> = {
   'src/PromptLibraryOverlay.vue .pl-row': 'selectable two-line list row with a left-edge mark (mockup prompt-library.html .it); DESIGN §Điều khiển has no row control and ui-menu-item is a fixed 28px nowrap line',
   'src/ProofreadMemoryOverlay.vue .pfmem-row': 'selectable wrapping list row with a left-edge mark; ui-menu-item is a fixed 28px nowrap line and would clip the wrapped text',
+  'src/modes/ReadingMode.vue .toc-row': 'selectable Table-of-contents row whose current mark sits on its li; a long Chapter title wraps, precedent pfmem-row, ui-menu-item is a fixed 28px nowrap line and would clip it',
   'src/ProofreadScopeOverlay.vue .pfscope-cell': 'two-line scope card (mockup proofreader.html .sc); DESIGN §Điều khiển has no card control',
   'src/ImportPreviewOverlay.vue .ip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',
   'src/BilingualImportPreviewOverlay.vue .bip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',

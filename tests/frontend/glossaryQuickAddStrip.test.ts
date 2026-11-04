@@ -654,7 +654,7 @@ describe('ô ghi chú của dải "Thêm thuật ngữ" nói rõ ghi chú đư�
     expect(noteInput.attributes('aria-label')).toBe('Ghi chú')
     const describedBy = noteInput.attributes('aria-describedby')
     expect(describedBy).toBeTruthy()
-    expect(document.getElementById(describedBy as string)?.textContent?.trim()).toBe(
+    expect(document.getElementById(describedBy as string)?.textContent.trim()).toBe(
       'Ghi chú của mục đã chốt được gửi cho AI cùng thuật ngữ mỗi lần dịch.',
     )
     wrapper.unmount()
