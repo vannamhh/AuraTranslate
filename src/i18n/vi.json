@@ -385,7 +385,6 @@
   "err.chapter.at_last": "Chương đang chọn đã ở cuối danh sách — không có Chương nào phía dưới nó.",
   "err.chapter.split_leaves_empty": "Không tách được tại câu này — nó là câu đầu Chương, nên nửa trên sẽ trống.",
   "err.chapter.merge_not_contiguous": "Chỉ gộp được các Chương liền nhau, từ hai Chương trở lên.",
-  "status.saved_seconds_ago": "Đã lưu {seconds} giây trước",
   "status.position": "{chapter} · câu {n}/{total}",
   "status.position_sentence_only": "Câu {n}/{total}",
   "status.confirmed_counter": "{confirmed}/{total} đã xác nhận",

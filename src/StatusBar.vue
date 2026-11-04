@@ -68,7 +68,6 @@ import {
   editorLastCaretSegmentId,
   editorNavNotice,
   editorTmPrefillHiddenCount,
-  editorLastSavedAt,
   editorRegroupError,
   editorRegroupNotice,
   editorSegments,
@@ -81,29 +80,6 @@ import {
 // — hai component ANH EM với tệp này, nối qua state module-level cùng khuôn bốn câu kia.
 import { hoveredGlossaryTerm } from './panels/glossaryTermHoverState'
 import { glossaryMarksError } from './panels/glossaryMarksState'
-
-/**
- * Đồng hồ của thanh này — **một `setInterval` 1 giây DUY NHẤT**, và nó chỉ chạy khi có gì để đếm.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * Vì sao một bộ đếm chứ không *"chỉ cập nhật khi có flush"* — Quyết định #5
- * ─────────────────────────────────────────────────────────────────────────────
- * Cập nhật-khi-có-flush làm câu đứng yên ở *"Đã lưu 0 giây trước"* trong suốt 5 giây giữa hai
- * lượt flush — tức nó **nói dối theo hướng an tâm**, đúng thứ UX-DR30 tồn tại để tránh.
- *
- * Cái giá đã cân bằng số: một lượt gán `ref` mỗi giây chạm **một** text node — khác hẳn hạng
- * với lượt `v-for` trên 9.850 `<span>` mà `deferred-work.md §*Deferred from: A4 — cỡ chữ vỏ giao diện, và một đính chính về độ ổn định của bộ e2e (2026-08-12)*` đã ghi cho Panel Editor.
- */
-const now = ref(Date.now())
-let ticker: ReturnType<typeof setInterval> | null = null
-
-onMounted(() => {
-  ticker = setInterval(() => {
-    // ⚠️ Chỉ đánh nhịp khi ĐÃ có một lượt flush. Trước đó thanh không hiển thị gì, nên một
-    // lượt gán mỗi giây là một lượt render không ai đọc.
-    if (editorLastSavedAt.value !== null) now.value = Date.now()
-  }, 1000)
-})
 
 /**
  * 🔴 **Story 3.4b (rà ba lớp, P7) — lỗi tải dấu Glossary có VÒNG ĐỜI HỮU HẠN, không đứng mãi.**
@@ -150,13 +126,6 @@ onBeforeUnmount(() => {
   if (glossaryMarksErrorTimer !== null) clearTimeout(glossaryMarksErrorTimer)
 })
 
-onBeforeUnmount(() => {
-  // 🔴 Phải nhả. Một `setInterval` sống sót lượt tháo là một lượt gán `ref` mỗi giây vào một
-  // component không ai còn render — cùng luật `GridPanel.vue::onBeforeUnmount` đã giữ cho
-  // `ResizeObserver` và bộ hẹn đo vạch.
-  if (ticker !== null) clearInterval(ticker)
-  ticker = null
-})
 
 /**
  * Permanent information of the status bar. It sits outside the `role="status"` region so a
@@ -270,25 +239,6 @@ onMounted(() => {
 
 watch(editorChapterId, () => {
   void refreshWorkspaceCounts()
-})
-
-/**
- * *"N giây trước"* — **tính và định dạng ở frontend**, Rust không trả về một chữ nào (AC10).
- *
- * AD-21 (`ARCHITECTURE-SPINE.md`): Rust không bao giờ trả văn bản hiển thị.
- * §Consistency Conventions: **định dạng số và ngày giờ chỉ ở frontend**, và `params` của
- * `IpcError` là `chuỗi → chuỗi`. ⇒ mốc flush cuối là một `number` trong state TS
- * (`editorLastSavedAt`), `N` là một phép trừ ở đây, và câu là một khoá `vi.json` có placeholder.
- * 🔴 **Cấm** một command IPC trả `"Đã lưu 3 giây trước"`.
- *
- * ⚠️ `Math.max(0, …)`: `Date.now()` **không đơn điệu tăng** — một lượt đồng bộ NTP hay người
- * dùng đổi giờ hệ thống lùi lại cho ra một hiệu **âm**, và *"Đã lưu −4 giây trước"* là một câu
- * không ai đọc được. Kẹp ở 0 nói đúng thứ duy nhất còn đúng: *vừa mới xong*.
- */
-const secondsSinceSave = computed<number | null>(() => {
-  const at = editorLastSavedAt.value
-  if (at === null) return null
-  return Math.max(0, Math.floor((now.value - at) / 1000))
 })
 
 /**
@@ -684,10 +634,6 @@ const libraryErrorText = computed<string | null>(() => {
         I/O Matrix: "Thanh hiện bản dịch của thuật ngữ, xướng qua role=status".
       -->
       <span v-else-if="glossaryHoverText !== null" class="notice">{{ glossaryHoverText }}</span>
-      <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
-      <span v-else-if="secondsSinceSave !== null" class="saved" data-status-saved>{{
-        t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
-      }}</span>
       </div>
       <div class="status-end" data-status-end>
         <template v-if="!lookupHasRetreated">
@@ -843,13 +789,6 @@ const libraryErrorText = computed<string | null>(() => {
 
 .lookup-line {
   max-width: round(up, 40ch, 7px);
-}
-
-.saved {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
 /*

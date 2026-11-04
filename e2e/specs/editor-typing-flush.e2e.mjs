@@ -208,14 +208,6 @@ describe('Story 2.3 — vùng gõ MỘT câu, và lượt flush chạm đĩa tro
       before.segments.map((s) => s.source_text),
     )
     await expect(after.segments.map((s) => s.ord)).toEqual(before.segments.map((s) => s.ord))
-
-    // ── ⑤ Thanh trạng thái nói *"Đã lưu N giây trước"* — AC7 ─────────────────────────
-    // Reads `[data-status-saved]`, not `footer.status` — the footer also holds the Lookup
-    // button now, and their combined `textContent` runs together with no separating space.
-    const status = await browser.execute(
-      () => document.querySelector('[data-status-saved]')?.textContent?.trim() ?? '',
-    )
-    await expect(status).toMatch(/^Đã lưu \d+ giây trước$/)
   })
 
   /*

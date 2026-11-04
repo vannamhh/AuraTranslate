@@ -205,8 +205,7 @@ describe('Story 2.9 · AC4 — dòng báo hệ quả của lượt gộp', () =>
     wrapper.unmount()
   })
 
-  it('⑥ câu báo gộp THAY chỗ mốc "Đã lưu", không đứng cạnh nó', async () => {
-    // Thanh cao 34px chỉ chứa **một** mệnh đề — khuôn `v-if`/`v-else-if` đã có từ 2026-08-15.
+  it('⑥ câu báo gộp hiện trên thanh sau một lượt lưu', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-17T12:00:00.000Z'))
     const { state, StatusBar } = await tuoi()
@@ -215,7 +214,6 @@ describe('Story 2.9 · AC4 — dòng báo hệ quả của lượt gộp', () =>
     state.noteEditorEdit(11, 'một câu vừa gõ')
     await state.flushEditorNow()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.saved').exists()).toBe(true)
 
     state.setEditorCaret(12)
     ketQuaGop.value = {
@@ -226,7 +224,6 @@ describe('Story 2.9 · AC4 — dòng báo hệ quả của lượt gộp', () =>
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('.notice').exists()).toBe(true)
-    expect(wrapper.find('.saved').exists()).toBe(false)
     wrapper.unmount()
   })
 })

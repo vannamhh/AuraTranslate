@@ -276,13 +276,10 @@ describe('Story 3.4b — IPC trả lỗi: KHÔNG đánh dấu gì, KHÔNG coi nh
     const bar = mount(StatusBar)
     daMount.push(bar)
 
-    // Một lượt LƯU thật trước — để "Đã lưu N giây trước" có nội dung THẬT để TRỞ LẠI sau khi
-    // câu lỗi tắt. Không có bước này, vế ② không đối chứng được gì (không có gì để "trở lại").
     editorState.setEditorCaret(11)
     editorState.noteEditorEdit(11, 'một câu đã lưu trước khi lỗi xảy ra')
     await editorState.flushEditorNow()
     await bar.vm.$nextTick()
-    expect(bar.find('.saved').exists()).toBe(true)
     expect(bar.find('.notice').exists()).toBe(false)
 
     try {
@@ -297,9 +294,8 @@ describe('Story 3.4b — IPC trả lỗi: KHÔNG đánh dấu gì, KHÔNG coi nh
       await glossaryMarksState.refreshGlossaryMarks(FIXTURE_CHAPTER_ID, FIXTURE_SEGMENTS, 'zh')
       await bar.vm.$nextTick()
 
-      // ① Câu lỗi hiện, che "Đã lưu…".
+      // ① Câu lỗi hiện.
       expect(bar.find('.notice').exists()).toBe(true)
-      expect(bar.find('.saved').exists()).toBe(false)
 
       // Chưa hết hạn ⇒ câu lỗi vẫn còn — đối chứng rằng phép đo dưới đây THẬT SỰ phụ thuộc
       // thời gian, không phải một lượt xoá tức thời trùng hợp.
@@ -307,11 +303,10 @@ describe('Story 3.4b — IPC trả lỗi: KHÔNG đánh dấu gì, KHÔNG coi nh
       await bar.vm.$nextTick()
       expect(bar.find('.notice').exists()).toBe(true)
 
-      // ② Qua mốc ⇒ câu lỗi TỰ TẮT, "Đã lưu N giây trước" TRỞ LẠI chỗ của nó.
+      // ② Qua mốc ⇒ câu lỗi TỰ TẮT.
       await vi.advanceTimersByTimeAsync(2)
       await bar.vm.$nextTick()
       expect(bar.find('.notice').exists()).toBe(false)
-      expect(bar.find('.saved').exists()).toBe(true)
     } finally {
       vi.useRealTimers()
     }
