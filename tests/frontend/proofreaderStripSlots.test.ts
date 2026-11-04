@@ -229,6 +229,60 @@ describe('slot: Proofreader around TM', () => {
   })
 })
 
+describe('slot: a multi-sentence scan', () => {
+  function scanTwo(findingsOfFirst: ProofreadFindingWire[]): void {
+    segmentsRef.value = [{ id: 1, target_text: TEXT }, { id: 2, target_text: TEXT }] as never
+    runMock.mockImplementation((_ids: number[], onEvent: (e: unknown) => void) => {
+      onEvent({ kind: 'planned', segments: 2, batches: 1 })
+      onEvent({ kind: 'batch', usage, segments: [seg(findingsOfFirst), { ...seg([]), segment_id: 2 }] })
+      return Promise.resolve({ value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
+    })
+  }
+
+  it('shows nothing at a clean sentence while another sentence still has a finding', async () => {
+    scanTwo([FINDING])
+    const wrapper = mount(ProofreaderStrip, { props: { place: 'track' }, attachTo: document.body })
+    await runProofread([1, 2])
+    caretRef.value = 2
+    await flushPromises()
+    expect(strips()).not.toContain('proofreader_summary')
+    expect(wrapper.find('.proofreader-strip').exists()).toBe(false)
+    caretRef.value = 1
+    await flushPromises()
+    expect(top()).toBe('proofreader')
+    expect(wrapper.text()).toContain(FINDING.explanation)
+    wrapper.unmount()
+  })
+
+  it('says nothing anywhere once every finding has been handled', async () => {
+    scanTwo([FINDING])
+    const wrapper = mount(ProofreaderStrip, { props: { place: 'track' }, attachTo: document.body })
+    await runProofread([1, 2])
+    const { dismissProofreadFinding, proofreadFindingCount } = await import('../../src/proofreadState')
+    await dismissProofreadFinding()
+    await flushPromises()
+    expect(proofreadFindingCount.value).toBe(0)
+    for (const caret of [1, 2]) {
+      caretRef.value = caret
+      await flushPromises()
+      expect(strips()).not.toContain('proofreader_summary')
+      expect(wrapper.find('.proofreader-strip').exists()).toBe(false)
+    }
+    wrapper.unmount()
+  })
+
+  it('still reports a scan that found nothing at the caret sentence', async () => {
+    scanTwo([])
+    const wrapper = mount(ProofreaderStrip, { props: { place: 'track' }, attachTo: document.body })
+    await runProofread([1, 2])
+    caretRef.value = 2
+    await flushPromises()
+    expect(top()).toBe('proofreader_summary')
+    expect(texts(wrapper)).toContain(t('proofread.strip.clean_many', { sentence_count: '2' }))
+    wrapper.unmount()
+  })
+})
+
 describe('slot: job strip keeps its place ahead of TM', () => {
   it('a failed scan', async () => {
     runMock.mockResolvedValue({ value: null, error: { code: 'x', message_key: 'err.unknown', params: {}, retryable: false } })

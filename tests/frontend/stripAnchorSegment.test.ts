@@ -20,6 +20,8 @@ vi.mock('../../src/proofreadState', () => ({
   proofreadActionError: ref(null),
   proofreadCurrent: ref(null),
   proofreadProgress: progress,
+  proofreadReportedFindings: ref(0),
+  proofreadResults: ref(new Map()),
   proofreadRevertible: ref(false),
   proofreadRunSegmentIds: runIds,
   proofreadStateValue: proofreadState,

@@ -8,6 +8,8 @@ import {
   proofreadActionError,
   proofreadCurrent,
   proofreadProgress,
+  proofreadReportedFindings,
+  proofreadResults,
   proofreadRevertible,
   proofreadRunSegmentIds,
   proofreadStateValue,
@@ -41,11 +43,19 @@ export const eligibleInlineStrips = computed<InlineStripKind[]>(() => {
     proofreadActionError.value !== null)
   if (hasJob) list.push('proofreader')
   if (tmFuzzyIsEligible.value) list.push('tm_fuzzy')
-  if (!hidden && proofread !== 'idle' && (caret === null || proofreadRunSegmentIds.value.includes(caret))) {
+  if (!hidden && proofread !== 'idle' && (caret === null || summaryBelongsAt(caret))) {
     list.push('proofreader_summary')
   }
   return list
 })
+
+/** A multi-sentence scan that reported findings speaks only at the sentences still holding one. */
+function summaryBelongsAt(caret: number): boolean {
+  const run = proofreadRunSegmentIds.value
+  if (!run.includes(caret)) return false
+  if (run.length === 1 || proofreadReportedFindings.value === 0) return true
+  return (proofreadResults.value.get(caret)?.findings.length ?? 0) > 0
+}
 
 export type ProofreaderStripPlace = 'foot' | 'track'
 

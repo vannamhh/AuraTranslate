@@ -81,6 +81,8 @@ export const proofreadError: DeepReadonly<Ref<IpcError | null>> = readonly(error
 export const proofreadNotScanned: DeepReadonly<Ref<number>> = readonly(notScanned)
 /** Findings Rust silenced from the remembered "not a mistake" list; zero while a scan runs. */
 export const proofreadFiltered: DeepReadonly<Ref<number>> = readonly(filteredCount)
+/** Findings the model reported in this run, including ones since accepted, dismissed or edited away. */
+export const proofreadReportedFindings: DeepReadonly<Ref<number>> = readonly(reportedFindings)
 export const proofreadScopeIsOpen: DeepReadonly<Ref<boolean>> = readonly(scopeOpen)
 
 export const proofreadProgress: ComputedRef<{ done: number; total: number }> = computed(() => ({
