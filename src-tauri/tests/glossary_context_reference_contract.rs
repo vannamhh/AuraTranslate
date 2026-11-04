@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::aitranslate::{
     AiTranslateGeneration, ContextReferenceGeneration, PrepareOutcome, PreparedTranslateCall,
-    prepare_context_reference_call, run_translate_call,
+    SingleRun, prepare_context_reference_call, run_plain_call,
 };
 use auratranslate_lib::commands::glossary::glossary_context_translation;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
@@ -202,11 +202,9 @@ fn the_prepared_call_carries_the_fixed_prompt_and_touches_no_stored_row() {
         Ok(())
     });
     let outcome =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &|| {
-            false
-        }))
-        .expect("chay");
-    assert!(matches!(outcome, TranslateOutcome::Done { .. }));
+        tauri::async_runtime::block_on(run_plain_call(&provider, &prepared, &channel, &|| false))
+            .expect("chay");
+    assert!(matches!(outcome, SingleRun::Done { .. }));
     assert_eq!(*received.lock().unwrap(), ["Mot ", "hai ba."]);
     assert_eq!(snapshot(&open), before, "lan goi khong duoc ghi hang nao");
     drop((global, open));
@@ -323,10 +321,10 @@ fn a_cancelled_reference_call_sends_no_token() {
     };
     reference.next();
     let outcome =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &|| {
+        tauri::async_runtime::block_on(run_plain_call(&provider, &prepared, &channel, &|| {
             !reference.is_current(g)
         }))
         .expect("chay");
-    assert!(matches!(outcome, TranslateOutcome::Cancelled));
+    assert!(matches!(outcome, SingleRun::Cancelled));
     assert_eq!(*seen.lock().unwrap(), 0);
 }

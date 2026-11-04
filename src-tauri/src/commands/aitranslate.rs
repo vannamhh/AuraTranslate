@@ -722,6 +722,42 @@ pub async fn run_translate_call<P: TranslationProvider>(
     }
 }
 
+/// Streams the reply as it arrives, for prompts that ask for bare text instead of blocks.
+pub async fn run_plain_call<P: TranslationProvider>(
+    provider: &P,
+    prepared: &PreparedTranslateCall,
+    channel: &tauri::ipc::Channel<String>,
+    should_cancel: &dyn Fn() -> bool,
+) -> Result<SingleRun, SingleRunError<P::Error>> {
+    let request = TranslateRequest {
+        endpoint: &prepared.endpoint,
+        model: &prepared.model,
+        temperature: prepared.temperature,
+        max_tokens: prepared.max_tokens,
+        api_key: &prepared.api_key,
+        prompt: &prepared.prompt,
+        system: prepared.system.as_deref(),
+    };
+    let mut on_token = |text: &str| {
+        let _ = channel.send(text.to_owned());
+    };
+    let outcome = provider
+        .translate(request, &mut on_token, should_cancel)
+        .await
+        .map_err(SingleRunError::Provider)?;
+    Ok(match outcome {
+        TranslateOutcome::Cancelled => SingleRun::Cancelled,
+        TranslateOutcome::Done {
+            usage,
+            finish_reason,
+        } => SingleRun::Done {
+            usage,
+            finish_reason,
+            block_open: false,
+        },
+    })
+}
+
 /// What the single-sentence reader made of a finished call.
 #[derive(Debug, PartialEq)]
 pub enum SingleRun {
@@ -1333,15 +1369,22 @@ async fn send_prepared_translate_call(
     generation_state: AiTranslateGeneration,
     generation: u64,
 ) -> Result<SingleRun, IpcError> {
-    send_with_cancel(prepared, channel, move || {
+    send_with_cancel(prepared, channel, ReplyShape::Blocks, move || {
         !generation_state.is_current(generation)
     })
     .await
 }
 
+#[derive(Debug, Clone, Copy)]
+enum ReplyShape {
+    Blocks,
+    Plain,
+}
+
 async fn send_with_cancel(
     prepared: PreparedTranslateCall,
     channel: tauri::ipc::Channel<String>,
+    shape: ReplyShape,
     should_cancel: impl Fn() -> bool + Send + 'static,
 ) -> Result<SingleRun, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
@@ -1350,12 +1393,21 @@ async fn send_with_cancel(
             return Ok(SingleRun::Cancelled);
         }
 
-        tauri::async_runtime::handle().block_on(run_translate_call(
-            &provider,
-            &prepared,
-            &channel,
-            &should_cancel,
-        ))
+        let handle = tauri::async_runtime::handle();
+        match shape {
+            ReplyShape::Blocks => handle.block_on(run_translate_call(
+                &provider,
+                &prepared,
+                &channel,
+                &should_cancel,
+            )),
+            ReplyShape::Plain => handle.block_on(run_plain_call(
+                &provider,
+                &prepared,
+                &channel,
+                &should_cancel,
+            )),
+        }
     });
 
     match join.await {
@@ -2088,7 +2140,7 @@ pub mod wire {
             PrepareOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
             PrepareOutcome::Ready(p) => p,
         };
-        let outcome = send_with_cancel(prepared, channel, move || {
+        let outcome = send_with_cancel(prepared, channel, super::ReplyShape::Plain, move || {
             !generation_state.is_current(generation)
         })
         .await?;
