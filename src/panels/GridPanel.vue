@@ -77,6 +77,7 @@ import type { ChapterAsset, ChapterSegment } from '../config/segment'
 import { t, tError } from '../i18n'
 import type { IpcError } from '../i18n'
 import { detectIsMac, dispatch } from '../commands'
+import { commandTitle } from '../config/shortcutsState'
 import {
   hasPrimaryModifier,
   resolveSegmentRule,
@@ -1943,8 +1944,8 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
       đồng `tablist` khai một nửa còn tệ hơn không khai, vì nó hứa một mô hình tương tác không
       tồn tại (bắt ở code review 2026-08-06).
     -->
-    <div v-if="hasSegments && isChinese" class="tabs" role="tablist">
-      <span class="ui-seg">
+    <div v-if="hasSegments" class="tabs">
+      <span v-if="isChinese" class="ui-seg" role="tablist">
       <button
         id="grid-tab-original"
         ref="tabOriginalBtn"
@@ -1974,14 +1975,23 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
         @keydown.left.prevent="selectTabViaArrow('original')"
       >{{ t('panel.source.tab_han_viet') }}</button>
       </span>
+      <span class="tabs-end">
       <!-- aura-allow-text: cả hai nhánh đi qua t(), không chuỗi viết thẳng nào — Kiểm A2
            không đọc tĩnh được toán tử ba ngôi (cùng khuôn `LibraryMode.vue:143`). -->
       <button
-        v-if="activeTab === 'han_viet' && (viewMode === 'parallel' || canUseParallelView)"
+        v-if="isChinese && activeTab === 'han_viet' && (viewMode === 'parallel' || canUseParallelView)"
         type="button"
         class="view-toggle ui-btn ui-btn--quiet"
         @click="dispatch('source.toggle_han_viet_view')"
       >{{ viewMode === 'switch' ? t('panel.source.view_mode_parallel') : t('panel.source.view_mode_switch') }}</button>
+      <button
+        type="button"
+        class="ui-btn ui-btn--quiet"
+        data-proofread-scope-open
+        :title="commandTitle('ai.proofread.scope.open')"
+        @click="dispatch('ai.proofread.scope.open')"
+      >{{ t('command.ai.proofread.scope.open') }}</button>
+      </span>
     </div>
 
     <div
@@ -2085,7 +2095,10 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
   margin-bottom: var(--space-panel-block);
 }
 
-.view-toggle {
+.tabs-end {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-panel-inline);
   margin-left: auto;
 }
 

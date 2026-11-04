@@ -2,7 +2,6 @@
 import { computed, watch } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
-import { aiUsageLine, aiUsageSummaryLine } from './aiUsageLine'
 import { eligibleInlineStrips, proofreaderStripPlace } from './inlineStripEligibility'
 import type { ProofreaderStripPlace } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
@@ -25,7 +24,6 @@ import {
   proofreadRunSegmentIds,
   proofreadStateValue,
   proofreadUnlocated,
-  proofreadUsageSummary,
   syncProofreadStripHidden,
 } from './proofreadState'
 
@@ -162,30 +160,13 @@ const filteredText = computed<string | null>(() =>
     ? t('proofread.strip.filtered', { filtered_count: String(proofreadFiltered.value) })
     : null,
 )
-
-const usageText = computed<string | null>(() => {
-  const state = proofreadStateValue.value
-  if (state !== 'done' && state !== 'cancelled' && state !== 'error') return null
-  const summaryValue = proofreadUsageSummary.value
-  if (summaryValue.sentenceCount === 0) return null
-  const line =
-    summaryValue.reportedCount === 0
-      ? aiUsageLine(null)
-      : aiUsageSummaryLine(summaryValue, {
-          total: 'proofread.usage_total',
-          totalWithCost: 'proofread.usage_total_with_cost',
-          partial: 'proofread.usage_partial',
-          partialWithCost: 'proofread.usage_partial_with_cost',
-        })
-  return line === null ? null : t(line.key, line.params)
-})
 </script>
 
 <template>
   <section
     v-if="isVisible"
     class="proofreader-strip"
-    :class="{ 'proofreader-strip--foot': place === 'foot' }"
+    :class="{ 'proofreader-strip--foot': place === 'foot', 'proofreader-strip--popup': place === 'track' }"
     :aria-label="titleText"
     @keydown.esc.prevent="dispatch('ai.proofread.hide')"
   >
@@ -336,10 +317,6 @@ const usageText = computed<string | null>(() => {
       <!-- aura-allow-text: result of t() computed in the script. -->
       {{ unlocatedText }}
     </p>
-    <p v-if="usageText !== null" class="pfs-status" role="status">
-      <!-- aura-allow-text: result of t() computed in the script. -->
-      {{ usageText }}
-    </p>
     <ProofreadDecisionRatio :active="isVisible" />
   </section>
 </template>
@@ -358,6 +335,13 @@ const usageText = computed<string | null>(() => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.proofreader-strip--popup {
+  padding-top: 14px; /* aura-allow-spacing: no top border on the popup, so the full 14px inset */
+  border-top: none;
+  border-radius: var(--radius-default);
+  box-shadow: var(--shadow-popover);
 }
 
 .proofreader-strip--foot {

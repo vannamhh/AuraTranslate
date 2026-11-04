@@ -217,6 +217,27 @@ export async function runProofread(segmentIds: readonly number[], scope: Proofre
     }
   }
   state.value = result.value.state
+  if (cleanScanHasNothingToSay()) setTimeout(() => { dismissCleanScan(mine) }, PROOFREAD_CLEAN_NOTICE_MS)
+}
+
+/** How long a scan that found nothing keeps its "no mistakes" notice before the strip closes. */
+export const PROOFREAD_CLEAN_NOTICE_MS = 1000
+
+function cleanScanHasNothingToSay(): boolean {
+  if (state.value !== 'done' || planned.value === 0) return false
+  if (notScanned.value > 0 || filteredCount.value > 0 || actionFailure.value !== null) return false
+  for (const entry of results.value.values()) {
+    if (entry.findings.length > 0 || entry.ambiguous > 0 || entry.unlocated > 0) return false
+  }
+  return true
+}
+
+function dismissCleanScan(run: number): void {
+  if (run !== sequence || !cleanScanHasNothingToSay() || reverts.value.size > 0) return
+  sequence += 1
+  state.value = 'idle'
+  runSegmentIds.value = []
+  clearResult()
 }
 
 async function recordFinishedScan(

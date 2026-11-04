@@ -170,7 +170,7 @@ describe('slot: Proofreader around TM', () => {
     wrapper.unmount()
   })
 
-  it('a cancel with nothing from TM keeps "cancelled" and the usage total', async () => {
+  it('a cancel with nothing from TM keeps "cancelled" without a token total', async () => {
     scanResult([], { state: 'cancelled', not_scanned: 0 })
     const wrapper = mount(ProofreaderStrip, { attachTo: document.body })
     await runProofread([1])
@@ -178,7 +178,7 @@ describe('slot: Proofreader around TM', () => {
     expect(top()).toBe('proofreader_summary')
     const shown = texts(wrapper)
     expect(shown).toContain(t('proofread.strip.cancelled'))
-    expect(shown.some((s) => s.includes('10'))).toBe(true)
+    expect(shown.some((s) => s.includes('token'))).toBe(false)
     wrapper.unmount()
   })
 

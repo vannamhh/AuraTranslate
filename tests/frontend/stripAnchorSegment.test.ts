@@ -141,10 +141,10 @@ describe('stripTrackFloats', () => {
     expect(stripTrackFloats.value).toBe(false)
   })
 
-  it('keeps a Proofreader strip on the caret sentence in flow', () => {
+  it('floats a Proofreader strip on the caret sentence as a popup', () => {
     proofreadState.value = 'done'
     runIds.value = [3]
     caret.value = 3
-    expect(stripTrackFloats.value).toBe(false)
+    expect(stripTrackFloats.value).toBe(true)
   })
 })

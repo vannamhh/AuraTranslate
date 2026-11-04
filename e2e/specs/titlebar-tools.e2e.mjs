@@ -8,7 +8,6 @@ const ITEM_IDS = [
   'glossary.settings.open',
   'tm.manage.open',
   'settings.open',
-  'ai.proofread.scope.open',
   'ai.proofread.memory.open',
   'export.reviewer_import.open',
   'export.alignment.open',

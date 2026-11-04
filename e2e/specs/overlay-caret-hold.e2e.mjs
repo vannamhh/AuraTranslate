@@ -4,9 +4,9 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const TARGET = (id) => `[data-col="tgt"][data-segment-id="${id}"]`
 const OVERLAYS = [
-  ['ai.proofread.scope.open', '[data-proofread-scope]'],
-  ['tm.manage.open', '.tm-panel'],
-  ['settings.open', '.set-panel'],
+  ['ai.proofread.scope.open', '[data-proofread-scope]', '[data-proofread-scope-open]'],
+  ['tm.manage.open', '.tm-panel', null],
+  ['settings.open', '.set-panel', null],
 ]
 
 async function firstTargetId() {
@@ -47,15 +47,15 @@ async function pressWithSelection(buttonSel, id) {
 const cellText = (id) => browser.execute((sel) => document.querySelector(sel).textContent, TARGET(id))
 
 describe('lớp phủ mở bằng chuột không để phím lọt xuống ô bản dịch', () => {
-  for (const [item, panel] of OVERLAYS) {
+  for (const [item, panel, opener] of OVERLAYS) {
     it(`${item}: Esc rồi gõ chèn đúng điểm cũ của ô`, async () => {
       await openWorkspaceWithWork(`Story 14.11 — ${item}`, '一。二。')
       await waitForGridRows(2, { what: 'Tác phẩm giữ caret' })
       const id = await firstTargetId()
       await placeCaretAfterAb(id)
 
-      await realClick(await $('.tools-trigger'))
-      await pressWithSelection(`[data-tools-item="${item}"]`, id)
+      if (opener === null) await realClick(await $('.tools-trigger'))
+      await pressWithSelection(opener ?? `[data-tools-item="${item}"]`, id)
       await $(panel).waitForExist({ timeout: 5_000 })
       await browser.pause(250)
       await browser.execute(() => document.execCommand('insertText', false, 'Q'))

@@ -196,12 +196,13 @@ describe('proofread wiring in source', () => {
     expect(grid).toMatch(/the newline was dropped'\)\s+scheduleRepaintProofread\(\)/)
   })
 
-  it('App.vue mounts the chooser and the Công cụ ▾ list dispatches the open command', () => {
+  it('App.vue mounts the chooser and the source header button dispatches the open command', () => {
     const app = codeLines('src/App.vue').join('\n')
     expect(app).toContain('<ProofreadScopeOverlay />')
+    const grid = codeLines('src/panels/GridPanel.vue').join('\n')
+    expect(grid).toMatch(/data-proofread-scope-open\s+:title="commandTitle\('ai\.proofread\.scope\.open'\)"\s+@click="dispatch\('ai\.proofread\.scope\.open'\)"/)
     const menu = codeLines('src/TitlebarToolsMenu.vue').join('\n')
-    expect(menu).toMatch(/data-proofread-scope-open/)
-    expect(menu).toMatch(/dispatch\('ai\.proofread\.scope\.open'\)/)
+    expect(menu).not.toMatch(/ai\.proofread\.scope\.open|data-proofread-scope-open/)
   })
 
   it('mounts the foot Proofreader strip outside KeepAlive and the track strips inside the grid track', () => {

@@ -103,7 +103,6 @@ onBeforeUnmount(() => {
       data-glossary-manage-open
       data-tm-manage-open
       data-settings-open
-      data-proofread-scope-open
       data-proofread-memory-open
       data-reviewer-import-open
       data-alignment-open
@@ -151,21 +150,6 @@ onBeforeUnmount(() => {
             <span>{{ t('command.settings.open') }}</span>
             <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
             <span class="tools-chord">{{ chordOf('settings.open') }}</span>
-          </span>
-        </button>
-      </li>
-      <li role="none">
-        <button
-          type="button"
-          role="menuitem"
-          tabindex="-1"
-          class="tools-item ui-menu-item"
-          data-tools-item="ai.proofread.scope.open" @click="dispatch('ai.proofread.scope.open')"
-        >
-          <span class="ui-row">
-            <span>{{ t('command.ai.proofread.scope.open') }}</span>
-            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-            <span class="tools-chord">{{ chordOf('ai.proofread.scope.open') }}</span>
           </span>
         </button>
       </li>

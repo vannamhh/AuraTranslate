@@ -160,6 +160,68 @@ describe('runProofread', () => {
   })
 })
 
+describe('a scan that found nothing', () => {
+  function row(id: number, unlocated = 0) {
+    return { segment_id: id, scanned_text: `xin chào ${String(id)}`, findings: [], unlocated, ambiguous: 0 }
+  }
+
+  function clean(ids: number[]): ProofreadEventWire {
+    return { kind: 'batch', usage: null, segments: ids.map((id) => row(id)) }
+  }
+
+  async function finish(events: ProofreadEventWire[], outcome: ProofreadOutcomeWire = DONE): Promise<void> {
+    const { run, emit, settle } = await started([1, 2])
+    emit({ kind: 'planned', segments: 2, batches: 1 })
+    for (const event of events) emit(event)
+    settle({ value: outcome, error: null })
+    await run
+  }
+
+  it('closes its notice after PROOFREAD_CLEAN_NOTICE_MS, not before', async () => {
+    vi.useFakeTimers()
+    try {
+      await finish([clean([1, 2])])
+      expect(state.PROOFREAD_CLEAN_NOTICE_MS).toBe(1000)
+      vi.advanceTimersByTime(state.PROOFREAD_CLEAN_NOTICE_MS - 1)
+      expect(state.proofreadStateValue.value).toBe('done')
+      vi.advanceTimersByTime(1)
+      expect(state.proofreadStateValue.value).toBe('idle')
+      expect(state.proofreadRunSegmentIds.value).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    ['a finding', [batch([1]), clean([2])], DONE],
+    ['an unplaced finding', [{ kind: 'batch', usage: null, segments: [row(1, 1), row(2)] }], DONE],
+    ['a remembered finding filtered out', [clean([1, 2])], { ...DONE, filtered: 1 }],
+    ['a sentence left unscanned', [clean([1])], { ...DONE, not_scanned: 1 }],
+  ] as const)('stays open when the scan has %s to report', async (_label, events, outcome) => {
+    vi.useFakeTimers()
+    try {
+      await finish([...events] as ProofreadEventWire[], outcome)
+      vi.advanceTimersByTime(state.PROOFREAD_CLEAN_NOTICE_MS * 5)
+      expect(state.proofreadStateValue.value).toBe('done')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a newer scan started inside the second is not closed by the old timer', async () => {
+    vi.useFakeTimers()
+    try {
+      await finish([clean([1, 2])])
+      const { emit } = await started([1])
+      emit({ kind: 'planned', segments: 1, batches: 1 })
+      vi.advanceTimersByTime(state.PROOFREAD_CLEAN_NOTICE_MS)
+      expect(state.proofreadStateValue.value).toBe('scanning')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('usage totals', () => {
   async function finish(events: ProofreadEventWire[], ids: number[]): Promise<void> {
     const { run, emit, settle } = await started(ids)

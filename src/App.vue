@@ -91,7 +91,6 @@ import AiPromptInspectorOverlay from './AiPromptInspectorOverlay.vue'
 // (UX-DR16 cấm hộp thoại cho thao tác thường xuyên, và tra cứu là thao tác thường xuyên nhất).
 import LookupDrawer from './layout/LookupDrawer.vue'
 import TitlebarToolsMenu from './TitlebarToolsMenu.vue'
-import { proofreadStatusText } from './titlebarProofreadStatus'
 import { importSourceStatusText } from './titlebarImportSource'
 import { titlebarWorkName } from './titlebarWorkName'
 import { activeLayoutPreset } from './layout/layoutPresetState'
@@ -239,8 +238,6 @@ onMounted(async () => {
         <span v-if="titlebarWorkName !== null" class="titlebar-work" data-titlebar-work-name :title="titlebarWorkName">{{ titlebarWorkName }}</span>
 
         <div class="titlebar-right">
-          <!-- aura-allow-text: `proofreadStatusText` is the output of t() with the chapter label and sentence count. -->
-          <span v-if="proofreadStatusText !== null" class="titlebar-status" role="status">{{ proofreadStatusText }}</span>
           <!-- aura-allow-text: `importSourceStatusText` is the output of t() with the file name and size. -->
           <span v-if="importSourceStatusText !== null" class="titlebar-status" data-titlebar-import-source>{{ importSourceStatusText }}</span>
           <span v-if="attributionIsOpen" class="titlebar-status" data-titlebar-attribution>{{ t('titlebar.attribution_label') }}</span>

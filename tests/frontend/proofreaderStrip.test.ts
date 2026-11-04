@@ -44,7 +44,7 @@ describe('ProofreaderStrip', () => {
     wrapper.unmount()
   })
 
-  it('a finished chapter scan shows the finding count, the sentences scanned and the full total with cost', async () => {
+  it('a finished chapter scan shows the finding count and the sentences scanned, without a token total', async () => {
     setEditorCaret(1)
     runMock.mockImplementation((_ids: number[], onEvent: (e: unknown) => void) => {
       onEvent({ kind: 'planned', segments: 3, batches: 2 })
@@ -58,11 +58,11 @@ describe('ProofreaderStrip', () => {
 
     const texts = statusTexts(wrapper)
     expect(texts).toContain(t('proofread.strip.found_many', { finding_count: '3', sentence_count: '3' }))
-    expect(texts).toContain(t('proofread.usage_total_with_cost', { token_count: '150', cost_usd: '0,0150', sentence_count: '3' }))
+    expect(texts.some((text) => text.includes('token'))).toBe(false)
     wrapper.unmount()
   })
 
-  it('a cancelled scan shows the partial total, the underlined count and the sentences left unscanned', async () => {
+  it('a cancelled scan shows the underlined count and the sentences left unscanned, without a token total', async () => {
     setEditorCaret(1)
     runMock.mockImplementation((_ids: number[], onEvent: (e: unknown) => void) => {
       onEvent({ kind: 'planned', segments: 4, batches: 4 })
@@ -77,7 +77,7 @@ describe('ProofreaderStrip', () => {
     const texts = statusTexts(wrapper)
     expect(texts).toContain(t('proofread.strip.cancelled'))
     expect(texts).toContain(t('proofread.strip.not_scanned', { not_scanned_count: '2' }))
-    expect(texts).toContain(t('proofread.usage_partial', { token_count: '100', reported_count: '1', sentence_count: '2' }))
+    expect(texts.some((text) => text.includes('token'))).toBe(false)
     wrapper.unmount()
   })
 
