@@ -115,7 +115,7 @@ export async function waitForGridRows(expected, opts = {}) {
         'Ứng viên thường nhất, theo thứ tự đã gặp thật:\n' +
         '  ① Chương của Tác phẩm TRƯỚC còn nằm trên lưới — fixture không dọn state panel.\n' +
         '     (Đóng ở Story 2.12 bằng `support/panelReset.mjs`; nếu lại thấy, cầu reset đã hỏng.)\n' +
-        '  ② Tác phẩm dựng ra ít/nhiều câu hơn ta tưởng — bộ tách nhìn `。！？；` cho `zh`,\n' +
+        '  ② Tác phẩm dựng ra ít/nhiều câu hơn ta tưởng — bộ tách nhìn `。！？` cho `zh`,\n' +
         '     KHÔNG nhìn dấu chấm tiếng Anh. Một chuỗi tiếng Việt có `.` vẫn cho MỘT câu.\n' +
         '  ③ Lưới chưa render xong trên một máy đang bận.\n' +
         '  ④ Lưới KHÔNG BAO GIỜ nạp — đọc được 0 ở mọi vòng. Khác hẳn ba ca trên: nó nói\n' +

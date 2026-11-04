@@ -253,6 +253,13 @@ mod tests {
     }
 
     #[test]
+    fn a_line_ending_in_a_chinese_semicolon_joins_the_next_line() {
+        let got = normalize("他走了；\n她笑了。", LANG_CHINESE);
+        texts_eq(&got, "他走了；她笑了。");
+        assert_eq!(got.joined_lines, 1);
+    }
+
+    #[test]
     fn mid_sentence_break_in_chinese_joins_with_no_separator() {
         let got = normalize("他转过头看向\n远处的山。", LANG_CHINESE);
         texts_eq(&got, "他转过头看向远处的山。");

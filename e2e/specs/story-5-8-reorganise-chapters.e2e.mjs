@@ -39,7 +39,7 @@ import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-reorg-${RUN_TAG}`
-// zh — bộ tách nhìn `。！？；`. BỐN câu: tách ở câu thứ ba cho hai nửa 2 + 2, tức hai con số
+// zh — bộ tách nhìn `。！？`. BỐN câu: tách ở câu thứ ba cho hai nửa 2 + 2, tức hai con số
 // BẰNG NHAU sẽ không phân biệt được nửa nào là nửa nào. Dùng 1 + 3 (tách ở câu thứ hai) để
 // mọi phép khẳng định phía sau đỏ được.
 const SOURCE_TEXT = 'Cau mot。Cau hai。Cau ba。Cau bon。'

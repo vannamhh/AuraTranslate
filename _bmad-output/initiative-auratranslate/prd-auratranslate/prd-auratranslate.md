@@ -473,8 +473,10 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 #### Biên tập theo segment
 
 **FR23.** Editor phân đoạn văn bản thành **segment ở cấp độ câu**. Segment là đơn vị của Translation Memory (C5) và của luồng xác nhận.
-- Tiếng Trung: tách theo `。！？；`
+- Tiếng Trung: tách theo `。！？`
 - Tiếng Anh: tách theo `. ! ?`, có xử lý các trường hợp viết tắt không phải kết câu **[A4]**
+
+> 🔵 2026-11-04: Ice bỏ `；` khỏi bộ dấu tách tiếng Trung — dấu chấm phẩy nối hai vế của cùng một câu, tách ở đó cắt câu làm đôi. Segment đã nhập giữ nguyên (AD-4).
 
 > **Vì sao câu chứ không phải đoạn:** đây là chuẩn của mọi CAT tool, và là điều kiện để Translation Memory có giá trị thật — **câu lặp lại nhiều hơn đoạn rất nhiều**. Hai đoạn văn giống hệt nhau gần như không tồn tại, nên nếu segment là đoạn thì TM sẽ hầu như không bao giờ khớp.
 

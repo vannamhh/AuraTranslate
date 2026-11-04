@@ -52,7 +52,7 @@ export const WORK_SUFFIX = '.atproj'
  *   đổi một byte nào cho bảy spec đang gọi nó không tham số. Lý do cần nó: gộp/tách đòi **ít
  *   nhất hai** segment, và chuỗi mặc định cho đúng **một**.
  *
- *   ⚠️ Tác phẩm tạo với `sourceLang: 'zh'`, nên bộ tách nhìn `。！？；` — không dấu chấm
+ *   ⚠️ Tác phẩm tạo với `sourceLang: 'zh'`, nên bộ tách nhìn `。！？` — không dấu chấm
  *   tiếng Anh. Một chuỗi tiếng Việt có dấu `.` vẫn cho **một** segment.
  * @returns {Promise<void>}
  */

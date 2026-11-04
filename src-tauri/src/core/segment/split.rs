@@ -8,11 +8,11 @@
 //! 🔴 VÌ SAO VIẾT MỚI CHỨ KHÔNG MƯỢN `unicode-segmentation` — ĐO 2026-08-12
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `unicode_sentences()` của `unicode-segmentation v1.13.3` cài UAX #29. Chạy thật trên
-//! năm đầu vào, **hai ca trượt đúng hai AC bắt buộc của story**:
+//! năm đầu vào, **một ca trượt AC2** (`；` nay không còn là ranh giới, FR23):
 //!
 //! | Đầu vào | UAX #29 | Phán quyết |
 //! |---|---|---|
-//! | `他走了；她笑了。` | `n=1` | **trượt AC1** — `；` không phải ranh giới câu theo UAX #29 |
+//! | `他走了；她笑了。` | `n=1` | đúng |
 //! | `Mr. Smith went home. He slept.` | `n=3`, cắt ngay sau `Mr. ` | **trượt AC2** |
 //! | `他走了。她笑了。` | `n=2` | đúng |
 //! | `真的吗？太好了！` | `n=2` | đúng |
@@ -47,8 +47,8 @@
 /// kho là chuỗi `'zh'` (`sourcePanelState.ts`, `dict.ts`).
 pub const LANG_CHINESE: &str = "zh";
 
-/// Dấu kết câu của nhánh tiếng Trung — AC1, nguyên văn `。！？；`.
-const ZH_TERMINATORS: [char; 4] = ['。', '！', '？', '；'];
+/// Dấu kết câu của nhánh tiếng Trung — FR23. `；` không kết câu.
+const ZH_TERMINATORS: [char; 3] = ['。', '！', '？'];
 
 /// Dấu kết câu của nhánh tiếng Anh — AC2.
 ///
@@ -261,8 +261,8 @@ pub fn split_source_text(source_text: &str, source_lang: &str) -> Vec<SplitSegme
             let run_end = terminator_run_end(source_text, cursor, chinese);
             let closed_end = absorb_tail(source_text, run_end, chinese);
 
-            // Nhánh tiếng Trung: AC1 nói tách theo `。！？；`, không điều kiện nào thêm —
-            // ngoài luật *"một câu phải có ít nhất một chữ"*, áp cho **cả hai** nhánh.
+            // Nhánh tiếng Trung tách theo `ZH_TERMINATORS`, không điều kiện nào thêm ngoài
+            // luật *"một câu phải có ít nhất một chữ"*, áp cho **cả hai** nhánh.
             let boundary = pending_has_letter
                 && (chinese || en_run_is_boundary(source_text, cursor, run_end, closed_end));
 
@@ -554,6 +554,11 @@ mod tests {
     fn a_line_with_no_terminator_does_not_end_a_sentence() {
         assert!(!line_ends_a_sentence("khong dau ket cau nao ca", false));
         assert!(!line_ends_a_sentence("第一章 khong dau ket", true));
+    }
+
+    #[test]
+    fn a_chinese_semicolon_does_not_end_a_sentence() {
+        assert!(!line_ends_a_sentence("他走了；", true));
     }
 
     #[test]

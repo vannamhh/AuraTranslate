@@ -8,7 +8,7 @@
 //!    lại nội tuyến hoặc mất hẳn lời gọi (Task list spec 6.4: "GỌI, đừng viết lại nội
 //!    tuyến"). Khuôn `segment_boundary.rs::the_pipeline_module_actually_calls_the_splitter`.
 //! 2. **`normalize.rs` 0 dòng mang ký tự của bảng kết câu (`ZH_TERMINATORS`)** — module này
-//!    không được dựng một bảng thứ hai; chủ vẫn là `split.rs` (`。！？；`) và `regroup.rs`
+//!    không được dựng một bảng thứ hai; chủ vẫn là `split.rs` (`。！？`) và `regroup.rs`
 //!    (chuỗi nối). Đếm CHÍNH XÁC, không chỉ kiểm thành viên (khuôn
 //!    `segment_encoding_boundary.rs::chardetng_is_named_in_exactly_one_product_file...`).
 //! 3. **Chỗ gọi sản phẩm của `normalize::normalize`/`normalize::normalize_window` đúng SỐ
@@ -100,11 +100,11 @@ fn the_normalize_call_check_would_actually_flag_a_seeded_violation_and_ignore_cl
 // Mệnh đề 2 — normalize.rs 0 dòng mang ký tự bảng kết câu (chủ vẫn là split.rs)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Bốn dấu kết câu tiếng Trung (`split.rs::ZH_TERMINATORS`) — chép LẠI Ở ĐÂY chỉ để SO,
-/// không để dùng làm luật: nếu `normalize.rs` chứa bất kỳ ký tự nào trong bốn ký tự này,
+/// Ba dấu kết câu tiếng Trung (`split.rs::ZH_TERMINATORS`) — chép LẠI Ở ĐÂY chỉ để SO,
+/// không để dùng làm luật: nếu `normalize.rs` chứa bất kỳ ký tự nào trong ba ký tự này,
 /// nó đang tự mang một bản sao của bảng, đúng thứ §Always spec 6.4 cấm ("bảng dấu kết câu
 /// không được sao chép").
-const ZH_TERMINATOR_CHARS: [char; 4] = ['。', '！', '？', '；'];
+const ZH_TERMINATOR_CHARS: [char; 3] = ['。', '！', '？'];
 
 /// `code` có mang ký tự nào của bảng kết câu tiếng Trung hay không — vị từ THUẦN.
 fn line_names_a_terminator_char(code: &str) -> bool {

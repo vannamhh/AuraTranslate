@@ -13937,3 +13937,8 @@ chính nó.
   evidence: Playwright WebKit headless đăng ký được Highlight (1 vùng) nhưng không vẽ nó khi chụp ảnh; vitest chỉ canh vùng tô và dây nối, không canh điểm ảnh.
   Chủ: Ice
   → KHÔNG LÀM 2026-11-04 — Ice thử trong app: không bôi đen được. Đo: WebKit không vẽ CSS highlight lên chữ trong `<ruby>` (0 điểm ảnh, chữ thường 985); đã gỡ, vùng chọn về cách gốc.
+
+- source_plan: `_bmad-output/initiative-auratranslate/plan-khong-tach-cau-tai-dau-cham-phay.md`
+  summary: `verify` của Story 2.1 trong `tickets/epic-bien-tap-theo-segment/tickets/tickets.toml:8` và AC1 trong plan story đó vẫn ghi tách theo `。！？；`, trái FR23 mới (`。！？`).
+  evidence: workflow build không được ghi vào tệp vé; FR23 ở PRD và requirements.md đã sửa cùng commit bỏ `；`.
+  Chủ: Ice

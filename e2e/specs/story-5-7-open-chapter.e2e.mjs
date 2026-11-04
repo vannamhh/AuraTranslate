@@ -97,7 +97,7 @@ import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-open-chapter-${RUN_TAG}`
-// zh — bộ tách nhìn `。！？；`. Hai câu là đủ: một để LÀM VIỆC (lưu vị trí), một để phân biệt
+// zh — bộ tách nhìn `。！？`. Hai câu là đủ: một để LÀM VIỆC (lưu vị trí), một để phân biệt
 // với "segment đầu" (AC5's giá trị hồi phòng) — hai giá trị khác nhau chứng minh vị trí THẬT
 // SỰ đã được đọc lại, không phải một trùng hợp.
 const SOURCE_TEXT = 'Cau thu nhat。Cau thu hai。'

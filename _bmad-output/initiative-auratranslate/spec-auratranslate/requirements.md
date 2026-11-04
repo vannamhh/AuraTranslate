@@ -136,7 +136,7 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 
 ### Biên tập theo segment
 
-- **FR23.** Editor phân đoạn văn bản thành **segment ở cấp độ câu**. Tiếng Trung tách theo `。！？；`; tiếng Anh tách theo `. ! ?` có xử lý viết tắt không phải kết câu **[A4]**.
+- **FR23.** Editor phân đoạn văn bản thành **segment ở cấp độ câu**. Tiếng Trung tách theo `。！？` (🔵 2026-11-04: Ice bỏ `；`); tiếng Anh tách theo `. ! ?` có xử lý viết tắt không phải kết câu **[A4]**.
 - **FR78.** Người dùng **gộp hai segment liền nhau** hoặc **tách một segment** khi máy tách sai. Bắt buộc có, vì tách câu tự động luôn sai ở một tỷ lệ nhất định — nhất là dấu chấm trong viết tắt, số thập phân và hội thoại.
 - **FR24.** Người dùng **xác nhận từng segment**. Segment đã xác nhận được đánh dấu trực quan phân biệt với segment đang dở.
   > **Ngữ nghĩa không đổi theo vai:** dù tự dịch hay đang biên tập câu do người khác dịch, *xác nhận* luôn nghĩa là **"câu này đạt chuẩn của tôi"**. Cái đổi theo vai là **xuất xứ** (FR117).

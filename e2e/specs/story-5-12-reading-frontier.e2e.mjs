@@ -28,7 +28,7 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-frontier-${RUN_TAG}`
-// zh — bộ tách nhìn `。！？；`. Hai câu, tách ở câu thứ hai ⇒ hai Chương một-câu-mỗi-Chương
+// zh — bộ tách nhìn `。！？`. Hai câu, tách ở câu thứ hai ⇒ hai Chương một-câu-mỗi-Chương
 // sau lượt `split_chapter_at_segment`.
 const SOURCE_ONE = 'Cau mot cua Chuong mot.'
 const SOURCE_TWO = 'Cau rieng cua Chuong hai chua duoc dich.'

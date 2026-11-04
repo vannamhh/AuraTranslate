@@ -50,11 +50,10 @@ const WEBVIEW_FLOOR: usize = 193;
 
 /// Bảng chữ cái kết câu tiếng Trung — AC1. **Chỉ** `core/segment/**` được mang nó.
 ///
-/// ⚠️ Bốn ký tự này chứ không phải `.`/`!`/`?`: dấu ASCII xuất hiện trong mọi câu tiếng Anh
+/// ⚠️ Các ký tự này chứ không phải `.`/`!`/`?`: dấu ASCII xuất hiện trong mọi câu tiếng Anh
 /// ở mọi doc-comment của kho, nên một phép so trên chúng đỏ ở khắp nơi và bị gỡ trong tuần.
-/// Bốn ký tự toàn giác thì **không** xuất hiện ở đâu khác — đo 2026-08-12: **0** lần trong
-/// `src-tauri/src/**` trước story này.
-const ZH_TERMINATORS: [char; 4] = ['。', '！', '？', '；'];
+/// Ký tự toàn giác thì **không** xuất hiện ở đâu khác trong `src-tauri/src/**`.
+const ZH_TERMINATORS: [char; 3] = ['。', '！', '？'];
 
 fn src_root() -> PathBuf {
     boundary_scan::src_root()
@@ -169,7 +168,7 @@ fn core_segment_split_actually_carries_the_terminators() {
     for needle in ZH_TERMINATORS {
         assert!(
             text.contains(needle),
-            "`core/segment/split.rs` không còn mang `{needle}` — AC1 đòi tách theo `。！？；`"
+            "`core/segment/split.rs` không còn mang `{needle}` — FR23 đòi tách theo `。！？`"
         );
     }
 }

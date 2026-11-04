@@ -335,18 +335,15 @@ fn flags(segments: &[SplitSegment]) -> Vec<bool> {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// AC1 — nhánh tiếng Trung tách theo `。！？；`
+// AC1 — nhánh tiếng Trung tách theo `。！？`
 // ═════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn chinese_splits_on_each_of_the_four_terminators() {
-    // Bốn ca, mỗi ca một dấu — `；` là dấu mà UAX #29 KHÔNG coi la ranh gioi cau
-    // (do 2026-08-12, `n=1`), va no la ly do bo tach nay duoc viet moi.
-    let cases: [(&str, usize); 4] = [
+fn chinese_splits_on_each_of_the_three_terminators() {
+    let cases: [(&str, usize); 3] = [
         ("他走了。她笑了。", 2),
         ("真的吗？太好了。", 2),
         ("太好了！他走了。", 2),
-        ("他走了；她笑了。", 2),
     ];
 
     for (input, expected) in cases {
@@ -358,11 +355,14 @@ fn chinese_splits_on_each_of_the_four_terminators() {
             texts(&got)
         );
     }
+}
 
+#[test]
+fn a_chinese_semicolon_does_not_end_a_sentence() {
     assert_eq!(
         texts(&split_source_text("他走了；她笑了。", LANG_CHINESE)),
-        vec!["他走了；", "她笑了。"],
-        "dau `；` phai o LAI voi cau ma no ket"
+        vec!["他走了；她笑了。"],
+        "`；` khong phai ranh gioi cau"
     );
 }
 
