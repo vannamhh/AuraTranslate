@@ -1344,9 +1344,9 @@ fn a_single_sentence_mid_chapter_carries_exactly_three_preceding_context_blocks_
         "three in `ord` order; the omitted sentence 5 is skipped and sentence 2 fills in: {prompt}"
     );
     assert_eq!(prompt_blocks(prompt), vec![(1, sentence(6))]);
-    let recorded = h.app.state::<LastAssembledPromptState>().inner().clone();
+    let recorded = h.app.state::<LastAssembledPromptState>().inner();
     let preview = read_prompt_record_for_segment(
-        &recorded,
+        recorded,
         h.app.state::<AiCallRecordsState>().inner(),
         h.ids[5],
     )
@@ -1597,8 +1597,7 @@ fn a_neighbour_never_comes_from_another_chapter() {
     let h = Harness::new("65-chapter", &sentences(6), 2, ok_reply());
     let second_chapter = h.with_open(|open, _| {
         let moved = [h.ids[3], h.ids[4], h.ids[5]];
-        let id = open
-            .store
+        open.store
             .write(move |tx: &Transaction<'_>| {
                 tx.execute(
                     "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
@@ -1614,8 +1613,7 @@ fn a_neighbour_never_comes_from_another_chapter() {
                 }
                 Ok(id)
             })
-            .expect("second chapter");
-        id
+            .expect("second chapter")
     });
     {
         let state = h.app.state::<OpenWorkState>();
