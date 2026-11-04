@@ -518,7 +518,8 @@ fn commands_aitranslate_rs_names_nothing_beyond_the_allowed_ai_client_surface() 
 /// layer may take from it are frozen below, so it cannot grow a second path into `core::ai`.
 const AI_TRANSLATE_BATCH_MARKER: &str = "crate::core::ai::batch::";
 
-const ALLOWED_AI_BATCH_NAMES_IN_COMMAND_SEAM: [&str; 12] = [
+const ALLOWED_AI_BATCH_NAMES_IN_COMMAND_SEAM: [&str; 13] = [
+    "BlockEnd",
     "BlockStream",
     "CallEntry",
     "DiscardReason",
@@ -533,8 +534,43 @@ const ALLOWED_AI_BATCH_NAMES_IN_COMMAND_SEAM: [&str; 12] = [
     "system_with_block_format",
 ];
 
+/// Names `commands/aiprompt.rs` may take from `core::ai::batch`: the prompt inspector rebuilds
+/// the same call plan and block-format system prompt the batch sends (Ice approved, 2026-11-04).
+const ALLOWED_AI_BATCH_NAMES_IN_PROMPT_SEAM: [&str; 5] = [
+    "CallEntry",
+    "PlanScope",
+    "PlanSegment",
+    "plan_calls",
+    "system_with_block_format",
+];
+
 fn line_is_the_approved_ai_batch_import_in_command_file(rel: &str, code: &str) -> bool {
-    is_the_approved_ai_translate_command_file(rel) && code.contains(AI_TRANSLATE_BATCH_MARKER)
+    (is_the_approved_ai_translate_command_file(rel) || is_the_approved_ai_prompt_command_file(rel))
+        && code.contains(AI_TRANSLATE_BATCH_MARKER)
+}
+
+#[test]
+fn commands_aiprompt_rs_names_nothing_beyond_the_allowed_ai_batch_surface() {
+    let files = all_rust_sources();
+    let Some((_, text)) = files
+        .iter()
+        .find(|(rel, _)| is_the_approved_ai_prompt_command_file(rel))
+    else {
+        panic!("`{AI_PROMPT_SEAM_COMMAND_FILE}` is missing from the scanned tree");
+    };
+    let names = names_after_anchor(&joined_code(text), AI_TRANSLATE_BATCH_MARKER);
+    assert!(
+        !names.is_empty(),
+        "the scan found no `core::ai::batch` name in `{AI_PROMPT_SEAM_COMMAND_FILE}`: a blind scan, not a clean tree"
+    );
+    let violations: Vec<&String> = names
+        .iter()
+        .filter(|name| !ALLOWED_AI_BATCH_NAMES_IN_PROMPT_SEAM.contains(&name.as_str()))
+        .collect();
+    assert!(
+        violations.is_empty(),
+        "names outside {ALLOWED_AI_BATCH_NAMES_IN_PROMPT_SEAM:?} taken from `core::ai::batch`: {violations:?}"
+    );
 }
 
 #[test]
