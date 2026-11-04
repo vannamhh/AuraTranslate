@@ -1,19 +1,18 @@
-Năm tệp font nhúng vào bản phát hành + ba tệp giấy phép gốc đi kèm (FR38, FR109).
+Bốn tệp font nhúng vào bản phát hành + ba tệp giấy phép gốc đi kèm (FR38, FR109).
 
 Vùng này khai `$RESOURCE/fonts/**` **chỉ đọc** trong `assetProtocol.scope` (AD-23, UX-DR4). Frontend nạp qua `resolveResource('fonts/…')` → `convertFileSrc` → `FontFace.load()`.
 
 | Tệp | Byte | Họ (đọc từ bảng `name`) | Phiên bản | Giấy phép |
 |---|---|---|---|---|
 | `NotoSerifCJKtc-Regular.otf` | 24.541.904 | `Noto Serif CJK TC` *(ID 1)* | 2.003 | SIL OFL 1.1 |
-| `NotoSerifCJKtc-Bold.otf` | 25.520.284 | `Noto Serif CJK TC` *(ID 1, ID 2 `Bold`, usWeightClass 700)* | 2.003 | SIL OFL 1.1 |
 | `SourceSerif4[opsz,wght].ttf` | 1.209.508 | `Source Serif 4` *(ID 1)* | 4.004 | SIL OFL 1.1 |
 | `SourceSerif4-Italic[opsz,wght].ttf` | 855.432 | `Source Serif 4` *(ID 1)* | 4.004 | SIL OFL 1.1 |
 | `SourceSans3[wght].ttf` | 646.340 | `Source Sans 3` *(ID 16)* | 3.052 | SIL OFL 1.1 |
-| **Tổng** | **52.773.468** *(50,329 MiB)* | | | |
+| **Tổng** | **27.253.184** *(25,991 MiB)* | | | |
 
-SHA-256 từng tệp: `font-spike-results-2026-08-03.md §Phép đo 5`; bản Bold (🔵 2026-10-30) `a4441a76dbf56719600c5dcbd5b5e5a068a20944cc41c959487a657133576ee6`, lấy từ cùng `10_NotoSerifCJKtc.zip` thẻ `Serif2.003`. **Đối chiếu trước khi thay bất kỳ tệp nào.**
+SHA-256 từng tệp: `font-spike-results-2026-08-03.md §Phép đo 5`. 🔵 2026-11-04 (Ice): bản Bold thêm ngày 2026-10-30 đã gỡ cùng token `source-cjk-strong`. **Đối chiếu trước khi thay bất kỳ tệp nào.**
 
-⚠️ **`NotoSerifCJKtc` ≠ `NotoSerifTC`.** Cái sau là bản subset theo ngôn ngữ (45 MB); lấy nhầm **hỏng im lặng** — phần lớn ký tự vẫn hiện, chỉ tofu khi gặp văn bản khác hệ chữ. Tổng byte lệch khỏi 52.773.468 nghĩa là đã lấy sai tệp.
+⚠️ **`NotoSerifCJKtc` ≠ `NotoSerifTC`.** Cái sau là bản subset theo ngôn ngữ (45 MB); lấy nhầm **hỏng im lặng** — phần lớn ký tự vẫn hiện, chỉ tofu khi gặp văn bản khác hệ chữ. Tổng byte lệch khỏi 27.253.184 nghĩa là đã lấy sai tệp.
 
 ⚠️ **Cả ba tệp Source khai Reserved Font Name `'Source'` trong name ID 0** (`SourceSans3`, hai tệp `SourceSerif4`; `OFL-sourceserif4.txt` thì không khai). Subset tệp nào trong ba thì **bắt buộc** đổi tên font nội bộ. `NotoSerifCJKtc` không khai.
 

@@ -1284,6 +1284,8 @@ async function boot(): Promise<void> {
   })
 
   if (detectIsMac()) document.documentElement.dataset.platform = 'mac'
+  // WebView2 lays out ruby annotations unlike WKWebView; `.hv-parallel` keys its leading on this.
+  if (/\bChrome\//.test(navigator.userAgent)) document.documentElement.dataset.webEngine = 'chromium'
 
   createApp(App).mount('#app')
 

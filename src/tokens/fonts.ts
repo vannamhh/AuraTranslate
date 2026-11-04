@@ -83,12 +83,6 @@ const FONTS: readonly FontSpec[] = [
     descriptors: { weight: '400', style: 'normal', display: 'swap' },
     why: 'Họ `read-cjk`, và là chặng dự phòng CJK của họ `read`.',
   },
-  {
-    family: 'Noto Serif CJK TC',
-    file: 'fonts/NotoSerifCJKtc-Bold.otf',
-    descriptors: { weight: '700', style: 'normal', display: 'swap' },
-    why: 'Nét 700 thật của `read-cjk` cho token `source-cjk-strong`; thiếu tệp này trình duyệt vẽ đậm giả.',
-  },
 ]
 
 /**

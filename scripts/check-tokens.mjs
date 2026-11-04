@@ -229,7 +229,8 @@ const EXPECTED_TYPOGRAPHY = {
   'read-sm': { family: 'read', fontSize: '16px', lineHeight: '1.75' },
   'read-title': { family: 'read', fontSize: '23px', lineHeight: '1.5217391304347827', fontWeight: '600' },
   'source-cjk': { family: 'read-cjk', fontSize: '18px', lineHeight: '2.05' },
-  'source-cjk-strong': { family: 'read-cjk', fontSize: '18px', lineHeight: '2.05', fontWeight: '700' },
+  'source-cjk-parallel': { family: 'read-cjk', fontSize: '18px', lineHeight: '2.5' },
+  'source-cjk-parallel-chromium': { family: 'read-cjk', fontSize: '18px', lineHeight: '3.1666666666666665' },
   'source-hanviet': {
     family: 'read',
     fontSize: '16px',
@@ -327,10 +328,14 @@ const EXPECTED_ROUNDED = {
  * 🔵 2026-10-30 (Ice): `typography` lên 20 với `source-cjk-strong` — chữ Hán đậm 700 ở kiểu
  * Song song, nét thật từ `NotoSerifCJKtc-Bold.otf`; hàng 16 của bảng `DESIGN.md`.
  *
+ * 🔵 2026-11-04 (Ice): `source-cjk-strong` (700) thành `source-cjk-parallel` (400) và thêm
+ * `source-cjk-parallel-chromium`, `typography` lên 22. Chromium không chừa chỗ cho `<rt>` trong
+ * hộp dòng nên cần giãn dòng riêng để cùng khoảng 8px/16px như WebKit; tệp Bold đã gỡ.
+ *
  * 🔵 2026-11-01 (Ice): `typography` lên 21 với `cover-name` — tên Tác phẩm trên bìa 16px / 23px;
  * hàng 17 của bảng `DESIGN.md`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 21, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 22, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -1429,7 +1434,8 @@ const LEADING_OFF_GRID_EXEMPT = new Map([
 /** Thân lưới Workspace giữ giãn dòng cũ (DESIGN.md §Lưới 7px — Ngoại lệ). */
 const LEADING_GRID_BODY_EXEMPT = new Map([
   ['source-cjk', 'nguyên văn tiếng Trung ở thân lưới Workspace'],
-  ['source-cjk-strong', 'chữ Hán đậm ở kiểu Song song của thân lưới Workspace'],
+  ['source-cjk-parallel', 'chữ Hán ở kiểu Song song của thân lưới Workspace (WebKit)'],
+  ['source-cjk-parallel-chromium', 'chữ Hán ở kiểu Song song của thân lưới Workspace (Chromium)'],
   ['source-latin', 'nguyên văn tiếng Anh ở thân lưới Workspace'],
   ['source-hanviet', 'dòng Hán Việt ở thân lưới Workspace'],
   ['editor', 'bản dịch trong ô đang sửa ở thân lưới Workspace'],

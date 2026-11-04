@@ -77,7 +77,6 @@ SourceSans3[wght].ttf        name ID 1 = "Source Sans 3 ExtraLight"
 SourceSerif4[opsz,wght].ttf  fvar wght: min 200 · mặc định 400 · max 900
                              fvar opsz: min 8 · mặc định 20 · max 60
 NotoSerifCJKtc-Regular.otf   KHÔNG có fvar — tệp tĩnh, một nét duy nhất (400)
-NotoSerifCJKtc-Bold.otf      KHÔNG có fvar — tệp tĩnh, nét 700 (🔵 2026-10-30, Ice)
 ```
 
 **Nét 600 và 700 của `Source Sans 3` nay đã được dựng thật và là nét THẬT** (ảnh chụp Story 1.4 Task 4, bốn nét 200/400/600/700 phân biệt rõ trên chuỗi dày dấu tiếng Việt). Mệnh đề này trước đó chỉ mới được chứng minh cho `Source Serif 4`.

@@ -1044,11 +1044,22 @@ onBeforeUnmount(() => {
 .hv-parallel {
   margin: 0;
   white-space: pre-wrap;
-  font-family: var(--face-source-cjk-strong);
-  font-size: var(--font-source-cjk-strong);
-  font-weight: var(--weight-source-cjk-strong);
-  line-height: var(--leading-source-cjk-strong);
+  font-family: var(--face-source-cjk-parallel);
+  font-size: var(--font-source-cjk-parallel);
+  font-weight: var(--weight-source-cjk-parallel);
+  line-height: var(--leading-source-cjk-parallel);
   color: var(--color-on-surface);
+}
+
+/* Chromium leaves `<rt>` out of the line box and seats it 6px into the base, so it needs its
+   own leading and a lift to match the WebKit gaps (8px under the base, 16px to the next line). */
+:root[data-web-engine='chromium'] .hv-parallel {
+  line-height: var(--leading-source-cjk-parallel-chromium);
+}
+
+:root[data-web-engine='chromium'] .hv-parallel rt {
+  position: relative;
+  top: 6px; /* aura-allow-spacing: Chromium seats the annotation 6px into the base glyph box; measured on the bundled fonts */
 }
 
 /*
