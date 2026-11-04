@@ -221,7 +221,7 @@ export async function runProofread(segmentIds: readonly number[], scope: Proofre
 }
 
 /** How long a scan that found nothing keeps its "no mistakes" notice before the strip closes. */
-export const PROOFREAD_CLEAN_NOTICE_MS = 1000
+export const PROOFREAD_CLEAN_NOTICE_MS = 3000
 
 function cleanScanHasNothingToSay(): boolean {
   if (state.value !== 'done' || planned.value === 0) return false

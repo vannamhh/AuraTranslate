@@ -181,7 +181,7 @@ describe('a scan that found nothing', () => {
     vi.useFakeTimers()
     try {
       await finish([clean([1, 2])])
-      expect(state.PROOFREAD_CLEAN_NOTICE_MS).toBe(1000)
+      expect(state.PROOFREAD_CLEAN_NOTICE_MS).toBe(3000)
       vi.advanceTimersByTime(state.PROOFREAD_CLEAN_NOTICE_MS - 1)
       expect(state.proofreadStateValue.value).toBe('done')
       vi.advanceTimersByTime(1)
