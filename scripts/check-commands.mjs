@@ -2615,6 +2615,9 @@ const HANDLER_TABLE = {
     ids: ['reading.marks_next', 'reading.marks_prev', 'reading.marks_open', 'reading.marks_unmark'],
   },
   'src/panels/GridBlock.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
+  'src/panels/SourceHanViet.vue::selectDoubleClickedWord': {
+    nonCommand: 'corrects the native double-click word selection to the clicked word before Auto-Lookup reads it — selection state, no dispatch',
+  },
   'src/panels/GridBlock.vue::onSentencePress': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridSentenceMenu.vue::holdFocus': { nonCommand: R_MENU_HOLD_FOCUS },
   'src/panels/GridPanel.vue::onGridMouseDown': { nonCommand: R_SELECT_ROWS_IN_PLACE },

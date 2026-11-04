@@ -13936,3 +13936,4 @@ chính nó.
   summary: vùng chọn ở kiểu Song song nay tô qua CSS Custom Highlight API (`::highlight(hv-parallel-selection)`, nền `::selection` trong suốt) để không lan lên hàng âm đọc dòng trên; chưa được nhìn trên WKWebView thật.
   evidence: Playwright WebKit headless đăng ký được Highlight (1 vùng) nhưng không vẽ nó khi chụp ảnh; vitest chỉ canh vùng tô và dây nối, không canh điểm ảnh.
   Chủ: Ice
+  → KHÔNG LÀM 2026-11-04 — Ice thử trong app: không bôi đen được. Đo: WebKit không vẽ CSS highlight lên chữ trong `<ruby>` (0 điểm ảnh, chữ thường 985); đã gỡ, vùng chọn về cách gốc.
