@@ -345,6 +345,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
             data-col="tgt"
             :data-unlinked="unlinkedIds.has(s.id) ? 'true' : undefined"
             contenteditable="true"
+            spellcheck="false"
             role="textbox"
             aria-multiline="true"
             :aria-label="cellLabelOf(s.id, block.start + j)"

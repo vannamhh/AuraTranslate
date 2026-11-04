@@ -137,6 +137,14 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
     wrapper.unmount()
   })
 
+  it('no translation cell asks the webview for spellcheck squiggles', async () => {
+    const { wrapper } = await mountEditor()
+    const cells = [...document.querySelectorAll<HTMLElement>('[data-col="tgt"]')]
+    expect(cells).toHaveLength(FIXTURE_SEGMENTS.length)
+    for (const cell of cells) expect(cell.getAttribute('spellcheck')).toBe('false')
+    wrapper.unmount()
+  })
+
   it('thuộc tính `contenteditable` KHÔNG đổi khi caret dời — nó không còn theo caret', async () => {
     const { wrapper } = await mountEditor()
 
