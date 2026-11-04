@@ -13928,6 +13928,6 @@ chính nó.
   Chủ: Ice
 
 - source_plan: none
-  summary: chữ Hán kiểu Song song của tab Hán Việt chưa được nhìn trên Windows thật sau khi tách giãn dòng theo engine (`data-web-engine='chromium'`: 57px và âm đọc hạ 6px), và ô dịch chưa được kiểm là hết gạch chính tả trên WebView2.
+  summary: chữ Hán kiểu Song song của tab Hán Việt chưa được nhìn trên Windows thật sau khi tách khoảng âm đọc theo engine (🔵 2026-11-04: nay là `padding-block` của `<rt>` ở `line-height: normal`, WebView2 2px/14px qua `data-web-engine='chromium'`), và ô dịch chưa được kiểm là hết gạch chính tả trên WebView2.
   evidence: 8px/16px đo bằng điểm ảnh mực trên Playwright Chromium 1248 và WebKit 2370 với font đóng gói; phiên bản Chromium của WebView2 trên máy Windows chưa đo, và e2e chỉ chạy macOS.
   Chủ: B7

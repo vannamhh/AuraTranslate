@@ -1026,40 +1026,21 @@ onBeforeUnmount(() => {
   margin-inline-start: var(--space-grid-hv-gap);
 }
 
-/*
- * Song song — đoạn dài, mỗi TỪ một khối dọc (Quyết định #4a của 1.16, đơn vị đổi ở 1.18b).
- *
- * ⚠️ `line-height` DÙNG CHUNG token `source-cjk` với tab "Nguyên văn" thuần — và điều đó
- * chỉ đúng được kể từ khi âm đọc chuyển sang `<ruby>` (xem khối dưới): `<rt>` chiếm chỗ
- * THẬT trong layout nên trình duyệt tự tính chiều cao dòng, không cần một con số giãn thêm.
- * Đo 2026-08-07: không đè ở mọi mức đã thử, kể cả `normal`.
- *
- * 🔴 LỊCH SỬ — HAI TOKEN VÀ HAI LƯỢT VÁ ĐÃ BỊ GỠ, ghi lại để không ai dựng lại chúng:
- * lượt 1 kéo `line-height` lên **4.8** (token riêng `source-cjk-parallel`) để âm đọc
- * `position: absolute` thôi đè dòng sau; lượt 2 hạ xuống **3.2** bằng cách neo âm đọc vào
- * một `.hv-char` mang `line-height: normal`. Cả hai đều VÁ TRIỆU CHỨNG: gốc rễ là âm đọc
- * không chiếm chỗ trong layout. `<ruby>` bỏ được cả hai, nên token `source-cjk-parallel`
- * đã được **gỡ khỏi `tokens.json`** — bộ token về lại 17.
- */
 .hv-parallel {
   margin: 0;
   white-space: pre-wrap;
-  font-family: var(--face-source-cjk-parallel);
-  font-size: var(--font-source-cjk-parallel);
-  font-weight: var(--weight-source-cjk-parallel);
-  line-height: var(--leading-source-cjk-parallel);
+  font-family: var(--face-source-cjk);
+  font-size: var(--font-source-cjk);
+  font-weight: var(--weight-source-cjk);
+  /* Only with no leading do both engines reserve the `<rt>` box in every line box alike; the
+     spacing comes from the `<rt>` padding below. */
+  line-height: normal;
   color: var(--color-on-surface);
 }
 
-/* Chromium leaves `<rt>` out of the line box and seats it 6px into the base, so it needs its
-   own leading and a lift to match the WebKit gaps (8px under the base, 16px to the next line). */
-:root[data-web-engine='chromium'] .hv-parallel {
-  line-height: var(--leading-source-cjk-parallel-chromium);
-}
-
+/* Chromium seats `<rt>` closer to the base and reserves less below it than WebKit does. */
 :root[data-web-engine='chromium'] .hv-parallel rt {
-  position: relative;
-  top: 6px; /* aura-allow-spacing: Chromium seats the annotation 6px into the base glyph box; measured on the bundled fonts */
+  padding-block: var(--space-grid-hv-reading-above-chromium) var(--space-grid-hv-reading-below-chromium);
 }
 
 /*
@@ -1163,6 +1144,7 @@ rt {
   text-decoration-line: none;
   /* Gap between adjacent ruby cells; the visual gap is twice this value. */
   padding-inline: var(--space-grid-hv-gap);
+  padding-block: var(--space-grid-hv-reading-above) var(--space-grid-hv-reading-below);
   /* 🔴 AC7 — người tiêu thụ ĐẦU TIÊN của `source-hanviet`. Năm biến, không chỉ synthesis. */
   font-family: var(--face-source-hanviet);
   font-size: var(--font-source-hanviet);

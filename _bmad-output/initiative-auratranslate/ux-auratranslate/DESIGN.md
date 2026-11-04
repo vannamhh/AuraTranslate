@@ -69,14 +69,6 @@ typography:
     fontFamily: read
     fontSize: 18px
     lineHeight: '2.05'
-  source-cjk-parallel:
-    fontFamily: read-cjk
-    fontSize: 18px
-    lineHeight: '2.5'
-  source-cjk-parallel-chromium:
-    fontFamily: read-cjk
-    fontSize: 18px
-    lineHeight: '3.1666666666666665'
   source-hanviet:
     fontFamily: read
     fontSize: 16px
@@ -332,7 +324,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 13 | `ui-label` | 13px / 700 / 21px / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em`. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
 | 14 | `ui-mono` | 13px / 21px | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
 | 15 | `translation-ref` | 15px / 28px | `read` | Bản dịch tham khảo: popup bộ nhớ dịch, gợi ý AI. 🔵 2026-10-30 (Ice): token mới, một bậc dưới `editor` |
-| 16 | `source-cjk-strong` | 18px / 700 / 2.05 | `read-cjk` | Chữ Hán ở kiểu Song song của tab Hán Việt. 🔵 2026-10-30 (Ice): token mới, nét 700 thật từ `NotoSerifCJKtc-Bold.otf`; ngoài lưới 7px (thân lưới Workspace). 🔵 2026-11-04 (Ice): thay bằng `source-cjk-parallel` 18px / 400 / 45px (WebKit) và `source-cjk-parallel-chromium` 18px / 400 / 57px (WebView2): âm đọc cách chữ Hán 8px, dòng chữ Hán kế cách âm đọc 16px trên cả hai engine, đo bằng điểm ảnh mực; tệp Bold đã gỡ |
+| 16 | `source-cjk-strong` | 18px / 700 / 2.05 | `read-cjk` | Chữ Hán ở kiểu Song song của tab Hán Việt. 🔵 2026-10-30 (Ice): token mới, nét 700 thật từ `NotoSerifCJKtc-Bold.otf`; ngoài lưới 7px (thân lưới Workspace). 🔵 2026-11-04 (Ice): token gỡ cùng tệp Bold. Kiểu Song song dùng `source-cjk` (400) ở `line-height: normal`; âm đọc cách chữ Hán 8px và dòng chữ Hán kế cách âm đọc 16px trên mọi dòng, bằng `padding-block` của `<rt>` qua `--space-grid-hv-reading-*` (WebKit 1px/9px, WebView2 2px/14px), đo bằng điểm ảnh mực |
 | 17 | `cover-name` | 16px / 23px | `read` | Tên Tác phẩm trên bìa thẻ Library. 🔵 2026-11-01 (Ice): tách khỏi `read-sm`, giãn 23px (≈ 1.45), ngoại lệ có tên của sàn 1.6 và của bội 7 |
 
 🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px. 🔵 2026-10-28 (Ice): chữ nhỏ nhất toàn app là 13px; `ui-sm`, `ui-sm-italic`, `ui-label`, `ui-mono` và `lookup-example` cùng 13px, nên chữ phụ bằng cỡ `ui-md` và tách khỏi chữ thường bằng màu, độ đậm, chữ hoa.
@@ -450,7 +442,7 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 - Sàn của mọi chữ xuống dòng là **1.6** (trước là 1.66), chung cho họ `read` và `ui`.
 - Token lưu giãn dòng là **tỉ số không đơn vị** bằng bội 7 chia cỡ chữ (21/13 = 1.6153846…), không lưu `px`: tỉ số giữ nguyên khi phần tử con đổi cỡ chữ, còn `px` thừa hưởng nguyên giá trị. Đo trên Chrome: tỉ số đầy đủ cho đúng 21,000px mỗi dòng ở bảy cỡ chữ; WKWebView chưa đo.
 - Thanh trượt giãn dòng của Chế độ đọc: giá trị lưu vẫn là tỉ số như trước, không đổi dữ liệu đã lưu; giãn dòng hiển thị là bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số, nên thanh trượt nhảy theo bậc 7px và không bao giờ xuống dưới sàn của nó.
-- Thân lưới Workspace giữ `source-cjk` · `source-latin` · `source-hanviet` · `editor` như cũ. 🔵 2026-10-30 (Ice): thêm `source-cjk-strong`, cùng tỉ số của `source-cjk`. 🔵 2026-11-04 (Ice): `source-cjk-strong` thay bằng `source-cjk-parallel` và `source-cjk-parallel-chromium`, giãn dòng riêng cho từng engine (§Bảng token typography hàng 16).
+- Thân lưới Workspace giữ `source-cjk` · `source-latin` · `source-hanviet` · `editor` như cũ. 🔵 2026-10-30 (Ice): thêm `source-cjk-strong`, cùng tỉ số của `source-cjk`. 🔵 2026-11-04 (Ice): `source-cjk-strong` đã gỡ (§Bảng token typography hàng 16).
 
 **Canh baseline.**
 
