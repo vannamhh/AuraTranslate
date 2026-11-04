@@ -1768,6 +1768,7 @@ const SELECTION_PANEL_FILES = {
   'src/panels/GridPanel.vue': 2,
   'src/panels/LookupPanel.vue': 1,
   'src/panels/AiTranslationPanel.vue': 1,
+  'src/panels/ReadingMarksPanel.vue': 1,
 }
 
 /**
@@ -2610,7 +2611,7 @@ const HANDLER_TABLE = {
     nonCommand: 'records where the pointer pressed so the mark chip sits under that line — view state, no dispatch',
   },
   'src/modes/ReadingMode.vue::onMarksEscape': { ids: ['reading.marks_clear_cancel', 'reading.marks_close'] },
-  'src/modes/ReadingMode.vue::onMarksKeydown': {
+  'src/modes/ReadingMarksList.vue::onMarksKeydown': {
     ids: ['reading.marks_next', 'reading.marks_prev', 'reading.marks_open', 'reading.marks_unmark'],
   },
   'src/panels/GridBlock.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },

@@ -1,5 +1,7 @@
 **Ba** panel: `Grid` · `Lookup` · `AiTranslation`.
 
+The dock also hosts one transient panel, `ReadingMarksPanel.vue` (`panel.reading_marks`): it shows the reading-marks list after "Sửa →", lives in memory only, is stripped from every saved layout (`dockTree.ts::withoutPanels`), has no `layout.toggle_*` command and is the first panel to give way.
+
 > 🔵 **2026-08-15 (Story 2.5b) — BỐN → BA.** `SourcePanel.vue` + `EditorPanel.vue` gộp thành
 > **`GridPanel.vue`**, một **lưới hai cột đối chiếu**: nguyên văn và bản dịch của cùng một câu
 > nằm trên **cùng một HÀNG** (UX-DR13). Hai tệp cũ đã **gỡ khỏi cây nguồn**; mọi mệnh đề dưới

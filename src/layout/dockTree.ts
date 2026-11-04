@@ -434,3 +434,73 @@ export function withoutHideHeader(dock: SerializedDockJSON): SerializedDockJSON 
   visit(cloned.grid.root)
   return cloned
 }
+
+/**
+ * A copy of the serialized dock without the given panels. A removed leaf hands its size to the
+ * neighbour that stays, so the rest keeps the proportions it had on screen; `activeGroup` falls
+ * back to the first remaining leaf when its group went with them.
+ */
+export function withoutPanels(dock: SerializedDockJSON, ids: ReadonlySet<string>): SerializedDockJSON {
+  const cloned = JSON.parse(JSON.stringify(dock)) as SerializedDockJSON
+  const strip = (node: SizedGridNode, isRoot: boolean): SizedGridNode | null => {
+    if (node.type === 'leaf') {
+      const data = node.data as LeafData
+      data.views = data.views.filter((v) => !ids.has(v))
+      if (data.views.length === 0) return null
+      if (!data.views.includes(data.activeView)) data.activeView = data.views[0] as string
+      return node
+    }
+    const kept: SizedGridNode[] = []
+    let carry = 0
+    for (const kid of node.data as SizedGridNode[]) {
+      const stripped = strip(kid, false)
+      if (stripped === null) {
+        const freed = kid.size ?? 0
+        const last = kept.at(-1)
+        if (last === undefined) carry += freed
+        else last.size = (last.size ?? 0) + freed
+        continue
+      }
+      if (carry > 0) {
+        stripped.size = (stripped.size ?? 0) + carry
+        carry = 0
+      }
+      kept.push(stripped)
+    }
+    if (kept.length === 0) return null
+    const only = kept.length === 1 ? kept[0] : undefined
+    if (!isRoot && only !== undefined && only.type === 'leaf') {
+      only.size = node.size
+      return only
+    }
+    node.data = kept
+    return node
+  }
+  const root = strip(cloned.grid.root as SizedGridNode, true)
+  cloned.grid.root = root ?? { type: 'branch', data: [] }
+  for (const id of ids) delete cloned.panels[id]
+  const floating = (cloned as { floatingGroups?: { data: LeafData }[] }).floatingGroups
+  if (floating !== undefined) {
+    for (const group of floating) group.data.views = group.data.views.filter((v) => !ids.has(v))
+    const kept = floating.filter((group) => group.data.views.length > 0)
+    for (const group of kept) {
+      if (!group.data.views.includes(group.data.activeView)) group.data.activeView = group.data.views[0] as string
+    }
+    if (kept.length === 0) delete (cloned as { floatingGroups?: unknown }).floatingGroups
+    else (cloned as { floatingGroups?: unknown }).floatingGroups = kept
+  }
+  if (cloned.activeGroup !== undefined) {
+    const groups: string[] = []
+    const collect = (node: GridNode): void => {
+      if (node.type === 'leaf') groups.push((node.data as LeafData).id)
+      else for (const kid of node.data as GridNode[]) collect(kid)
+    }
+    collect(cloned.grid.root)
+    if (!groups.includes(cloned.activeGroup)) {
+      const first = groups.at(0)
+      if (first === undefined) delete cloned.activeGroup
+      else cloned.activeGroup = first
+    }
+  }
+  return cloned
+}

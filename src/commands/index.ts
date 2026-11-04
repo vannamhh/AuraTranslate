@@ -19,7 +19,7 @@
 import { createRegistry } from './registry.ts'
 import { createFocusRegistry } from './focus.ts'
 import { attachKeymap, createKeymap, resolveChord } from './keys.ts'
-import { PANEL_IDS } from '../layout/workspaceLayout.ts'
+import { PERSISTED_PANEL_IDS } from '../layout/workspaceLayout.ts'
 import type { CommandId, CommandSpec, Registry } from './registry.ts'
 import type { FocusEntry, FocusOwner, FocusRegistry } from './focus.ts'
 import type { Binding, ChordOverrides, Keymap, KeymapGate } from './keys.ts'
@@ -71,6 +71,7 @@ export const FOCUS_OWNERS: readonly FocusOwner[] = [
   'panel.grid',
   'panel.lookup',
   'panel.ai_translation',
+  'panel.reading_marks',
   'panel.review_mine',
   'panel.review_copy',
 ]
@@ -1306,6 +1307,7 @@ export type CommandDeps = {
   /** Mở/đóng/điều hướng danh sách marker của Tác phẩm. */
   openReadingMarks?: () => void
   closeReadingMarks?: () => void
+  closeReadingMarksPanel?: () => void
   nextReadingMark?: () => void
   prevReadingMark?: () => void
   openCurrentReadingMark?: () => void
@@ -1323,14 +1325,14 @@ export type CommandDeps = {
 }
 
 /**
- * **Ba** panel của Workspace, theo thứ tự khai báo. Suy ra từ `PANEL_IDS` của
- * `src/layout/workspaceLayout.ts` — không còn một mảng chép tay để trôi khỏi nó.
+ * Panel bền của Workspace (không tính panel tạm `panel.reading_marks`), theo thứ tự khai báo.
+ * Suy ra từ `PERSISTED_PANEL_IDS` của `src/layout/workspaceLayout.ts` — không còn một mảng chép tay để trôi khỏi nó.
  *
  * 🔵 2026-08-14 (Story 2.5b): bốn → **ba** ⇒ **ba** command `layout.toggle_*`, không bốn.
  * Đây là chỗ duy nhất con số đó sống trong `src/commands/`; sàn `COMMAND_FLOOR` của
  * `check-commands.mjs` phải được đếm lại cùng lượt.
  */
-const PANEL_SUFFIXES: readonly string[] = PANEL_IDS.map((id) => id.slice('panel.'.length))
+const PANEL_SUFFIXES: readonly string[] = PERSISTED_PANEL_IDS.map((id) => id.slice('panel.'.length))
 
 /**
  * Cổng vắng mặt ⇒ **kêu**, không ném và không im.
@@ -2817,6 +2819,15 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.closeReadingMarks()
     },
   })
+  target.register({
+    id: 'reading.marks_panel_close',
+    labelKey: 'command.reading.marks_panel_close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeReadingMarksPanel === undefined) return portMissing('reading.marks_panel_close', 'closeReadingMarksPanel')
+      deps.closeReadingMarksPanel()
+    },
+  })
   for (const [id, labelKey, port] of [
     ['reading.marks_next', 'command.reading.marks_next', 'nextReadingMark'],
     ['reading.marks_prev', 'command.reading.marks_prev', 'prevReadingMark'],
@@ -2827,7 +2838,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       pointer: {
         kind: 'aim',
         reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.',
-        at: 'src/modes/ReadingMode.vue',
+        at: 'src/modes/ReadingMarksList.vue',
       },
       keys: undefined,
       run: () => {

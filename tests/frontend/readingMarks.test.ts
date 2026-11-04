@@ -6,10 +6,20 @@ const mockInvoke = vi.fn()
 const mockOpenChapterById = vi.fn()
 const mockRequestCurrentEditorCaretPlacement = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInvoke(...args) }))
-vi.mock('../../src/panels/editorPanelState', () => ({
+vi.mock('../../src/panels/editorPanelState', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/panels/editorPanelState')>()),
   openChapterById: (...args: unknown[]) => mockOpenChapterById(...args),
   requestCurrentEditorCaretPlacement: (...args: unknown[]) =>
     mockRequestCurrentEditorCaretPlacement(...args),
+  flushEditorBeforeDiscreteWrite: async () => 'clean' as const,
+  flushChapterPositionNow: async () => {},
+}))
+vi.mock('../../src/config/library', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/config/library')>()),
+  openWork: async () => ({
+    opened: { meta: { work_id: 'w-khac', genre: '', name: 'Tac pham khac', chapter_count: 1, source_lang: 'zh', target_lang: 'vi' }, folder: '/tmp/w-khac.atproj', chapter_id: 1 },
+    error: null,
+  }),
 }))
 
 const SEGMENT = {
@@ -414,7 +424,137 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
     await wrapper.get('[data-reading-marks-clear-cancel]').trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
-    expect(document.activeElement).toBe(wrapper.get('.marks-panel').element)
+    expect(document.activeElement).toBe(wrapper.get('.marks-body').element)
+    wrapper.unmount()
+  })
+})
+
+describe('modes/readingState — the marks list follows the user into the Workspace', () => {
+  const SECOND = { ...MARK, segment_id: 13, navigation_segment_id: 31, chapter_id: 5, chapter_ord: 3 }
+
+  async function openList() {
+    const state = await import('../../src/modes/readingState')
+    const mode = await import('../../src/modes/modeState')
+    mode.setMode('reading')
+    mockInvoke.mockResolvedValueOnce([MARK, SECOND])
+    await state.openReadingMarks()
+    return { state, mode }
+  }
+
+  it('Sửa → keeps both rows, marks the opened row current and shows the panel in the Workspace', async () => {
+    const { state, mode } = await openList()
+    mockOpenChapterById.mockResolvedValueOnce(true)
+    await state.openCurrentReadingMark()
+
+    expect(mode.currentMode.value).toBe('workspace')
+    expect(state.readingMarksPanelShown.value).toBe(true)
+    expect(state.readingMarksOpen.value).toBe(false)
+    expect(state.readingMarks.value.map((row) => row.segment_id)).toEqual([12, 13])
+    expect(state.readingMarksCursor.value).toBe(0)
+  })
+
+  it('a second Sửa → from the Workspace opens the other Chapter, stays in the Workspace and keeps the list', async () => {
+    const { state, mode } = await openList()
+    mockOpenChapterById.mockResolvedValue(true)
+    await state.openCurrentReadingMark()
+    state.setReadingMarksCursor(1)
+    await state.openCurrentReadingMark()
+
+    expect(mockOpenChapterById).toHaveBeenLastCalledWith(5, 31)
+    expect(mode.currentMode.value).toBe('workspace')
+    expect(state.readingMarks.value).toHaveLength(2)
+    expect(state.readingMarksCursor.value).toBe(1)
+    expect(state.readingMarksPanelShown.value).toBe(true)
+  })
+
+  it('a failed open leaves the Workspace panel off and the modal list as it was', async () => {
+    const { state, mode } = await openList()
+    mockOpenChapterById.mockResolvedValueOnce(false)
+    await state.openCurrentReadingMark()
+
+    expect(mode.currentMode.value).toBe('reading')
+    expect(state.readingMarksPanelShown.value).toBe(false)
+    expect(state.readingMarksOpen.value).toBe(true)
+    expect(state.readingMarks.value).toHaveLength(2)
+  })
+
+  it('Bỏ dấu in the Workspace drops the row and an empty list says so through marks_empty state', async () => {
+    const { state } = await openList()
+    mockOpenChapterById.mockResolvedValue(true)
+    await state.openCurrentReadingMark()
+
+    mockInvoke.mockResolvedValueOnce(true)
+    await state.unmarkCurrentReadingMark()
+    expect(state.readingMarks.value.map((row) => row.segment_id)).toEqual([13])
+    mockInvoke.mockResolvedValueOnce(true)
+    await state.unmarkCurrentReadingMark()
+    expect(state.readingMarks.value).toEqual([])
+    expect(state.readingMarksHaveLoaded.value).toBe(true)
+    expect(state.readingMarksError.value).toBeNull()
+  })
+
+  it('the walk keeps the list and the current row follows the step', async () => {
+    const { state } = await openList()
+    mockOpenChapterById.mockResolvedValue(true)
+    await state.walkReadingMarks()
+    expect(state.readingMarksPanelShown.value).toBe(true)
+    expect(state.readingMarksCursor.value).toBe(0)
+    await state.walkNextReadingMark()
+    expect(state.readingMarks.value).toHaveLength(2)
+    expect(state.readingMarksCursor.value).toBe(1)
+  })
+
+  it('closing the panel and opening another Work each drop it', async () => {
+    const { state, mode } = await openList()
+    mockOpenChapterById.mockResolvedValue(true)
+
+    await state.openCurrentReadingMark()
+    state.closeReadingMarksPanel()
+    expect(state.readingMarksPanelShown.value).toBe(false)
+    expect(state.readingMarks.value).toEqual([])
+
+    mode.setMode('reading')
+    mockInvoke.mockResolvedValueOnce([MARK, SECOND])
+    await state.openReadingMarks()
+    await state.openCurrentReadingMark()
+    expect(state.readingMarksPanelShown.value).toBe(true)
+    const { openWorkById } = await import('../../src/modes/libraryChapters')
+    mockInvoke.mockResolvedValue(null)
+    await openWorkById('w-khac')
+    expect(state.readingMarksPanelShown.value).toBe(false)
+    expect(state.readingMarks.value).toEqual([])
+  })
+
+  it('the reading-mode deactivation after Sửa → keeps the list, and coming back to the reading mode drops the panel', async () => {
+    const state = await import('../../src/modes/readingState')
+    const mode = await import('../../src/modes/modeState')
+    const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
+    const { h, KeepAlive, defineComponent, nextTick } = await import('vue')
+    const Empty = defineComponent({ render: () => h('div') })
+    const Host = defineComponent({
+      render: () => h(KeepAlive, null, [mode.currentMode.value === 'reading' ? h(ReadingMode) : h(Empty)]),
+    })
+    mode.setMode('reading')
+    mockInvoke.mockResolvedValueOnce(RUN)
+    const wrapper = mount(Host, { attachTo: document.body })
+    await nextTick()
+    await state.ensureReadingLoaded()
+    mockInvoke.mockResolvedValueOnce([MARK, SECOND])
+    await state.openReadingMarks()
+    mockOpenChapterById.mockResolvedValue(true)
+    await state.openCurrentReadingMark()
+    await nextTick()
+    await nextTick()
+
+    expect(mode.currentMode.value).toBe('workspace')
+    expect(state.readingMarks.value).toHaveLength(2)
+    expect(state.readingMarksPanelShown.value).toBe(true)
+
+    mode.setMode('reading')
+    await nextTick()
+    await nextTick()
+    expect(state.readingMarksPanelShown.value).toBe(false)
+    expect(state.readingMarks.value).toEqual([])
     wrapper.unmount()
   })
 })

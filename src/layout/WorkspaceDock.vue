@@ -33,6 +33,8 @@ import { enterFocus } from '../commands'
 import GridPanel from '../panels/GridPanel.vue'
 import LookupPanel from '../panels/LookupPanel.vue'
 import AiTranslationPanel from '../panels/AiTranslationPanel.vue'
+import ReadingMarksPanel from '../panels/ReadingMarksPanel.vue'
+import { readingMarksPanelShown } from '../modes/readingState'
 import PanelTab from '../panels/PanelTab.vue'
 import { isUserActivation, setDockController } from './dockController'
 import { createWriteSchedule } from './writeSchedule'
@@ -47,8 +49,11 @@ import {
   DEFAULT_PRESET_ID,
   layoutTierFor,
   nextToSacrifice,
+  isTransientPanel,
   PANEL_COMPONENTS,
   PANEL_IDS,
+  PERSISTED_PANEL_IDS,
+  TRANSIENT_PANEL_IDS,
   PANEL_TITLE_KEYS,
   presetById,
   SACRIFICE_ORDER,
@@ -63,6 +68,7 @@ import {
   spotInTree,
   unmergeForPersist,
   withoutHideHeader,
+  withoutPanels,
 } from './dockTree'
 import { panelHeadersShown } from './panelHeadersState'
 import { resetVisibleDockPanels, setVisibleDockPanels } from './panelVisibilityState'
@@ -115,9 +121,10 @@ const components = {
   grid: GridPanel,
   lookup: LookupPanel,
   aiTranslation: AiTranslationPanel,
+  readingMarks: ReadingMarksPanel,
 } as unknown as Record<string, VueComponent>
 
-/** ⚠️ MỘT tab component cho cả ba panel — §Quyết định #4A. */
+/** ⚠️ MỘT tab component cho mọi panel — §Quyết định #4A. */
 const tabComponents = { aura: PanelTab } as unknown as Record<string, VueComponent>
 const TAB_COMPONENT = 'aura'
 
@@ -311,6 +318,7 @@ function applyPreset(presetId: string): boolean {
   currentTier.value = null
   measureAndApplyTier()
   syncPanelHeaders()
+  syncReadingMarksPanel()
   return true
 }
 
@@ -395,8 +403,12 @@ function rememberSpot(api: DockviewApi, panel: IDockviewPanel): RememberedSpot |
   return { reference: spot.reference, direction: spot.direction, beside: spot.beside, size: groupSizeOf(panel) }
 }
 
+function serializedLayout(api: DockviewApi): SerializedDockJSON {
+  return withoutPanels(withoutHideHeader(api.toJSON() as unknown as SerializedDockJSON), new Set<string>(TRANSIENT_PANEL_IDS))
+}
+
 function captureHiddenTree(api: DockviewApi): void {
-  const json = withoutHideHeader(api.toJSON() as unknown as SerializedDockJSON)
+  const json = serializedLayout(api)
   const saved = tierMerged.value && mergedSpot !== null ? unmergeForPersist(json, 'panel.ai_translation', mergedSpot) : json
   setHiddenTree(json.grid, saved.grid)
 }
@@ -406,7 +418,8 @@ function hidePanel(id: PanelId): boolean {
   if (api === null) return false
   const panel = api.getPanel(id)
   if (panel === undefined) return false
-  const spot = rememberSpot(api, panel)
+  const othersLeft = api.panels.some((p) => p.id !== id && !isTransientPanel(p.id))
+  const spot = othersLeft ? rememberSpot(api, panel) : null
   if (spot === null) {
     console.error(
       `[layout] \`${id}\` là panel DUY NHẤT đang hiện — ẩn nó cho ra một Workspace rỗng, ` +
@@ -628,6 +641,10 @@ function computeWorkArea(): WorkArea {
 
 /** Ẩn một panel VÌ TẦNG — bọc cờ chặn ghi, ghi vào sổ "ẩn vì tầng" khi thành công. */
 function autoHide(id: PanelId): void {
+  if (isTransientPanel(id)) {
+    syncReadingMarksPanel()
+    return
+  }
   suppressPersist = true
   const ok = hidePanel(id)
   endSuppressPersist()
@@ -750,6 +767,28 @@ function undoMerge(): void {
   syncPanelHeaders()
 }
 
+function syncReadingMarksPanel(): void {
+  const api = dock.value
+  if (api === null) return
+  const id: PanelId = 'panel.reading_marks'
+  const wanted = readingMarksPanelShown.value && currentTier.value !== 'narrow' && currentTier.value !== 'unsupported'
+  const present = api.getPanel(id)
+  if (wanted === (present !== undefined)) return
+  suppressPersist = true
+  try {
+    if (present !== undefined) api.removePanel(present)
+    else {
+      const anchor = api.getPanel('panel.grid') !== undefined ? 'panel.grid' : visiblePanelsInLayoutOrder().at(0)
+      addPanel(api, id, anchor === undefined ? undefined : { referencePanel: anchor, direction: 'right' })
+    }
+  } finally {
+    endSuppressPersist()
+  }
+  restoreFocusIfLost('panel.grid')
+}
+
+watch(readingMarksPanelShown, syncReadingMarksPanel)
+
 /**
  * Áp một TẦNG lên dock THẬT — Task 3. Chỉ gọi khi tầng vừa ĐỔI (xem
  * [`measureAndApplyTier`]); mọi nhánh dùng lại nguyên [`hidePanel`]/[`showPanel`] qua
@@ -789,6 +828,7 @@ function applyTier(tier: LayoutTier): void {
     undoMerge()
     restoreAllAutoHidden()
   }
+  syncReadingMarksPanel()
   // Cùng kỷ luật với `togglePanel`: `restoreFocusIfLost` chỉ can thiệp khi focus THẬT SỰ đã
   // mất, nên gọi vô điều kiện ở đây là an toàn — nó tự no-op khi người dùng vẫn đứng nơi khác.
   const fallback = visiblePanelsInLayoutOrder().at(0)
@@ -841,7 +881,7 @@ let timer: ReturnType<typeof setTimeout> | null = null
  * [`unmergeForPersist`] nhận cả `within`, nên không còn nhánh nào ghi hình dạng đã gộp.
  */
 function jsonForPersist(api: DockviewApi): unknown {
-  const json = withoutHideHeader(api.toJSON() as unknown as SerializedDockJSON)
+  const json = serializedLayout(api)
   const live = tierMerged.value && mergedSpot !== null ? unmergeForPersist(json, 'panel.ai_translation', mergedSpot) : json
   if (hiddenTreeSaved === null || hidden.size === 0) return live
   return { ...live, hiddenLayout: { grid: hiddenTreeSaved } }
@@ -912,13 +952,14 @@ function applyLayoutJson(json: string): boolean {
   tierMerged.value = false
   mergedSpot = null
   setActiveLayoutPreset(null)
-  for (const id of PANEL_IDS) {
+  for (const id of PERSISTED_PANEL_IDS) {
     if (api.getPanel(id) === undefined) hidden.set(id, { reference: id, direction: 'right' })
   }
   if (hidden.size > 0) setHiddenTree(readHiddenLayout(parsed))
   onLayoutChange()
   measureAndApplyTier()
   syncPanelHeaders()
+  syncReadingMarksPanel()
   return true
 }
 
@@ -1050,7 +1091,7 @@ function restore(api: DockviewApi, saved: string): void {
   //
   // The self-referencing `reference` is a sentinel: its anchor never resolves, so `showPanel()` falls back
   // to the right of the first visible panel unless `hiddenLayout` places it. Do not change it.
-  for (const id of PANEL_IDS) {
+  for (const id of PERSISTED_PANEL_IDS) {
     if (api.getPanel(id) === undefined) hidden.set(id, { reference: id, direction: 'right' })
   }
   if (hidden.size > 0) setHiddenTree(readHiddenLayout(parsed))
@@ -1076,7 +1117,7 @@ function onReady(event: DockviewReadyEvent): void {
    * thân panel. Hệ quả: `focus.next_panel` bấm ngay sau đó tính vòng từ một chỗ khác với
    * chỗ người dùng nghĩ mình đang đứng, và vạch tiêu điểm 2px không sáng ở đâu cả.
    *
-   * ⚠️ MỘT chỗ nghe cho cả ba panel, không phải một handler trên mỗi tab. `PanelTab.vue`
+   * ⚠️ MỘT chỗ nghe cho mọi panel, không phải một handler trên mỗi tab. `PanelTab.vue`
    * vì vậy không có `@click` nào — xem doc-comment ở đó.
    *
    * ⚠️ `enterFocus` tự KÊU khi trượt (`focus.ts`) và không bao giờ ném, nên không cần
@@ -1106,7 +1147,8 @@ function onReady(event: DockviewReadyEvent): void {
       if (id !== undefined && isPanelId(id)) void enterFocus(id)
     }),
   )
-  const syncVisiblePanels = () => setVisibleDockPanels(api.panels.map((p) => p.id).filter(isPanelId))
+  const syncVisiblePanels = () =>
+    setVisibleDockPanels(api.panels.map((p) => p.id).filter((id): id is PanelId => isPanelId(id) && !isTransientPanel(id)))
   syncVisiblePanels()
   disposables.push(api.onDidAddPanel(syncVisiblePanels))
   disposables.push(api.onDidRemovePanel(syncVisiblePanels))
@@ -1130,6 +1172,7 @@ function onReady(event: DockviewReadyEvent): void {
   // rồi) là một no-op rẻ, vì `measureAndApplyTier` tự so `tier === currentTier.value`.
   measureAndApplyTier()
   syncPanelHeaders()
+  syncReadingMarksPanel()
   syncDockEdgeClasses(api)
 }
 

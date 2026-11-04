@@ -227,13 +227,13 @@ const layoutMod = await import(pathToFileURL(join(SRC_ROOT, 'layout', 'workspace
   (err) => abort('`src/layout/workspaceLayout.ts` — Kiểm A KHÔNG chạy được', err),
 )
 
-for (const name of ['PANEL_IDS', 'SACRIFICE_ORDER', 'NEVER_SACRIFICED', 'nextToSacrifice']) {
+for (const name of ['PANEL_IDS', 'PERSISTED_PANEL_IDS', 'SACRIFICE_ORDER', 'NEVER_SACRIFICED', 'nextToSacrifice']) {
   if (layoutMod[name] === undefined) {
     abort('`src/layout/workspaceLayout.ts`', new Error(`không export \`${name}\`.`))
   }
 }
 
-const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRestore } = layoutMod
+const { PANEL_IDS, PERSISTED_PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRestore } = layoutMod
 
 // Mệnh đề 1 — hai tập RỜI NHAU và hợp lại đúng `PANEL_IDS`.
 //
@@ -283,8 +283,8 @@ const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRes
     fail(`thứ tự hy sinh thiếu một trong hai panel — đang là [${SACRIFICE_ORDER.join(', ')}]`)
   } else if (ai >= lookup) {
     fail('`panel.ai_translation` phải nhường TRƯỚC `panel.lookup` (UX-DR15)')
-  } else if (nextToSacrifice([...PANEL_IDS]) !== 'panel.ai_translation') {
-    fail(`đủ ba panel ⇒ cái nhường đầu tiên phải là \`panel.ai_translation\``)
+  } else if (nextToSacrifice([...PERSISTED_PANEL_IDS]) !== 'panel.ai_translation') {
+    fail(`đủ ba panel bền ⇒ cái nhường đầu tiên phải là \`panel.ai_translation\``)
   } else if (nextToSacrifice(['panel.grid', 'panel.lookup']) !== 'panel.lookup') {
     fail('sau khi `panel.ai_translation` đã nhường, cái kế tiếp phải là `panel.lookup`')
   } else if (nextToSacrifice(['panel.grid']) !== null) {

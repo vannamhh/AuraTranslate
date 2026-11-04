@@ -39,7 +39,7 @@ import {
 } from '../config/reading'
 import type { ReadingChapter, ReadingMark, ReadingRun, ReadingSegment } from '../config/reading'
 import { openChapterById, requestCurrentEditorCaretPlacement } from '../panels/editorPanelState'
-import { setMode } from './modeState'
+import { currentMode, setMode } from './modeState'
 import type { IpcError } from '../i18n'
 import { tokens } from '../tokens'
 import type { TypographyToken } from '../tokens'
@@ -168,7 +168,7 @@ export function reloadReading(): Promise<void> {
  * story này). KHÔNG dọn nhóm ③ (typography) — đó là tuỳ chọn ứng dụng, xem
  * `resetReadingPreferences()`.
  */
-export function resetReading(options: { preserveAnchor?: boolean } = {}): void {
+export function resetReading(options: { preserveAnchor?: boolean; keepMarks?: boolean } = {}): void {
   sequence += 1
   requested = false
   run.value = null
@@ -183,7 +183,7 @@ export function resetReading(options: { preserveAnchor?: boolean } = {}): void {
     anchorSegmentId.value = null
     marksWalk.value = null
   }
-  resetReadingMarks()
+  if (options.keepMarks !== true) resetReadingMarks()
 }
 
 function findReadingSegment(segmentId: number): { chapterId: number; segment: ReadingSegment } | null {
@@ -278,6 +278,7 @@ export async function openSearchHitInReading(chapterId: number, segmentId: numbe
 // ═════════════════════════════════════════════════════════════════════════════════
 
 const marksOpen = ref(false)
+const marksPanelShown = ref(false)
 const marks = shallowRef<ReadingMark[]>([])
 const marksHaveLoaded = ref(false)
 const marksBusy = ref(false)
@@ -289,6 +290,8 @@ let marksSequence = 0
 let totalSequence = 0
 
 export const readingMarksOpen: DeepReadonly<Ref<boolean>> = readonly(marksOpen)
+/** The Workspace dock shows the marks list; it lives in memory only and is never part of a saved layout. */
+export const readingMarksPanelShown: DeepReadonly<Ref<boolean>> = readonly(marksPanelShown)
 export const readingMarks: DeepReadonly<Ref<ReadingMark[]>> = readonly(marks)
 export const readingMarksHaveLoaded: DeepReadonly<Ref<boolean>> = readonly(marksHaveLoaded)
 export const readingMarksBusy: DeepReadonly<Ref<boolean>> = readonly(marksBusy)
@@ -385,17 +388,34 @@ export const readingMarksWalkProgress: ComputedRef<{ next: number; total: number
   return { next: walk.index + 1, total: walk.marks.length }
 })
 
-async function openWalkMark(mark: ReadingMark): Promise<boolean> {
+async function openWalkMark(mark: ReadingMark, reveal = false): Promise<boolean> {
   const moved = await openChapterById(mark.chapter_id, mark.navigation_segment_id)
   if (!moved) return false
   anchorSegmentId.value = mark.navigation_segment_id
-  resetReading({ preserveAnchor: true })
+  if (reveal) showMarksPanel()
+  const at = marks.value.findIndex((row) => row.segment_id === mark.segment_id)
+  resetAfterMarkOpen()
+  if (at !== -1 && marksPanelShown.value) marksCursor.value = at
+  await enterWorkspaceAtMark()
+  return true
+}
+
+function resetAfterMarkOpen(): void {
+  resetReading({ preserveAnchor: true, keepMarks: marksPanelShown.value })
   resetReadingToc()
-  setMode('workspace')
+}
+
+async function enterWorkspaceAtMark(): Promise<void> {
+  if (currentMode.value !== 'workspace') setMode('workspace')
   await nextTick()
   requestCurrentEditorCaretPlacement()
   await nextTick()
-  return true
+}
+
+function showMarksPanel(): void {
+  marksOpen.value = false
+  marksClearPending.value = false
+  marksPanelShown.value = true
 }
 
 /** "Sửa lần lượt": snapshots the list, opens its first mark in the Workspace and arms the step-through. */
@@ -404,7 +424,7 @@ export async function walkReadingMarks(): Promise<void> {
   const first = snapshot.at(0)
   if (first === undefined) return
   marksCursor.value = 0
-  if (!(await openWalkMark(first))) return
+  if (!(await openWalkMark(first, true))) return
   marksWalk.value = { marks: snapshot, index: 0 }
 }
 
@@ -447,17 +467,21 @@ export async function openCurrentReadingMark(): Promise<void> {
   const moved = await openChapterById(mark.chapter_id, mark.navigation_segment_id)
   if (!moved) return
   anchorSegmentId.value = mark.navigation_segment_id
-  resetReading({ preserveAnchor: true })
-  resetReadingToc()
-  setMode('workspace')
-  await nextTick()
-  requestCurrentEditorCaretPlacement()
-  await nextTick()
+  showMarksPanel()
+  resetAfterMarkOpen()
+  await enterWorkspaceAtMark()
+}
+
+/** "Đóng" on the Workspace panel: the list goes away with its data. */
+export function closeReadingMarksPanel(): void {
+  if (!marksPanelShown.value) return
+  resetReadingMarks()
 }
 
 export function resetReadingMarks(): void {
   marksSequence += 1
   marksOpen.value = false
+  marksPanelShown.value = false
   marks.value = []
   marksHaveLoaded.value = false
   marksBusy.value = false

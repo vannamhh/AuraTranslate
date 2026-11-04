@@ -428,6 +428,7 @@ import { proofreadScopeIsOpen } from './proofreadState'
 import {
   closeTableOfContents,
   closeReadingMarks,
+  closeReadingMarksPanel,
   initReadingPreferencesFromBootstrap,
   markAimedReadingSegment,
   nextReadingMark,
@@ -772,6 +773,7 @@ async function boot(): Promise<void> {
         void openReadingMarks()
       },
       closeReadingMarks,
+      closeReadingMarksPanel,
       nextReadingMark,
       prevReadingMark,
       openCurrentReadingMark: () => {

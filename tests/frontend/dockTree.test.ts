@@ -23,6 +23,7 @@ import {
   spotInTree,
   unmergeForPersist,
   viewsIn,
+  withoutPanels,
 } from '../../src/layout/dockTree'
 import type { GridNode, SerializedDockJSON, SerializedGrid } from '../../src/layout/dockTree'
 
@@ -537,5 +538,62 @@ describe('parseHiddenLayout', () => {
     ['unknown node type', { grid: { orientation: 'HORIZONTAL', root: { type: 'x', data: [] } } }],
   ])('rejects %s', (_name, value) => {
     expect(parseHiddenLayout(value)).toBeNull()
+  })
+})
+
+describe('withoutPanels', () => {
+  const sized = (id: string, size: number, group: string): GridNode => leafG([id], { id: group, size })
+  const WITH_MARKS: SerializedDockJSON = {
+    ...dockJSON(
+      branchG([
+        sized('panel.grid', 400, '1'),
+        sized('panel.reading_marks', 200, '9'),
+        branchG([sized('panel.lookup', 300, '2'), sized('panel.ai_translation', 300, '3')], 400),
+      ]),
+      'HORIZONTAL',
+      '9',
+    ),
+  }
+  WITH_MARKS.panels['panel.reading_marks'] = { id: 'panel.reading_marks' }
+
+  it('drops the panel from the tree and the panel map, and hands its width to the neighbour that stays', () => {
+    const result = withoutPanels(WITH_MARKS, new Set(['panel.reading_marks']))
+    expect(shape(result.grid.root, result.grid.orientation)).toBe('(panel.grid|(panel.lookup/panel.ai_translation))')
+    const sizes = (result.grid.root.data as { size: number }[]).map((node) => node.size)
+    expect(sizes).toEqual([600, 400])
+    expect(result.panels).not.toHaveProperty('panel.reading_marks')
+    expect(result.activeGroup).toBe('1')
+  })
+
+  it('leaves the input untouched and keeps a dock that never had the panel as it was', () => {
+    withoutPanels(WITH_MARKS, new Set(['panel.reading_marks']))
+    expect(viewsIn(WITH_MARKS.grid.root)).toContain('panel.reading_marks')
+    const plain = dockJSON(B2_MERGED.grid.root, 'HORIZONTAL', '1')
+    expect(withoutPanels(plain, new Set(['panel.reading_marks']))).toEqual(plain)
+  })
+
+  it('strips the panel from floating groups and drops a floating group left empty', () => {
+    const base = withoutPanels(WITH_MARKS, new Set())
+    const floating = {
+      ...base,
+      floatingGroups: [
+        { data: { views: ['panel.reading_marks'], activeView: 'panel.reading_marks', id: '7' }, position: { top: 1, left: 1, width: 5, height: 5 } },
+        { data: { views: ['panel.lookup', 'panel.reading_marks'], activeView: 'panel.reading_marks', id: '8' }, position: { top: 1, left: 1, width: 5, height: 5 } },
+      ],
+    } as SerializedDockJSON
+    const result = withoutPanels(floating, new Set(['panel.reading_marks'])) as SerializedDockJSON & {
+      floatingGroups: { data: { views: string[]; activeView: string; id: string } }[]
+    }
+    expect(result.floatingGroups.map((g) => g.data.id)).toEqual(['8'])
+    expect(result.floatingGroups[0]?.data.views).toEqual(['panel.lookup'])
+    expect(result.floatingGroups[0]?.data.activeView).toBe('panel.lookup')
+    const onlyMarks = { ...base, floatingGroups: [(floating as unknown as { floatingGroups: unknown[] }).floatingGroups[0]] } as SerializedDockJSON
+    expect(withoutPanels(onlyMarks, new Set(['panel.reading_marks']))).not.toHaveProperty('floatingGroups')
+  })
+
+  it('removes the panel from a tab group without removing the group', () => {
+    const tabbed = dockJSON(branchG([leafG(['panel.grid', 'panel.reading_marks'], { id: '1' })]), 'HORIZONTAL', '1')
+    const result = withoutPanels(tabbed, new Set(['panel.reading_marks']))
+    expect(viewsIn(result.grid.root)).toEqual(['panel.grid'])
   })
 })

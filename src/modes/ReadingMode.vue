@@ -27,6 +27,7 @@ import { currentTheme } from '../tokens/themeState'
 import {
   currentReadingLevel,
   clearReadingAim,
+  closeReadingMarksPanel,
   ensureReadingLoaded,
   readingBilingual,
   readingChaptersDone,
@@ -40,13 +41,9 @@ import {
   readingRun,
   readingLoadError,
   readingMarkerError,
-  readingMarks,
-  readingMarksBusy,
-  readingMarksCursor,
-  readingMarksError,
-  readingMarksHaveLoaded,
   readingMarksClearPending,
   readingMarksOpen,
+  readingMarksPanelShown,
   readingMarksTotal,
   readingStatusKind,
   readingStyle,
@@ -59,7 +56,6 @@ import {
   resetReading,
   setReadingAnchor,
   setReadingAim,
-  setReadingMarksCursor,
   setReadingTocCursor,
 } from './readingState'
 import { readingOriginLabel } from './readingOrigin'
@@ -68,12 +64,14 @@ import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParag
 import AppIcon from '../AppIcon.vue'
 import ChapterImage from '../ChapterImage.vue'
 import ReadingLookupPopup from './ReadingLookupPopup.vue'
+import ReadingMarksList from './ReadingMarksList.vue'
 import { readingLookupAnchor, resetReadingLookup } from './readingLookupState'
 import { useSelectionSurface } from '../panels/selectionContract'
 
 const root = useTemplateRef<HTMLElement>('root')
 const tocPanel = useTemplateRef<HTMLElement>('tocPanel')
 const marksPanel = useTemplateRef<HTMLElement>('marksPanel')
+const marksList = useTemplateRef<InstanceType<typeof ReadingMarksList>>('marksList')
 
 useSelectionSurface(root, 'source', undefined, false, '[data-reading-source-note]', false)
 
@@ -121,7 +119,7 @@ watch(readingTocOpen, async (open) => {
 watch(
   readingMarksClearPending,
   (pending) => {
-    if (!pending && readingMarksOpen.value && document.activeElement === document.body) marksPanel.value?.focus()
+    if (!pending && readingMarksOpen.value && document.activeElement === document.body) marksList.value?.focus()
   },
   { flush: 'post' },
 )
@@ -129,12 +127,12 @@ watch(
 watch(readingMarksOpen, async (open) => {
   await nextTick()
   if (open) {
-    const panel = marksPanel.value
-    if (panel === null) {
+    const list = marksList.value
+    if (list === null) {
       console.warn('[reading] danh sach marker mo nhung panel vang mat')
       return
     }
-    panel.focus()
+    list.focus()
     return
   }
   if (readingModeActive) void enterFocus('mode.reading')
@@ -233,6 +231,7 @@ onBeforeUnmount(() => {
 })
 onActivated(() => {
   readingModeActive = true
+  closeReadingMarksPanel()
   void enterFocus('mode.reading')
   void ensureReadingLoaded().then(restoreReadingAnchor)
 })
@@ -252,7 +251,7 @@ onDeactivated(() => {
   // giữ nguyên neo đó để cuộn về đúng chỗ khi quay lại. `ensureReadingLoaded()` idempotent
   // qua cờ `requested` (`readingState.ts`) — `resetReading()` hạ cờ đó, nên lượt `onActivated`
   // kế tiếp nạp lại THẬT, không phải một no-op đọc từ bộ nhớ đã vứt.
-  resetReading({ preserveAnchor: true })
+  resetReading({ preserveAnchor: true, keepMarks: readingMarksPanelShown.value })
 })
 
 const focusedSegmentId = ref<number | null>(null)
@@ -517,29 +516,11 @@ function originText(chapter: DeepReadonly<ReadingChapter>): string {
   return t(`mode.reading.origin_${readingOriginLabel(chapter.translation_origin_counts)}`)
 }
 
-const marksWalkText = computed(() => t('mode.reading.marks_walk', { mark_count: String(readingMarks.value.length) }))
-
-const marksClearText = computed(() =>
-  readingMarksClearPending.value
-    ? t('mode.reading.marks_clear_confirm', { mark_count: String(readingMarks.value.length) })
-    : t('mode.reading.marks_clear'),
-)
-
 const frontierMarksText = computed(() => t('mode.reading.frontier_marks', { mark_count: String(readingMarksTotal.value ?? 0) }))
 
 function onMarksEscape(): void {
   if (readingMarksClearPending.value) dispatch('reading.marks_clear_cancel')
   else dispatch('reading.marks_close')
-}
-
-function onMarksKeydown(event: KeyboardEvent): void {
-  if (event.target !== event.currentTarget) return
-  if (event.key === 'ArrowDown') dispatch('reading.marks_next')
-  else if (event.key === 'ArrowUp') dispatch('reading.marks_prev')
-  else if (event.key === 'Enter') dispatch('reading.marks_open')
-  else if (event.key === 'Backspace') dispatch('reading.marks_unmark')
-  else return
-  event.preventDefault()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -983,71 +964,13 @@ function paragraphRuns(
       @keydown.esc="onMarksEscape()"
       @keydown.tab="trapOverlayTab($event, marksPanel)"
     >
-      <div ref="marksPanel" class="marks-panel" tabindex="-1" @keydown="onMarksKeydown($event)">
+      <div ref="marksPanel" class="marks-panel">
         <p id="reading-marks-heading" class="toc-heading">{{ t('mode.reading.marks_heading') }}</p>
-        <p class="marks-hint">{{ t('mode.reading.marks_hint') }}</p>
-        <!-- aura-allow-text: nhánh có chữ đi qua t(); nhánh còn lại là chuỗi rỗng. -->
-        <p role="status">{{ readingMarksBusy ? t('mode.reading.marks_loading') : '' }}</p>
-        <!-- aura-allow-text: lỗi dây đi qua tError()/chuỗi rỗng. -->
-        <p role="status">{{ readingMarksError === null ? '' : tError(readingMarksError) }}</p>
-        <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng. -->
-        <p role="status">{{ readingMarksHaveLoaded && readingMarksError === null && readingMarks.length === 0 ? t('mode.reading.marks_empty') : '' }}</p>
-        <ul class="marks-list">
-          <li
-            v-for="(mark, index) in readingMarks"
-            :key="mark.segment_id"
-            class="marks-row"
-            :class="{ current: index === readingMarksCursor }"
-            :aria-current="index === readingMarksCursor ? 'true' : undefined"
-          >
-            <span class="marks-chapter">{{ t('mode.reading.marks_row_chapter', { chapter_ord: String(mark.chapter_ord) }) }}</span>
-            <!-- aura-allow-text: target_text là dữ liệu Tác phẩm. -->
-            <span class="marks-text">{{ mark.target_text === '' ? mark.source_text : mark.target_text }}</span>
-            <span v-if="mark.is_retired" class="retired-note">{{ t('mode.reading.marks_retired') }}</span>
-            <button
-              type="button"
-              class="btn ui-btn"
-              :disabled="readingMarksBusy"
-              @pointerdown="setReadingMarksCursor(index)"
-              @focus="setReadingMarksCursor(index)"
-              @click="dispatch('reading.marks_open')"
-            >{{ t('mode.reading.marks_row_edit') }}</button>
-            <button
-              type="button"
-              class="btn ui-btn"
-              :disabled="readingMarksBusy"
-              @pointerdown="setReadingMarksCursor(index)"
-              @focus="setReadingMarksCursor(index)"
-              @click="dispatch('reading.marks_unmark')"
-            >{{ t('mode.reading.marks_row_unmark') }}</button>
-          </li>
-        </ul>
-        <div class="toc-actions">
-          <button type="button" class="btn ui-btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_walk')">
-            <!-- aura-allow-text: marksWalkText goes through t(). -->
-            {{ marksWalkText }}
-          </button>
-          <button
-            type="button"
-            class="btn ui-btn"
-            data-reading-marks-clear
-            :disabled="readingMarksBusy || readingMarks.length === 0"
-            @click="dispatch('reading.marks_clear')"
-          >
-            <!-- aura-allow-text: marksClearText goes through t(). -->
-            {{ marksClearText }}
-          </button>
-          <button
-            v-if="readingMarksClearPending"
-            type="button"
-            class="btn ui-btn"
-            data-reading-marks-clear-cancel
-            :title="commandTitle('reading.marks_clear_cancel')"
-            @click="dispatch('reading.marks_clear_cancel')"
-          >{{ t('mode.reading.marks_clear_cancel') }}</button>
-          <button type="button" class="btn ui-btn" @click="dispatch('reading.marks_close')">{{ t('mode.reading.marks_close') }}</button>
-        </div>
-        <p class="marks-hint">{{ t('mode.reading.marks_keys') }}</p>
+        <ReadingMarksList ref="marksList">
+          <template #close>
+            <button type="button" class="btn ui-btn" @click="dispatch('reading.marks_close')">{{ t('mode.reading.marks_close') }}</button>
+          </template>
+        </ReadingMarksList>
       </div>
     </div>
 
@@ -1161,6 +1084,10 @@ function paragraphRuns(
   gap: var(--space-unit) calc(var(--space-unit) * 3);
   min-height: 42px;
   margin-top: calc(-1 * var(--space-panel-block));
+  position: sticky;
+  top: calc(-1 * var(--space-panel-block));
+  /* aura-allow-z-index: the bar paints over the later positioned .column and .mark-actions while the text scrolls under it, no elevation */
+  z-index: 2;
   padding-top: 6px; /* aura-allow-spacing: with the 7px below and the 1px border a single row is exactly 42px */
   padding-bottom: 7px;
 }
@@ -1331,16 +1258,11 @@ function paragraphRuns(
   display: inline-flex;
 }
 
-.marker-error,
-.retired-note {
+.marker-error {
   color: var(--color-tm-text);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   font-family: var(--face-ui-sm);
-}
-
-.retired-note {
-  display: block;
 }
 
 .chapter-note {
@@ -1394,6 +1316,8 @@ function paragraphRuns(
 .toc-overlay,
 .marks-overlay {
   position: fixed;
+  /* aura-allow-z-index: the modal must paint above the sticky toolbar (z-index 2) that shares this stacking context */
+  z-index: 3;
   inset: var(--space-titlebar-height) 0 var(--space-status-height);
   display: flex;
   justify-content: flex-end;
@@ -1439,49 +1363,6 @@ function paragraphRuns(
 
 .toc-list li.current {
   background: var(--color-surface-accent);
-}
-
-.marks-panel:focus {
-  /* aura-allow-outline-none: tabindex=-1 root, focused programmatically, not an interactive control. */
-  outline: none;
-}
-
-.marks-hint {
-  color: var(--color-on-surface-variant);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  font-family: var(--face-ui-sm);
-}
-
-.marks-list {
-  list-style: none;
-  margin: 0 0 var(--space-panel-block) 0;
-  padding: 0;
-}
-
-.marks-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-unit);
-  padding: var(--space-panel-inline) var(--space-panel-inline) 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
-  border-bottom: 1px solid var(--color-outline);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  font-family: var(--face-ui-md);
-}
-
-.marks-row.current {
-  background: var(--color-surface-accent);
-}
-
-.marks-chapter {
-  flex: none;
-  color: var(--color-on-surface-variant);
-}
-
-.marks-text {
-  flex: 1 1 auto;
-  overflow-wrap: anywhere;
 }
 
 .level-group {

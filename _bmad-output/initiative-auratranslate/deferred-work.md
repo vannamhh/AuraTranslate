@@ -13921,3 +13921,8 @@ chính nó.
   summary: dòng nhắc "Ghi chú của mục đã chốt được gửi cho AI…" cạnh ô ghi chú (thêm nhanh, sửa trong quản lý Glossary) chưa được nhìn trong app thật.
   evidence: test vitest chỉ canh `aria-describedby` và chữ; bố cục thật chỉ người mở app thấy.
   Chủ: Epic 4
+
+- source_plan: `plan-thanh-doc-dinh-va-danh-sach-dau-sang-workspace.md`
+  summary: panel "Chỗ đã đánh dấu" trong Workspace và thanh điều chỉnh dính ở Chế độ đọc chưa được dùng thử bằng chuột thật: "Sửa →" ở hàng 2 trở đi (con trỏ đặt qua `pointerdown`), "Đóng" trả tiêu điểm về lưới, bề ngang panel cạnh lưới, hai bảng modal nằm trên thanh dính.
+  evidence: WebDriver nhúng không gửi `pointerdown`, nên e2e tự phát sự kiện đó trước cú bấm; bố cục và cảm giác dùng chỉ người mở app thấy.
+  Chủ: Ice

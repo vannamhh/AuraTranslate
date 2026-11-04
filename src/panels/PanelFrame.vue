@@ -105,6 +105,7 @@ onBeforeUnmount(() => {
     ref="root"
     class="panel"
     tabindex="-1"
+    :data-panel-owner="owner"
   >
     <!--
       Thân panel CHƯA có nội dung ở story này — nó là **khung bố cục**, không phải một

@@ -286,6 +286,37 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await browser.keys(['ArrowUp'])
     await expect(await currentRow()).toContain('Ch 1')
 
+    const stickyBar = await browser.execute(() => {
+      const mode = document.querySelector('section.mode')
+      const bar = document.querySelector('.toolbar')
+      if (!(mode instanceof HTMLElement) || !(bar instanceof HTMLElement)) return null
+      return { scrollable: mode.scrollHeight - mode.clientHeight }
+    })
+    await expect(stickyBar).not.toBeNull()
+    await realClick(await $('.marks-overlay .marks-actions .btn:last-child'))
+    await browser.waitUntil(
+      async () => browser.execute(() => document.querySelector('.marks-overlay') === null),
+      { timeout: 5_000, timeoutMsg: 'nút Đóng không đóng danh sách marker' },
+    )
+    const scrolledBar = await browser.execute(() => {
+      const mode = document.querySelector('section.mode')
+      const bar = document.querySelector('.toolbar')
+      if (!(mode instanceof HTMLElement) || !(bar instanceof HTMLElement)) return null
+      mode.scrollTop = Math.max(1, Math.floor((mode.scrollHeight - mode.clientHeight) / 2))
+      const barBox = bar.getBoundingClientRect()
+      const modeBox = mode.getBoundingClientRect()
+      const hit = document.elementFromPoint(barBox.left + barBox.width / 2, barBox.top + barBox.height / 2)
+      return { scrolled: mode.scrollTop, delta: Math.abs(barBox.top - modeBox.top), hitInsideBar: hit !== null && bar.contains(hit) }
+    })
+    await expect(scrolledBar?.scrolled ?? 0).toBeGreaterThan(0)
+    await expect(scrolledBar?.delta ?? 99).toBeLessThan(1)
+    await expect(scrolledBar?.hitInsideBar).toBe(true)
+    await realClick(await $('[data-reading-marks]'))
+    await browser.waitUntil(
+      async () => browser.execute(() => document.querySelectorAll('.marks-overlay .marks-list li').length === 2),
+      { timeout: 5_000, timeoutMsg: 'danh sách marker không mở lại sau khi đóng' },
+    )
+
     const openMarked = await $('.marks-overlay .marks-list li:first-child .btn')
     await realClick(openMarked)
     await browser.waitUntil(
@@ -296,6 +327,42 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
       document.activeElement?.getAttribute('data-segment-id') ?? null,
     )
     await expect(exactRetiredAnchor).toBe(String(liveAnchorId))
+
+    const panelRows = () => browser.execute(() =>
+      [...document.querySelectorAll('[data-col="tgt"]')].length > 0
+        ? [...document.querySelectorAll('.marks-body .marks-list li')].map((node) => node.textContent ?? '')
+        : null,
+    )
+    await browser.waitUntil(async () => (await panelRows())?.length === 2, {
+      timeout: 5_000,
+      timeoutMsg: 'danh sách marker không ở lại Workspace sau Sửa →',
+    })
+    const rowsInWorkspace = await panelRows()
+    await expect(rowsInWorkspace?.[0]).toContain('Ch 1')
+    await expect(rowsInWorkspace?.[1]).toContain('Ch 2')
+    // The embedded driver synthesises mouse events only, so the row's `pointerdown` (which moves
+    // the list cursor before the click) is dispatched in the page; the click itself stays real.
+    await browser.execute(() => {
+      const button = document.querySelector('.marks-body .marks-list li:nth-child(2) .btn')
+      button?.scrollIntoView({ block: 'center' })
+      button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    })
+    await realClick(await $('.marks-body .marks-list li:nth-child(2) .btn'))
+    await browser.waitUntil(
+      async () => browser.execute((id) => document.activeElement?.getAttribute('data-segment-id') === String(id), chapterTwoMarkedId),
+      { timeout: 15_000, timeoutMsg: 'Sửa → ở hàng 2 không đặt con trỏ vào câu của Chương 2' },
+    )
+    await expect((await panelRows())?.length).toBe(2)
+    await browser.execute(() => {
+      const button = document.querySelector('.marks-body .marks-list li:nth-child(1) .btn')
+      button?.scrollIntoView({ block: 'center' })
+      button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    })
+    await realClick(await $('.marks-body .marks-list li:nth-child(1) .btn'))
+    await browser.waitUntil(
+      async () => browser.execute((id) => document.activeElement?.getAttribute('data-segment-id') === String(id), liveAnchorId),
+      { timeout: 15_000, timeoutMsg: 'Sửa → ở hàng 1 không đưa con trỏ về neo đã đổi' },
+    )
 
     // Neo là ID, không pixel: đổi cỡ chữ trước khi trở lại rồi chỉ đòi đúng node sống nằm
     // trong viewport. Một scrollTop cũ sẽ không đủ bảo đảm mệnh đề này khi hình học đổi.

@@ -42,7 +42,7 @@
  * đây **không** làm mồ côi thứ gì. Thứ **có** nằm trên đĩa là **`PresetId`** và **command
  * id**; xem [`LAYOUT_PRESETS`].
  */
-export type PanelId = 'panel.grid' | 'panel.lookup' | 'panel.ai_translation'
+export type PanelId = 'panel.grid' | 'panel.lookup' | 'panel.ai_translation' | 'panel.reading_marks'
 
 /**
  * Thứ tự KHAI BÁO, không phải thứ tự hiển thị.
@@ -51,7 +51,14 @@ export type PanelId = 'panel.grid' | 'panel.lookup' | 'panel.ai_translation'
  * lưới đang hiện), không theo mảng này — xem `layoutOrder()` ở `WorkspaceDock.vue`.
  * Mảng này chỉ để đếm và để đối chiếu tính đầy đủ.
  */
-export const PANEL_IDS: readonly PanelId[] = ['panel.grid', 'panel.lookup', 'panel.ai_translation']
+export const PANEL_IDS: readonly PanelId[] = ['panel.grid', 'panel.lookup', 'panel.ai_translation', 'panel.reading_marks']
+
+/** Panels that live in memory only: never written to the saved layout, never restored, no toggle command. */
+export const TRANSIENT_PANEL_IDS: readonly PanelId[] = ['panel.reading_marks']
+
+export const isTransientPanel = (id: string): boolean => (TRANSIENT_PANEL_IDS as readonly string[]).includes(id)
+
+export const PERSISTED_PANEL_IDS: readonly PanelId[] = PANEL_IDS.filter((id) => !isTransientPanel(id))
 
 /**
  * Khoá `vi.json` của tiêu đề từng panel.
@@ -63,6 +70,7 @@ export const PANEL_TITLE_KEYS: Readonly<Record<PanelId, string>> = {
   'panel.grid': 'panel.grid.title',
   'panel.lookup': 'panel.lookup.title',
   'panel.ai_translation': 'panel.ai_translation.title',
+  'panel.reading_marks': 'panel.reading_marks.title',
 }
 
 /** Tên component nội dung đã đăng ký với dockview, theo panel. */
@@ -70,6 +78,7 @@ export const PANEL_COMPONENTS: Readonly<Record<PanelId, string>> = {
   'panel.grid': 'grid',
   'panel.lookup': 'lookup',
   'panel.ai_translation': 'aiTranslation',
+  'panel.reading_marks': 'readingMarks',
 }
 
 /** Hướng đặt một panel so với panel tham chiếu. Tập con của `Direction` bên dockview. */
@@ -193,10 +202,10 @@ export function presetById(id: string): LayoutPreset | undefined {
  * chỉ **nhường**, và cái gì hiện ra thay nó là việc của 4.12. Ghi ra để 4.12 không đọc
  * mảng này thành *"Tra cứu được phép biến mất"*.
  */
-export const SACRIFICE_ORDER: readonly PanelId[] = ['panel.ai_translation', 'panel.lookup']
+export const SACRIFICE_ORDER: readonly PanelId[] = ['panel.reading_marks', 'panel.ai_translation', 'panel.lookup']
 
 /**
- * Panel KHÔNG BAO GIỜ nhường. Hai tập này rời nhau và hợp lại đúng **ba** panel (AC7).
+ * Panel KHÔNG BAO GIỜ nhường. Hai tập này rời nhau và hợp lại đúng `PANEL_IDS` (ba panel bền cộng panel tạm `panel.reading_marks`) (AC7).
  *
  * 🔵 **CẬP NHẬT 2026-08-14 (Story 2.5b) — một phần tử, không hai.** Mệnh đề của UX-DR15
  * *(«cặp `Nguyên văn | Bản dịch` không bao giờ nhường»)* **không đổi một chữ**; cái đổi là
