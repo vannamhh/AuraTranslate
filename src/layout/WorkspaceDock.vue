@@ -778,8 +778,12 @@ function syncReadingMarksPanel(): void {
   try {
     if (present !== undefined) api.removePanel(present)
     else {
-      const anchor = api.getPanel('panel.grid') !== undefined ? 'panel.grid' : visiblePanelsInLayoutOrder().at(0)
-      addPanel(api, id, anchor === undefined ? undefined : { referencePanel: anchor, direction: 'right' })
+      const tabMate = (['panel.lookup', 'panel.ai_translation'] as const).find((mate) => api.getPanel(mate) !== undefined)
+      if (tabMate !== undefined) addPanel(api, id, { referencePanel: tabMate, direction: 'within' })
+      else {
+        const anchor = api.getPanel('panel.grid') !== undefined ? 'panel.grid' : visiblePanelsInLayoutOrder().at(0)
+        addPanel(api, id, anchor === undefined ? undefined : { referencePanel: anchor, direction: 'right' })
+      }
     }
   } finally {
     endSuppressPersist()

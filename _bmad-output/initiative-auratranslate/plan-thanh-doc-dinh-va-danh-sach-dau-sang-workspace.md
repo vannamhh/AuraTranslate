@@ -54,7 +54,7 @@ Việc 2: danh sách đi theo sang Workspace thành panel dock mới `panel.read
 - `src/modes/ReadingMode.vue:976-1030` -- bảng modal hiện tại (`.marks-overlay`, các hàng, `onMarksKeydown` cho ↑ ↓ ↵ ⌫). Tách thân danh sách ra component dùng chung; Chế độ đọc giữ vỏ modal và bẫy Tab, panel dùng thân không có vỏ.
 - `src/modes/readingState.ts` -- refs ở `:280-299`. `openCurrentReadingMark` (`:444-456`) và `openReadingMark` của walk (`:388-399`) gọi `resetReading({preserveAnchor:true})`, hàm này luôn gọi `resetReadingMarks()` (`:458-469`) và xoá `marks`: đây là chỗ danh sách mất. Cần một ref "panel đánh dấu đang hiện trong Workspace", để đường mở hàng giữ `marks`, `marksCursor` và cờ này qua phép reset, và một nhánh mở hàng không gọi `setMode` khi đang ở Workspace. Có thể dùng `marksSequence` để chặn kết quả nạp đã cũ.
 - `src/layout/workspaceLayout.ts:45-73` -- tập panel đóng (`PanelId`, `PANEL_IDS`, `PANEL_TITLE_KEYS`, `PANEL_COMPONENTS`). `SACRIFICE_ORDER` (`:196`): đặt `panel.reading_marks` lên đầu. Panel id không nằm trên đĩa (comment `:41`), nhưng `api.toJSON()` thì có: lọc panel này ra trước mỗi lần persist (`WorkspaceDock.vue:400` và `:845` là hai chỗ đang tuần tự hoá).
-- `src/layout/WorkspaceDock.vue:114-118` (map component) · `showPanel`/`hidePanel`/`togglePanel` (`:514`) · `restoreFocusIfLost` · tiền lệ `addPanel(api, id, { referencePanel, direction })` (`:716`). Vị trí mặc định: bên phải `panel.grid`. Panel bọc trong `src/panels/PanelFrame.vue` để khai điểm vào tiêu điểm (AD-34). `src/panels/README.md` mô tả cách thêm panel.
+- `src/layout/WorkspaceDock.vue:114-118` (map component) · `showPanel`/`hidePanel`/`togglePanel` (`:514`) · `restoreFocusIfLost` · tiền lệ `addPanel(api, id, { referencePanel, direction })` (`:716`). Vị trí mặc định: bên phải `panel.grid`. 🔵 2026-11-04 (Ice, sau khi dùng thử): panel mở thành tab đang chọn trong nhóm của Tra cứu (không có Tra cứu thì nhóm của Đề xuất AI, không có cả hai thì bên phải lưới). Panel bọc trong `src/panels/PanelFrame.vue` để khai điểm vào tiêu điểm (AD-34). `src/panels/README.md` mô tả cách thêm panel.
 - `src/commands/index.ts:2841-2846` · `src/main.ts:430,774` -- nơi đăng ký command và dep của reading marks. Command mới `reading.marks_panel_close` đặt cùng chỗ này. `src/commands/focus.ts` -- vòng xoay `focus.next_panel`.
 - `src/App.vue:334-338` -- ba mode trong `<KeepAlive>`; gỡ panel khi rời Workspace sang Chế độ đọc (2B) theo sự kiện đổi mode, không theo `onDeactivated` của Workspace, vì sang Library thì không gỡ.
 - `src/StatusBar.vue:714` -- nút "kế tiếp x/y" của walk; giữ nguyên, nhưng hàng hiện tại trong panel đi theo `marksWalk`.
@@ -87,6 +87,8 @@ Việc 2: danh sách đi theo sang Workspace thành panel dock mới `panel.read
 - Đã có sẵn từ trước, không do thay đổi này: `controls-adoption.test.ts` đỏ 2 ca ở `.toc-row` của `ReadingMode.vue`, implementer đo cùng hai ca đỏ trên bản HEAD chưa sửa; `.toc-row` vào từ commit 48c99ff4.
 
 ## Plan Change Log
+
+- 2026-11-04, Ice dùng thử: mọi việc ổn, nhưng muốn panel đứng chung nhóm tab với Tra cứu và Đề xuất AI. `syncReadingMarksPanel` thêm panel `within` Tra cứu, hoặc Đề xuất AI nếu thiếu Tra cứu. Ca mới đo ở cả tầng `full` lẫn cửa sổ mặc định (`short`). Đối chứng: trả về `right` của lưới ⇒ đỏ. Lọc panel tạm khỏi neo của `rememberSpot` đã thử rồi bỏ, vì gỡ nó thì ca "Tra cứu về đúng chỗ" vẫn xanh (dock dựng lại từ cây đã chụp và đã lọc). GIỮ: panel tạm, không persist, gỡ ở `narrow`/`unsupported`.
 
 ## Review Triage Log
 

@@ -14,7 +14,7 @@ vi.mock('../../src/panels/editorPanelState', async (importOriginal) => ({
 
 import WorkspaceDock from '../../src/layout/WorkspaceDock.vue'
 import { enterFocus, installCommands } from '../../src/commands'
-import { currentLayoutJson, panelRing, togglePanel } from '../../src/layout/dockController'
+import { activeDockPanelId, currentLayoutJson, panelRing, togglePanel } from '../../src/layout/dockController'
 import { visibleDockPanels } from '../../src/layout/panelVisibilityState'
 import * as state from '../../src/modes/readingState'
 import { setMode } from '../../src/modes/modeState'
@@ -94,6 +94,60 @@ describe('panel.reading_marks in the Workspace dock', () => {
       expect(visibleDockPanels.value.has('panel.reading_marks' as never)).toBe(false)
       expect(currentLayoutJson()).not.toContain('reading_marks')
       expect(currentLayoutJson()).not.toContain('readingMarks')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('opens as the active tab in the Tra cứu group, at full and at the default short window', async () => {
+    for (const [width, height] of [[1200, 1000], [1280, 860]] as const) {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: height })
+      const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' }, attachTo: document.body })
+      try {
+        await settle()
+        await openFromReading()
+        await settle()
+
+        const tabTitles = (group: Element): string[] =>
+          Array.from(group.querySelectorAll('.dv-tab')).map((tab) => tab.textContent.trim())
+        const groups = Array.from(document.querySelectorAll('.dv-groupview'))
+        const marksGroup = groups.find((group) => tabTitles(group).some((title) => title.includes('Chỗ đã đánh dấu')))
+        const mates = marksGroup === undefined ? [] : tabTitles(marksGroup)
+        expect(mates.some((title) => title.includes('Chỗ đã đánh dấu'))).toBe(true)
+        expect(mates.some((title) => title.includes('Tra cứu'))).toBe(true)
+        expect(activeDockPanelId()).toBe('panel.reading_marks')
+      } finally {
+        wrapper.unmount()
+        state.resetReading()
+        setMode('reading')
+      }
+    }
+  })
+
+  it('Tra cứu hidden while it shares a tab group with the marks panel comes back to its own place after the panel goes', async () => {
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' }, attachTo: document.body })
+    try {
+      await settle()
+      const shape = (): unknown => {
+        const leaves: string[][] = []
+        const walk = (node: { type: string; data: unknown }): void => {
+          if (node.type === 'leaf') leaves.push([...(node.data as { views: string[] }).views].sort())
+          else for (const kid of node.data as { type: string; data: unknown }[]) walk(kid)
+        }
+        walk((JSON.parse(currentLayoutJson() ?? '{}') as { grid: { root: { type: string; data: unknown } } }).grid.root)
+        return leaves
+      }
+      const before = shape()
+      await openFromReading()
+      await settle()
+
+      expect(togglePanel('panel.lookup')).toBe(true)
+      state.closeReadingMarksPanel()
+      await settle()
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect(shape()).toEqual(before)
     } finally {
       wrapper.unmount()
     }
