@@ -978,8 +978,7 @@ const openSettingsLabel = computed(() =>
 }
 
 .ai-batch-rows {
-  max-height: calc(var(--space-unit) * 23);
-  overflow-y: auto;
+  flex: none;
   margin: 0;
   padding: 0;
   list-style: none;
