@@ -6,15 +6,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::{
-    prompt_set_create, prompt_set_list, prompt_set_proofread_choice_set_global,
-    prompt_set_proofread_choice_set_work, prompt_set_proofread_delete_consequence,
-    prompt_set_rename,
+    prompt_set_create, prompt_set_list, prompt_set_proofread_choice_get,
+    prompt_set_proofread_choice_set_global, prompt_set_proofread_choice_set_work,
+    prompt_set_proofread_delete_consequence, prompt_set_rename,
 };
 use auratranslate_lib::core::ai::rag::{ProofreadBlock, assemble_proofread_batch_prompt};
 use auratranslate_lib::core::promptset::{
     PromptSetError, PromptSetKind, PromptSetTier, ProofreadDeleteConsequence, ProofreadInstruction,
-    ProofreadWorkChoice, read_proofread_work_choice, resolve_proofread_instruction,
-    write_proofread_work_choice,
+    ProofreadWorkChoice, ProofreadWorkMode, read_proofread_work_choice,
+    resolve_proofread_instruction, write_proofread_work_choice,
 };
 use auratranslate_lib::core::scope::load_global_config;
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -571,4 +571,130 @@ fn a_null_global_choice_removes_the_row() {
     let err =
         prompt_set_proofread_choice_set_global(Some(&e.global), Some("  ")).expect_err("blank");
     assert_eq!(err.code(), "prompt_set.invalid_name");
+}
+
+fn choices(e: &Env) -> auratranslate_lib::core::promptset::ProofreadChoiceState {
+    prompt_set_proofread_choice_get(Some(&e.global), Some(&e.open)).expect("choices")
+}
+
+#[test]
+fn the_read_command_reports_follow_global_and_no_global_choice_by_default() {
+    let e = env("read-default");
+    let got = choices(&e);
+    assert_eq!(got.global, None);
+    let work = got.work.expect("work open");
+    assert_eq!(
+        (work.mode, work.name, work.missing),
+        (ProofreadWorkMode::FollowGlobal, None, false)
+    );
+}
+
+#[test]
+fn the_read_command_flags_a_chosen_name_that_resolves_in_neither_tier() {
+    let e = env("read-missing");
+    e.proofread(PromptSetTier::Global, "B", "global body");
+    e.choose_global(Some("B"));
+    e.choose_work(Some("X"), false);
+
+    let got = choices(&e);
+    let global = got.global.expect("global choice");
+    assert_eq!((global.name.as_str(), global.missing), ("B", false));
+    let work = got.work.expect("work open");
+    assert_eq!(
+        (work.mode, work.name.as_deref(), work.missing),
+        (ProofreadWorkMode::Named, Some("X"), true)
+    );
+    assert!(matches!(
+        e.resolve(),
+        Err(PromptSetError::ProofreadSetMissing { .. })
+    ));
+}
+
+#[test]
+fn the_read_command_agrees_with_the_scan_after_a_delete_and_a_rename() {
+    let e = env("read-agree");
+    let id = e.proofread(PromptSetTier::Global, "B", "body");
+    e.choose_global(Some("B"));
+    assert!(!choices(&e).global.expect("choice").missing);
+
+    prompt_set_rename(
+        Some(&e.global),
+        Some(&e.open),
+        PromptSetTier::Global,
+        PromptSetKind::Proofread,
+        id,
+        "C",
+    )
+    .expect("rename");
+    let global = choices(&e).global.expect("choice");
+    assert_eq!((global.name.as_str(), global.missing), ("C", false));
+
+    auratranslate_lib::commands::promptset::prompt_set_delete(
+        Some(&e.global),
+        Some(&e.open),
+        PromptSetTier::Global,
+        PromptSetKind::Proofread,
+        id,
+    )
+    .expect("delete");
+    let global = choices(&e).global.expect("choice");
+    assert_eq!((global.name.as_str(), global.missing), ("C", true));
+    assert!(e.resolve().is_err());
+}
+
+#[test]
+fn a_work_choice_naming_a_global_only_set_is_not_missing_and_off_is_never_missing() {
+    let e = env("read-two-tier");
+    e.proofread(PromptSetTier::Global, "A", "body");
+    e.choose_work(Some("A"), false);
+    assert!(!choices(&e).work.expect("work").missing);
+    e.choose_work(None, true);
+    let work = choices(&e).work.expect("work");
+    assert_eq!(
+        (work.mode, work.name, work.missing),
+        (ProofreadWorkMode::Off, None, false)
+    );
+}
+
+#[test]
+fn the_read_command_without_an_open_work_has_no_work_state() {
+    let e = env("read-no-work");
+    e.choose_global(Some("B"));
+    let got = prompt_set_proofread_choice_get(Some(&e.global), None).expect("choices");
+    assert!(got.work.is_none());
+    assert!(got.global.expect("global").missing);
+}
+
+#[test]
+fn a_proofread_body_never_warns_and_lists_no_variables_while_translate_still_does() {
+    let e = env("read-warnings");
+    let created = prompt_set_create(
+        Some(&e.global),
+        Some(&e.open),
+        PromptSetTier::Global,
+        PromptSetKind::Proofread,
+        "P",
+        "so sanh {{source_segment}} va {{glossary_terms}}",
+    )
+    .expect("create");
+    assert!(created.warnings.unknown_markers.is_empty());
+    assert!(!created.warnings.glossary_terms_missing);
+
+    let proofread_list =
+        prompt_set_list(Some(&e.global), Some(&e.open), PromptSetKind::Proofread).expect("list");
+    assert!(proofread_list.variables.is_empty());
+
+    let translate_list =
+        prompt_set_list(Some(&e.global), Some(&e.open), PromptSetKind::Translate).expect("list");
+    assert!(!translate_list.variables.is_empty());
+    let translated = prompt_set_create(
+        Some(&e.global),
+        Some(&e.open),
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "T",
+        "{{nope}}",
+    )
+    .expect("create");
+    assert!(translated.warnings.glossary_terms_missing);
 }

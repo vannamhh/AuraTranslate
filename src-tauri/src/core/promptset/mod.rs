@@ -45,12 +45,13 @@ pub mod store;
 pub mod vars;
 
 pub use store::{
-    ImportOutcome, PromptSetError, ProofreadDeleteConsequence, ProofreadInstruction,
-    ProofreadWorkChoice, ResolvedPromptSet, create, delete, import_into_tier, load_one,
-    load_prompt_set_tier, proofread_delete_consequence, read_chosen_name,
-    read_proofread_work_choice, rename, rename_proofread_set, resolve_proofread_instruction,
-    resolve_two_tiers, update_body, write_chosen_name, write_proofread_global_choice,
-    write_proofread_work_choice,
+    ImportOutcome, PromptSetError, ProofreadChoiceState, ProofreadDeleteConsequence,
+    ProofreadInstruction, ProofreadNamedChoice, ProofreadWorkChoice, ProofreadWorkChoiceState,
+    ProofreadWorkMode, ResolvedPromptSet, create, delete, import_into_tier, load_one,
+    load_prompt_set_tier, marker_warnings_for, proofread_delete_consequence, read_chosen_name,
+    read_proofread_choices, read_proofread_work_choice, rename, rename_proofread_set,
+    resolve_proofread_instruction, resolve_two_tiers, update_body, write_chosen_name,
+    write_proofread_global_choice, write_proofread_work_choice,
 };
 pub use vars::{MarkerWarnings, PromptVariable, scan_markers};
 

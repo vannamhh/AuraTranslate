@@ -24,10 +24,11 @@ use crate::core::i18n::IpcError;
 use crate::core::promptset::exchange::{ConflictDecision, ParsedPromptSet, PlanKind};
 use crate::core::promptset::{
     ImportOutcome, MarkerWarnings, PromptSetError, PromptSetKind, PromptSetTier, PromptVariable,
-    ProofreadDeleteConsequence, ProofreadWorkChoice, ResolvedPromptSet, create, delete, exchange,
-    exchange_io, import_into_tier, load_one, load_prompt_set_tier, proofread_delete_consequence,
-    read_chosen_name, rename, rename_proofread_set, resolve_two_tiers, update_body,
-    write_chosen_name, write_proofread_global_choice, write_proofread_work_choice,
+    ProofreadChoiceState, ProofreadDeleteConsequence, ProofreadWorkChoice, ResolvedPromptSet,
+    create, delete, exchange, exchange_io, import_into_tier, load_one, load_prompt_set_tier,
+    proofread_delete_consequence, read_chosen_name, read_proofread_choices, rename,
+    rename_proofread_set, resolve_two_tiers, update_body, write_chosen_name,
+    write_proofread_global_choice, write_proofread_work_choice,
 };
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -175,10 +176,13 @@ pub fn prompt_set_list(
     let resolved = resolve_two_tiers(&resolver, global_store, work_store, kind)?;
 
     let sets = resolved.into_values().map(PromptSetWire::from).collect();
-    let variables = PromptVariable::ALL
-        .iter()
-        .map(|v| v.as_str().to_owned())
-        .collect();
+    let variables = match kind {
+        PromptSetKind::Translate => PromptVariable::ALL
+            .iter()
+            .map(|v| v.as_str().to_owned())
+            .collect(),
+        PromptSetKind::Proofread => Vec::new(),
+    };
     Ok(PromptSetListWire {
         work_tier_available: open.is_some(),
         sets,
@@ -294,6 +298,23 @@ pub fn prompt_set_proofread_choice_set_work(
     };
     write_proofread_work_choice(&open.store, &choice)?;
     Ok(())
+}
+
+/// Both proofread instruction choices of the open Work and Global, with a `missing` flag for a
+/// chosen name that resolves in neither tier. Writes nothing.
+pub fn prompt_set_proofread_choice_get(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+) -> Result<ProofreadChoiceState, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let resolver = open
+        .map(|w| w.scope.clone())
+        .unwrap_or_else(ScopeResolver::global_only);
+    Ok(read_proofread_choices(
+        &resolver,
+        global_store,
+        open.map(|w| &w.store),
+    )?)
 }
 
 /// What the next scan meets if the `proofread` set `(tier, id)` is deleted. Writes nothing.
@@ -568,7 +589,7 @@ pub fn prompt_set_open_import_preview(
 
     let text = exchange_io::read_import_file(path)?;
     let parsed = exchange::parse(&text).map_err(issues_to_ipc_error)?;
-    let warnings = crate::core::promptset::scan_markers(&parsed.body);
+    let warnings = crate::core::promptset::marker_warnings_for(parsed.kind, &parsed.body);
 
     let global_existing = load_prompt_set_tier(global_store, parsed.kind)?;
     let global_kind = exchange::classify(&parsed.name, &parsed.body, &global_existing);
@@ -818,6 +839,22 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_rename(global.as_deref(), guard.as_ref(), tier, kind, id, &new_name)
+    }
+
+    #[tauri::command]
+    pub fn prompt_set_proofread_choice_get(
+        app: tauri::AppHandle,
+    ) -> Result<super::ProofreadChoiceState, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::prompt_set_proofread_choice_get(global.as_deref(), None);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::prompt_set_proofread_choice_get(global.as_deref(), guard.as_ref())
     }
 
     #[tauri::command]

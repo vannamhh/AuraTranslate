@@ -13947,3 +13947,9 @@ chính nó.
   summary: ba lệnh `prompt_set_proofread_choice_set_global`, `prompt_set_proofread_choice_set_work`, `prompt_set_proofread_delete_consequence` nằm trong `NO_FRONTEND_CALLER` của `src-tauri/tests/ipc_argument_contract.rs` vì chưa có wrapper TS.
   evidence: miễn trừ phải chết khi ô chọn chỉ dẫn và màn xác nhận xoá dùng ba lệnh này; còn để thì cổng không bắt tên tham số lệch giữa Rust và webview.
   Chủ: Story 9.15
+  → ✅ ĐÃ ĐÓNG 2026-11-05 (Story 9.15) — ba wrapper TS nằm trong `src/config/promptset.ts`, `NO_FRONTEND_CALLER` hết ba lệnh này và `ipc_argument_contract` xanh.
+
+- source_plan: `tickets/epic-ai-proofreader/tickets/story-chon-va-quan-ly-chi-dan-proofreader-tren-giao-dien-plan.md`
+  summary: Ice chưa chạy lượt dùng thật: viết chỉ dẫn "chỉ so bản dịch với bản gốc của chính câu đó", chọn ở Global, quét lại Chương có seg 162/163; thẻ chỉ dẫn cũng chưa được nhìn trong cửa sổ thật.
+  evidence: AC cuối của 9.15 và mục Manual checks; vitest và e2e không thay được kết quả quét thật.
+  Chủ: Epic 9

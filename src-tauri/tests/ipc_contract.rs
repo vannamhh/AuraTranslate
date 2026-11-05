@@ -2307,6 +2307,7 @@ fn the_prompt_set_wires_are_registered() {
         "crate::commands::promptset::wire::prompt_set_open_import_preview",
         "crate::commands::promptset::wire::prompt_set_confirm_import",
         "crate::commands::promptset::wire::prompt_set_cancel_import",
+        "crate::commands::promptset::wire::prompt_set_proofread_choice_get",
         "crate::commands::promptset::wire::prompt_set_proofread_choice_set_global",
         "crate::commands::promptset::wire::prompt_set_proofread_choice_set_work",
         "crate::commands::promptset::wire::prompt_set_proofread_delete_consequence",
@@ -2325,6 +2326,7 @@ fn the_prompt_set_wires_are_registered() {
     let promptset_src = fs::read_to_string(&promptset_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", promptset_rs.display()));
     for (name, params) in [
+        ("prompt_set_proofread_choice_get", "app: tauri::AppHandle,"),
         (
             "prompt_set_proofread_choice_set_global",
             "app: tauri::AppHandle, name: Option<String>,",

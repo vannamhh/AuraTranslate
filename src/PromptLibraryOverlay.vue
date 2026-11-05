@@ -37,8 +37,10 @@ import PromptTemplatePicker from './PromptTemplatePicker.vue'
 // Story 4.5 review fix — kết quả lượt Nhập gần nhất (`prompt.import.confirm`) không được hiện
 // ở đâu cả: lớp phủ Xem trước tự đóng ngay khi thành công, nên đây (màn Thư viện, vẫn mở bên
 // dưới) là chỗ RẺ NHẤT để nói cho người dùng biết lượt nhập đã tạo/thay/không ghi gì.
-import { promptImportConfirmedOutcome } from './promptSetImportState'
+import { promptImportConfirmedKind, promptImportConfirmedOutcome, promptImportOverlayIsOpen } from './promptSetImportState'
 import {
+  chooseProofreadGlobal,
+  chooseProofreadWork,
   clearPromptSetActionFeedback,
   createPromptSet,
   deletePromptSet,
@@ -46,6 +48,8 @@ import {
   exportPromptSet,
   exportPromptSets,
   isPromptSetNameValid,
+  loadProofreadInstructions,
+  loadPromptSets,
   promptSetActionError,
   promptSetActionWarnings,
   promptSetBusy,
@@ -59,12 +63,18 @@ import {
   promptSets,
   promptSetVariables,
   promptSetWorkTierAvailable,
+  proofreadChoiceReadFailure,
+  proofreadChoiceWriteFailure,
+  proofreadDeleteConsequence,
+  proofreadInstructionChoice,
+  proofreadInstructionSets,
   renamePromptSet,
   selectedPromptSetName,
   setSelectedPromptSetName,
   updatePromptSetBody,
 } from './promptSetState'
-import type { PromptSetTier } from './config/promptset'
+import type { ProofreadDeleteConsequence, PromptSetKind, PromptSetTier } from './config/promptset'
+import type { PromptBodySegment } from './promptMarkers'
 
 const panel = useTemplateRef<HTMLElement>('panel')
 // Lớp phủ chứa chữ thật (tên bộ, thân prompt) nhưng không phải nguồn từ điển — vai `'display'`,
@@ -157,6 +167,10 @@ const SCOPE_OPTIONS: ReadonlyArray<{ value: LibraryScope; labelKey: string }> = 
   { value: 'both', labelKey: 'prompt.library.scope_both' },
 ]
 
+const libraryKind = ref<PromptSetKind>('translate')
+const isProofread = computed(() => libraryKind.value === 'proofread')
+const activeSets = computed(() => (isProofread.value ? proofreadInstructionSets.value : promptSets.value))
+
 const selectedTier = ref<PromptSetTier | null>(null)
 const selectedId = ref<number | null>(null)
 const nameDraft = ref('')
@@ -220,7 +234,7 @@ type DisplayRow = {
 }
 
 const workRows = computed<DisplayRow[]>(() =>
-  promptSets.value
+  activeSets.value
     .filter((s) => s.tier === 'work')
     .map((s) => ({
       key: `work-${s.id}`,
@@ -235,7 +249,7 @@ const workRows = computed<DisplayRow[]>(() =>
 
 const globalRows = computed<DisplayRow[]>(() => {
   const rows: DisplayRow[] = []
-  for (const s of promptSets.value) {
+  for (const s of activeSets.value) {
     if (s.tier === 'global') {
       rows.push({
         key: `global-${s.id}`,
@@ -274,13 +288,84 @@ function onScopeChange(value: LibraryScope, event: Event): void {
   if (target instanceof HTMLInputElement && target.checked) scope.value = value
 }
 
+/** Name of the instruction the next scan resolves to, from Rust's two choices; `null` for none or off. */
+const proofreadEffectiveName = computed<string | null>(() => {
+  const choice = proofreadInstructionChoice.value
+  if (choice === null) return null
+  if (choice.work !== null) {
+    if (choice.work.mode === 'off') return null
+    if (choice.work.mode === 'named') return choice.work.name
+  }
+  return choice.global?.name ?? null
+})
+
+const inUseName = computed(() => (isProofread.value ? proofreadEffectiveName.value : selectedPromptSetName.value))
+
+function isInUse(row: { name: string }): boolean {
+  return row.name === inUseName.value
+}
+
 const inUseLine = computed(() =>
-  selectedPromptSetName.value === null
+  inUseName.value === null
     ? t('prompt.library.in_use_none')
-    : t('prompt.library.in_use_line', { name: selectedPromptSetName.value }),
+    : t('prompt.library.in_use_line', { name: inUseName.value }),
 )
 
-const bodySegments = computed(() => splitPromptBody(bodyDraft.value, promptSetVariables.value))
+const bodySegments = computed<PromptBodySegment[]>(() =>
+  isProofread.value ? [{ text: bodyDraft.value, kind: 'plain' }] : splitPromptBody(bodyDraft.value, promptSetVariables.value),
+)
+
+const KIND_OPTIONS: ReadonlyArray<{ value: PromptSetKind; labelKey: string }> = [
+  { value: 'translate', labelKey: 'prompt.library.kind_translate' },
+  { value: 'proofread', labelKey: 'prompt.library.kind_proofread' },
+]
+
+const NAMED_PREFIX = 'named:'
+
+const globalChoiceValue = computed(() => proofreadInstructionChoice.value?.global?.name ?? '')
+const workChoiceValue = computed(() => {
+  const work = proofreadInstructionChoice.value?.work
+  if (work === null || work === undefined) return 'follow'
+  if (work.mode === 'named') return `${NAMED_PREFIX}${work.name ?? ''}`
+  return work.mode === 'off' ? 'off' : 'follow'
+})
+const globalChoiceNames = computed(() => globalRows.value.map((r) => r.name))
+const workChoiceNames = computed(() => activeSets.value.map((s) => s.name))
+const missingGlobalName = computed(() => {
+  const g = proofreadInstructionChoice.value?.global
+  return g?.missing === true ? g.name : null
+})
+const unlistedGlobalName = computed(() => {
+  const g = proofreadInstructionChoice.value?.global
+  return g !== null && g !== undefined && !g.missing && !globalChoiceNames.value.includes(g.name) ? g.name : null
+})
+const missingWorkName = computed(() => {
+  const w = proofreadInstructionChoice.value?.work
+  return w?.missing === true ? w.name : null
+})
+const workChoiceOpen = computed(() => proofreadInstructionChoice.value?.work != null)
+
+function onGlobalChoiceChange(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLSelectElement)) return
+  void chooseProofreadGlobal(target.value === '' ? null : target.value)
+}
+
+function onWorkChoiceChange(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLSelectElement)) return
+  const value = target.value
+  if (value === 'off') void chooseProofreadWork('off', null)
+  else if (value.startsWith(NAMED_PREFIX)) void chooseProofreadWork('named', value.slice(NAMED_PREFIX.length))
+  else void chooseProofreadWork('follow_global', null)
+}
+
+const deleteConsequence = ref<ProofreadDeleteConsequence>('none')
+const deleteHintKey = computed(() => {
+  if (deleteConsequence.value === 'global_takes_over') return 'prompt.library.delete_consequence_global_takes_over'
+  if (deleteConsequence.value === 'set_missing') return 'prompt.library.delete_consequence_set_missing'
+  return 'prompt.library.delete_confirm_hint'
+})
 
 const mirror = useTemplateRef<HTMLElement>('mirror')
 
@@ -314,7 +399,7 @@ async function saveBodyIfChanged(): Promise<boolean> {
   const row = selectedRow.value
   if (row === null || createOpen.value || bodyDraft.value === row.body) return true
   deletePending.value = false
-  await updatePromptSetBody(row.tier, row.id, bodyDraft.value)
+  await updatePromptSetBody(row.tier, row.id, bodyDraft.value, libraryKind.value)
   return promptSetActionError.value === null
 }
 
@@ -327,6 +412,7 @@ function flushBody(): Promise<boolean> {
 watch(promptLibraryOverlayIsOpen, (open) => {
   if (open) {
     scope.value = 'both'
+    libraryKind.value = 'translate'
     return
   }
   void flushBody()
@@ -349,6 +435,33 @@ function clearSelection(): void {
   selectedId.value = null
   deletePending.value = false
 }
+
+async function switchKind(kind: PromptSetKind): Promise<void> {
+  if (kind === libraryKind.value) return
+  if (bodyIsDirty() && !(await flushBody())) return
+  libraryKind.value = kind
+  clearSelection()
+  createOpen.value = false
+  templateOpen.value = false
+  clearPromptSetActionFeedback()
+  await (kind === 'proofread' ? loadProofreadInstructions() : loadPromptSets())
+}
+
+function onKindChange(kind: PromptSetKind, event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement && target.checked) void switchKind(kind)
+}
+
+watch(promptImportOverlayIsOpen, (open) => {
+  if (open || !promptLibraryOverlayIsOpen.value) return
+  const kind = promptImportConfirmedKind.value
+  if (promptImportConfirmedOutcome.value === null || kind === null) return
+  clearSelection()
+  createOpen.value = false
+  templateOpen.value = false
+  libraryKind.value = kind
+  void (kind === 'proofread' ? loadProofreadInstructions() : loadPromptSets())
+})
 
 function onNameInput(event: Event): void {
   const target = event.target
@@ -434,10 +547,10 @@ async function onSubmitCreate(): Promise<void> {
   const tier = createTier.value
   const name = createNameDraft.value.trim()
   const body = createBodyDraft.value
-  await createPromptSet(tier, createNameDraft.value, body)
+  await createPromptSet(tier, createNameDraft.value, body, libraryKind.value)
   if (promptSetActionError.value !== null) return // ở lại form Tạo để hiện lỗi
 
-  const created = promptSets.value.find((s) => s.tier === tier && s.name === name)
+  const created = activeSets.value.find((s) => s.tier === tier && s.name === name)
   if (created !== undefined) {
     createOpen.value = false
     createShadowedNote.value = false
@@ -449,7 +562,7 @@ async function onSubmitCreate(): Promise<void> {
   }
 
   if (tier === 'global') {
-    const winning = promptSets.value.find((s) => s.name === name && s.shadowed_id !== null)
+    const winning = activeSets.value.find((s) => s.name === name && s.shadowed_id !== null)
     if (winning?.shadowed_id != null) {
       createOpen.value = false
       createShadowedNote.value = false
@@ -467,7 +580,7 @@ async function onSubmitCreate(): Promise<void> {
 async function onSubmitRename(): Promise<void> {
   if (selectedTier.value === null || selectedId.value === null) return
   deletePending.value = false // đổi tên là một Ý ĐỊNH KHÁC xoá — nhịp chờ xoá không được sống sót qua nó
-  await renamePromptSet(selectedTier.value, selectedId.value, nameDraft.value)
+  await renamePromptSet(selectedTier.value, selectedId.value, nameDraft.value, libraryKind.value)
 }
 
 function onBodyBlur(): void {
@@ -497,10 +610,10 @@ async function onDuplicate(): Promise<void> {
   const suffix = t('prompt.library.copy_suffix')
   for (let retry = 0; retry < DUPLICATE_ATTEMPTS; retry += 1) {
     const name = duplicatePromptSetName(source.name, suffix, taken, retry)
-    await createPromptSet(source.tier, name, body)
+    await createPromptSet(source.tier, name, body, libraryKind.value)
     const error = promptSetActionError.value
     if (error === null) {
-      const created = promptSets.value.find((s) => s.tier === source.tier && s.name === name)
+      const created = activeSets.value.find((s) => s.tier === source.tier && s.name === name)
       if (created !== undefined) {
         selectedTier.value = created.tier
         selectedId.value = created.id
@@ -519,13 +632,20 @@ async function onDeleteSubmit(): Promise<void> {
   await whenIdle()
   if (selectedTier.value === null || selectedId.value === null) return
   if (!deletePending.value) {
+    if (isProofread.value) {
+      const consequence = await proofreadDeleteConsequence(selectedTier.value, selectedId.value)
+      if (consequence === null) return
+      deleteConsequence.value = consequence
+    } else {
+      deleteConsequence.value = 'none'
+    }
     deletePending.value = true
     return
   }
   deletePending.value = false
   const tier = selectedTier.value
   const id = selectedId.value
-  await deletePromptSet(tier, id)
+  await deletePromptSet(tier, id, libraryKind.value)
   if (promptSetActionError.value === null) clearSelection()
 }
 
@@ -535,7 +655,7 @@ async function onDeleteSubmit(): Promise<void> {
 async function onExportSelected(): Promise<void> {
   if (selectedRow.value === null) return
   if (!(await flushBody())) return
-  await exportPromptSet(selectedRow.value.tier, selectedRow.value.id)
+  await exportPromptSet(selectedRow.value.tier, selectedRow.value.id, libraryKind.value)
 }
 
 const DUPLICATE_ATTEMPTS = 20
@@ -560,7 +680,10 @@ const pickedRows = computed(() =>
 )
 
 async function onExportPicked(): Promise<void> {
-  await exportPromptSets(pickedRows.value.map((r) => ({ tier: r.tier, id: r.id })))
+  await exportPromptSets(
+    pickedRows.value.map((r) => ({ tier: r.tier, id: r.id })),
+    libraryKind.value,
+  )
 }
 
 function exportFileLabel(file: { tier: PromptSetTier; id: number }): string {
@@ -630,6 +753,24 @@ function onEscape(): void {
         </form>
       </header>
 
+      <fieldset class="pl-seg pl-kind" role="radiogroup" :aria-label="t('prompt.library.kind_label')" data-prompt-kind>
+        <legend class="pl-seg-legend">{{ t('prompt.library.kind_label') }}</legend>
+        <div class="ui-seg">
+          <label v-for="opt in KIND_OPTIONS" :key="opt.value" class="pl-pill ui-seg__item">
+            <input
+              type="radio"
+              class="pl-sr-only"
+              name="pl-kind"
+              :value="opt.value"
+              :data-prompt-kind-option="opt.value"
+              :checked="libraryKind === opt.value"
+              @change="onKindChange(opt.value, $event)"
+            />
+            {{ t(opt.labelKey) }}
+          </label>
+        </div>
+      </fieldset>
+
       <div v-if="promptSetLoadError === null && !promptSetLoading" class="pl-bar">
         <fieldset class="pl-seg" role="radiogroup" :aria-label="t('prompt.library.scope_label')">
           <legend class="pl-seg-legend">{{ t('prompt.library.scope_label') }}</legend>
@@ -675,22 +816,62 @@ function onEscape(): void {
         cột soạn vẫn còn nút "Bộ mới" — nếu không, một kho chưa ai tạo gì thì không có đường
         nào tạo được bộ ĐẦU TIÊN từ chính màn hình này.
       -->
-      <div v-else class="pl-cols">
+      <template v-else>
+      <section v-if="isProofread" class="pl-choice" data-proofread-choice>
+        <h3 class="pl-sh">{{ t('prompt.library.choice_heading') }}</h3>
+        <label class="pl-field">
+          <span class="pl-field-label">{{ t('prompt.library.choice_global_label') }}</span>
+          <select class="pl-input ui-field ui-field--lg ui-field--medium" data-proofread-choice-global :value="globalChoiceValue" @change="onGlobalChoiceChange">
+            <option value="">{{ t('prompt.library.choice_global_none') }}</option>
+            <option v-if="missingGlobalName !== null" :value="missingGlobalName">{{ t('prompt.library.choice_missing_option', { name: missingGlobalName }) }}</option>
+            <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
+            <option v-if="unlistedGlobalName !== null" :value="unlistedGlobalName">{{ unlistedGlobalName }}</option>
+            <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
+            <option v-for="name in globalChoiceNames" :key="name" :value="name">{{ name }}</option>
+          </select>
+        </label>
+        <p v-if="missingGlobalName !== null" class="pl-alert" role="status" data-proofread-choice-missing="global">
+          {{ t('prompt.library.choice_missing_note', { name: missingGlobalName }) }}
+        </p>
+        <label class="pl-field">
+          <span class="pl-field-label">{{ t('prompt.library.choice_work_label') }}</span>
+          <select class="pl-input ui-field ui-field--lg ui-field--medium" data-proofread-choice-work :value="workChoiceValue" :disabled="!workChoiceOpen" @change="onWorkChoiceChange">
+            <option value="follow">{{ t('prompt.library.choice_work_follow') }}</option>
+            <option value="off">{{ t('prompt.library.choice_work_off') }}</option>
+            <option v-if="missingWorkName !== null" :value="NAMED_PREFIX + missingWorkName">{{ t('prompt.library.choice_missing_option', { name: missingWorkName }) }}</option>
+            <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
+            <option v-for="name in workChoiceNames" :key="name" :value="NAMED_PREFIX + name">{{ name }}</option>
+          </select>
+        </label>
+        <p v-if="!workChoiceOpen" class="pl-note">{{ t('prompt.library.choice_no_work') }}</p>
+        <p v-if="missingWorkName !== null" class="pl-alert" role="status" data-proofread-choice-missing="work">
+          {{ t('prompt.library.choice_missing_note', { name: missingWorkName }) }}
+        </p>
+        <p v-if="proofreadChoiceWriteFailure !== null" class="pl-alert" role="alert" data-proofread-choice-error>
+          <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+          {{ tError(proofreadChoiceWriteFailure) }}
+        </p>
+        <p v-if="proofreadChoiceReadFailure !== null" class="pl-alert" role="alert">
+          <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+          {{ tError(proofreadChoiceReadFailure) }}
+        </p>
+      </section>
+      <div class="pl-cols">
         <nav class="pl-list" aria-label="prompt-library-list">
-          <p v-if="promptSets.length === 0" class="pl-group-empty">{{ t('prompt.library.empty') }}</p>
+          <p v-if="activeSets.length === 0" class="pl-group-empty">{{ t('prompt.library.empty') }}</p>
           <h3 v-if="scope !== 'global'" class="pl-group-h">{{ t('prompt.library.group_work') }}</h3>
-          <p v-if="scope !== 'global' && workRows.length === 0 && promptSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_work_empty') }}</p>
+          <p v-if="scope !== 'global' && workRows.length === 0 && activeSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_work_empty') }}</p>
           <form v-for="row in scope === 'global' ? [] : workRows" :key="row.key" class="pl-row-form" @submit.prevent="selectRow(row)">
             <button type="submit" class="pl-row" :class="{ 'pl-row-on': isCurrent(row) }" :aria-current="isCurrent(row) ? 'true' : undefined">
               <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
               <span class="pl-row-name">{{ row.name }}</span>
-              <span v-if="row.name === selectedPromptSetName" class="pl-badge">{{ t('prompt.library.in_use_badge') }}</span>
+              <span v-if="isInUse(row)" class="pl-badge">{{ t('prompt.library.in_use_badge') }}</span>
               <span v-if="row.shadowsGlobal" class="pl-badge pl-badge-info">{{ t('prompt.library.shadows_badge') }}</span>
             </button>
           </form>
 
           <h3 v-if="scope !== 'work'" class="pl-group-h">{{ t('prompt.library.group_global') }}</h3>
-          <p v-if="scope !== 'work' && globalRows.length === 0 && promptSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_global_empty') }}</p>
+          <p v-if="scope !== 'work' && globalRows.length === 0 && activeSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_global_empty') }}</p>
           <!--
             🔵 SỬA Story 4.5, Quyết định #3 — hàng Global bị che nay CHỌN ĐƯỢC (mang `shadowed_id`
             thật), nên nó dùng CHUNG một `<form>` với mọi hàng Global khác thay vì một `<div>`
@@ -705,13 +886,13 @@ function onEscape(): void {
             >
               <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
               <span class="pl-row-name">{{ row.name }}</span>
-              <span v-if="row.name === selectedPromptSetName" class="pl-badge">{{ t('prompt.library.in_use_badge') }}</span>
+              <span v-if="isInUse(row)" class="pl-badge">{{ t('prompt.library.in_use_badge') }}</span>
               <span v-if="row.isShadowedDisplay" class="pl-badge pl-badge-shadowed">{{ t('prompt.library.shadowed_badge') }}</span>
             </button>
           </form>
 
           <form
-            v-if="promptSets.length > 0"
+            v-if="activeSets.length > 0"
             class="pl-export-many"
             @submit.prevent="onExportPicked"
           >
@@ -747,7 +928,7 @@ function onEscape(): void {
           <form class="pl-row-form" @submit.prevent="onOpenCreate">
             <button type="submit" class="pl-row-new ui-btn ui-btn--quiet">{{ t('prompt.library.new_set') }}</button>
           </form>
-          <form class="pl-row-form" @submit.prevent="onOpenTemplates">
+          <form v-if="!isProofread" class="pl-row-form" @submit.prevent="onOpenTemplates">
             <button type="submit" class="pl-row-import ui-btn ui-btn--quiet" data-prompt-template-open>
               {{ t('prompt.library.template_open') }}
             </button>
@@ -840,8 +1021,8 @@ function onEscape(): void {
               </p>
             </form>
 
-            <h4 class="pl-sh">{{ t('prompt.library.vars_heading') }}</h4>
-            <div class="pl-vars">
+            <h4 v-if="!isProofread" class="pl-sh">{{ t('prompt.library.vars_heading') }}</h4>
+            <div v-if="!isProofread" class="pl-vars">
               <div v-for="v in promptSetVariables" :key="v" class="pl-vrow">
                 <!-- aura-allow-text: định danh máy đọc (tên biến), không phải chữ giao diện. -->
                 <code>{{ marker(v) }}</code>
@@ -881,12 +1062,12 @@ function onEscape(): void {
             </div>
 
             <div class="pl-actions">
-              <form class="pl-use-form" @submit.prevent="onUseSelected">
+              <form v-if="!isProofread" class="pl-use-form" @submit.prevent="onUseSelected">
                 <button type="submit" class="pl-act ui-btn" :disabled="selectedRow.name === selectedPromptSetName">
                   {{ t('prompt.library.use_button') }}
                 </button>
               </form>
-              <form class="pl-inspect-form" @submit.prevent="onOpenInspector">
+              <form v-if="!isProofread" class="pl-inspect-form" @submit.prevent="onOpenInspector">
                 <button ref="inspectorButton" type="submit" class="pl-act ui-btn" data-prompt-inspector-open>
                   {{ t('prompt.library.inspect_button') }}
                 </button>
@@ -908,7 +1089,7 @@ function onEscape(): void {
               </form>
             </div>
             <p class="pl-status pl-hint-line">{{ t('prompt.library.autosave_hint') }}</p>
-            <p v-if="deletePending" class="pl-status pl-alert" role="status">{{ t('prompt.library.delete_confirm_hint') }}</p>
+            <p v-if="deletePending" class="pl-status pl-alert" role="status" data-delete-hint :data-delete-consequence="deleteConsequence">{{ t(deleteHintKey, { name: selectedRow.name }) }}</p>
             <p v-if="promptSetExportError !== null" class="pl-status pl-alert" role="alert">
               <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
               {{ tError(promptSetExportError) }}
@@ -918,6 +1099,7 @@ function onEscape(): void {
           <p v-else class="pl-hint">{{ t('prompt.library.select_hint') }}</p>
         </div>
       </div>
+      </template>
     </section>
   </div>
 </template>
@@ -1245,6 +1427,11 @@ function onEscape(): void {
   padding: calc(var(--space-unit) * 1) var(--space-panel-inline) 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   background: var(--color-surface-sunken);
   border-bottom: 1px solid var(--color-outline);
+}
+
+.pl-kind,
+.pl-choice {
+  margin-bottom: var(--space-panel-block);
 }
 
 .pl-seg {

@@ -38,10 +38,22 @@ import {
   promptSetExport,
   promptSetExportMany,
   promptSetList,
+  promptSetProofreadChoiceGet,
+  promptSetProofreadChoiceSetGlobal,
+  promptSetProofreadChoiceSetWork,
+  promptSetProofreadDeleteConsequence,
   promptSetRename,
   promptSetUpdateBody,
 } from './config/promptset'
-import type { PromptSetExportFile, PromptSetKind, PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
+import type {
+  ProofreadChoiceWire,
+  ProofreadDeleteConsequence,
+  PromptSetExportFile,
+  PromptSetKind,
+  PromptSetTier,
+  PromptSetWarningsWire,
+  PromptSetWire,
+} from './config/promptset'
 import { genreLabel } from './modes/libraryWorkCard'
 import type { GenreId } from './modes/libraryWorkCard'
 import { PROMPT_TEMPLATES } from './promptTemplates'
@@ -50,6 +62,12 @@ import { glossaryExchangeBusy, setGlossaryExchangeBusy } from './glossaryExchang
 const LIBRARY_KIND: PromptSetKind = 'translate'
 
 const resolvedSets = ref<PromptSetWire[]>([])
+const proofreadResolved = ref<PromptSetWire[]>([])
+const proofreadChoice = ref<ProofreadChoiceWire | null>(null)
+const proofreadChoiceReadError = ref<IpcError | null>(null)
+const proofreadChoiceWriteError = ref<IpcError | null>(null)
+let proofreadSequence = 0
+let proofreadChoiceSequence = 0
 const workTierAvailable = ref(false)
 const loading = ref(false)
 const loadError = ref<IpcError | null>(null)
@@ -80,6 +98,11 @@ const exportFiles = ref<PromptSetExportFile[] | null>(null)
 let sequence = 0
 
 export const promptSets: DeepReadonly<Ref<PromptSetWire[]>> = readonly(resolvedSets)
+/** Kept apart from `promptSets`: `reloadPromptSets` drops a translate choice missing from its list. */
+export const proofreadInstructionSets: DeepReadonly<Ref<PromptSetWire[]>> = readonly(proofreadResolved)
+export const proofreadInstructionChoice: DeepReadonly<Ref<ProofreadChoiceWire | null>> = readonly(proofreadChoice)
+export const proofreadChoiceReadFailure: DeepReadonly<Ref<IpcError | null>> = readonly(proofreadChoiceReadError)
+export const proofreadChoiceWriteFailure: DeepReadonly<Ref<IpcError | null>> = readonly(proofreadChoiceWriteError)
 export const promptSetWorkTierAvailable: DeepReadonly<Ref<boolean>> = readonly(workTierAvailable)
 export const promptSetLoading: DeepReadonly<Ref<boolean>> = readonly(loading)
 export const promptSetLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
@@ -149,6 +172,72 @@ export function isPromptSetNameValid(raw: string): boolean {
 export async function loadPromptSets(): Promise<void> {
   loading.value = true
   await reloadPromptSets()
+}
+
+function reloadForKind(kind: PromptSetKind): Promise<void> {
+  return kind === 'proofread' ? reloadProofreadInstructions() : reloadPromptSets()
+}
+
+/** Entry load for the `proofread` card: list and both choices. Never touches the translate list or its selection. */
+export async function loadProofreadInstructions(): Promise<void> {
+  loading.value = true
+  await reloadProofreadInstructions()
+}
+
+async function reloadProofreadInstructions(): Promise<void> {
+  const mine = ++proofreadSequence
+  const myChoice = ++proofreadChoiceSequence
+  const [list, choice] = await Promise.all([promptSetList('proofread'), promptSetProofreadChoiceGet()])
+  if (mine !== proofreadSequence) return
+
+  loading.value = false
+  if (list.error !== null) {
+    loadError.value = list.error
+    return
+  }
+  loadError.value = null
+  if (list.sets !== null) {
+    workTierAvailable.value = list.workTierAvailable
+    proofreadResolved.value = list.sets
+  }
+  if (myChoice !== proofreadChoiceSequence) return
+  proofreadChoiceReadError.value = choice.error
+  if (choice.error === null) proofreadChoice.value = choice.choice
+}
+
+async function refreshProofreadChoice(): Promise<void> {
+  const mine = ++proofreadChoiceSequence
+  const choice = await promptSetProofreadChoiceGet()
+  if (mine !== proofreadChoiceSequence) return
+  proofreadChoiceReadError.value = choice.error
+  if (choice.error === null) proofreadChoice.value = choice.choice
+}
+
+/** Global card box: `null` clears the choice. Re-reads from Rust afterwards, so a failed write shows the stored value. */
+export async function chooseProofreadGlobal(name: string | null): Promise<void> {
+  proofreadChoiceWriteError.value = null
+  proofreadChoiceWriteError.value = await promptSetProofreadChoiceSetGlobal(name)
+  await refreshProofreadChoice()
+}
+
+/** Work card box: `follow_global` and `off` carry no name. */
+export async function chooseProofreadWork(mode: 'follow_global' | 'off' | 'named', name: string | null): Promise<void> {
+  proofreadChoiceWriteError.value = null
+  proofreadChoiceWriteError.value =
+    mode === 'off'
+      ? await promptSetProofreadChoiceSetWork(null, true)
+      : await promptSetProofreadChoiceSetWork(mode === 'named' ? name : null, false)
+  await refreshProofreadChoice()
+}
+
+/** What deleting this `proofread` set would do to the chosen instruction, as computed by Rust; `null` when the call failed (error in `actionError`). */
+export async function proofreadDeleteConsequence(
+  tier: PromptSetTier,
+  id: number,
+): Promise<ProofreadDeleteConsequence | null> {
+  const result = await promptSetProofreadDeleteConsequence(tier, id)
+  if (result.error !== null) actionError.value = result.error
+  return result.error === null ? result.consequence : null
 }
 
 /** Re-reads without raising `loading`: the library hides its list and editor on that flag. */
@@ -252,7 +341,12 @@ export async function restorePromptSetForWork(genre: string): Promise<void> {
  * Thành công ⇒ nạp lại toàn bộ danh sách và ghi [`promptSetActionWarnings`] (Quyết định #3:
  * một thân mang token lạ hoặc thiếu `{{glossary_terms}}` vẫn là một lượt THÀNH CÔNG).
  */
-export async function createPromptSet(tier: PromptSetTier, name: string, body: string): Promise<void> {
+export async function createPromptSet(
+  tier: PromptSetTier,
+  name: string,
+  body: string,
+  kind: PromptSetKind = LIBRARY_KIND,
+): Promise<void> {
   if (busy.value) return
   if (!isPromptSetNameValid(name)) return
 
@@ -260,7 +354,7 @@ export async function createPromptSet(tier: PromptSetTier, name: string, body: s
   actionError.value = null
   actionWarnings.value = null
 
-  const result = await promptSetCreate(tier, LIBRARY_KIND, name.trim(), body)
+  const result = await promptSetCreate(tier, kind, name.trim(), body)
 
   if (result.error !== null) {
     busy.value = false
@@ -268,7 +362,7 @@ export async function createPromptSet(tier: PromptSetTier, name: string, body: s
     return
   }
   actionWarnings.value = result.warnings
-  await reloadPromptSets()
+  await reloadForKind(kind)
   busy.value = false
 }
 
@@ -327,7 +421,12 @@ export async function addPromptTemplates(tier: PromptSetTier, ids: ReadonlyArray
  * bị vứt để một cảnh báo CŨ của lượt Tạo/Sửa thân trước đó không còn hiện ra như thể nó thuộc
  * về lượt Đổi tên vừa xong.
  */
-export async function renamePromptSet(tier: PromptSetTier, id: number, newName: string): Promise<void> {
+export async function renamePromptSet(
+  tier: PromptSetTier,
+  id: number,
+  newName: string,
+  kind: PromptSetKind = LIBRARY_KIND,
+): Promise<void> {
   if (busy.value) return
   if (!isPromptSetNameValid(newName)) return
 
@@ -335,14 +434,14 @@ export async function renamePromptSet(tier: PromptSetTier, id: number, newName: 
   actionError.value = null
   actionWarnings.value = null
 
-  const err = await promptSetRename(tier, LIBRARY_KIND, id, newName.trim())
+  const err = await promptSetRename(tier, kind, id, newName.trim())
 
   if (err !== null) {
     busy.value = false
     actionError.value = err
     return
   }
-  await reloadPromptSets()
+  await reloadForKind(kind)
   busy.value = false
 }
 
@@ -351,14 +450,19 @@ export async function renamePromptSet(tier: PromptSetTier, id: number, newName: 
  * #3), nên KHÔNG có bước re-validate nào trước lượt gọi, khác [`createPromptSet`]/
  * [`renamePromptSet`]. Thành công ⇒ nạp lại danh sách và ghi cảnh báo dấu ngoặc của thân MỚI.
  */
-export async function updatePromptSetBody(tier: PromptSetTier, id: number, body: string): Promise<void> {
+export async function updatePromptSetBody(
+  tier: PromptSetTier,
+  id: number,
+  body: string,
+  kind: PromptSetKind = LIBRARY_KIND,
+): Promise<void> {
   if (busy.value) return
 
   busy.value = true
   actionError.value = null
   actionWarnings.value = null
 
-  const result = await promptSetUpdateBody(tier, LIBRARY_KIND, id, body)
+  const result = await promptSetUpdateBody(tier, kind, id, body)
 
   if (result.error !== null) {
     busy.value = false
@@ -366,7 +470,7 @@ export async function updatePromptSetBody(tier: PromptSetTier, id: number, body:
     return
   }
   actionWarnings.value = result.warnings
-  await reloadPromptSets()
+  await reloadForKind(kind)
   busy.value = false
 }
 
@@ -375,21 +479,21 @@ export async function updatePromptSetBody(tier: PromptSetTier, id: number, body:
  * lực trở lại ngay ở lượt [`reloadPromptSets`] mà hàm này gọi sau khi thành công (I/O Matrix
  * spec 4.4 "Delete a shadowing Work set").
  */
-export async function deletePromptSet(tier: PromptSetTier, id: number): Promise<void> {
+export async function deletePromptSet(tier: PromptSetTier, id: number, kind: PromptSetKind = LIBRARY_KIND): Promise<void> {
   if (busy.value) return
 
   busy.value = true
   actionError.value = null
   actionWarnings.value = null
 
-  const err = await promptSetDelete(tier, LIBRARY_KIND, id)
+  const err = await promptSetDelete(tier, kind, id)
 
   if (err !== null) {
     busy.value = false
     actionError.value = err
     return
   }
-  await reloadPromptSets()
+  await reloadForKind(kind)
   busy.value = false
 }
 
@@ -403,13 +507,13 @@ export async function deletePromptSet(tier: PromptSetTier, id: number): Promise<
  * ghi `exportError`. `outcome: 'ipc_unavailable'` cũng không ghi lỗi (chạy ngoài Tauri không
  * phải một lỗi của người dùng, cùng khuôn mọi adapter khác).
  */
-export async function exportPromptSet(tier: PromptSetTier, id: number): Promise<void> {
+export async function exportPromptSet(tier: PromptSetTier, id: number, kind: PromptSetKind = LIBRARY_KIND): Promise<void> {
   if (glossaryExchangeBusy.value) return
 
   setGlossaryExchangeBusy(true)
   exportError.value = null
   exportFiles.value = null
-  const result = await promptSetExport(tier, LIBRARY_KIND, id)
+  const result = await promptSetExport(tier, kind, id)
   setGlossaryExchangeBusy(false)
 
   if (result.outcome === 'error') {
@@ -417,13 +521,16 @@ export async function exportPromptSet(tier: PromptSetTier, id: number): Promise<
   }
 }
 
-export async function exportPromptSets(sets: ReadonlyArray<{ tier: PromptSetTier; id: number }>): Promise<void> {
+export async function exportPromptSets(
+  sets: ReadonlyArray<{ tier: PromptSetTier; id: number }>,
+  kind: PromptSetKind = LIBRARY_KIND,
+): Promise<void> {
   if (glossaryExchangeBusy.value || sets.length === 0) return
 
   setGlossaryExchangeBusy(true)
   exportManyError.value = null
   exportFiles.value = null
-  const result = await promptSetExportMany(sets.map((s) => ({ ...s, kind: LIBRARY_KIND })))
+  const result = await promptSetExportMany(sets.map((s) => ({ ...s, kind })))
   setGlossaryExchangeBusy(false)
 
   if (result.outcome === 'error') exportManyError.value = result.error
@@ -458,6 +565,12 @@ export function duplicatePromptSetName(
  */
 export function resetPromptSets(): void {
   sequence += 1
+  proofreadSequence += 1
+  proofreadChoiceSequence += 1
+  proofreadResolved.value = []
+  proofreadChoice.value = null
+  proofreadChoiceReadError.value = null
+  proofreadChoiceWriteError.value = null
   resolvedSets.value = []
   workTierAvailable.value = false
   loading.value = false

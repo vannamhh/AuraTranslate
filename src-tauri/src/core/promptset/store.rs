@@ -55,6 +55,14 @@ pub fn validate_name(raw: &str) -> Result<String, InvalidName> {
     Ok(trimmed.to_owned())
 }
 
+/// Marker warnings of a body: a `proofread` body is plain text, so it never warns.
+pub fn marker_warnings_for(kind: PromptSetKind, body: &str) -> MarkerWarnings {
+    match kind {
+        PromptSetKind::Translate => scan_markers(body),
+        PromptSetKind::Proofread => MarkerWarnings::default(),
+    }
+}
+
 /// Nạp toàn bộ MỘT tầng (một `global.db` hoặc một `project.db`), khoá theo `name` — hình
 /// dạng `BTreeMap` mà `ScopeResolver::apply_override` đòi ở tham số `global`/`work`.
 ///
@@ -210,7 +218,7 @@ pub fn create(
     let store = store_for_tier(global, work, tier)?;
     let name = validate_name(name)?;
     let body = body.to_owned();
-    let warnings = scan_markers(&body);
+    let warnings = marker_warnings_for(kind, &body);
 
     let collided = Arc::new(Mutex::new(false));
     let collided_for_closure = Arc::clone(&collided);
@@ -325,7 +333,7 @@ pub fn update_body(
 ) -> Result<MarkerWarnings, PromptSetError> {
     let store = store_for_tier(global, work, tier)?;
     let body = body.to_owned();
-    let warnings = scan_markers(&body);
+    let warnings = marker_warnings_for(kind, &body);
 
     let changed = store.write(move |tx: &Transaction<'_>| {
         tx.execute(
@@ -509,6 +517,80 @@ pub fn resolve_proofread_instruction(
         tier: set.tier,
         body: set.body,
     }))
+}
+
+/// Chosen name plus whether it resolves in the `proofread` sets of the two tiers.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ProofreadNamedChoice {
+    pub name: String,
+    pub missing: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProofreadWorkMode {
+    FollowGlobal,
+    Off,
+    Named,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ProofreadWorkChoiceState {
+    pub mode: ProofreadWorkMode,
+    pub name: Option<String>,
+    pub missing: bool,
+}
+
+/// Both stored proofread choices as the Library shows them. `global` is `None` when nothing is
+/// chosen; `work` is `None` when no Work is open.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ProofreadChoiceState {
+    pub global: Option<ProofreadNamedChoice>,
+    pub work: Option<ProofreadWorkChoiceState>,
+}
+
+/// Reads both choices; `missing` uses the same two-tier lookup as
+/// [`resolve_proofread_instruction`].
+pub fn read_proofread_choices(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+) -> Result<ProofreadChoiceState, PromptSetError> {
+    let sets = resolve_two_tiers(resolver, global, work, PromptSetKind::Proofread)?;
+    let named = |name: String| {
+        let missing = !sets.contains_key(&name);
+        ProofreadNamedChoice { name, missing }
+    };
+    let global_choice = load_global_config(global)?
+        .proofread_prompt_set()
+        .map(named);
+    let work_choice =
+        work.map(read_proofread_work_choice)
+            .transpose()?
+            .map(|choice| match choice {
+                ProofreadWorkChoice::FollowGlobal => ProofreadWorkChoiceState {
+                    mode: ProofreadWorkMode::FollowGlobal,
+                    name: None,
+                    missing: false,
+                },
+                ProofreadWorkChoice::Off => ProofreadWorkChoiceState {
+                    mode: ProofreadWorkMode::Off,
+                    name: None,
+                    missing: false,
+                },
+                ProofreadWorkChoice::Named(name) => {
+                    let ProofreadNamedChoice { name, missing } = named(name);
+                    ProofreadWorkChoiceState {
+                        mode: ProofreadWorkMode::Named,
+                        name: Some(name),
+                        missing,
+                    }
+                }
+            });
+    Ok(ProofreadChoiceState {
+        global: global_choice,
+        work: work_choice,
+    })
 }
 
 /// Renames a `proofread` set and moves the choices that resolved to it (AD-68 rule 4). The

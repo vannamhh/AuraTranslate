@@ -627,14 +627,10 @@ fn every_registered_commands_business_parameters_match_camel_case_across_the_wir
     // (`src/config/project.ts` gần `CMD_CLEANUP_ADD_RULE`) và hai vỏ `create_work_from_*`
     // (`src/config/project.ts` gần `CMD_PREVIEW_FROM_TEXT`) chỉ còn sống làm hạ tầng fixture
     // của `e2e/specs/**` (`internals.invoke` trực tiếp, ngoài `src/**`).
-    // The three `prompt_set_proofread_*` commands are exempt: the webview has no wrapper yet.
-    const NO_FRONTEND_CALLER: [&str; 6] = [
+    const NO_FRONTEND_CALLER: [&str; 3] = [
         "cleanup_list_rules",
         "create_work_from_text",
         "create_work_from_file",
-        "prompt_set_proofread_choice_set_global",
-        "prompt_set_proofread_choice_set_work",
-        "prompt_set_proofread_delete_consequence",
     ];
 
     let mut missing_commands = Vec::new();

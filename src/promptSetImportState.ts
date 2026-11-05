@@ -28,7 +28,7 @@ import {
   promptSetConfirmImport as confirmPromptImport,
   promptSetOpenImportPreview as openPromptImportPreview,
 } from './config/promptset'
-import type { PromptSetConflictDecision, PromptSetImportPreview, PromptSetTier } from './config/promptset'
+import type { PromptSetConflictDecision, PromptSetImportPreview, PromptSetKind, PromptSetTier } from './config/promptset'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
 
@@ -48,6 +48,7 @@ const decision = ref<PromptSetConflictDecision>('keep_mine')
 const confirming = ref(false)
 const confirmError = ref<IpcError | null>(null)
 const confirmedOutcome = ref<'inserted' | 'updated' | 'skipped' | null>(null)
+const confirmedKind = ref<PromptSetKind | null>(null)
 /** Chặn bấm chồng — cùng lý do `importOpening` của Glossary. */
 const opening = ref(false)
 
@@ -64,6 +65,8 @@ export const promptImportConfirming: DeepReadonly<Ref<boolean>> = readonly(confi
 export const promptImportConfirmError: DeepReadonly<Ref<IpcError | null>> = readonly(confirmError)
 export const promptImportConfirmedOutcome: DeepReadonly<Ref<'inserted' | 'updated' | 'skipped' | null>> =
   readonly(confirmedOutcome)
+/** Kind of the set the last confirmed import wrote; `null` until one is confirmed. */
+export const promptImportConfirmedKind: DeepReadonly<Ref<PromptSetKind | null>> = readonly(confirmedKind)
 
 /** Phân loại của TẦNG ĐANG CHỌN — `null` khi chưa có preview, hoặc khi đã chọn `'work'` mà
  * preview không mang phân loại Tác phẩm (không có Tác phẩm nào đang mở). */
@@ -99,6 +102,7 @@ export async function openPromptImportPreviewOverlay(): Promise<void> {
   confirming.value = false
   confirmError.value = null
   confirmedOutcome.value = null
+  confirmedKind.value = null
   decision.value = 'keep_mine'
 
   const result = await openPromptImportPreview()
@@ -131,6 +135,7 @@ export async function openPromptImportPreviewOverlay(): Promise<void> {
 
 function closeWithoutCancelling(outcome: 'inserted' | 'updated' | 'skipped'): void {
   confirmedOutcome.value = outcome
+  confirmedKind.value = preview.value?.set_kind ?? null
   overlayOpen.value = false
 }
 
@@ -190,6 +195,7 @@ export function resetPromptImport(): void {
   confirming.value = false
   confirmError.value = null
   confirmedOutcome.value = null
+  confirmedKind.value = null
   opening.value = false
   resetGlossaryExchangeGate()
 }

@@ -258,6 +258,93 @@ export async function promptSetChoiceSet(name: string | null): Promise<IpcError 
   }
 }
 
+const CMD_PROOFREAD_CHOICE_GET = 'prompt_set_proofread_choice_get'
+const CMD_PROOFREAD_CHOICE_SET_GLOBAL = 'prompt_set_proofread_choice_set_global'
+const CMD_PROOFREAD_CHOICE_SET_WORK = 'prompt_set_proofread_choice_set_work'
+const CMD_PROOFREAD_DELETE_CONSEQUENCE = 'prompt_set_proofread_delete_consequence'
+
+export type ProofreadGlobalChoice = { name: string; missing: boolean }
+export type ProofreadWorkMode = 'follow_global' | 'off' | 'named'
+export type ProofreadWorkChoice = { mode: ProofreadWorkMode; name: string | null; missing: boolean }
+export type ProofreadChoiceWire = { global: ProofreadGlobalChoice | null; work: ProofreadWorkChoice | null }
+export type ProofreadDeleteConsequence = 'none' | 'global_takes_over' | 'set_missing'
+
+function isProofreadChoiceWire(value: unknown): value is ProofreadChoiceWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as { global?: Partial<ProofreadGlobalChoice> | null; work?: Partial<ProofreadWorkChoice> | null }
+  const g = v.global
+  const w = v.work
+  const globalOk = g === null || (typeof g === 'object' && typeof g.name === 'string' && typeof g.missing === 'boolean')
+  const workOk =
+    w === null ||
+    (typeof w === 'object' &&
+      (w.mode === 'follow_global' || w.mode === 'off' || w.mode === 'named') &&
+      (w.name === null || typeof w.name === 'string') &&
+      typeof w.missing === 'boolean')
+  return globalOk && workOk
+}
+
+function failure(cmd: string, err: unknown): IpcError | null {
+  if (isIpcError(err)) return err
+  if (hasIpcBridge()) {
+    console.error(`[promptset] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+    return UNKNOWN_IPC_ERROR
+  }
+  console.info(`[promptset] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
+  return null
+}
+
+/** Never throws. `choice` is `null` when the call fails; the caller checks `error`. */
+export async function promptSetProofreadChoiceGet(): Promise<{ choice: ProofreadChoiceWire | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_PROOFREAD_CHOICE_GET)
+    if (!isProofreadChoiceWire(wire)) {
+      console.error(`[promptset] \`${CMD_PROOFREAD_CHOICE_GET}\` trả về một hình dạng không đúng`)
+      return { choice: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { choice: wire, error: null }
+  } catch (err) {
+    return { choice: null, error: failure('prompt_set_proofread_choice_get', err) }
+  }
+}
+
+/** `name: null` clears the Global choice. Never throws. */
+export async function promptSetProofreadChoiceSetGlobal(name: string | null): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_PROOFREAD_CHOICE_SET_GLOBAL, { name })
+    return null
+  } catch (err) {
+    return failure('prompt_set_proofread_choice_set_global', err)
+  }
+}
+
+/** `off: true` means no instruction; `name: null` with `off: false` follows Global. No open Work ⇒ `no_work_open`. */
+export async function promptSetProofreadChoiceSetWork(name: string | null, off: boolean): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_PROOFREAD_CHOICE_SET_WORK, { name, off })
+    return null
+  } catch (err) {
+    return failure('prompt_set_proofread_choice_set_work', err)
+  }
+}
+
+/** Never throws. `consequence` is `null` when the call fails. */
+export async function promptSetProofreadDeleteConsequence(
+  tier: PromptSetTier,
+  id: number,
+): Promise<{ consequence: ProofreadDeleteConsequence | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_PROOFREAD_DELETE_CONSEQUENCE, { tier, id })
+    if (wire !== 'none' && wire !== 'global_takes_over' && wire !== 'set_missing') {
+      console.error(`[promptset] \`${CMD_PROOFREAD_DELETE_CONSEQUENCE}\` trả về một hình dạng không đúng`)
+      return { consequence: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { consequence: wire, error: null }
+  } catch (err) {
+    return { consequence: null, error: failure('prompt_set_proofread_delete_consequence', err) }
+  }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Story 4.5 (FR79, NFR9, AD-48) — adapter THỨ SÁU đến CHÍN: hộp thoại chọn tệp nối vào
 // xuất/nhập một bộ prompt (`.prompt.md`). Cả bốn lệnh MỞ HỘP THOẠI TRONG RUST — adapter này

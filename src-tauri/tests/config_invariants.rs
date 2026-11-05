@@ -2278,10 +2278,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     ),
     (
         "src/commands/promptset.rs",
-        12,
+        13,
         3,
         3,
-        "Hai vo `prompt_set_choice_get`/`prompt_set_choice_set` doc/ghi MOT cot cua `work` -- tuc thoi, khong `(async)`. MOT PHAN DA DO (Story 4.5, Story 11.7 lo B). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong `(async)` co chu -- mot giao dich MOT hang la tuc thoi. Ba `(async)` (`prompt_set_export`, `prompt_set_export_many`, `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi cac vo Glossary o tren. Ba vo chi dan Proofreader (Story 9-14: hai lenh ghi lua chon, mot lenh hau qua cua xoa) plain: moi vo doc/ghi MOT cot `work` hoac MOT hang `config_value`, tuc thoi, CHUA DO -- chu: Dev.",
+        "Hai vo `prompt_set_choice_get`/`prompt_set_choice_set` doc/ghi MOT cot cua `work` -- tuc thoi, khong `(async)`. MOT PHAN DA DO (Story 4.5, Story 11.7 lo B). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong `(async)` co chu -- mot giao dich MOT hang la tuc thoi. Ba `(async)` (`prompt_set_export`, `prompt_set_export_many`, `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi cac vo Glossary o tren. Bon vo chi dan Proofreader (Story 9-14: hai lenh ghi lua chon, mot lenh hau qua cua xoa; Story 9-15: lenh doc lua chon) plain: moi vo doc/ghi MOT cot `work` hoac MOT hang `config_value`, lenh doc them mot lan liet ke bo proofread cua hai tang, tuc thoi, CHUA DO -- chu: Dev.",
     ),
     // `segment/wire.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
     // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh nhom
@@ -2451,9 +2451,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (114, 69),
+        (115, 69),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         114/69.\n\n\
+         115/69.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

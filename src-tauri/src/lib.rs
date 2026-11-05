@@ -1378,6 +1378,7 @@ pub fn run() {
             crate::commands::promptset::wire::prompt_set_rename,
             crate::commands::promptset::wire::prompt_set_update_body,
             crate::commands::promptset::wire::prompt_set_delete,
+            crate::commands::promptset::wire::prompt_set_proofread_choice_get,
             crate::commands::promptset::wire::prompt_set_proofread_choice_set_global,
             crate::commands::promptset::wire::prompt_set_proofread_choice_set_work,
             crate::commands::promptset::wire::prompt_set_proofread_delete_consequence,
