@@ -256,6 +256,24 @@ describe('scope buttons and the ignored-spots link', () => {
     wrapper.unmount()
   })
 
+  it.each([
+    ['work', 'Tác phẩm này'],
+    ['global', 'Toàn cục'],
+  ])('a missing instruction set names the %s tier by its label', async (tier, label) => {
+    runMock.mockResolvedValue({
+      value: null,
+      error: { code: 'ai_proofread.instruction_missing', message_key: 'err.ai_proofread.instruction_missing', params: { name: 'X', tier }, retryable: false },
+    })
+    const wrapper = mount(ProofreaderStrip, { attachTo: document.body })
+    void state.runProofread([1])
+    await flushPromises()
+    const text = wrapper.get('.pfs-error').text()
+    expect(text).toContain('"X"')
+    expect(text).toContain(label)
+    expect(text).not.toContain(`ở ${tier}`)
+    wrapper.unmount()
+  })
+
   it('the hide button is enabled once findings sit on the caret sentence', async () => {
     const wrapper = await mountWithScan()
     expect(wrapper.get('[data-proofread-strip-hide]').attributes('disabled')).toBeUndefined()
@@ -265,9 +283,9 @@ describe('scope buttons and the ignored-spots link', () => {
 
 describe('scan record', () => {
   it('passes the per-entry block counts of a finished scan through', async () => {
-    scan({ state: 'done', not_scanned: 0, filtered: 2, blocked: [{ ignore_id: 4, count: 2 }] })
+    scan({ state: 'done', not_scanned: 0, filtered: 2, blocked: [{ ignore_id: 4, count: 2 }], scan_id: 7 })
     await state.runProofread([1], 'segment')
     await flushPromises()
-    expect(recordMock).toHaveBeenCalledWith('work-1', 'segment', 2, 2, [{ ignore_id: 4, count: 2 }])
+    expect(recordMock).toHaveBeenCalledWith(7, 'work-1', 'segment', 2, 2, [{ ignore_id: 4, count: 2 }])
   })
 })

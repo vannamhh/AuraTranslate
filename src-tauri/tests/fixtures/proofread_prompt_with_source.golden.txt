@@ -1,0 +1,20 @@
+Find errors in the translations. Each SEGMENT block holds one translation between its TEXT markers; when it also holds a SOURCE block, that is the original it translates.
+Reply with only a JSON array of {"segment","kind","quote","explanation","suggestion"}. segment is the number after SEGMENT.
+kind is "spelling", "grammar", "mistranslation" (the translation says something different from the original), "too_loose" (it drifts too far from the original) or "obscure" (it is unclear even given the original); the last three only for a SEGMENT that has a SOURCE block. Reply [] when there is no error.
+quote is the shortest wrong span copied exactly from the TEXT of that segment, never an offset and never from the original.
+explanation is one short sentence in the language of the translation; suggestion is the corrected span.
+<<<SEGMENT 1
+<<<SOURCE
+你好，世界。
+第二行
+SOURCE>>>
+<<<TEXT
+Xin chao the gioi.
+Dong thu hai
+TEXT>>>
+SEGMENT>>>
+<<<SEGMENT 2
+<<<TEXT
+Mot cau khong co nguon {{source_segment}}
+TEXT>>>
+SEGMENT>>>

@@ -13942,3 +13942,8 @@ chính nó.
   summary: `verify` của Story 2.1 trong `tickets/epic-bien-tap-theo-segment/tickets/tickets.toml:8` và AC1 trong plan story đó vẫn ghi tách theo `。！？；`, trái FR23 mới (`。！？`).
   evidence: workflow build không được ghi vào tệp vé; FR23 ở PRD và requirements.md đã sửa cùng commit bỏ `；`.
   Chủ: Ice
+
+- source_plan: `tickets/epic-ai-proofreader/tickets/story-luot-quet-dung-chi-dan-a-chon-plan.md`
+  summary: ba lệnh `prompt_set_proofread_choice_set_global`, `prompt_set_proofread_choice_set_work`, `prompt_set_proofread_delete_consequence` nằm trong `NO_FRONTEND_CALLER` của `src-tauri/tests/ipc_argument_contract.rs` vì chưa có wrapper TS.
+  evidence: miễn trừ phải chết khi ô chọn chỉ dẫn và màn xác nhận xoá dùng ba lệnh này; còn để thì cổng không bắt tên tham số lệch giữa Rust và webview.
+  Chủ: Story 9.15

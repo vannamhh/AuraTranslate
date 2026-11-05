@@ -215,7 +215,7 @@ export async function runProofread(segmentIds: readonly number[], scope: Proofre
   if (result.value.state === 'done') {
     filteredCount.value = result.value.filtered
     if (scope !== null) {
-      void recordFinishedScan(scope, reportedFindings.value, result.value.filtered, result.value.blocked)
+      void recordFinishedScan(result.value.scan_id, scope, reportedFindings.value, result.value.filtered, result.value.blocked)
     }
   }
   state.value = result.value.state
@@ -243,6 +243,7 @@ function dismissCleanScan(run: number): void {
 }
 
 async function recordFinishedScan(
+  scanId: number,
   scope: ProofreadScanScope,
   reported: number,
   filtered: number,
@@ -253,7 +254,7 @@ async function recordFinishedScan(
     console.warn('[proofread] scan not recorded: no open Work id known')
     return
   }
-  const result = await recordProofreadScan(workId, scope, reported, filtered, blocked)
+  const result = await recordProofreadScan(scanId, workId, scope, reported, filtered, blocked)
   if (!result.ok) console.warn(`[proofread] scan not recorded: ${result.error?.code ?? 'no IPC bridge'}`)
 }
 

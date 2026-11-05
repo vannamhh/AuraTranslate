@@ -129,6 +129,7 @@
   "err.ai_proofread.range_invalid": "Vị trí của gợi ý không còn nằm trong câu số {segment_id} nên chưa có gì được ghi. Quét lại để lấy vị trí mới.",
   "err.ai_proofread.decision_missing": "Không còn quyết định số {decision_id} để hoàn lại nên chưa có gì được ghi.",
   "err.ai_proofread.scan_record_rejected": "Chưa ghi được số liệu lượt quét này: Tác phẩm đã đổi hoặc số liệu không hợp lệ.",
+  "err.ai_proofread.instruction_missing": "Chưa quét: bộ chỉ dẫn \"{name}\" đã chọn ở {tier} không còn. Chọn bộ khác hoặc bỏ chọn rồi quét lại.",
   "err.ai_proofread.text_would_be_empty": "Áp gợi ý này sẽ làm câu số {segment_id} trống nên chưa có gì được ghi.",
   "err.ai_translate.reply_unreadable": "Phản hồi của nhà cung cấp AI không đọc được — dữ liệu trả về không đúng định dạng mong đợi.",
   "err.ai_translate.reply_empty": "Mô hình đã trả lời xong nhưng không có chữ nào — chưa có bản dịch.",

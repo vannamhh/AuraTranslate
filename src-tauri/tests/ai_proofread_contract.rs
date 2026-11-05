@@ -187,6 +187,8 @@ const ONE_SPELLING: &str =
 fn run_of(batch_sizes: &[usize]) -> PreparedProofreadRun {
     let mut next_id = 100i64;
     PreparedProofreadRun {
+        scan_id: 0,
+        instruction: None,
         batches: batch_sizes
             .iter()
             .map(|&n| PreparedProofreadBatch {
@@ -271,6 +273,7 @@ fn a_clean_reply_places_findings_on_the_segment_it_names_and_carries_the_batch_u
     assert_eq!(
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 0,
             filtered: 0,
             blocked: Vec::new()
@@ -389,6 +392,7 @@ fn a_malformed_reply_loses_only_its_own_batch() {
     assert_eq!(
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 3,
             filtered: 0,
             blocked: Vec::new()
@@ -431,6 +435,7 @@ fn an_empty_reply_error_loses_only_its_own_batch_and_the_run_continues() {
     assert_eq!(
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 2,
             filtered: 0,
             blocked: Vec::new()
@@ -484,6 +489,7 @@ fn nothing_to_scan_calls_no_provider_and_is_done() {
     assert_eq!(
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 0,
             filtered: 0,
             blocked: Vec::new()
@@ -503,12 +509,13 @@ fn the_outcome_wire_keeps_its_state_tags_and_counts() {
     );
     assert_eq!(
         serde_json::to_value(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 2,
             filtered: 0,
             blocked: Vec::new()
         })
         .unwrap(),
-        serde_json::json!({"state":"done","not_scanned":2,"filtered":0,"blocked":[]})
+        serde_json::json!({"state":"done","scan_id":0,"not_scanned":2,"filtered":0,"blocked":[]})
     );
     assert_eq!(
         serde_json::to_value(AiProofreadOutcomeWire::Cancelled { not_scanned: 4 }).unwrap(),
@@ -598,6 +605,7 @@ fn a_whole_chapter_scans_every_filled_segment_in_document_order_and_skips_empty_
     assert_eq!(
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 0,
             filtered: 0,
             blocked: Vec::new()
@@ -769,6 +777,7 @@ fn a_whole_chapter_scan_with_findings_changes_no_text_status_origin_baseline_or_
     assert_eq!(
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 0,
             filtered: 0,
             blocked: Vec::new()
@@ -849,6 +858,7 @@ fn a_repeated_context_phrase_reaches_the_wire_as_ambiguous_and_never_as_a_findin
     assert_eq!(
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
+            scan_id: 0,
             not_scanned: 0,
             filtered: 0,
             blocked: Vec::new()

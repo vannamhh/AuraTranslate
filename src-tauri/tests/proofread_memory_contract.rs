@@ -11,7 +11,7 @@ use auratranslate_lib::commands::aitranslate::PreparedTranslateCall;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::proofread::{
     AiProofreadEventWire, AiProofreadOutcomeWire, PreparedProofreadBatch, PreparedProofreadRun,
-    PreparedProofreadSegment, ProofreadBlockedWire, ProofreadPrepareOutcome,
+    PreparedProofreadSegment, ProofreadBlockedWire, ProofreadPrepareOutcome, ScanTrace,
     prepare_proofread_call, proofread_ignore_add, proofread_ignore_clear, proofread_ignore_list,
     proofread_ignore_remove, proofread_scan_record, run_proofread_call,
 };
@@ -154,6 +154,10 @@ impl TranslationProvider for Cancelling {
     }
 }
 
+fn no_trace() -> Option<ScanTrace> {
+    Some(ScanTrace { instruction: None })
+}
+
 fn reply_of(kind: &str, quote: &str) -> String {
     format!(r#"[{{"kind":"{kind}","quote":"{quote}","explanation":"e","suggestion":"s"}}]"#)
 }
@@ -189,6 +193,8 @@ fn prepared_run(id: i64, text: &str) -> PreparedProofreadRun {
         }],
         remembered: Vec::new(),
         remembered_ids: Vec::new(),
+        scan_id: 0,
+        instruction: None,
     }
 }
 
@@ -617,7 +623,7 @@ fn the_scan_count_records_one_row_and_refuses_what_rust_can_check() {
     let open = work_of("scan-record", 1);
     let work_id = open.meta.work_id.clone();
 
-    proofread_scan_record(Some(&open), &work_id, "chapter", 4, 1, &[]).expect("record");
+    proofread_scan_record(Some(&open), no_trace(), &work_id, "chapter", 4, 1, &[]).expect("record");
     assert_eq!(table_count(&open, "proof_scan"), 1);
     let row: (String, i64, i64, String) = open
         .store
@@ -638,13 +644,21 @@ fn the_scan_count_records_one_row_and_refuses_what_rust_can_check() {
         (work_id.as_str(), "segment", -1, 0),
         (work_id.as_str(), "segment", 0, -1),
     ] {
-        let err = proofread_scan_record(Some(&open), work, scope, reported, filtered, &[])
-            .expect_err("refused");
+        let err = proofread_scan_record(
+            Some(&open),
+            no_trace(),
+            work,
+            scope,
+            reported,
+            filtered,
+            &[],
+        )
+        .expect_err("refused");
         assert_eq!(err.code(), "ai_proofread.scan_record_rejected");
     }
     assert_eq!(table_count(&open, "proof_scan"), 1);
     assert_eq!(
-        proofread_scan_record(None, &work_id, "segment", 0, 0, &[])
+        proofread_scan_record(None, no_trace(), &work_id, "segment", 0, 0, &[])
             .expect_err("none")
             .code(),
         "work.none_open"
@@ -771,8 +785,10 @@ fn a_scan_reports_blocked_findings_per_entry_and_recording_it_raises_only_that_e
         }]
     );
 
-    proofread_scan_record(Some(&open), &work_id, "chapter", 0, 2, &blocked).expect("record");
-    proofread_scan_record(Some(&open), &work_id, "chapter", 0, 2, &blocked).expect("again");
+    proofread_scan_record(Some(&open), no_trace(), &work_id, "chapter", 0, 2, &blocked)
+        .expect("record");
+    proofread_scan_record(Some(&open), no_trace(), &work_id, "chapter", 0, 2, &blocked)
+        .expect("again");
     let counts: Vec<(String, Option<i64>)> = open
         .store
         .read(|conn| {
@@ -812,6 +828,7 @@ fn recording_a_block_never_gives_a_null_counter_a_number() {
 
     proofread_scan_record(
         Some(&open),
+        no_trace(),
         &work_id,
         "segment",
         0,

@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
+import type { IpcError } from './i18n'
 import { eligibleInlineStrips, proofreaderStripPlace } from './inlineStripEligibility'
 import type { ProofreaderStripPlace } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
@@ -92,6 +93,12 @@ const card = computed(() => {
 })
 
 const titleText = computed(() => card.value?.title ?? t('proofread.strip.title'))
+
+function scanErrorText(err: IpcError): string {
+  if (err.code !== 'ai_proofread.instruction_missing') return tError(err)
+  const tier = err.params.tier === 'work' ? t('ai.prompt_inspector.tier_work') : t('ai.prompt_inspector.tier_global')
+  return tError(err, { ...err.params, tier })
+}
 
 const actionErrorText = computed<string | null>(() => {
   const err = isJob.value ? proofreadActionError.value : null
@@ -251,7 +258,7 @@ const filteredText = computed<string | null>(() =>
     </p>
     <p v-if="proofreadStateValue === 'error' && proofreadError !== null" class="pfs-status pfs-error" role="alert">
       <!-- aura-allow-text: result of tError(). -->
-      {{ tError(proofreadError) }}
+      {{ scanErrorText(proofreadError) }}
     </p>
     <p v-else-if="summary !== null" class="pfs-status" role="status">
       <!-- aura-allow-text: result of t() computed in the script. -->

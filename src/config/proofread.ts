@@ -50,7 +50,7 @@ export type ProofreadEventWire =
 export type ProofreadOutcomeWire =
   | { state: 'not_configured' }
   | { state: 'cancelled'; not_scanned: number }
-  | { state: 'done'; not_scanned: number; filtered: number; blocked: ProofreadBlockedWire[] }
+  | { state: 'done'; not_scanned: number; filtered: number; blocked: ProofreadBlockedWire[]; scan_id: number }
 
 const CMD_PROOFREAD = 'ai_proofread_segments'
 const CMD_PROOFREAD_CANCEL = 'ai_proofread_cancel'
@@ -108,12 +108,13 @@ export function isProofreadEventWire(value: unknown): value is ProofreadEventWir
 
 export function isProofreadOutcomeWire(value: unknown): value is ProofreadOutcomeWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { state?: unknown; not_scanned?: unknown; filtered?: unknown; blocked?: unknown }
+  const v = value as { state?: unknown; not_scanned?: unknown; filtered?: unknown; blocked?: unknown; scan_id?: unknown }
   if (v.state === 'not_configured') return true
   if (v.state === 'done') {
     return (
       typeof v.not_scanned === 'number' &&
       isCount(v.filtered) &&
+      isCount(v.scan_id) &&
       Array.isArray(v.blocked) &&
       v.blocked.every(isBlockedWire)
     )
@@ -363,6 +364,7 @@ export async function clearProofreadIgnores(): Promise<{ cleared: number | null;
 
 /** One row per finished scan; Rust rejects a Work that is no longer open. Never throws. */
 export async function recordProofreadScan(
+  scanId: number,
   workId: string,
   scope: ProofreadScanScope,
   reported: number,
@@ -370,7 +372,7 @@ export async function recordProofreadScan(
   blocked: readonly ProofreadBlockedWire[],
 ): Promise<{ ok: boolean; error: IpcError | null }> {
   try {
-    await invoke<unknown>(CMD_SCAN_RECORD, { workId, scope, reported, filtered, blocked })
+    await invoke<unknown>(CMD_SCAN_RECORD, { scanId, workId, scope, reported, filtered, blocked })
     return { ok: true, error: null }
   } catch (err) {
     return { ok: false, error: memoryFailure('scan_record', err) }

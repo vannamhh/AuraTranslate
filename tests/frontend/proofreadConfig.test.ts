@@ -32,11 +32,12 @@ describe('isProofreadOutcomeWire', () => {
   it('accepts the three outcomes', () => {
     expect(isProofreadOutcomeWire({ state: 'not_configured' })).toBe(true)
     expect(isProofreadOutcomeWire({ state: 'cancelled', not_scanned: 2 })).toBe(true)
-    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [] })).toBe(true)
-    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 2, blocked: [{ ignore_id: 7, count: 2 }] })).toBe(true)
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [], scan_id: 3 })).toBe(true)
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 2, blocked: [{ ignore_id: 7, count: 2 }], scan_id: 3 })).toBe(true)
   })
 
   it('rejects a done or cancelled outcome without not_scanned, and unknown states', () => {
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [] })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done' })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0 })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0 })).toBe(false)
@@ -178,11 +179,12 @@ describe('the remembered-ignore adapters', () => {
     }
   })
 
-  it('scan_record sends workId, scope, reported, filtered and the per-entry blocks, and never throws', async () => {
+  it('scan_record sends scanId, workId, scope, reported, filtered and the per-entry blocks, and never throws', async () => {
     invokeMock.mockResolvedValue(null)
     const blocked = [{ ignore_id: 7, count: 2 }]
-    expect(await recordProofreadScan('w1', 'chapter', 3, 2, blocked)).toEqual({ ok: true, error: null })
+    expect(await recordProofreadScan(5, 'w1', 'chapter', 3, 2, blocked)).toEqual({ ok: true, error: null })
     expect(invokeMock).toHaveBeenCalledWith('ai_proofread_scan_record', {
+      scanId: 5,
       workId: 'w1',
       scope: 'chapter',
       reported: 3,
@@ -190,6 +192,6 @@ describe('the remembered-ignore adapters', () => {
       blocked,
     })
     invokeMock.mockRejectedValue(err)
-    expect(await recordProofreadScan('w1', 'chapter', 3, 2, [])).toEqual({ ok: false, error: err })
+    expect(await recordProofreadScan(5, 'w1', 'chapter', 3, 2, [])).toEqual({ ok: false, error: err })
   })
 })

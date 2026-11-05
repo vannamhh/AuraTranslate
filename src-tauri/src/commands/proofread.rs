@@ -21,23 +21,62 @@ use crate::core::ai::proofread::{
 };
 use crate::core::ai::rag::{ProofreadBlock, assemble_proofread_batch_prompt};
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::promptset::{PromptSetTier, resolve_proofread_instruction};
 use crate::core::segment::proofread_kind::ProofreadKind;
 use crate::core::store::Store;
 use crate::ports::translation_provider::{TranslateOutcome, TranslateRequest, TranslationProvider};
 
-/// Own counter, so cancelling a translation never cancels a scan and the reverse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstructionTrace {
+    pub name: String,
+    pub tier: PromptSetTier,
+}
+
+/// What Rust remembers of the scan that last started, to fill `proof_scan` when it is recorded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScanTrace {
+    pub instruction: Option<InstructionTrace>,
+}
+
+/// Own counter, so cancelling a translation never cancels a scan and the reverse. Also holds the
+/// trace of the latest scan, keyed by its generation.
 #[derive(Debug, Clone, Default)]
-pub struct ProofreadGeneration(std::sync::Arc<std::sync::atomic::AtomicU64>);
+pub struct ProofreadGeneration {
+    counter: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    scan: std::sync::Arc<std::sync::Mutex<Option<(u64, ScanTrace)>>>,
+}
 
 impl ProofreadGeneration {
+    fn remember_scan(&self, generation: u64, trace: ScanTrace) {
+        *self
+            .scan
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((generation, trace));
+    }
+
+    /// The trace of scan `generation`, once; a code that is not the latest scan's gives `None`.
+    fn take_scan(&self, generation: u64) -> Option<ScanTrace> {
+        let mut slot = self
+            .scan
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match slot.take() {
+            Some((remembered, trace)) if remembered == generation => Some(trace),
+            other => {
+                *slot = other;
+                None
+            }
+        }
+    }
+
     fn next(&self) -> u64 {
-        self.0
+        self.counter
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
             .wrapping_add(1)
     }
 
     fn is_current(&self, generation: u64) -> bool {
-        self.0.load(std::sync::atomic::Ordering::Acquire) == generation
+        self.counter.load(std::sync::atomic::Ordering::Acquire) == generation
     }
 }
 
@@ -56,6 +95,9 @@ pub struct PreparedProofreadBatch {
 }
 
 pub struct PreparedProofreadRun {
+    /// Set by the wire from the scan's generation; `0` until then.
+    pub scan_id: u64,
+    pub instruction: Option<InstructionTrace>,
     pub batches: Vec<PreparedProofreadBatch>,
     pub remembered: Vec<ProofreadSignature>,
     /// `proof_ignore.id` of each `remembered` entry, same order.
@@ -103,6 +145,8 @@ pub enum AiProofreadOutcomeWire {
     /// `not_scanned`: segments of batches whose reply was unusable. `filtered`: findings the
     /// "not an error" memory silenced before they left Rust.
     Done {
+        /// Code the webview hands back to `ai_proofread_scan_record`.
+        scan_id: u64,
         not_scanned: u32,
         filtered: u32,
         /// `filtered` split by the `proof_ignore` entry that silenced each finding.
@@ -163,8 +207,21 @@ pub fn prepare_proofread_call(
         .iter()
         .filter(|s| requested.contains(&s.id) && !s.is_omitted && !s.target_text.trim().is_empty())
         .collect();
+    let resolved_instruction = resolve_proofread_instruction(
+        &open_work.scope,
+        global.ok_or_else(crate::commands::attribution::store_is_missing)?,
+        Some(&open_work.store),
+    )?;
+    let instruction_body = resolved_instruction.as_ref().map(|i| i.body.as_str());
+    let instruction = resolved_instruction.as_ref().map(|i| InstructionTrace {
+        name: i.name.clone(),
+        tier: i.tier,
+    });
+
     if rows.is_empty() {
         return Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun {
+            scan_id: 0,
+            instruction,
             batches: Vec::new(),
             remembered: Vec::new(),
             remembered_ids: Vec::new(),
@@ -198,7 +255,7 @@ pub fn prepare_proofread_call(
                     temperature,
                     max_tokens,
                     api_key: api_key.clone(),
-                    prompt: assemble_proofread_batch_prompt(&blocks),
+                    prompt: assemble_proofread_batch_prompt(&blocks, instruction_body),
                     system: None,
                 },
                 segments: group
@@ -214,6 +271,8 @@ pub fn prepare_proofread_call(
         .collect();
 
     Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun {
+        scan_id: 0,
+        instruction,
         batches,
         remembered,
         remembered_ids,
@@ -380,6 +439,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
         })
         .collect();
     Ok(AiProofreadOutcomeWire::Done {
+        scan_id: run.scan_id,
         not_scanned,
         filtered,
         blocked,
@@ -556,9 +616,12 @@ pub fn proofread_ignore_clear(open: Option<&OpenWork>) -> Result<u32, IpcError> 
 /// Records one finished scan and raises the blocked counter of each entry that silenced findings,
 /// in the same transaction. The counts come from the webview, so Rust checks only what it can:
 /// `work_id` is the open Work, `scope` is one of the closed set, the counts are not negative.
-/// A row with a `NULL` counter stays `NULL`.
+/// `scan` is what Rust remembered for the scan code the webview sent; `None` (unknown or old
+/// code) is rejected. The instruction set columns come from it, never from the webview. A row
+/// with a `NULL` counter stays `NULL`.
 pub fn proofread_scan_record(
     open: Option<&OpenWork>,
+    scan: Option<ScanTrace>,
     work_id: &str,
     scope: &str,
     reported: i64,
@@ -566,6 +629,9 @@ pub fn proofread_scan_record(
     blocked: &[ProofreadBlockedWire],
 ) -> Result<(), IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let Some(scan) = scan else {
+        return Err(scan_record_rejected());
+    };
     if open.meta.work_id != work_id
         || !matches!(scope, "segment" | "selection" | "chapter")
         || reported < 0
@@ -575,11 +641,22 @@ pub fn proofread_scan_record(
     }
     let scope = scope.to_owned();
     let blocked = blocked.to_vec();
+    let (instruction_name, instruction_tier) = match scan.instruction {
+        Some(i) => (Some(i.name), Some(i.tier.as_str())),
+        None => (None, None),
+    };
     open.store.write(move |tx| {
         tx.execute(
-            "INSERT INTO proof_scan (scope, scanned_at, reported, filtered) \
-             VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?2, ?3)",
-            (&scope, reported, filtered),
+            "INSERT INTO proof_scan (scope, scanned_at, reported, filtered, \
+             instruction_set_name, instruction_set_tier) \
+             VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?2, ?3, ?4, ?5)",
+            (
+                &scope,
+                reported,
+                filtered,
+                instruction_name,
+                instruction_tier,
+            ),
         )?;
         for entry in &blocked {
             tx.execute(
@@ -638,7 +715,7 @@ async fn send_prepared_proofread_call(
 pub mod wire {
     use super::{
         AiProofreadEventWire, AiProofreadOutcomeWire, ProofreadGeneration,
-        ProofreadIgnoreEntryWire, ProofreadPrepareOutcome, prepare_proofread_call,
+        ProofreadIgnoreEntryWire, ProofreadPrepareOutcome, ScanTrace, prepare_proofread_call,
         send_prepared_proofread_call,
     };
     use crate::commands::aitranslate::state_missing;
@@ -681,7 +758,16 @@ pub mod wire {
             ProofreadPrepareOutcome::NotConfigured => {
                 return Ok(AiProofreadOutcomeWire::NotConfigured);
             }
-            ProofreadPrepareOutcome::Ready(run) => run,
+            ProofreadPrepareOutcome::Ready(mut run) => {
+                run.scan_id = generation;
+                generation_state.remember_scan(
+                    generation,
+                    ScanTrace {
+                        instruction: run.instruction.clone(),
+                    },
+                );
+                run
+            }
         };
 
         send_prepared_proofread_call(prepared, channel, generation_state, generation).await
@@ -765,14 +851,20 @@ pub mod wire {
     #[tauri::command]
     pub fn ai_proofread_scan_record<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
+        scan_id: u64,
         work_id: String,
         scope: String,
         reported: i64,
         filtered: i64,
         blocked: Vec<super::ProofreadBlockedWire>,
     ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let scan = app
+            .try_state::<ProofreadGeneration>()
+            .and_then(|state| state.take_scan(scan_id));
         with_open(&app, |open| {
-            super::proofread_scan_record(open, &work_id, &scope, reported, filtered, &blocked)
+            super::proofread_scan_record(open, scan, &work_id, &scope, reported, filtered, &blocked)
         })
     }
 

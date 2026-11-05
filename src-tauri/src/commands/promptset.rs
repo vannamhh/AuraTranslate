@@ -24,9 +24,10 @@ use crate::core::i18n::IpcError;
 use crate::core::promptset::exchange::{ConflictDecision, ParsedPromptSet, PlanKind};
 use crate::core::promptset::{
     ImportOutcome, MarkerWarnings, PromptSetError, PromptSetKind, PromptSetTier, PromptVariable,
-    ResolvedPromptSet, create, delete, exchange, exchange_io, import_into_tier, load_one,
-    load_prompt_set_tier, read_chosen_name, rename, resolve_two_tiers, update_body,
-    write_chosen_name,
+    ProofreadDeleteConsequence, ProofreadWorkChoice, ResolvedPromptSet, create, delete, exchange,
+    exchange_io, import_into_tier, load_one, load_prompt_set_tier, proofread_delete_consequence,
+    read_chosen_name, rename, rename_proofread_set, resolve_two_tiers, update_body,
+    write_chosen_name, write_proofread_global_choice, write_proofread_work_choice,
 };
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -253,15 +254,62 @@ pub fn prompt_set_rename(
     new_name: &str,
 ) -> Result<(), IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    rename(
+    let work_store = open.map(|w| &w.store);
+    match kind {
+        PromptSetKind::Translate => rename(global_store, work_store, tier, kind, id, new_name)?,
+        PromptSetKind::Proofread => {
+            rename_proofread_set(global_store, work_store, tier, id, new_name)?;
+        }
+    }
+    Ok(())
+}
+
+/// Sets the Global proofread instruction choice; `None` removes it. A blank name is rejected
+/// with `prompt_set.invalid_name` and nothing is written.
+pub fn prompt_set_proofread_choice_set_global(
+    global: Option<&Store>,
+    name: Option<&str>,
+) -> Result<(), IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    write_proofread_global_choice(global_store, name)?;
+    Ok(())
+}
+
+/// Sets the open Work's proofread instruction choice, both columns in one write. `off` wins over
+/// `name` (the name is stored as `NULL`); `name == None` with `off == false` follows Global; a
+/// blank name is rejected with `prompt_set.invalid_name`.
+pub fn prompt_set_proofread_choice_set_work(
+    open: Option<&OpenWork>,
+    name: Option<&str>,
+    off: bool,
+) -> Result<(), IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    if name.is_some_and(|n| n.trim().is_empty()) {
+        return Err(PromptSetError::InvalidName.into());
+    }
+    let choice = match (off, name) {
+        (true, _) => ProofreadWorkChoice::Off,
+        (false, Some(name)) => ProofreadWorkChoice::Named(name.to_owned()),
+        (false, None) => ProofreadWorkChoice::FollowGlobal,
+    };
+    write_proofread_work_choice(&open.store, &choice)?;
+    Ok(())
+}
+
+/// What the next scan meets if the `proofread` set `(tier, id)` is deleted. Writes nothing.
+pub fn prompt_set_proofread_delete_consequence(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: PromptSetTier,
+    id: i64,
+) -> Result<ProofreadDeleteConsequence, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    Ok(proofread_delete_consequence(
         global_store,
         open.map(|w| &w.store),
         tier,
-        kind,
         id,
-        new_name,
-    )?;
-    Ok(())
+    )?)
 }
 
 /// Sửa THÂN của bộ `(tier, id)` — **hàm thuần, đây là thứ test gọi**. Trả về cảnh báo dấu
@@ -770,6 +818,57 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_rename(global.as_deref(), guard.as_ref(), tier, kind, id, &new_name)
+    }
+
+    #[tauri::command]
+    pub fn prompt_set_proofread_choice_set_global(
+        app: tauri::AppHandle,
+        name: Option<String>,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        super::prompt_set_proofread_choice_set_global(global.as_deref(), name.as_deref())
+    }
+
+    #[tauri::command]
+    pub fn prompt_set_proofread_choice_set_work(
+        app: tauri::AppHandle,
+        name: Option<String>,
+        off: bool,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::prompt_set_proofread_choice_set_work(None, name.as_deref(), off);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::prompt_set_proofread_choice_set_work(guard.as_ref(), name.as_deref(), off)
+    }
+
+    #[tauri::command]
+    pub fn prompt_set_proofread_delete_consequence(
+        app: tauri::AppHandle,
+        tier: PromptSetTier,
+        id: i64,
+    ) -> Result<super::ProofreadDeleteConsequence, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::prompt_set_proofread_delete_consequence(
+                global.as_deref(),
+                None,
+                tier,
+                id,
+            );
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::prompt_set_proofread_delete_consequence(global.as_deref(), guard.as_ref(), tier, id)
     }
 
     #[tauri::command]

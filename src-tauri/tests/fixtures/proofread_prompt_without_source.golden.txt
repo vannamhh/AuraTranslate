@@ -1,0 +1,16 @@
+Find spelling and grammar errors in the translations. Each SEGMENT block holds one translation between its TEXT markers.
+Reply with only a JSON array of {"segment","kind","quote","explanation","suggestion"}. segment is the number after SEGMENT.
+kind is "spelling" or "grammar". Reply [] when there is no error.
+quote is the shortest wrong span copied exactly from the TEXT of that segment, never an offset and never from the original.
+explanation is one short sentence in the language of the translation; suggestion is the corrected span.
+<<<SEGMENT 1
+<<<TEXT
+Cau thu nhat.
+TEXT>>>
+SEGMENT>>>
+<<<SEGMENT 2
+<<<TEXT
+Cau thu hai
+co hai dong.
+TEXT>>>
+SEGMENT>>>

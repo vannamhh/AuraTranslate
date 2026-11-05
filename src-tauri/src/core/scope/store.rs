@@ -181,6 +181,9 @@ const KEY_READING_PREFERENCES: &str = "reading_preferences";
 /// usage lines of the AI panel, anything else (including absent) shows them.
 const KEY_AI_USAGE_VISIBLE: &str = "ai_usage_visible";
 
+/// Global `app_config` key for the chosen proofread instruction set name; absent is no choice.
+pub const KEY_PROOFREAD_PROMPT_SET: &str = "proofread_prompt_set";
+
 /// Global `app_config` key for the update-check switch: only `"off"` disables the check.
 const KEY_UPDATE_CHECK_ENABLED: &str = "update_check_enabled";
 
@@ -355,6 +358,16 @@ impl GlobalConfig {
         self.app
             .get(KEY_AI_USAGE_VISIBLE)
             .map_or("", |r| r.value().as_str())
+    }
+
+    /// Name of the proofread instruction set chosen at the Global tier; a blank saved value is no
+    /// choice.
+    pub fn proofread_prompt_set(&self) -> Option<String> {
+        self.app
+            .get(KEY_PROOFREAD_PROMPT_SET)
+            .map(|r| r.value().trim())
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
     }
 
     /// Update check is on unless the saved value is exactly `"off"`.

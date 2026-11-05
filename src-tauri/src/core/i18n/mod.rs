@@ -940,6 +940,7 @@ message_keys! {
     AiProofreadTextWouldBeEmpty => "err.ai_proofread.text_would_be_empty" ["segment_id"],
     AiProofreadDecisionMissing => "err.ai_proofread.decision_missing" ["decision_id"],
     AiProofreadScanRecordRejected => "err.ai_proofread.scan_record_rejected" [],
+    AiProofreadInstructionMissing => "err.ai_proofread.instruction_missing" ["name", "tier"],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
     //

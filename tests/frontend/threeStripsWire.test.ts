@@ -31,7 +31,7 @@ describe('tmCountPairs', () => {
 
 describe('proofread wire', () => {
   it('a done outcome must carry the blocked list', () => {
-    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [{ ignore_id: 1, count: 2 }] })).toBe(true)
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [{ ignore_id: 1, count: 2 }], scan_id: 1 })).toBe(true)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0 })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [{ ignore_id: 1 }] })).toBe(false)
   })
@@ -46,8 +46,9 @@ describe('proofread wire', () => {
 
   it('the scan record sends the blocked array', async () => {
     invokeMock.mockResolvedValue(null)
-    await recordProofreadScan('w', 'chapter', 3, 2, [{ ignore_id: 9, count: 2 }])
+    await recordProofreadScan(8, 'w', 'chapter', 3, 2, [{ ignore_id: 9, count: 2 }])
     expect(invokeMock).toHaveBeenCalledWith('ai_proofread_scan_record', {
+      scanId: 8,
       workId: 'w',
       scope: 'chapter',
       reported: 3,

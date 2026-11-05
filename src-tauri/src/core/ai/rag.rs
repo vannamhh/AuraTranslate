@@ -38,8 +38,9 @@
 //! marker thứ hai, vì con trỏ quét đã đi QUA điểm chèn đó trước khi nội dung được đặt vào.
 
 use super::batch::{
-    CONTEXT_CLOSE, CONTEXT_OPEN, SEGMENT_CLOSE, SEGMENT_OPEN, TM_BLOCK_LEAD, TM_CLOSE, TM_OPEN,
-    guard_text,
+    CONTEXT_CLOSE, CONTEXT_OPEN, PROOFREAD_SOURCE_CLOSE, PROOFREAD_SOURCE_OPEN,
+    PROOFREAD_TEXT_CLOSE, PROOFREAD_TEXT_OPEN, SEGMENT_CLOSE, SEGMENT_OPEN, TM_BLOCK_LEAD,
+    TM_CLOSE, TM_OPEN, guard_proofread_instruction, guard_text,
 };
 use crate::core::glossary::{
     GlossaryError, GlossaryInjectionOutcome, GlossarySnapshot, GlossaryTier,
@@ -942,14 +943,6 @@ const PROOFREAD_KIND_RULE_WITH_SOURCE: &str = "kind is \"spelling\", \"grammar\"
 const PROOFREAD_QUOTE_RULE: &str = "quote is the shortest wrong span copied exactly from the TEXT of that segment, never an offset and never from the original.";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_EXPLANATION_RULE: &str = "explanation is one short sentence in the language of the translation; suggestion is the corrected span.";
-// aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_SOURCE_OPEN: &str = "<<<SOURCE";
-// aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_SOURCE_CLOSE: &str = "SOURCE>>>";
-// aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_TEXT_OPEN: &str = "<<<TEXT";
-// aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_TEXT_CLOSE: &str = "TEXT>>>";
 
 /// One translation of a proofread batch. A blank `source_text` leaves the block without a
 /// SOURCE part.
@@ -961,8 +954,12 @@ pub struct ProofreadBlock<'a> {
 
 /// The scan prompt for a batch of translations. Each block is numbered from 1 and the reply
 /// names that number. The meaning kinds are asked for only when at least one block has a
-/// source. Pure: the same inputs give the same bytes.
-pub fn assemble_proofread_batch_prompt(blocks: &[ProofreadBlock<'_>]) -> String {
+/// source. The user's `custom_instruction` (blank means none) goes between the opening line and the
+/// reply contract, with scan markers guarded. Pure: the same inputs give the same bytes.
+pub fn assemble_proofread_batch_prompt(
+    blocks: &[ProofreadBlock<'_>],
+    custom_instruction: Option<&str>,
+) -> String {
     let any_source = blocks.iter().any(|b| !b.source_text.trim().is_empty());
     let (instruction, kind_rule) = if any_source {
         (
@@ -972,8 +969,13 @@ pub fn assemble_proofread_batch_prompt(blocks: &[ProofreadBlock<'_>]) -> String 
     } else {
         (PROOFREAD_INSTRUCTION, PROOFREAD_KIND_RULE)
     };
+    let custom = custom_instruction
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(|text| format!("{}\n", guard_proofread_instruction(text)))
+        .unwrap_or_default();
     let mut prompt = format!(
-        "{instruction}\n{PROOFREAD_FORMAT}\n{kind_rule}\n{PROOFREAD_QUOTE_RULE}\n{PROOFREAD_EXPLANATION_RULE}"
+        "{instruction}\n{custom}{PROOFREAD_FORMAT}\n{kind_rule}\n{PROOFREAD_QUOTE_RULE}\n{PROOFREAD_EXPLANATION_RULE}"
     );
     for (i, block) in blocks.iter().enumerate() {
         prompt.push_str(&format!("\n{SEGMENT_OPEN} {}\n", i + 1));
@@ -1025,10 +1027,13 @@ mod proofread_prompt_tests {
     use super::{ProofreadBlock, assemble_proofread_batch_prompt};
 
     fn one(source_text: &str, target_text: &str) -> String {
-        assemble_proofread_batch_prompt(&[ProofreadBlock {
-            source_text,
-            target_text,
-        }])
+        assemble_proofread_batch_prompt(
+            &[ProofreadBlock {
+                source_text,
+                target_text,
+            }],
+            None,
+        )
     }
 
     #[test]
@@ -1041,20 +1046,23 @@ mod proofread_prompt_tests {
 
     #[test]
     fn each_block_is_numbered_from_one_and_keeps_its_own_source() {
-        let prompt = assemble_proofread_batch_prompt(&[
-            ProofreadBlock {
-                source_text: "S1",
-                target_text: "T1",
-            },
-            ProofreadBlock {
-                source_text: "",
-                target_text: "T2",
-            },
-            ProofreadBlock {
-                source_text: "S3",
-                target_text: "T3",
-            },
-        ]);
+        let prompt = assemble_proofread_batch_prompt(
+            &[
+                ProofreadBlock {
+                    source_text: "S1",
+                    target_text: "T1",
+                },
+                ProofreadBlock {
+                    source_text: "",
+                    target_text: "T2",
+                },
+                ProofreadBlock {
+                    source_text: "S3",
+                    target_text: "T3",
+                },
+            ],
+            None,
+        );
         assert!(
             prompt.contains(
                 "<<<SEGMENT 1\n<<<SOURCE\nS1\nSOURCE>>>\n<<<TEXT\nT1\nTEXT>>>\nSEGMENT>>>"

@@ -2307,11 +2307,44 @@ fn the_prompt_set_wires_are_registered() {
         "crate::commands::promptset::wire::prompt_set_open_import_preview",
         "crate::commands::promptset::wire::prompt_set_confirm_import",
         "crate::commands::promptset::wire::prompt_set_cancel_import",
+        "crate::commands::promptset::wire::prompt_set_proofread_choice_set_global",
+        "crate::commands::promptset::wire::prompt_set_proofread_choice_set_work",
+        "crate::commands::promptset::wire::prompt_set_proofread_delete_consequence",
     ] {
         assert!(
             lib_src.contains(wire),
             "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra \
              \"command not found\" va man Thu vien Prompt vo tren mot ban dung that."
+        );
+    }
+
+    let promptset_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("promptset.rs");
+    let promptset_src = fs::read_to_string(&promptset_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", promptset_rs.display()));
+    for (name, params) in [
+        (
+            "prompt_set_proofread_choice_set_global",
+            "app: tauri::AppHandle, name: Option<String>,",
+        ),
+        (
+            "prompt_set_proofread_choice_set_work",
+            "app: tauri::AppHandle, name: Option<String>, off: bool,",
+        ),
+        (
+            "prompt_set_proofread_delete_consequence",
+            "app: tauri::AppHandle, tier: PromptSetTier, id: i64,",
+        ),
+    ] {
+        let wire_start = promptset_src
+            .find("pub mod wire")
+            .expect("`pub mod wire` trong commands/promptset.rs");
+        assert_eq!(
+            normalize_param_list(&fn_param_list(&promptset_src[wire_start..], name)),
+            normalize_param_list(params),
+            "vo `{name}` khong con dung danh sach tham so mong doi"
         );
     }
 }
@@ -2703,8 +2736,8 @@ fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
         ("ai_proofread_decision_counts", "app: tauri::AppHandle<R>,"),
         (
             "ai_proofread_scan_record",
-            "app: tauri::AppHandle<R>, work_id: String, scope: String, reported: i64, filtered: i64, \
-             blocked: Vec<super::ProofreadBlockedWire>,",
+            "app: tauri::AppHandle<R>, scan_id: u64, work_id: String, scope: String, reported: i64, \
+             filtered: i64, blocked: Vec<super::ProofreadBlockedWire>,",
         ),
     ] {
         let registered = format!("crate::commands::proofread::wire::{name}");

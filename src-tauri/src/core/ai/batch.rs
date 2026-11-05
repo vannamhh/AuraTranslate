@@ -23,6 +23,15 @@ pub const TM_OPEN: &str = "<<<TM";
 pub const TM_CLOSE: &str = "TM>>>";
 
 // aura-allow-text: prompt text sent to the model, not UI text
+pub const PROOFREAD_SOURCE_OPEN: &str = "<<<SOURCE";
+// aura-allow-text: prompt text sent to the model, not UI text
+pub const PROOFREAD_SOURCE_CLOSE: &str = "SOURCE>>>";
+// aura-allow-text: prompt text sent to the model, not UI text
+pub const PROOFREAD_TEXT_OPEN: &str = "<<<TEXT";
+// aura-allow-text: prompt text sent to the model, not UI text
+pub const PROOFREAD_TEXT_CLOSE: &str = "TEXT>>>";
+
+// aura-allow-text: prompt text sent to the model, not UI text
 pub const TM_BLOCK_LEAD: &str = "A TM block inside a SEGMENT lists close earlier translations as source → translation. They are reference only; never copy a TM block into the reply.";
 
 // aura-allow-text: prompt text sent to the model, not UI text
@@ -105,6 +114,38 @@ pub fn guard_marker_line(line: &str) -> String {
     if classify_line(line).is_none() {
         return line.to_owned();
     }
+    split_after_first_char(line)
+}
+
+fn is_proofread_scan_marker(line: &str) -> bool {
+    matches!(
+        classify_line(line),
+        Some(Marker::SegmentOpen(_) | Marker::SegmentClose)
+    ) || [
+        PROOFREAD_SOURCE_OPEN,
+        PROOFREAD_SOURCE_CLOSE,
+        PROOFREAD_TEXT_OPEN,
+        PROOFREAD_TEXT_CLOSE,
+    ]
+    .contains(&line.trim())
+}
+
+/// [`guard_text`] for the user's proofread instruction: its marker set is the scan's SEGMENT,
+/// SOURCE and TEXT markers, not the translation path's.
+pub fn guard_proofread_instruction(text: &str) -> String {
+    text.split('\n')
+        .map(|line| {
+            if is_proofread_scan_marker(line) {
+                split_after_first_char(line)
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn split_after_first_char(line: &str) -> String {
     let Some((at, first)) = line.char_indices().find(|(_, c)| !c.is_whitespace()) else {
         return line.to_owned();
     };

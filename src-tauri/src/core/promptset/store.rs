@@ -22,7 +22,10 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::scope::{ScopeError, ScopeResolver};
+use crate::core::scope::{
+    KEY_PROOFREAD_PROMPT_SET, ScopeError, ScopeResolver, delete_value, load_global_config,
+    save_value,
+};
 use crate::core::store::{
     ReadHandle, SqlError, SqlType, Store, StoreError, Transaction, is_unique_constraint_violation,
 };
@@ -394,6 +397,224 @@ pub fn write_chosen_name(work: &Store, name: Option<&str>) -> Result<(), StoreEr
     Ok(())
 }
 
+/// Work-tier choice of the proofread instruction set (AD-68 rule 3), three states.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProofreadWorkChoice {
+    FollowGlobal,
+    Off,
+    Named(String),
+}
+
+pub fn read_proofread_work_choice(work: &Store) -> Result<ProofreadWorkChoice, StoreError> {
+    let (name, off): (Option<String>, i64) = work.read(|conn| {
+        conn.query_row(
+            "SELECT chosen_proofread_prompt_set_name, proofread_instruction_off \
+             FROM work WHERE id = 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+    })?;
+    Ok(match (off, name) {
+        (0, None) => ProofreadWorkChoice::FollowGlobal,
+        (0, Some(name)) => ProofreadWorkChoice::Named(name),
+        _ => ProofreadWorkChoice::Off,
+    })
+}
+
+/// Writes both choice columns in one `UPDATE`. `Off` and `FollowGlobal` store a `NULL` name;
+/// a blank `Named` is rejected, it never means anything.
+pub fn write_proofread_work_choice(
+    work: &Store,
+    choice: &ProofreadWorkChoice,
+) -> Result<(), PromptSetError> {
+    let (name, off): (Option<String>, i64) = match choice {
+        ProofreadWorkChoice::FollowGlobal => (None, 0),
+        ProofreadWorkChoice::Off => (None, 1),
+        ProofreadWorkChoice::Named(name) => (Some(validate_name(name)?), 0),
+    };
+    work.write(move |tx: &Transaction<'_>| {
+        tx.execute(
+            "UPDATE work SET chosen_proofread_prompt_set_name = ?1, \
+             proofread_instruction_off = ?2 WHERE id = 1",
+            (name, off),
+        )
+    })?;
+    Ok(())
+}
+
+/// `None` removes the Global choice; a blank name is rejected.
+pub fn write_proofread_global_choice(
+    global: &Store,
+    name: Option<&str>,
+) -> Result<(), PromptSetError> {
+    match name {
+        None => delete_value(global, "app_config", KEY_PROOFREAD_PROMPT_SET)?,
+        Some(name) => save_value(
+            global,
+            "app_config",
+            KEY_PROOFREAD_PROMPT_SET,
+            &validate_name(name)?,
+        )?,
+    }
+    Ok(())
+}
+
+/// The proofread instruction a scan runs with: the set that was resolved, with the tier it
+/// resolved to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProofreadInstruction {
+    pub name: String,
+    pub tier: PromptSetTier,
+    pub body: String,
+}
+
+/// Chosen name and the tier that holds the choice (AD-68 rule 3 order). `None` is no choice or
+/// the Work switched the instruction off.
+fn proofread_choice_in_effect(
+    global: &Store,
+    work: Option<&Store>,
+) -> Result<Option<(String, PromptSetTier)>, PromptSetError> {
+    let work_choice = work.map(read_proofread_work_choice).transpose()?;
+    Ok(match work_choice {
+        Some(ProofreadWorkChoice::Off) => None,
+        Some(ProofreadWorkChoice::Named(name)) => Some((name, PromptSetTier::Work)),
+        Some(ProofreadWorkChoice::FollowGlobal) | None => load_global_config(global)?
+            .proofread_prompt_set()
+            .map(|name| (name, PromptSetTier::Global)),
+    })
+}
+
+/// Resolves the instruction once per scan. No choice, a switched-off Work, or a body that is
+/// blank after trimming is `Ok(None)`.
+///
+/// # Errors
+/// [`PromptSetError::ProofreadSetMissing`] when the chosen name resolves in neither tier.
+pub fn resolve_proofread_instruction(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+) -> Result<Option<ProofreadInstruction>, PromptSetError> {
+    let Some((name, selected_at)) = proofread_choice_in_effect(global, work)? else {
+        return Ok(None);
+    };
+    let mut sets = resolve_two_tiers(resolver, global, work, PromptSetKind::Proofread)?;
+    let Some(set) = sets.remove(&name) else {
+        return Err(PromptSetError::ProofreadSetMissing { name, selected_at });
+    };
+    if set.body.trim().is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(ProofreadInstruction {
+        name: set.name,
+        tier: set.tier,
+        body: set.body,
+    }))
+}
+
+/// Renames a `proofread` set and moves the choices that resolved to it (AD-68 rule 4). The
+/// store is written first, the choices after. The open Work's choice follows only when the
+/// renamed set is the one that choice resolves to; the Global choice follows only for a
+/// Global set.
+pub fn rename_proofread_set(
+    global: &Store,
+    work: Option<&Store>,
+    tier: PromptSetTier,
+    id: i64,
+    new_name: &str,
+) -> Result<(), PromptSetError> {
+    let kind = PromptSetKind::Proofread;
+    let store = store_for_tier(global, work, tier)?;
+    let old_name = load_one(store, kind, id)?.name;
+    rename(global, work, tier, kind, id, new_name)?;
+    let new_name = load_one(store, kind, id)?.name;
+    if old_name == new_name {
+        return Ok(());
+    }
+
+    if tier == PromptSetTier::Global
+        && load_global_config(global)?
+            .proofread_prompt_set()
+            .as_deref()
+            == Some(old_name.as_str())
+    {
+        write_proofread_global_choice(global, Some(&new_name))?;
+    }
+    if let Some(work) = work {
+        let work_names = if tier == PromptSetTier::Global {
+            load_prompt_set_tier(work, kind)?
+        } else {
+            BTreeMap::new()
+        };
+        if !work_names.contains_key(&old_name) && !work_names.contains_key(&new_name) {
+            work.write(move |tx: &Transaction<'_>| {
+                tx.execute(
+                    "UPDATE work SET chosen_proofread_prompt_set_name = ?1 \
+                     WHERE id = 1 AND chosen_proofread_prompt_set_name = ?2",
+                    (&new_name, &old_name),
+                )
+            })?;
+        }
+    }
+    Ok(())
+}
+
+/// What the next scan meets after a `proofread` set is deleted (AD-68 rule 4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProofreadDeleteConsequence {
+    None,
+    GlobalTakesOver,
+    SetMissing,
+}
+
+/// Consequence of deleting the `proofread` set `(tier, id)`; depends on the deleted set's tier.
+/// A Work set: the Global set of the same name takes over if there is one, else the scan
+/// reports a missing set. A Global set: the scan reports a missing set, for a Work with the
+/// same name is not affected.
+pub fn proofread_delete_consequence(
+    global: &Store,
+    work: Option<&Store>,
+    tier: PromptSetTier,
+    id: i64,
+) -> Result<ProofreadDeleteConsequence, PromptSetError> {
+    let kind = PromptSetKind::Proofread;
+    let name = load_one(store_for_tier(global, work, tier)?, kind, id)?.name;
+    let global_choice = load_global_config(global)?.proofread_prompt_set();
+    let work_choice = work.map(read_proofread_work_choice).transpose()?;
+
+    Ok(match tier {
+        PromptSetTier::Work => {
+            let chosen = match work_choice {
+                Some(ProofreadWorkChoice::Named(n)) => n == name,
+                Some(ProofreadWorkChoice::FollowGlobal) => {
+                    global_choice.as_deref() == Some(name.as_str())
+                }
+                Some(ProofreadWorkChoice::Off) | None => false,
+            };
+            if !chosen {
+                ProofreadDeleteConsequence::None
+            } else if load_prompt_set_tier(global, kind)?.contains_key(&name) {
+                ProofreadDeleteConsequence::GlobalTakesOver
+            } else {
+                ProofreadDeleteConsequence::SetMissing
+            }
+        }
+        PromptSetTier::Global => {
+            let work_names_it = match (&work_choice, work) {
+                (Some(ProofreadWorkChoice::Named(n)), Some(work)) => {
+                    *n == name && !load_prompt_set_tier(work, kind)?.contains_key(&name)
+                }
+                _ => false,
+            };
+            if global_choice.as_deref() == Some(name.as_str()) || work_names_it {
+                ProofreadDeleteConsequence::SetMissing
+            } else {
+                ProofreadDeleteConsequence::None
+            }
+        }
+    })
+}
+
 /// Nạp MỘT hàng bằng `id` trực tiếp — Story 4.5: xuất một bộ thao tác trên hàng THẬT người
 /// dùng chọn (kể cả một hàng Global đang bị che, Quyết định #3), không trên hàng "đang
 /// thắng" mà [`resolve_two_tiers`] tính ra.
@@ -580,6 +801,12 @@ pub enum PromptSetError {
     },
     /// `(tier, id)` không khớp hàng nào — mục đã bị xoá/đổi tầng ở nơi khác giữa chừng.
     NotFound,
+    /// The chosen proofread instruction set resolves in neither tier; `selected_at` holds the
+    /// choice.
+    ProofreadSetMissing {
+        name: String,
+        selected_at: PromptSetTier,
+    },
 
     // ── Story 4.5 (FR79, NFR9, AD-48) — bảy biến thể MỚI, hộp thoại chọn tệp xuất/nhập ──
     /// Tệp nhập vượt trần [`super::exchange_io::MAX_PROMPT_SET_IMPORT_BYTES`] (1 MiB).
@@ -625,6 +852,12 @@ impl std::fmt::Display for PromptSetError {
             PromptSetError::InvalidName => write!(f, "promptset[invalid_name]"),
             PromptSetError::NameTaken { name } => write!(f, "promptset[name_taken] name={name}"),
             PromptSetError::NotFound => write!(f, "promptset[not_found]"),
+            PromptSetError::ProofreadSetMissing { name, selected_at } => {
+                write!(
+                    f,
+                    "promptset[proofread_set_missing] name={name} tier={selected_at}"
+                )
+            }
             PromptSetError::ImportFileTooLarge { size, limit } => {
                 write!(
                     f,
@@ -716,6 +949,17 @@ impl From<PromptSetError> for IpcError {
                 BTreeMap::new(),
                 false,
             ),
+            PromptSetError::ProofreadSetMissing { name, selected_at } => {
+                let mut params = BTreeMap::new();
+                params.insert("name".to_owned(), name);
+                params.insert("tier".to_owned(), selected_at.as_str().to_owned());
+                IpcError::new(
+                    "ai_proofread.instruction_missing",
+                    MessageKey::AiProofreadInstructionMissing,
+                    params,
+                    false,
+                )
+            }
             // 🔵 Story 4.5 — ba biến thể đầu MƯỢN khoá CHUNG với `core::segment::import`/
             // `core::glossary` (`MessageKey::ImportTooLarge`/`ImportNotUtf8`/`IoReadFailed`):
             // câu đúng là câu chung, không câu riêng của domain này — cùng lý lẽ Glossary đã
