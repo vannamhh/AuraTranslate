@@ -19,8 +19,9 @@ async function invoke(command, args) {
 }
 
 async function pickKind(kind) {
-  const input = await $(`[data-prompt-kind-option="${kind}"]`)
-  await realClick(await input.parentElement())
+  const label = await $(`//input[@data-prompt-kind-option="${kind}"]/parent::label`)
+  await label.waitForDisplayed({ timeout: 15_000 })
+  await realClick(label)
 }
 
 describe('Story 9-15 -- Proofreader instruction library', () => {
@@ -42,7 +43,15 @@ describe('Story 9-15 -- Proofreader instruction library', () => {
     await pickKind('proofread')
     const globalSelect = await $('[data-proofread-choice-global]')
     await globalSelect.waitForDisplayed({ timeout: 15_000 })
-    await globalSelect.selectByAttribute('value', GONE)
+    // WKWebView's driver does not change a native <select> (value stays ""), so set it and fire `change`.
+    await browser.execute(
+      (node, value) => {
+        node.value = value
+        node.dispatchEvent(new Event('change', { bubbles: true }))
+      },
+      globalSelect,
+      GONE,
+    )
 
     await browser.waitUntil(
       async () => (await invoke('prompt_set_proofread_choice_get', {})).global?.name === GONE,

@@ -13951,5 +13951,5 @@ chính nó.
 
 - source_plan: `tickets/epic-ai-proofreader/tickets/story-chon-va-quan-ly-chi-dan-proofreader-tren-giao-dien-plan.md`
   summary: Ice chưa chạy lượt dùng thật: viết chỉ dẫn "chỉ so bản dịch với bản gốc của chính câu đó", chọn ở Global, quét lại Chương có seg 162/163; thẻ chỉ dẫn cũng chưa được nhìn trong cửa sổ thật.
-  evidence: AC cuối của 9.15 và mục Manual checks; vitest và e2e không thay được kết quả quét thật.
+  evidence: AC cuối của 9.15 và mục Manual checks; vitest và e2e không thay được kết quả quét thật, và driver WKWebView không mở được ô `<select>` gốc nên spec e2e 9-15 đặt giá trị rồi phát `change`.
   Chủ: Epic 9
