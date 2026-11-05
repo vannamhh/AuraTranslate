@@ -382,15 +382,6 @@ const deleteHintKey = computed(() => {
   return 'prompt.library.delete_confirm_hint'
 })
 
-const mirror = useTemplateRef<HTMLElement>('mirror')
-
-function onBodyScroll(event: Event): void {
-  const target = event.target
-  if (!(target instanceof HTMLTextAreaElement) || mirror.value === null) return
-  mirror.value.scrollTop = target.scrollTop
-  mirror.value.scrollLeft = target.scrollLeft
-}
-
 function whenIdle(): Promise<void> {
   if (!promptSetBusy.value) return Promise.resolve()
   return new Promise((resolve) => {
@@ -987,7 +978,11 @@ function onEscape(): void {
 
               <label class="pl-field">
                 <span class="pl-field-label">{{ t('prompt.library.body_label') }}</span>
-                <textarea class="pl-textarea ui-field ui-field--full" rows="10" :value="createBodyDraft" :disabled="promptSetBusy" @input="onCreateBodyInput"></textarea>
+                <div class="pl-ta-wrap">
+                  <!-- aura-allow-text: prompt body text, user data. -->
+                  <pre class="pl-ta-mirror" aria-hidden="true">{{ createBodyDraft }}</pre>
+                  <textarea class="pl-textarea pl-ta-input ui-field ui-field--full" rows="4" :value="createBodyDraft" :disabled="promptSetBusy" @input="onCreateBodyInput"></textarea>
+                </div>
               </label>
 
               <p v-if="promptSetActionError !== null" class="pl-alert" role="alert">
@@ -1047,15 +1042,14 @@ function onEscape(): void {
               <div class="pl-field">
                 <label class="pl-field-label" for="pl-body-input">{{ t('prompt.library.body_label') }}</label>
                 <div class="pl-ta-wrap">
-                  <pre ref="mirror" class="pl-ta-mirror" aria-hidden="true"><template v-for="(seg, i) in bodySegments" :key="i"><!-- aura-allow-text: prompt body text, user data. --><span v-if="seg.kind === 'plain'">{{ seg.text }}</span><!-- aura-allow-text: prompt body text, user data. --><span v-else class="pl-var" :class="{ 'pl-var-unknown': seg.kind === 'unknown' }">{{ seg.text }}</span></template></pre>
+                  <pre class="pl-ta-mirror" aria-hidden="true"><template v-for="(seg, i) in bodySegments" :key="i"><!-- aura-allow-text: prompt body text, user data. --><span v-if="seg.kind === 'plain'">{{ seg.text }}</span><!-- aura-allow-text: prompt body text, user data. --><span v-else class="pl-var" :class="{ 'pl-var-unknown': seg.kind === 'unknown' }">{{ seg.text }}</span></template></pre>
                   <textarea
                     id="pl-body-input"
                     class="pl-textarea pl-ta-input ui-field ui-field--full"
-                    rows="12"
+                    rows="4"
                     :value="bodyDraft"
                     :disabled="promptSetBusy"
                     @input="onBodyInput"
-                    @scroll="onBodyScroll"
                     @blur="onBodyBlur"
                   ></textarea>
                 </div>
@@ -1374,19 +1368,17 @@ function onEscape(): void {
 }
 
 .pl-ta-wrap {
-  position: relative;
+  display: grid;
   border-radius: var(--radius-default);
   background: var(--color-surface-sunken);
 }
 
 .pl-ta-mirror {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
   margin: 0;
   padding: 6px calc(var(--space-unit) * 1); /* aura-allow-spacing: matches textarea.ui-field so mirror and textarea text coincide */
   border: 1px solid transparent;
-  overflow: auto;
-  scrollbar-gutter: stable;
+  overflow: hidden;
   pointer-events: none;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -1396,16 +1388,14 @@ function onEscape(): void {
   color: var(--color-on-surface);
 }
 
-.pl-ta-mirror::-webkit-scrollbar-thumb {
-  background-color: transparent;
-}
-
 .pl-ta-input {
+  grid-area: 1 / 1;
   position: relative;
   display: block;
   width: 100%;
   box-sizing: border-box;
-  scrollbar-gutter: stable;
+  overflow: hidden;
+  resize: none;
   caret-color: var(--color-on-surface);
 }
 

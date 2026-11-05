@@ -658,16 +658,6 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     wrapper.unmount()
   })
 
-  it('cuộn ô gõ thì lớp phản chiếu cuộn theo đúng vị trí', async () => {
-    const { wrapper } = await openLibrary([row({ id: 3, name: 'Cu', body: 'x\n'.repeat(200) })])
-    await pick(wrapper)
-    const area = wrapper.get('.pl-ta-input')
-    ;(area.element as HTMLTextAreaElement).scrollTop = 120
-    await area.trigger('scroll')
-    expect((area.element as HTMLTextAreaElement).scrollTop).toBe(120)
-    expect(wrapper.get('.pl-ta-mirror').element.scrollTop).toBe(120)
-    wrapper.unmount()
-  })
 
   it('thân không đổi thì rời ô không ghi gì', async () => {
     const { wrapper } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
