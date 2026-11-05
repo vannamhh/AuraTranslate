@@ -538,7 +538,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
 // ═════════════════════════════════════════════════════════════════════════════════
 
 describe('ImportPreviewOverlay.vue — dãy khối render đúng ba vạch lề + hai số đếm', () => {
-  it('render "Đã loại"/"Giữ · máy đoán"/"Giữ" đúng khối, và đếm đúng "1 khối giữ · ... loại"', async () => {
+  it('render "Đã loại"/"Đoán là nội dung"/"Nội dung" đúng khối, và đếm đúng "1 khối giữ · ... loại"', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
@@ -556,15 +556,9 @@ describe('ImportPreviewOverlay.vue — dãy khối render đúng ba vạch lề 
     expect(rows[0]?.classes()).toContain('ip-block-dropped')
     expect(rows[1]?.classes()).toContain('ip-block-kept-guessed')
     expect(rows[2]?.classes()).toContain('ip-block-kept-confirmed')
-    // 🔴 SỬA 2026-09-07 (vòng rà bước 4, mục 17) — bản trước dùng `.text()).toContain('Giữ')`
-    // trên CẢ DÒNG: 'Giữ · máy đoán' CŨNG chứa chuỗi con 'Giữ', nên dòng đó KHÔNG PHÂN BIỆT
-    // ĐƯỢC "tag đúng là 'Giữ'" khỏi "tag lại là 'Giữ · máy đoán' do một lỗi hiển thị" — ca
-    // này XANH ngay cả khi `blockStateMessageKey` trả nhầm khoá `guessed` cho khối đã
-    // `confirmed`. Đọc đúng phần tử `.ip-block-tag` của TỪNG hàng rồi so BẰNG (không
-    // `toContain`) để một tag SAI (kể cả "sai nhưng vẫn chứa chữ 'Giữ'") bị bắt.
     expect(rows[0]?.get('.ip-block-tag').text()).toBe('Đã loại')
-    expect(rows[1]?.get('.ip-block-tag').text()).toBe('Giữ · máy đoán')
-    expect(rows[2]?.get('.ip-block-tag').text()).toBe('Giữ')
+    expect(rows[1]?.get('.ip-block-tag').text()).toBe('Đoán là nội dung')
+    expect(rows[2]?.get('.ip-block-tag').text()).toBe('Nội dung')
 
     const counts = wrapper.get('.ip-tier2-counts').text()
     expect(counts).toContain('2 khối giữ') // block 1 + block 2 kept
@@ -666,14 +660,14 @@ describe('ImportPreviewOverlay.vue — chuột nhắm khối và cụm nút', ()
     wrapper.unmount()
   })
 
-  it('(i) Đầu vùng giữ bắn block_mark_range_start', async () => {
+  it('(i) Giữ từ đây bắn block_mark_range_start', async () => {
     const { wrapper, calls } = await mountUrlOverlay(FIVE_BLOCKS)
     await wrapper.findAll('.ip-block-actions button')[1]?.trigger('click')
     expect(calls.mark).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 
-  it('(i) Cuối vùng giữ chỉ hiện khi đầu vùng ở khối khác, và bắn block_confirm_range', async () => {
+  it('(i) Giữ đến đây chỉ hiện khi đầu vùng ở khối khác, và bắn block_confirm_range', async () => {
     const { state, wrapper, calls } = await mountUrlOverlay(FIVE_BLOCKS)
     await wrapper.findAll('.ip-block')[4]?.trigger('mousedown')
     state.markImportPreviewBlockRangeStart()
@@ -682,7 +676,7 @@ describe('ImportPreviewOverlay.vue — chuột nhắm khối và cụm nút', ()
     await wrapper.findAll('.ip-block')[1]?.trigger('mousedown')
     const buttons = wrapper.findAll('.ip-block-actions button')
     expect(buttons).toHaveLength(3)
-    expect(buttons[2]?.text()).toBe('Cuối vùng giữ')
+    expect(buttons[2]?.text()).toBe('Giữ đến đây')
     await buttons[2]?.trigger('click')
     expect(calls.confirmRange).toHaveBeenCalledTimes(1)
     wrapper.unmount()
@@ -804,7 +798,7 @@ describe('ImportPreviewOverlay.vue — nút chạy qua hàm ghi thật', () => {
     wrapper.unmount()
   })
 
-  it('dải đảo chiều gửi (4, 1, 5), Cuối vùng giữ biến mất, J chạy tiếp từ khối cuối', async () => {
+  it('dải đảo chiều gửi (4, 1, 5), Giữ đến đây biến mất, J chạy tiếp từ khối cuối', async () => {
     const { state, wrapper } = await mountWithRealWrites()
     await wrapper.findAll('.ip-block')[4]?.trigger('mousedown')
     await wrapper.findAll('.ip-block-actions button')[1]?.trigger('click')

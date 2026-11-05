@@ -1223,7 +1223,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               </div>
               <div class="ip-summary-line">
                 <dt>{{ t('mode.library.preview.summary_source_lang') }}</dt>
-                <dd>
+                <dd class="ip-summary-lang">
                   <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
                   <span data-ip-source-lang-label>{{ destinationSourceLangLabel }}</span>
                   <SourceLangChips
@@ -1726,7 +1726,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   </li>
                   <template v-else>
                   <!--
-                    Mốc `[` — vạch "Đầu vùng giữ" đứng NGAY TRƯỚC khối tại `importPreviewBlockRangeStart`
+                    Mốc `[` — vạch "Giữ từ đây" đứng NGAY TRƯỚC khối tại `importPreviewBlockRangeStart`
                     (mục 9, vòng rà bước 4; bản dựng khoá `web-import.html:284`). CHỈ trên đường
                     URL (`v-if` cha đã chốt `importPreviewLastSubmittedFrom === 'urls'`) — mốc
                     không có nghĩa gì ở đường khác vì tầng 2 rỗng ở đó.
@@ -2159,6 +2159,14 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   text-align: right;
 }
 
+.ip-summary-line dd.ip-summary-lang {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--space-unit) * 1);
+  text-align: left;
+}
+
 .ip-head {
   display: flex;
   align-items: baseline;
@@ -2419,7 +2427,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
-/* Mốc `[` — vạch "Đầu vùng giữ" (mục 9, vòng rà bước 4). Cùng chữ `.ip-tier2-range-notice`
+/* Mốc `[` — vạch "Giữ từ đây" (mục 9, vòng rà bước 4). Cùng chữ `.ip-tier2-range-notice`
    (một cảnh báo/hướng dẫn tầng 2), khác MÀU — đây KHÔNG phải lỗi, dùng `primary` (cùng tông
    tiêu điểm bàn phím `.ip-block-focused`) thay `error`. */
 .ip-block-range-marker {
@@ -2454,7 +2462,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 /* Vạch TRẠNG THÁI — cùng ngữ pháp vạch lề segment của `GridPanel.vue`
-   (`confirmed`/`tm-rule`/`ornament`, EXPERIENCE.md:89-92). Mặc định "giữ · máy đoán". */
+   (`confirmed`/`tm-rule`/`ornament`, EXPERIENCE.md:89-92). Mặc định "Đoán là nội dung". */
 .ip-block-gutter {
   flex: none;
   /* ⚠️ KHÔNG `var(--space-gutter-width)` — spine đo được (`panels/GridPanel.vue:1795`) rằng

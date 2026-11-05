@@ -86,7 +86,7 @@ describe('chip Tự nhận trong importPreviewState', () => {
     expect(estimateMock).not.toHaveBeenCalled()
   })
 
-  it('đổi sang Tiếng Anh ở màn xem trước chạy lại với en và tắt nhãn tự nhận', async () => {
+  it('đổi sang Tiếng Anh ở màn xem trước chạy lại với en và tắt nhãn tự phát hiện', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValueOnce({ preview: wirePreview('zh', true), error: null })
     await state.openImportPreviewFromText('Ten', 'auto', '', 'abc', null)
@@ -99,7 +99,7 @@ describe('chip Tự nhận trong importPreviewState', () => {
     expect(state.importPreviewSourceLangAuto.value).toBe(false)
   })
 
-  it('đổi ngôn ngữ thất bại: nhãn và cờ tự nhận quay về giá trị cũ', async () => {
+  it('đổi ngôn ngữ thất bại: nhãn và cờ tự phát hiện quay về giá trị cũ', async () => {
     const state = await freshState()
     previewTextMock.mockResolvedValueOnce({ preview: wirePreview('zh', true), error: null })
     await state.openImportPreviewFromText('Ten', 'auto', '', 'abc', null)

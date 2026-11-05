@@ -264,7 +264,7 @@ export type BlockBodyWire =
 
 /** Một khối trên dây — khớp `commands::project::BlockWire`. `kept`/`confirmed` là giá trị
  * HIỆU LỰC (đã áp override), suy ra đúng ba vạch lề hiển thị:
- * `!kept` ⇒ "Đã loại"; `kept && !confirmed` ⇒ "Giữ · máy đoán"; `kept && confirmed` ⇒ "Giữ". */
+ * `!kept` ⇒ "Đã loại"; `kept && !confirmed` ⇒ "Đoán là nội dung"; `kept && confirmed` ⇒ "Nội dung". */
 export type BlockWire = {
   body: BlockBodyWire
   kept: boolean
