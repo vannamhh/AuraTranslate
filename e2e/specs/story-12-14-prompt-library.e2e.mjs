@@ -27,7 +27,7 @@ function longBody() {
 describe('Story 12-14 -- Prompt library', () => {
   it('the mirror tracks the textarea after the box scrolls, and Duplicate keeps the typed body', async () => {
     await openWorkspaceWithWork('Story 12-14 -- prompt library')
-    await invoke('prompt_set_create', { tier: 'global', name: NAME, body: longBody() })
+    await invoke('prompt_set_create', { tier: 'global', kind: 'translate', name: NAME, body: longBody() })
 
     await realClick(await $('[data-ai-prompt-inspector-open]'))
     const opener = await $('[data-prompt-library-open]')
@@ -98,12 +98,12 @@ describe('Story 12-14 -- Prompt library', () => {
 
     await browser.waitUntil(
       async () => {
-        const listed = await invoke('prompt_set_list', {})
+        const listed = await invoke('prompt_set_list', { kind: 'translate' })
         return listed.sets.some((s) => s.name === `${NAME} (bản sao)`)
       },
       { timeout: 15_000, interval: 250, timeoutMsg: 'Duplicate did not create the copy' },
     )
-    const listed = await invoke('prompt_set_list', {})
+    const listed = await invoke('prompt_set_list', { kind: 'translate' })
     const original = listed.sets.find((s) => s.name === NAME)
     const copy = listed.sets.find((s) => s.name === `${NAME} (bản sao)`)
     await expect(original.body.endsWith('Dong cuoi them tay.')).toBe(true)

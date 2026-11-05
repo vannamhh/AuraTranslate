@@ -57,9 +57,9 @@ describe('exportPromptSets — một hộp thoại, một cờ dùng chung, kế
 
     expect(promptSetExportManyMock).toHaveBeenCalledTimes(1)
     expect(promptSetExportManyMock.mock.calls[0][0]).toEqual([
-      { tier: 'work', id: 5 },
-      { tier: 'global', id: 7 },
-      { tier: 'global', id: 8 },
+      { tier: 'work', kind: 'translate', id: 5 },
+      { tier: 'global', kind: 'translate', id: 7 },
+      { tier: 'global', kind: 'translate', id: 8 },
     ])
     expect(state.promptSetExportFiles.value).toEqual(files)
     expect(state.promptSetExportError.value).toBeNull()

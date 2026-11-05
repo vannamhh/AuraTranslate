@@ -89,16 +89,16 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        15,
-        "`GLOBAL_MIGRATIONS` co muoi lam buoc (buoc 15 them pinned_entry.source_version, buoc 14 them glossary_entry.pending_confirmed_at); muoi ba buoc dau gom (1.7 so di tru, 1.8 `config_value`, 1.20 \
+        16,
+        "`GLOBAL_MIGRATIONS` co muoi sau buoc (buoc 16 them prompt_set.kind, buoc 15 them pinned_entry.source_version, buoc 14 them glossary_entry.pending_confirmed_at); muoi ba buoc dau gom (1.7 so di tru, 1.8 `config_value`, 1.20 \
          `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
          Ice #1 bang library_orphan, 6.5 bang import_cleanup_rule, 4.2 bang ai_config, 4.4 \
          bang prompt_set, 11.4 cot occurrence_count + trigger ky-tu-an, 7.3 bang tm_unit, 7.4 chi muc \
-         tm_unit, 8.7 bang translator_name), nen mot `global.db` moi phai ket thuc o phien ban 15"
+         tm_unit, 8.7 bang translator_name), nen mot `global.db` moi phai ket thuc o phien ban 16"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        15,
+        16,
         "so buoc va so phien ban dich phai di cung nhau"
     );
     assert_eq!(
@@ -160,7 +160,7 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // doi: di tru khong dung toi cau hinh cu.
     // Target moved 9 -> 10 (occurrence_count + zero-width triggers step). Assertion unaffected:
     // migration doesn't touch old config.
-    assert_eq!(migrated.schema_version(), 15, "buoc 3 den 15 phai da chay");
+    assert_eq!(migrated.schema_version(), 16, "buoc 3 den 16 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
@@ -260,18 +260,18 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // Steps 24 -> 25, target 25 -> 26 (work.last_chapter_id), then step 27, target 27 (tm_unit).
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        41,
-        "`PROJECT_MIGRATIONS` phai co bon muoi mot buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        42,
+        "`PROJECT_MIGRATIONS` phai co bon muoi hai buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
          14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
          5.13, 19 cua Story 6.5, 20 cua Story 6.11, 21 cua Story 6.13, 22 cua Story 6.15, 23 \
-         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4, 26 them work.last_chapter_id, 27 them tm_unit, 28 them hai cot moc so xuat xu, 29 them chi muc tm_unit, 30 them review_chapter/review_row, 31 them alignment, 32 them cot thu hoach cho glossary_candidate, 33 them bang review_decision, 34 them proof_ignore/proof_scan, 35 them segment_unlinked, 36 them proof_ignore.blocked_count, 37 them work.tm_only_mine, 38 them proof_decision, 39 them segment_version.translation_origin, 40 them glossary_entry.pending_confirmed_at, 41 them work.chosen_prompt_set_name, 42 dua Chuong da co ban dich sang Dang dich"
+         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4, 26 them work.last_chapter_id, 27 them tm_unit, 28 them hai cot moc so xuat xu, 29 them chi muc tm_unit, 30 them review_chapter/review_row, 31 them alignment, 32 them cot thu hoach cho glossary_candidate, 33 them bang review_decision, 34 them proof_ignore/proof_scan, 35 them segment_unlinked, 36 them proof_ignore.blocked_count, 37 them work.tm_only_mine, 38 them proof_decision, 39 them segment_version.translation_origin, 40 them glossary_entry.pending_confirmed_at, 41 them work.chosen_prompt_set_name, 42 dua Chuong da co ban dich sang Dang dich, 43 them prompt_set.kind va cac cot Proofreader"
     );
     assert_eq!(
         opened.store.schema_version(),
-        42,
-        "mot `project.db` moi phai dung o phien ban 42 (so 4 da chay)"
+        43,
+        "mot `project.db` moi phai dung o phien ban 43 (so 4 da chay)"
     );
 
     let has_table: i64 = opened
@@ -695,7 +695,7 @@ fn migrating_global_db_from_v14_keeps_the_existing_pins() {
     drop(old);
 
     let migrated = Store::open(StoreSpec::global(db)).expect("nang len v15");
-    assert_eq!(migrated.schema_version(), 15);
+    assert_eq!(migrated.schema_version(), 16);
     let pinned = list_pinned_entries(Some(&migrated)).expect("doc");
     assert_eq!(pinned.len(), 1);
     assert_eq!(pinned[0].headword, "a");

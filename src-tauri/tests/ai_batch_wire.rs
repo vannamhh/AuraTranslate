@@ -27,7 +27,7 @@ use auratranslate_lib::core::aiconfig::{
     AiConfigField, AiConfigTier, DEFAULT_SYSTEM_PROMPT, write_field,
 };
 use auratranslate_lib::core::glossary::{Category, confirm_translation, insert_manual_entry};
-use auratranslate_lib::core::promptset::PromptSetTier;
+use auratranslate_lib::core::promptset::{PromptSetKind, PromptSetTier};
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 use auratranslate_lib::core::tm::{PairOrigin, insert_pair, write_only_mine};
 use serde_json::Value;
@@ -318,6 +318,7 @@ impl Harness {
             Some(&global),
             Some(&open),
             PromptSetTier::Global,
+            PromptSetKind::Translate,
             "Plain",
             set_body,
         )

@@ -29,7 +29,7 @@ use crate::core::store::{
 
 use super::exchange::PlanKind;
 use super::vars::{MarkerWarnings, scan_markers};
-use super::{PromptSet, PromptSetTier};
+use super::{PromptSet, PromptSetKind, PromptSetTier};
 
 /// Khoá dây của `ScopeKind::Prompt` (`core/scope/kinds.rs`), chép lại đây làm literal —
 /// module này không được `use` `ScopeKind`.
@@ -60,10 +60,14 @@ pub fn validate_name(raw: &str) -> Result<String, InvalidName> {
 /// biệt được domain nào sở hữu nó (AD-36, vế thứ hai): một hàm cùng tên ở module khác trông
 /// giống hệt việc lách qua `confirmed_terms_for_injection`. Đặt tên dài hơn ở đây rẻ hơn nới
 /// cổng đó.
-pub fn load_prompt_set_tier(store: &Store) -> Result<BTreeMap<String, PromptSet>, StoreError> {
+pub fn load_prompt_set_tier(
+    store: &Store,
+    kind: PromptSetKind,
+) -> Result<BTreeMap<String, PromptSet>, StoreError> {
     store.read(|conn: ReadHandle<'_>| {
-        let mut stmt = conn.prepare("SELECT id, name, body FROM prompt_set ORDER BY name")?;
-        let mut rows = stmt.query([])?;
+        let mut stmt =
+            conn.prepare("SELECT id, name, body FROM prompt_set WHERE kind = ?1 ORDER BY name")?;
+        let mut rows = stmt.query([kind.as_str()])?;
 
         let mut out = BTreeMap::new();
         while let Some(row) = rows.next()? {
@@ -116,9 +120,10 @@ pub fn resolve_two_tiers(
     resolver: &ScopeResolver,
     global: &Store,
     work: Option<&Store>,
+    kind: PromptSetKind,
 ) -> Result<BTreeMap<String, ResolvedPromptSet>, PromptSetError> {
-    let global_tier = load_prompt_set_tier(global)?;
-    let work_tier = work.map(load_prompt_set_tier).transpose()?;
+    let global_tier = load_prompt_set_tier(global, kind)?;
+    let work_tier = work.map(|w| load_prompt_set_tier(w, kind)).transpose()?;
 
     let resolved =
         resolver.apply_override(PROMPT_SET_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
@@ -195,6 +200,7 @@ pub fn create(
     global: &Store,
     work: Option<&Store>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     name: &str,
     body: &str,
 ) -> Result<(i64, MarkerWarnings), PromptSetError> {
@@ -209,9 +215,9 @@ pub fn create(
 
     let result = store.write(move |tx: &Transaction<'_>| {
         match tx.execute(
-            "INSERT INTO prompt_set (name, body, created_at) \
-             VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-            (&name_for_write, &body),
+            "INSERT INTO prompt_set (kind, name, body, created_at) \
+             VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+            (kind.as_str(), &name_for_write, &body),
         ) {
             Ok(_) => Ok(tx.last_insert_rowid()),
             Err(e) if is_unique_constraint_violation(&e) => {
@@ -252,6 +258,7 @@ pub fn rename(
     global: &Store,
     work: Option<&Store>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     id: i64,
     new_name: &str,
 ) -> Result<(), PromptSetError> {
@@ -264,8 +271,8 @@ pub fn rename(
 
     let result = store.write(move |tx: &Transaction<'_>| {
         match tx.execute(
-            "UPDATE prompt_set SET name = ?1 WHERE id = ?2",
-            (&name_for_write, id),
+            "UPDATE prompt_set SET name = ?1 WHERE id = ?2 AND kind = ?3",
+            (&name_for_write, id, kind.as_str()),
         ) {
             Ok(changed) => Ok(changed),
             Err(e) if is_unique_constraint_violation(&e) => {
@@ -309,6 +316,7 @@ pub fn update_body(
     global: &Store,
     work: Option<&Store>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     id: i64,
     body: &str,
 ) -> Result<MarkerWarnings, PromptSetError> {
@@ -317,7 +325,10 @@ pub fn update_body(
     let warnings = scan_markers(&body);
 
     let changed = store.write(move |tx: &Transaction<'_>| {
-        tx.execute("UPDATE prompt_set SET body = ?1 WHERE id = ?2", (&body, id))
+        tx.execute(
+            "UPDATE prompt_set SET body = ?1 WHERE id = ?2 AND kind = ?3",
+            (&body, id, kind.as_str()),
+        )
     })?;
 
     if changed == 0 {
@@ -338,12 +349,16 @@ pub fn delete(
     global: &Store,
     work: Option<&Store>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     id: i64,
 ) -> Result<(), PromptSetError> {
     let store = store_for_tier(global, work, tier)?;
 
     let changed = store.write(move |tx: &Transaction<'_>| {
-        tx.execute("DELETE FROM prompt_set WHERE id = ?1", [id])
+        tx.execute(
+            "DELETE FROM prompt_set WHERE id = ?1 AND kind = ?2",
+            (id, kind.as_str()),
+        )
     })?;
 
     if changed == 0 {
@@ -385,15 +400,15 @@ pub fn write_chosen_name(work: &Store, name: Option<&str>) -> Result<(), StoreEr
 ///
 /// # Lỗi
 /// [`PromptSetError::NotFound`] nếu `id` không khớp hàng nào trong `store`.
-pub fn load_one(store: &Store, id: i64) -> Result<PromptSet, PromptSetError> {
+pub fn load_one(store: &Store, kind: PromptSetKind, id: i64) -> Result<PromptSet, PromptSetError> {
     // 🔴 `QueryReturnedNoRows` bat NGAY TRONG closure, truoc khi no tro thanh mot
     // `StoreError` da bi chuoi hoa -- cung khuon `core::dict::layer`/`core::library::indexer`
     // (`Err(SqlError::QueryReturnedNoRows) => Ok(None)`), vi `Store::read` khong tai xuat
     // `SqlError` o tang loi cua no.
     let row: Option<PromptSet> = store.read(|conn: ReadHandle<'_>| {
         match conn.query_row(
-            "SELECT id, name, body FROM prompt_set WHERE id = ?1",
-            [id],
+            "SELECT id, name, body FROM prompt_set WHERE id = ?1 AND kind = ?2",
+            (id, kind.as_str()),
             |row| {
                 Ok(PromptSet {
                     id: row.get(0)?,
@@ -461,6 +476,7 @@ pub fn import_into_tier(
     let store = store_for_tier(global, work, tier)?;
     let name = plan.name.clone();
     let body = plan.body.clone();
+    let set_kind = plan.kind;
     let kind = kind.clone();
     let decision = decision.unwrap_or(ConflictDecision::KeepMine);
 
@@ -472,9 +488,9 @@ pub fn import_into_tier(
     let result = store.write(move |tx: &Transaction<'_>| -> Result<ImportOutcome, SqlError> {
         match &kind {
             PlanKind::New => match tx.execute(
-                "INSERT INTO prompt_set (name, body, created_at) \
-                 VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-                (&name, &body),
+                "INSERT INTO prompt_set (kind, name, body, created_at) \
+                 VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+                (set_kind.as_str(), &name, &body),
             ) {
                 Ok(_) => Ok(ImportOutcome::Inserted { id: tx.last_insert_rowid() }),
                 // Tên vua duoc mot luot ghi KHAC chen vao giua nhip xem truoc va nhip xac
@@ -496,13 +512,13 @@ pub fn import_into_tier(
                     // cung phai roi vao nhanh stale, khong chi hang bi doi THAN; I/O Matrix
                     // "Collision, body moved under the user" coi ca so nay la that.
                     let changed = tx.execute(
-                        "UPDATE prompt_set SET body = ?1 WHERE id = ?2 AND body IS ?3 AND name = ?4",
-                        (&body, existing_id, existing_body, &name),
+                        "UPDATE prompt_set SET body = ?1 WHERE id = ?2 AND body IS ?3 AND name = ?4 AND kind = ?5",
+                        (&body, existing_id, existing_body, &name, set_kind.as_str()),
                     )?;
                     if changed == 0 {
                         let still: Option<String> = match tx.query_row(
-                            "SELECT body FROM prompt_set WHERE id = ?1",
-                            [*existing_id],
+                            "SELECT body FROM prompt_set WHERE id = ?1 AND kind = ?2",
+                            (*existing_id, set_kind.as_str()),
                             |r| r.get(0),
                         ) {
                             Ok(v) => Some(v),

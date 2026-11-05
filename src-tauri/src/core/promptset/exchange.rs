@@ -40,10 +40,13 @@ use std::collections::BTreeMap;
 
 use crate::core::i18n::{IpcError, MessageKey};
 
-use super::PromptSet;
+use super::{PromptSet, PromptSetKind};
 
 /// Dấu phân cách frontmatter — luôn đúng ba ký tự `---` trên một dòng riêng.
 const DELIMITER: &str = "---";
+
+/// Line 3 of a `proofread` file; `translate` files have no such line.
+const KIND_PROOFREAD_LINE: &str = "kind: proofread";
 
 /// Dấu thứ tự byte UTF-8 (`EF BB BF`) — khuôn chép `core::glossary::exchange::strip_bom`.
 fn strip_bom(raw: &str) -> &str {
@@ -53,8 +56,13 @@ fn strip_bom(raw: &str) -> &str {
 /// Render MỘT bộ thành nội dung tệp `.prompt.md` — `name`/`body` KHÔNG bị sửa (không trim,
 /// không escape): [`super::store::validate_name`] đã đảm bảo `name` không mang xuống dòng
 /// trên đường ghi vào kho, và `body` đi ra nguyên văn để [`parse`] đọc lại byte-for-byte.
-pub fn render(name: &str, body: &str) -> String {
-    format!("{DELIMITER}\nname: {name}\n{DELIMITER}\n{body}")
+pub fn render(kind: PromptSetKind, name: &str, body: &str) -> String {
+    match kind {
+        PromptSetKind::Translate => format!("{DELIMITER}\nname: {name}\n{DELIMITER}\n{body}"),
+        PromptSetKind::Proofread => {
+            format!("{DELIMITER}\nname: {name}\n{KIND_PROOFREAD_LINE}\n{DELIMITER}\n{body}")
+        }
+    }
 }
 
 /// Mọi cách một tệp nhập bị từ chối TRỌN — mỗi biến thể mang số dòng (1-based). Ba dòng đầu
@@ -70,6 +78,10 @@ pub enum ParseIssue {
     BlankName,
     /// Dòng 3 không đúng `---`.
     MissingClosingDelimiter,
+    /// Line 3 is `kind: proofread` but line 4 is not `---`.
+    MissingProofreadClosingDelimiter,
+    /// Line 3 starts with `kind:` but is not exactly `kind: proofread`.
+    UnknownKind,
 }
 
 impl ParseIssue {
@@ -81,7 +93,8 @@ impl ParseIssue {
         match self {
             ParseIssue::MissingOpeningDelimiter => "1",
             ParseIssue::MissingNameField | ParseIssue::BlankName => "2",
-            ParseIssue::MissingClosingDelimiter => "3",
+            ParseIssue::MissingClosingDelimiter | ParseIssue::UnknownKind => "3",
+            ParseIssue::MissingProofreadClosingDelimiter => "4",
         }
     }
 }
@@ -101,6 +114,12 @@ impl std::fmt::Display for ParseIssue {
             }
             ParseIssue::MissingClosingDelimiter => {
                 write!(f, "prompt_set import[line 3]: expected '---'")
+            }
+            ParseIssue::MissingProofreadClosingDelimiter => {
+                write!(f, "prompt_set import[line 4]: expected '---'")
+            }
+            ParseIssue::UnknownKind => {
+                write!(f, "prompt_set import[line 3]: unknown kind")
             }
         }
     }
@@ -153,6 +172,26 @@ impl From<ParseIssue> for IpcError {
                     false,
                 )
             }
+            ParseIssue::MissingProofreadClosingDelimiter => {
+                let mut params = BTreeMap::new();
+                params.insert("line".to_owned(), "4".to_owned());
+                IpcError::new(
+                    "prompt_set.import_missing_closing_delimiter",
+                    MessageKey::PromptSetImportMissingClosingDelimiter,
+                    params,
+                    false,
+                )
+            }
+            ParseIssue::UnknownKind => {
+                let mut params = BTreeMap::new();
+                params.insert("line".to_owned(), "3".to_owned());
+                IpcError::new(
+                    "prompt_set.import_unknown_kind",
+                    MessageKey::PromptSetImportUnknownKind,
+                    params,
+                    false,
+                )
+            }
         }
     }
 }
@@ -160,6 +199,7 @@ impl From<ParseIssue> for IpcError {
 /// Kết quả THÀNH CÔNG của [`parse`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedPromptSet {
+    pub kind: PromptSetKind,
     pub name: String,
     /// Byte-for-byte, kể cả mọi `{{...}}` — không bị sửa (AC "round-trip").
     pub body: String,
@@ -179,14 +219,14 @@ fn split_first_line(text: &str) -> (&str, &str) {
 }
 
 /// Phân tích TRỌN văn bản một tệp `.prompt.md` — hàm THUẦN, không chạm Store. Ba dòng đầu
-/// đều được kiểm ĐỘC LẬP; `body` là mọi thứ SAU dòng thứ ba, nguyên văn (không trim, giữ mọi
-/// dấu xuống dòng của chính nó).
+/// đều được kiểm ĐỘC LẬP; `body` là mọi thứ SAU dòng `---` đóng (dòng 3, hoặc dòng 4 khi dòng
+/// 3 là `kind: proofread`), nguyên văn (không trim, giữ mọi dấu xuống dòng của chính nó).
 pub fn parse(text: &str) -> Result<ParsedPromptSet, Vec<ParseIssue>> {
     let text = strip_bom(text);
 
     let (line1, rest) = split_first_line(text);
     let (line2, rest) = split_first_line(rest);
-    let (line3, body) = split_first_line(rest);
+    let (line3, rest) = split_first_line(rest);
 
     let mut issues: Vec<ParseIssue> = Vec::new();
 
@@ -210,15 +250,28 @@ pub fn parse(text: &str) -> Result<ParsedPromptSet, Vec<ParseIssue>> {
         }
     };
 
-    if line3 != DELIMITER {
+    let (kind, body) = if line3 == DELIMITER {
+        (PromptSetKind::Translate, rest)
+    } else if line3 == KIND_PROOFREAD_LINE {
+        let (line4, body) = split_first_line(rest);
+        if line4 != DELIMITER {
+            issues.push(ParseIssue::MissingProofreadClosingDelimiter);
+        }
+        (PromptSetKind::Proofread, body)
+    } else if line3.starts_with("kind:") {
+        issues.push(ParseIssue::UnknownKind);
+        (PromptSetKind::Translate, rest)
+    } else {
         issues.push(ParseIssue::MissingClosingDelimiter);
-    }
+        (PromptSetKind::Translate, rest)
+    };
 
     if !issues.is_empty() {
         return Err(issues);
     }
 
     Ok(ParsedPromptSet {
+        kind,
         name: name.expect("khong con issue nao thi name da Some"),
         body: body.to_owned(),
     })
@@ -276,7 +329,7 @@ mod tests {
     fn render_then_parse_round_trips_name_and_body_byte_for_byte_including_markers() {
         let body =
             "Dich: {{source_segment}}\nThuat ngu: {{glossary_terms}}\nLa: {{glosary_terms}}\n";
-        let file = render("Tien hiep", body);
+        let file = render(PromptSetKind::Translate, "Tien hiep", body);
         let parsed = parse(&file).expect("tep dung dinh dang phai phan tich duoc");
         assert_eq!(parsed.name, "Tien hiep");
         assert_eq!(parsed.body, body);
@@ -284,7 +337,7 @@ mod tests {
 
     #[test]
     fn an_empty_body_round_trips_to_an_empty_string() {
-        let file = render("X", "");
+        let file = render(PromptSetKind::Translate, "X", "");
         let parsed = parse(&file).unwrap();
         assert_eq!(parsed.body, "");
     }
@@ -333,6 +386,7 @@ mod tests {
         assert_eq!(ParseIssue::MissingNameField.line(), "2");
         assert_eq!(ParseIssue::BlankName.line(), "2");
         assert_eq!(ParseIssue::MissingClosingDelimiter.line(), "3");
+        assert_eq!(ParseIssue::MissingProofreadClosingDelimiter.line(), "4");
     }
 
     #[test]
@@ -359,6 +413,30 @@ mod tests {
                 ParseIssue::MissingClosingDelimiter
             ]
         );
+    }
+
+    #[test]
+    fn a_four_line_proofread_file_round_trips() {
+        let file = render(PromptSetKind::Proofread, "A", "than");
+        assert_eq!(file, "---\nname: A\nkind: proofread\n---\nthan");
+        let parsed = parse(&file).unwrap();
+        assert_eq!(parsed.kind, PromptSetKind::Proofread);
+        assert_eq!(parsed.body, "than");
+    }
+
+    #[test]
+    fn an_unknown_or_redundant_kind_line_rejects_the_whole_file() {
+        for line in ["kind: x", "kind: translate", "kind:proofread"] {
+            let file = format!("---\nname: A\n{line}\n---\nthan");
+            assert_eq!(parse(&file).unwrap_err(), vec![ParseIssue::UnknownKind]);
+        }
+    }
+
+    #[test]
+    fn a_proofread_file_without_the_fourth_delimiter_is_rejected() {
+        let err = parse("---\nname: A\nkind: proofread\nthan").unwrap_err();
+        assert_eq!(err, vec![ParseIssue::MissingProofreadClosingDelimiter]);
+        assert_eq!(IpcError::from(err[0].clone()).params()["line"], "4");
     }
 
     #[test]

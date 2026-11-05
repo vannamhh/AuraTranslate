@@ -507,7 +507,15 @@ fn the_tables_carry_no_segment_position_explanation_or_suggestion_column() {
     );
     assert_eq!(
         columns(&open, "proof_scan"),
-        ["id", "scope", "scanned_at", "reported", "filtered"]
+        [
+            "id",
+            "scope",
+            "scanned_at",
+            "reported",
+            "filtered",
+            "instruction_set_name",
+            "instruction_set_tier"
+        ]
     );
 }
 

@@ -1,0 +1,18 @@
+# Phase 2 (Rust) handoff, story 9-13
+
+State: `cargo check --lib`, `cargo clippy --lib`, `cargo test --lib promptset` green. Integration tests under `src-tauri/tests/` are NOT updated and do not compile yet (phase 4). Nothing committed.
+
+## What changed (all under src-tauri/src/)
+- `core/store/schema.rs`: `PROMPT_SET_KIND_DDL` (global step 16), `PROMPT_SET_KIND_PROJECT_DDL` (project step 43: prompt_set kind + `work.chosen_proofread_prompt_set_name`, `work.proofread_instruction_off`, `proof_scan.instruction_set_name`, `proof_scan.instruction_set_tier`). Index `idx_prompt_set_name` dropped, `idx_prompt_set_kind_name (kind, name)` created. Verified the SQL shape in sqlite3 CLI only (not through `migrate`).
+- `core/promptset/mod.rs`: `PromptSetKind { Translate, Proofread }` (`as_str`, `from_wire`, serde `translate`/`proofread`), same module as `PromptSetTier`. Not re-exported at store level; use `crate::core::promptset::PromptSetKind`.
+- `core/promptset/store.rs`: `kind: PromptSetKind` added, required, to `load_prompt_set_tier(store, kind)`, `resolve_two_tiers(resolver, global, work, kind)`, `create(global, work, tier, kind, name, body)`, `rename/update_body/delete(global, work, tier, kind, id, ..)`, `load_one(store, kind, id)`. By-id statements filter `AND kind = ?`. `import_into_tier` takes the kind from `plan.kind` (file). `read/write_chosen_name` untouched (translate path).
+- `core/promptset/exchange.rs`: `render(kind, name, body)`; `ParsedPromptSet.kind`; `parse` reads line 3 (`---` => translate; exactly `kind: proofread` then line 4 `---` => proofread; any other line starting `kind:` => `ParseIssue::UnknownKind`, line "3"; proofread without line 4 `---` => `MissingClosingDelimiter`, whose `line()` still says "3"). `MessageKey::PromptSetImportUnknownKind` + `err.prompt_set.import_unknown_kind` in `core/i18n/mod.rs` and `src/i18n/vi.json`. 3 new unit tests there.
+- `core/promptset/exchange_io.rs`: `export_file_name(kind, name)` (`.prompt.md` / `.proofread.prompt.md`); `unique_export_path` inserts `-N` before the right suffix.
+- `commands/promptset.rs`: `kind` param (after `tier`, before `id`/`name`) on `prompt_set_create/rename/update_body/delete/export`; `prompt_set_list(kind)` (wire: `kind` only; pure fn: `(global, open, kind)`); `PromptSetExportRef` has `kind`; `PromptImportPreviewWire.kind: &'static str`. `prompt_set_confirm_import`, `choice_get/set`, `cancel`, `open_import_preview` keep their signatures. Pending import still uses `global_kind`/`work_kind` (PlanKind) unchanged; the set kind is `pending.parsed.kind`.
+- `commands/aiprompt.rs` (2 sites) and `lib.rs` e7 probe pass `Translate`. No new IPC command, `lib.rs` registration unchanged.
+
+## Notes for next phases
+- Webview (phase 3): every wire call adds `kind: 'translate'` (camelCase arg name is `kind`); `PromptSetWire` type needs no `kind`; the import preview type gains `kind: 'translate' | 'proofread'`.
+- Tests (phase 4): pure-fn signatures above; export-many wire items are `{tier, kind, id}`. Expect `store::tests` / `config_invariants` signature greps and every migration-count assert in plan Code Map to move. Downgrade cases must also drop the step-16/43 columns before reopening.
+- Risks: file-name edge: a translate set literally named `X.proofread` exports as `X.proofread.prompt.md`, same as proofread set `X`; `unique_export_path` then adds `-2`, so no overwrite in one export batch, but the name is ambiguous on re-import only by header (parse reads the header, not the name, so it is safe).
+- Old doc comments on `PROMPT_SET_DDL` still describe `idx_prompt_set_name` (historical DDL constant, left on purpose).

@@ -29,7 +29,7 @@ use auratranslate_lib::commands::promptset::{
     prompt_set_rename, prompt_set_update_body,
 };
 use auratranslate_lib::core::i18n::MessageKey;
-use auratranslate_lib::core::promptset::{PromptSetTier, PromptVariable};
+use auratranslate_lib::core::promptset::{PromptSetKind, PromptSetTier, PromptVariable};
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineShape};
 use auratranslate_lib::core::store::{
     GLOSSARY_ENTRY_DDL, IMPORT_CLEANUP_RULE_DDL, PROMPT_SET_DDL, Store, StoreSpec,
@@ -103,6 +103,7 @@ fn create_at_global_with_no_work_open_lists_the_new_set_under_the_global_tier() 
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Xianxia",
         "than toan cuc",
     )
@@ -113,7 +114,8 @@ fn create_at_global_with_no_work_open_lists_the_new_set_under_the_global_tier() 
         "than khong mang {{{{glossary_terms}}}}"
     );
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
     let set = find_set(&list, "Xianxia");
     assert_eq!(set.id, created.id);
     assert_eq!(set.tier, PromptSetTierWire::Global);
@@ -141,6 +143,7 @@ fn create_at_work_when_the_name_already_exists_at_global_makes_work_win_and_shad
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Fantasy",
         "than toan cuc",
     )
@@ -149,12 +152,14 @@ fn create_at_work_when_the_name_already_exists_at_global_makes_work_win_and_shad
         Some(&global),
         Some(&opened),
         PromptSetTier::Work,
+        PromptSetKind::Translate,
         "Fantasy",
         "than tac pham",
     )
     .expect("tao bo Work that bai");
 
-    let list = prompt_set_list(Some(&global), Some(&opened)).expect("liet ke that bai");
+    let list = prompt_set_list(Some(&global), Some(&opened), PromptSetKind::Translate)
+        .expect("liet ke that bai");
     assert_eq!(
         list.sets.len(),
         1,
@@ -185,13 +190,21 @@ fn blank_ish_names_are_rejected_before_any_write_and_leave_the_tier_empty() {
     let global = open_global(&root);
 
     for bad in ["\u{3000}", "\t", "", "   "] {
-        let err = prompt_set_create(Some(&global), None, PromptSetTier::Global, bad, "than")
-            .err()
-            .unwrap_or_else(|| panic!("ten {bad:?} phai bi tu choi"));
+        let err = prompt_set_create(
+            Some(&global),
+            None,
+            PromptSetTier::Global,
+            PromptSetKind::Translate,
+            bad,
+            "than",
+        )
+        .err()
+        .unwrap_or_else(|| panic!("ten {bad:?} phai bi tu choi"));
         assert_eq!(err.message_key(), MessageKey::PromptSetInvalidName);
     }
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
     assert!(list.sets.is_empty(), "0 luot ghi duoc phep xay ra");
 
     drop(global);
@@ -211,6 +224,7 @@ fn duplicate_name_in_the_same_tier_is_rejected_and_the_existing_row_is_untouched
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Xianxia",
         "ban goc",
     )
@@ -220,6 +234,7 @@ fn duplicate_name_in_the_same_tier_is_rejected_and_the_existing_row_is_untouched
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Xianxia",
         "ban gia",
     )
@@ -230,7 +245,8 @@ fn duplicate_name_in_the_same_tier_is_rejected_and_the_existing_row_is_untouched
         Some("Xianxia")
     );
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
     assert_eq!(list.sets.len(), 1, "khong hang thu hai nao duoc tao");
     assert_eq!(
         find_set(&list, "Xianxia").body,
@@ -251,17 +267,39 @@ fn renaming_to_an_existing_name_in_the_same_tier_is_rejected_and_both_rows_are_u
     let root = temp_dir("rename-collision");
     let global = open_global(&root);
 
-    prompt_set_create(Some(&global), None, PromptSetTier::Global, "A", "a-body")
-        .expect("tao A that bai");
-    let b = prompt_set_create(Some(&global), None, PromptSetTier::Global, "B", "b-body")
-        .expect("tao B that bai");
+    prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "A",
+        "a-body",
+    )
+    .expect("tao A that bai");
+    let b = prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "B",
+        "b-body",
+    )
+    .expect("tao B that bai");
 
-    let err = prompt_set_rename(Some(&global), None, PromptSetTier::Global, b.id, "A")
-        .expect_err("doi ten trung phai bi tu choi");
+    let err = prompt_set_rename(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        b.id,
+        "A",
+    )
+    .expect_err("doi ten trung phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::PromptSetNameTaken);
     assert_eq!(err.params().get("name").map(String::as_str), Some("A"));
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
     assert_eq!(list.sets.len(), 2);
     assert_eq!(find_set(&list, "A").body, "a-body");
     assert_eq!(
@@ -288,6 +326,7 @@ fn renaming_a_set_to_its_own_current_name_is_a_no_op_success() {
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Xianxia",
         "than",
     )
@@ -297,12 +336,14 @@ fn renaming_a_set_to_its_own_current_name_is_a_no_op_success() {
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         created.id,
         "Xianxia",
     )
     .expect("doi ten ve chinh ten cu phai THANH CONG, khong duoc va UNIQUE voi hang cua chinh no");
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
     assert_eq!(list.sets.len(), 1);
     assert_eq!(find_set(&list, "Xianxia").body, "than");
 
@@ -324,6 +365,7 @@ fn deleting_a_shadowing_work_set_makes_the_global_set_effective_again() {
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Fantasy",
         "than toan cuc",
     )
@@ -332,23 +374,27 @@ fn deleting_a_shadowing_work_set_makes_the_global_set_effective_again() {
         Some(&global),
         Some(&opened),
         PromptSetTier::Work,
+        PromptSetKind::Translate,
         "Fantasy",
         "than tac pham",
     )
     .expect("tao Work that bai");
 
-    let before = prompt_set_list(Some(&global), Some(&opened)).expect("liet ke truoc khi xoa");
+    let before = prompt_set_list(Some(&global), Some(&opened), PromptSetKind::Translate)
+        .expect("liet ke truoc khi xoa");
     assert_eq!(find_set(&before, "Fantasy").tier, PromptSetTierWire::Work);
 
     prompt_set_delete(
         Some(&global),
         Some(&opened),
         PromptSetTier::Work,
+        PromptSetKind::Translate,
         work_set.id,
     )
     .expect("xoa bo Work that bai");
 
-    let after = prompt_set_list(Some(&global), Some(&opened)).expect("liet ke sau khi xoa");
+    let after = prompt_set_list(Some(&global), Some(&opened), PromptSetKind::Translate)
+        .expect("liet ke sau khi xoa");
     let set = find_set(&after, "Fantasy");
     assert_eq!(
         set.tier,
@@ -371,10 +417,18 @@ fn deleting_a_shadowing_work_set_makes_the_global_set_effective_again() {
 fn listing_with_no_work_open_returns_global_rows_only_and_the_work_group_is_absent() {
     let root = temp_dir("list-no-work");
     let global = open_global(&root);
-    prompt_set_create(Some(&global), None, PromptSetTier::Global, "Solo", "than")
-        .expect("tao that bai");
+    prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "Solo",
+        "than",
+    )
+    .expect("tao that bai");
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
     assert!(
         !list.work_tier_available,
         "khong Tac pham nao mo ⇒ work_tier_available phai false"
@@ -400,7 +454,8 @@ fn listing_with_zero_sets_in_either_tier_is_an_empty_list_not_an_error() {
     let global = open_global(&root);
     let opened = open_work_real(&root);
 
-    let list = prompt_set_list(Some(&global), Some(&opened)).expect("liet ke that bai");
+    let list = prompt_set_list(Some(&global), Some(&opened), PromptSetKind::Translate)
+        .expect("liet ke that bai");
     assert!(
         list.work_tier_available,
         "co Tac pham mo, du no khong bo prompt nao"
@@ -435,6 +490,7 @@ fn switching_between_two_resolvable_sets_needs_no_settings_reopen() {
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Xianxia",
         "a-global",
     )
@@ -443,6 +499,7 @@ fn switching_between_two_resolvable_sets_needs_no_settings_reopen() {
         Some(&global),
         Some(&opened),
         PromptSetTier::Work,
+        PromptSetKind::Translate,
         "Xianxia",
         "a-work",
     )
@@ -451,12 +508,14 @@ fn switching_between_two_resolvable_sets_needs_no_settings_reopen() {
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Journalism",
         "b-global",
     )
     .expect("tao Journalism that bai");
 
-    let list = prompt_set_list(Some(&global), Some(&opened)).expect("liet ke that bai");
+    let list = prompt_set_list(Some(&global), Some(&opened), PromptSetKind::Translate)
+        .expect("liet ke that bai");
 
     let xianxia = find_set(&list, "Xianxia");
     assert_eq!(xianxia.tier, PromptSetTierWire::Work);
@@ -479,7 +538,8 @@ fn switching_between_two_resolvable_sets_needs_no_settings_reopen() {
 
 #[test]
 fn resolving_when_the_global_store_is_missing_is_reported_as_unavailable_not_as_no_sets() {
-    let err = prompt_set_list(None, None).expect_err("global.db vang mat phai bi tu choi");
+    let err = prompt_set_list(None, None, PromptSetKind::Translate)
+        .expect_err("global.db vang mat phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::StoreOpenFailed);
 }
 
@@ -495,8 +555,15 @@ fn every_prompt_set_write_including_a_work_tier_one_requires_global_db_to_be_man
     let root = temp_dir("global-required-for-work-write");
     let opened = open_work_real(&root);
 
-    let err = prompt_set_create(None, Some(&opened), PromptSetTier::Work, "Xianxia", "than")
-        .expect_err("global.db vang mat phai chan TRUOC ca mot yeu cau tang Work");
+    let err = prompt_set_create(
+        None,
+        Some(&opened),
+        PromptSetTier::Work,
+        PromptSetKind::Translate,
+        "Xianxia",
+        "than",
+    )
+    .expect_err("global.db vang mat phai chan TRUOC ca mot yeu cau tang Work");
     assert_eq!(
         err.message_key(),
         MessageKey::StoreOpenFailed,
@@ -523,8 +590,15 @@ fn creating_at_the_work_tier_without_an_open_work_fails_with_work_tier_unavailab
     let root = temp_dir("work-tier-unavailable");
     let global = open_global(&root);
 
-    let err = prompt_set_create(Some(&global), None, PromptSetTier::Work, "Xianxia", "than")
-        .expect_err("global.db co mat nhung khong Tac pham nao mo -- tier Work phai bi tu choi");
+    let err = prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Work,
+        PromptSetKind::Translate,
+        "Xianxia",
+        "than",
+    )
+    .expect_err("global.db co mat nhung khong Tac pham nao mo -- tier Work phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::PromptSetWorkTierUnavailable);
 
     drop(global);
@@ -541,14 +615,22 @@ fn saving_a_body_with_an_unknown_token_saves_it_verbatim_and_names_the_token_in_
     let global = open_global(&root);
 
     let body = "Dung {{glosary_terms}} thay vi ten dung.";
-    let created = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Typo", body)
-        .expect("tao that bai -- than khong bao gio bi tu choi vi dau ngoac");
+    let created = prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "Typo",
+        body,
+    )
+    .expect("tao that bai -- than khong bao gio bi tu choi vi dau ngoac");
     assert_eq!(
         created.warnings.unknown_markers,
         vec!["{{glosary_terms}}".to_owned()]
     );
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
     assert_eq!(
         find_set(&list, "Typo").body,
         body,
@@ -572,6 +654,7 @@ fn saving_a_body_with_no_glossary_terms_marker_saves_and_warns_enforcement_is_of
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "NoEnforcement",
         "{{source_segment}} khong co thuat ngu.",
     )
@@ -585,6 +668,7 @@ fn saving_a_body_with_no_glossary_terms_marker_saves_and_warns_enforcement_is_of
         Some(&global),
         None,
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         created.id,
         "van khong co thuat ngu, gio da sua than.",
     )
@@ -620,14 +704,33 @@ fn deleting_an_id_that_already_vanished_returns_not_found_not_a_silent_success()
     let root = temp_dir("delete-vanished");
     let global = open_global(&root);
 
-    let created = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Temp", "than")
-        .expect("tao that bai");
+    let created = prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "Temp",
+        "than",
+    )
+    .expect("tao that bai");
 
-    prompt_set_delete(Some(&global), None, PromptSetTier::Global, created.id)
-        .expect("xoa lan dau phai thanh cong");
+    prompt_set_delete(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        created.id,
+    )
+    .expect("xoa lan dau phai thanh cong");
 
-    let err = prompt_set_delete(Some(&global), None, PromptSetTier::Global, created.id)
-        .expect_err("xoa lan hai (id da bien mat) phai that bai, khong phai thanh cong im lang");
+    let err = prompt_set_delete(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        created.id,
+    )
+    .expect_err("xoa lan hai (id da bien mat) phai that bai, khong phai thanh cong im lang");
     assert_eq!(err.message_key(), MessageKey::PromptSetNotFound);
 
     drop(global);
@@ -651,7 +754,8 @@ fn prompt_set_list_variables_field_carries_exactly_what_prompt_variable_all_yiel
     let root = temp_dir("variables-wire");
     let global = open_global(&root);
 
-    let list = prompt_set_list(Some(&global), None).expect("liet ke that bai");
+    let list =
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate).expect("liet ke that bai");
 
     let expected: Vec<String> = PromptVariable::ALL
         .iter()
@@ -883,8 +987,15 @@ fn a_project_database_from_step_40_gains_the_chosen_name_column_as_null() {
     open.store
         .write(|tx: &auratranslate_lib::core::store::Transaction<'_>| {
             tx.execute_batch(
-                "ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
-                 DELETE FROM schema_migration_log WHERE version IN (41, 42); \
+                "DROP INDEX idx_prompt_set_kind_name; \
+                 CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name); \
+                 ALTER TABLE prompt_set DROP COLUMN kind; \
+                 ALTER TABLE work DROP COLUMN chosen_proofread_prompt_set_name; \
+                 ALTER TABLE work DROP COLUMN proofread_instruction_off; \
+                 ALTER TABLE proof_scan DROP COLUMN instruction_set_name; \
+                 ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; \
+                 ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
+                 DELETE FROM schema_migration_log WHERE version IN (41, 42, 43); \
                  PRAGMA user_version = 40;",
             )
         })
@@ -892,7 +1003,7 @@ fn a_project_database_from_step_40_gains_the_chosen_name_column_as_null() {
 
     let open = reopen_work(open);
 
-    assert_eq!(open.store.schema_version(), 42);
+    assert_eq!(open.store.schema_version(), 43);
     assert_eq!(prompt_set_choice_get(Some(&open)).expect("doc"), None);
     drop(open);
     cleanup_dir(&root);
@@ -904,4 +1015,155 @@ fn the_chosen_prompt_set_name_without_an_open_work_is_work_tier_unavailable() {
     assert_eq!(get.code(), "prompt_set.work_tier_unavailable");
     let set = prompt_set_choice_set(None, Some("x")).expect_err("khong co tac pham");
     assert_eq!(set.code(), "prompt_set.work_tier_unavailable");
+}
+
+#[test]
+fn a_translate_list_never_shows_a_proofread_set_and_the_same_name_coexists_per_kind() {
+    let root = temp_dir("kind-list");
+    let global = open_global(&root);
+
+    prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Proofread,
+        "A",
+        "chi dan",
+    )
+    .expect("tao proofread A");
+    prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Proofread,
+        "Chi proofread",
+        "x",
+    )
+    .expect("tao proofread rieng");
+    assert!(
+        prompt_set_list(Some(&global), None, PromptSetKind::Translate)
+            .expect("liet ke translate")
+            .sets
+            .is_empty()
+    );
+
+    prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "A",
+        "than dich",
+    )
+    .expect("cung ten khac loai phai tao duoc");
+    let translate = prompt_set_list(Some(&global), None, PromptSetKind::Translate).unwrap();
+    assert_eq!(translate.sets.len(), 1);
+    assert_eq!(translate.sets[0].body, "than dich");
+    let proofread = prompt_set_list(Some(&global), None, PromptSetKind::Proofread).unwrap();
+    assert_eq!(proofread.sets.len(), 2);
+    assert_eq!(find_set(&proofread, "A").body, "chi dan");
+
+    let err = prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "A",
+        "lan hai",
+    )
+    .expect_err("trung ten cung loai");
+    assert_eq!(err.message_key(), MessageKey::PromptSetNameTaken);
+
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn a_work_proofread_set_does_not_shadow_a_global_translate_set_of_the_same_name() {
+    let root = temp_dir("kind-shadow");
+    let global = open_global(&root);
+    let open = open_work_real(&root);
+
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "A",
+        "than Global",
+    )
+    .expect("tao Global translate");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Work,
+        PromptSetKind::Proofread,
+        "A",
+        "than Work proofread",
+    )
+    .expect("tao Work proofread");
+
+    let list = prompt_set_list(Some(&global), Some(&open), PromptSetKind::Translate).unwrap();
+    assert_eq!(list.sets.len(), 1);
+    let set = find_set(&list, "A");
+    assert_eq!(set.tier, PromptSetTierWire::Global);
+    assert_eq!(set.body, "than Global");
+    assert_eq!(set.shadowed_body, None);
+
+    drop(open);
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn by_id_commands_with_the_wrong_kind_find_nothing_and_touch_nothing() {
+    let root = temp_dir("kind-by-id");
+    let global = open_global(&root);
+    let created = prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Proofread,
+        "A",
+        "chi dan",
+    )
+    .expect("tao proofread");
+
+    let rename = prompt_set_rename(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        created.id,
+        "B",
+    )
+    .expect_err("doi ten sai loai");
+    assert_eq!(rename.message_key(), MessageKey::PromptSetNotFound);
+    let update = prompt_set_update_body(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        created.id,
+        "doi than",
+    )
+    .expect_err("sua than sai loai");
+    assert_eq!(update.message_key(), MessageKey::PromptSetNotFound);
+    let delete = prompt_set_delete(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        created.id,
+    )
+    .expect_err("xoa sai loai");
+    assert_eq!(delete.message_key(), MessageKey::PromptSetNotFound);
+
+    let list = prompt_set_list(Some(&global), None, PromptSetKind::Proofread).unwrap();
+    assert_eq!(list.sets.len(), 1);
+    assert_eq!(list.sets[0].name, "A");
+    assert_eq!(list.sets[0].body, "chi dan");
+
+    drop(global);
+    cleanup_dir(&root);
 }

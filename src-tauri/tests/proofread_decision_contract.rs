@@ -272,7 +272,7 @@ fn a_work_from_before_step_38_has_no_decisions_even_with_remembered_findings() {
         .store
         .write(|tx: &Transaction<'_>| {
             tx.execute_batch(
-                "ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
+                "DROP INDEX idx_prompt_set_kind_name; CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name); ALTER TABLE prompt_set DROP COLUMN kind; ALTER TABLE work DROP COLUMN chosen_proofread_prompt_set_name; ALTER TABLE work DROP COLUMN proofread_instruction_off; ALTER TABLE proof_scan DROP COLUMN instruction_set_name; ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
                  DROP TABLE proof_decision; \
                  DROP TRIGGER segment_version_requires_translation_origin; \
                  ALTER TABLE segment_version DROP COLUMN translation_origin; \
@@ -282,7 +282,7 @@ fn a_work_from_before_step_38_has_no_decisions_even_with_remembered_findings() {
                  CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry \
                  WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL \
                  BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; \
-                 DELETE FROM schema_migration_log WHERE version IN (38, 39, 40, 41, 42); \
+                 DELETE FROM schema_migration_log WHERE version IN (38, 39, 40, 41, 42, 43); \
                  PRAGMA user_version = 37;",
             )
         })

@@ -66,6 +66,7 @@ beforeEach(() => {
     outcome: 'loaded',
     preview: {
       file_name: 'a.prompt.md',
+      set_kind: 'translate',
       name: 'A',
       body: 'x',
       warnings: { unknown_markers: [], glossary_terms_missing: false },

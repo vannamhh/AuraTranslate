@@ -23,7 +23,7 @@ use crate::commands::project::OpenWork;
 use crate::core::i18n::IpcError;
 use crate::core::promptset::exchange::{ConflictDecision, ParsedPromptSet, PlanKind};
 use crate::core::promptset::{
-    ImportOutcome, MarkerWarnings, PromptSetError, PromptSetTier, PromptVariable,
+    ImportOutcome, MarkerWarnings, PromptSetError, PromptSetKind, PromptSetTier, PromptVariable,
     ResolvedPromptSet, create, delete, exchange, exchange_io, import_into_tier, load_one,
     load_prompt_set_tier, read_chosen_name, rename, resolve_two_tiers, update_body,
     write_chosen_name,
@@ -164,13 +164,14 @@ pub struct PromptSetListWire {
 pub fn prompt_set_list(
     global: Option<&Store>,
     open: Option<&OpenWork>,
+    kind: PromptSetKind,
 ) -> Result<PromptSetListWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
     let resolver = open
         .map(|w| w.scope.clone())
         .unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
-    let resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
+    let resolved = resolve_two_tiers(&resolver, global_store, work_store, kind)?;
 
     let sets = resolved.into_values().map(PromptSetWire::from).collect();
     let variables = PromptVariable::ALL
@@ -224,11 +225,12 @@ pub fn prompt_set_create(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     name: &str,
     body: &str,
 ) -> Result<PromptSetCreateWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    let (id, warnings) = create(global_store, open.map(|w| &w.store), tier, name, body)?;
+    let (id, warnings) = create(global_store, open.map(|w| &w.store), tier, kind, name, body)?;
     Ok(PromptSetCreateWire {
         id,
         warnings: warnings.into(),
@@ -246,11 +248,19 @@ pub fn prompt_set_rename(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     id: i64,
     new_name: &str,
 ) -> Result<(), IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    rename(global_store, open.map(|w| &w.store), tier, id, new_name)?;
+    rename(
+        global_store,
+        open.map(|w| &w.store),
+        tier,
+        kind,
+        id,
+        new_name,
+    )?;
     Ok(())
 }
 
@@ -264,11 +274,12 @@ pub fn prompt_set_update_body(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     id: i64,
     body: &str,
 ) -> Result<PromptSetWarningsWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    let warnings = update_body(global_store, open.map(|w| &w.store), tier, id, body)?;
+    let warnings = update_body(global_store, open.map(|w| &w.store), tier, kind, id, body)?;
     Ok(warnings.into())
 }
 
@@ -283,10 +294,11 @@ pub fn prompt_set_delete(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     id: i64,
 ) -> Result<(), IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    delete(global_store, open.map(|w| &w.store), tier, id)?;
+    delete(global_store, open.map(|w| &w.store), tier, kind, id)?;
     Ok(())
 }
 
@@ -301,13 +313,14 @@ pub fn prompt_set_delete(
 // phơi ra JavaScript — webview chỉ dispatch bốn lệnh này (`capabilities/main.json` không đổi,
 // §Always spec 4.5).
 
-fn default_export_file_name(name: &str) -> String {
-    exchange_io::export_file_name(name)
+fn default_export_file_name(kind: PromptSetKind, name: &str) -> String {
+    exchange_io::export_file_name(kind, name)
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct PromptSetExportRef {
     pub tier: PromptSetTier,
+    pub kind: PromptSetKind,
     pub id: i64,
 }
 
@@ -315,6 +328,7 @@ pub struct PromptSetExportRef {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PromptSetExportFileWire {
     pub tier: PromptSetTierWire,
+    pub kind: PromptSetKind,
     pub id: i64,
     pub file_name: Option<String>,
     pub path: Option<String>,
@@ -339,10 +353,13 @@ pub fn prompt_set_export_many(
                     open.map(|w| &w.store),
                     set.tier,
                 )?;
-                let row = load_one(store, set.id)?;
-                let file_name = exchange_io::export_file_name(&row.name);
-                let path = exchange_io::unique_export_path(dir, &file_name, &mut taken);
-                exchange_io::write_export_file(&path, &exchange::render(&row.name, &row.body))?;
+                let row = load_one(store, set.kind, set.id)?;
+                let file_name = exchange_io::export_file_name(set.kind, &row.name);
+                let path = exchange_io::unique_export_path(dir, set.kind, &file_name, &mut taken);
+                exchange_io::write_export_file(
+                    &path,
+                    &exchange::render(set.kind, &row.name, &row.body),
+                )?;
                 let written_name = path
                     .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
@@ -352,6 +369,7 @@ pub fn prompt_set_export_many(
             match written {
                 Ok((file_name, path)) => PromptSetExportFileWire {
                     tier: set.tier.into(),
+                    kind: set.kind,
                     id: set.id,
                     file_name: Some(file_name),
                     path: Some(path.display().to_string()),
@@ -359,6 +377,7 @@ pub fn prompt_set_export_many(
                 },
                 Err(error) => PromptSetExportFileWire {
                     tier: set.tier.into(),
+                    kind: set.kind,
                     id: set.id,
                     file_name: None,
                     path: None,
@@ -383,14 +402,15 @@ pub fn prompt_set_export(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: PromptSetTier,
+    kind: PromptSetKind,
     id: i64,
     path: &Path,
 ) -> Result<(), IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
     let store =
         crate::core::promptset::store::store_for_tier(global_store, open.map(|w| &w.store), tier)?;
-    let row = load_one(store, id)?;
-    let contents = exchange::render(&row.name, &row.body);
+    let row = load_one(store, kind, id)?;
+    let contents = exchange::render(kind, &row.name, &row.body);
     exchange_io::write_export_file(path, &contents)?;
     Ok(())
 }
@@ -466,6 +486,7 @@ impl From<&PlanKind> for PromptImportTierPreviewWire {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PromptImportPreviewWire {
     pub file_name: String,
+    pub set_kind: PromptSetKind,
     pub name: String,
     pub body: String,
     pub warnings: PromptSetWarningsWire,
@@ -501,13 +522,13 @@ pub fn prompt_set_open_import_preview(
     let parsed = exchange::parse(&text).map_err(issues_to_ipc_error)?;
     let warnings = crate::core::promptset::scan_markers(&parsed.body);
 
-    let global_existing = load_prompt_set_tier(global_store)?;
+    let global_existing = load_prompt_set_tier(global_store, parsed.kind)?;
     let global_kind = exchange::classify(&parsed.name, &parsed.body, &global_existing);
 
     let work_kind = match open {
         None => None,
         Some(w) => {
-            let work_existing = load_prompt_set_tier(&w.store)?;
+            let work_existing = load_prompt_set_tier(&w.store, parsed.kind)?;
             Some(exchange::classify(
                 &parsed.name,
                 &parsed.body,
@@ -522,6 +543,7 @@ pub fn prompt_set_open_import_preview(
         .unwrap_or_default();
     let preview = PromptImportPreviewWire {
         file_name,
+        set_kind: parsed.kind,
         name: parsed.name.clone(),
         body: parsed.body.clone(),
         warnings: warnings.into(),
@@ -683,8 +705,8 @@ pub fn prompt_set_cancel_import(pending: &PendingPromptImportState) {
 pub mod wire {
     use super::{
         ConflictDecision, PendingPromptImportState, PromptImportOutcomeWire,
-        PromptImportPreviewWire, PromptSetCreateWire, PromptSetError, PromptSetListWire,
-        PromptSetTier, PromptSetWarningsWire, default_export_file_name,
+        PromptImportPreviewWire, PromptSetCreateWire, PromptSetError, PromptSetKind,
+        PromptSetListWire, PromptSetTier, PromptSetWarningsWire, default_export_file_name,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
@@ -694,23 +716,27 @@ pub mod wire {
     /// `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho: `app.manage(store)`
     /// (`global.db`) và `app.manage(OpenWorkState)` có thể chưa từng chạy.
     #[tauri::command]
-    pub fn prompt_set_list(app: tauri::AppHandle) -> Result<PromptSetListWire, IpcError> {
+    pub fn prompt_set_list(
+        app: tauri::AppHandle,
+        kind: PromptSetKind,
+    ) -> Result<PromptSetListWire, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::prompt_set_list(global.as_deref(), None);
+            return super::prompt_set_list(global.as_deref(), None, kind);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::prompt_set_list(global.as_deref(), guard.as_ref())
+        super::prompt_set_list(global.as_deref(), guard.as_ref(), kind)
     }
 
     #[tauri::command]
     pub fn prompt_set_create(
         app: tauri::AppHandle,
         tier: PromptSetTier,
+        kind: PromptSetKind,
         name: String,
         body: String,
     ) -> Result<PromptSetCreateWire, IpcError> {
@@ -718,18 +744,19 @@ pub mod wire {
 
         let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::prompt_set_create(global.as_deref(), None, tier, &name, &body);
+            return super::prompt_set_create(global.as_deref(), None, tier, kind, &name, &body);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::prompt_set_create(global.as_deref(), guard.as_ref(), tier, &name, &body)
+        super::prompt_set_create(global.as_deref(), guard.as_ref(), tier, kind, &name, &body)
     }
 
     #[tauri::command]
     pub fn prompt_set_rename(
         app: tauri::AppHandle,
         tier: PromptSetTier,
+        kind: PromptSetKind,
         id: i64,
         new_name: String,
     ) -> Result<(), IpcError> {
@@ -737,18 +764,19 @@ pub mod wire {
 
         let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::prompt_set_rename(global.as_deref(), None, tier, id, &new_name);
+            return super::prompt_set_rename(global.as_deref(), None, tier, kind, id, &new_name);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::prompt_set_rename(global.as_deref(), guard.as_ref(), tier, id, &new_name)
+        super::prompt_set_rename(global.as_deref(), guard.as_ref(), tier, kind, id, &new_name)
     }
 
     #[tauri::command]
     pub fn prompt_set_update_body(
         app: tauri::AppHandle,
         tier: PromptSetTier,
+        kind: PromptSetKind,
         id: i64,
         body: String,
     ) -> Result<PromptSetWarningsWire, IpcError> {
@@ -756,30 +784,31 @@ pub mod wire {
 
         let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::prompt_set_update_body(global.as_deref(), None, tier, id, &body);
+            return super::prompt_set_update_body(global.as_deref(), None, tier, kind, id, &body);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::prompt_set_update_body(global.as_deref(), guard.as_ref(), tier, id, &body)
+        super::prompt_set_update_body(global.as_deref(), guard.as_ref(), tier, kind, id, &body)
     }
 
     #[tauri::command]
     pub fn prompt_set_delete(
         app: tauri::AppHandle,
         tier: PromptSetTier,
+        kind: PromptSetKind,
         id: i64,
     ) -> Result<(), IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::prompt_set_delete(global.as_deref(), None, tier, id);
+            return super::prompt_set_delete(global.as_deref(), None, tier, kind, id);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::prompt_set_delete(global.as_deref(), guard.as_ref(), tier, id)
+        super::prompt_set_delete(global.as_deref(), guard.as_ref(), tier, kind, id)
     }
 
     #[tauri::command]
@@ -828,8 +857,8 @@ pub mod wire {
 
     /// Tên hiện tại của bộ `(Global, id)` — chỉ để gợi ý tên tệp mặc định của hộp thoại LƯU.
     /// Không đòi `OpenWorkState`, không `.lock()` nào ở đây.
-    fn global_row_name(global: Option<&Store>, id: i64) -> Option<String> {
-        crate::core::promptset::load_one(global?, id)
+    fn global_row_name(global: Option<&Store>, kind: PromptSetKind, id: i64) -> Option<String> {
+        crate::core::promptset::load_one(global?, kind, id)
             .ok()
             .map(|p| p.name)
     }
@@ -839,14 +868,14 @@ pub mod wire {
     /// `prompt_set_export` không để lại một `.lock()` nào TRƯỚC hộp thoại trong CHÍNH thân
     /// hàm đó — điều kiện để `the_open_work_mutex_guard_in_the_promptset_dialog_wires_is_
     /// acquired_after_the_blocking_call_not_before` (`config_invariants.rs`) đọc đúng.
-    fn work_row_name(app: &tauri::AppHandle, id: i64) -> Option<String> {
+    fn work_row_name(app: &tauri::AppHandle, kind: PromptSetKind, id: i64) -> Option<String> {
         use tauri::Manager as _;
         let work_state = app.try_state::<OpenWorkState>()?;
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let open = guard.as_ref()?;
-        crate::core::promptset::load_one(&open.store, id)
+        crate::core::promptset::load_one(&open.store, kind, id)
             .ok()
             .map(|p| p.name)
     }
@@ -867,6 +896,7 @@ pub mod wire {
     pub fn prompt_set_export(
         app: tauri::AppHandle,
         tier: PromptSetTier,
+        kind: PromptSetKind,
         id: i64,
     ) -> Result<Option<String>, IpcError> {
         use tauri::Manager as _;
@@ -880,8 +910,8 @@ pub mod wire {
         }
 
         let name_hint = match tier {
-            PromptSetTier::Global => global_row_name(global.as_deref(), id),
-            PromptSetTier::Work => work_row_name(&app, id),
+            PromptSetTier::Global => global_row_name(global.as_deref(), kind, id),
+            PromptSetTier::Work => work_row_name(&app, kind, id),
         }
         .unwrap_or_default();
 
@@ -889,7 +919,7 @@ pub mod wire {
             .dialog()
             .file()
             .add_filter("Prompt", &["md"])
-            .set_file_name(default_export_file_name(&name_hint))
+            .set_file_name(default_export_file_name(kind, &name_hint))
             .blocking_save_file()
         else {
             return Ok(None);
@@ -904,7 +934,7 @@ pub mod wire {
             .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
 
-        super::prompt_set_export(global.as_deref(), open, tier, id, &path)?;
+        super::prompt_set_export(global.as_deref(), open, tier, kind, id, &path)?;
         Ok(Some(path.display().to_string()))
     }
 

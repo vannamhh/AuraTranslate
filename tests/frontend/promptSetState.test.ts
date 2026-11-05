@@ -112,6 +112,7 @@ describe('loadPromptSets — nạp danh sách, chỉ lượt MỚI NHẤT đư�
     expect(promptSets.value).toHaveLength(2)
     expect(promptSetWorkTierAvailable.value).toBe(true)
     expect(promptSetLoadError.value).toBeNull()
+    expect(promptSetListMock).toHaveBeenCalledWith('translate')
   })
 
   it('lượt đọc trượt ⇒ lỗi hiện qua promptSetLoadError, danh sách cũ giữ nguyên', async () => {
@@ -211,7 +212,7 @@ describe('createPromptSet — re-validate trước khi gọi IPC, thành công �
     await createPromptSet('work', '  Xianxia  ', '{{glossary_terms}}')
 
     expect(promptSetCreateMock).toHaveBeenCalledTimes(1)
-    expect(promptSetCreateMock).toHaveBeenCalledWith('work', 'Xianxia', '{{glossary_terms}}')
+    expect(promptSetCreateMock).toHaveBeenCalledWith('work', 'translate', 'Xianxia', '{{glossary_terms}}')
     expect(promptSetListMock).toHaveBeenCalledTimes(1) // đọc lại sau lượt tạo thành công
   })
 
@@ -274,7 +275,7 @@ describe('renamePromptSet — re-validate tên mới, thành công ⇒ nạp l�
 
     await renamePromptSet('work', 5, '  Ten Moi  ')
 
-    expect(promptSetRenameMock).toHaveBeenCalledWith('work', 5, 'Ten Moi')
+    expect(promptSetRenameMock).toHaveBeenCalledWith('work', 'translate', 5, 'Ten Moi')
     expect(promptSetListMock).toHaveBeenCalledTimes(1)
   })
 
@@ -311,7 +312,7 @@ describe('updatePromptSetBody — KHÔNG re-validate (Quyết định #3: thân 
 
     await updatePromptSetBody('global', 1, '')
 
-    expect(promptSetUpdateBodyMock).toHaveBeenCalledWith('global', 1, '')
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledWith('global', 'translate', 1, '')
     expect(promptSetListMock).toHaveBeenCalledTimes(1)
   })
 
@@ -346,7 +347,7 @@ describe('deletePromptSet — thành công ⇒ nạp lại (bộ Global bị che
 
     await deletePromptSet('work', 5)
 
-    expect(promptSetDeleteMock).toHaveBeenCalledWith('work', 5)
+    expect(promptSetDeleteMock).toHaveBeenCalledWith('work', 'translate', 5)
     expect(promptSetListMock).toHaveBeenCalledTimes(1)
   })
 
@@ -509,7 +510,7 @@ describe('exportPromptSet — Story 4.5, mở hộp thoại LƯU trong Rust', ()
   it('lượt thành công ghi path, không đụng exportError', async () => {
     const { exportPromptSet, promptSetExportError } = await freshState()
     await exportPromptSet('global', 1)
-    expect(promptSetExportMock).toHaveBeenCalledWith('global', 1)
+    expect(promptSetExportMock).toHaveBeenCalledWith('global', 'translate', 1)
     expect(promptSetExportError.value).toBeNull()
   })
 
@@ -861,7 +862,7 @@ describe('addPromptTemplates — ma trận I/O của thư viện mẫu', () => {
     const { addPromptTemplates } = await freshState()
     const { PROMPT_TEMPLATES } = await import('../../src/promptTemplates')
     expect(await addPromptTemplates('global', ['xianxia'])).toBe(1)
-    expect(promptSetCreateMock).toHaveBeenCalledWith('global', 'Tiên hiệp', PROMPT_TEMPLATES.xianxia)
+    expect(promptSetCreateMock).toHaveBeenCalledWith('global', 'translate', 'Tiên hiệp', PROMPT_TEMPLATES.xianxia)
   })
 
   it('Đã có bộ trùng tên khác hoa thường/khoảng trắng: không tạo bộ thứ hai, mẫu khác vẫn tạo', async () => {
@@ -870,7 +871,7 @@ describe('addPromptTemplates — ma trận I/O của thư viện mẫu', () => {
     await loadPromptSets()
     expect(promptTemplateExists('global', 'xianxia')).toBe(true)
     expect(await addPromptTemplates('global', ['xianxia', 'wuxia'])).toBe(1)
-    expect(promptSetCreateMock.mock.calls.map((c) => c[1])).toEqual(['Kiếm hiệp'])
+    expect(promptSetCreateMock.mock.calls.map((c) => c[2])).toEqual(['Kiếm hiệp'])
   })
 
   it('bộ Tác phẩm che bộ Toàn cục cùng tên tính là đã có ở Toàn cục; tầng Tác phẩm chỉ đếm bộ Tác phẩm', async () => {

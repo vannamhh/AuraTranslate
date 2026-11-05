@@ -817,7 +817,7 @@ mod nfr_bench {
     fn run_e7_probe(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
         use crate::commands::{aiconfig, aiprompt, aitranslate, chapter, promptset, segment, tm};
         use crate::core::aiconfig::{AiConfigField, AiConfigTier};
-        use crate::core::promptset::PromptSetTier;
+        use crate::core::promptset::{PromptSetKind, PromptSetTier};
         use tauri::ipc::Channel;
 
         let ipc = |what: &str, err: &dyn std::fmt::Debug| format!("{what}: {err:?}");
@@ -839,6 +839,7 @@ mod nfr_bench {
         promptset::wire::prompt_set_create(
             app.clone(),
             PromptSetTier::Global,
+            PromptSetKind::Translate,
             E7_PROMPT_SET.to_owned(),
             E7_PROMPT_BODY.to_owned(),
         )

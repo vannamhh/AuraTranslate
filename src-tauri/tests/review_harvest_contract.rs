@@ -685,7 +685,7 @@ fn a_database_at_step_31_migrates_and_keeps_its_import_scan_candidates() {
     let dir = temp_dir("migrate");
     let db = dir.join("project.db");
     let old = Store::open(StoreSpec {
-        migrations: &PROJECT_MIGRATIONS[..PROJECT_MIGRATIONS.len() - 11],
+        migrations: &PROJECT_MIGRATIONS[..PROJECT_MIGRATIONS.len() - 12],
         ..StoreSpec::project(db.clone())
     })
     .expect("mo o buoc 31");
@@ -698,7 +698,7 @@ fn a_database_at_step_31_migrates_and_keeps_its_import_scan_candidates() {
 
     let migrated = Store::open(StoreSpec::project(db)).expect("mo lai");
 
-    assert_eq!(migrated.schema_version(), 42);
+    assert_eq!(migrated.schema_version(), 43);
     let row: (String, Option<String>) = migrated
         .read(|conn| {
             conn.query_row(

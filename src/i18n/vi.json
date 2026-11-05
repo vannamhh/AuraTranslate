@@ -104,6 +104,7 @@
   "err.prompt_set.import_missing_name_field": "Dòng {line} phải bắt đầu bằng \"name:\" — tệp này không đúng định dạng .prompt.md. Chưa có gì được nhập.",
   "err.prompt_set.import_blank_name": "Dòng {line} mang tên bộ rỗng hoặc chỉ toàn khoảng trắng — chưa có gì được nhập.",
   "err.prompt_set.import_missing_closing_delimiter": "Dòng {line} phải là ba dấu gạch ngang (---) để đóng phần đầu tệp — tệp này không đúng định dạng .prompt.md. Chưa có gì được nhập.",
+  "err.prompt_set.import_unknown_kind": "Dòng {line} của tệp ghi một loại bộ prompt không được hỗ trợ. Chỉ nhận tệp ba dòng đầu (bộ dịch) hoặc tệp có dòng kind: proofread. Chưa có gì được nhập.",
   "err.prompt_set.import_malformed": "Tệp không đúng định dạng .prompt.md ở các dòng {lines} — chưa có gì được nhập.",
   "err.prompt_set.export_write_failed": "Không ghi được tệp tại {path} — kiểm quyền ghi vào thư mục đã chọn rồi thử lại. Không có tệp cụt nào bị để lại.",
   "err.prompt_set.dialog_path_invalid": "Hộp thoại trả về một đường dẫn không đọc được — thử chọn lại tệp hoặc thư mục.",

@@ -147,7 +147,7 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
 
     await wrapper.find('.pl-export-form').trigger('submit')
     await flushPromises()
-    expect(promptSetExportMock).toHaveBeenCalledWith('global', 9)
+    expect(promptSetExportMock).toHaveBeenCalledWith('global', 'translate', 9)
 
     wrapper.unmount()
     promptLibraryState.resetPromptLibrary()
@@ -232,7 +232,7 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     await wrapper.vm.$nextTick()
 
     // Không tầng — mặc định rơi về `global` vì `workTierAvailable` là `false` ở ca này.
-    expect(promptSetCreateMock).toHaveBeenCalledWith('global', 'Hoc thuat', 'giu thuat ngu chuyen nganh')
+    expect(promptSetCreateMock).toHaveBeenCalledWith('global', 'translate', 'Hoc thuat', 'giu thuat ngu chuyen nganh')
     expect(wrapper.find('.pl-create-form').exists()).toBe(false)
     expect((wrapper.find('.pl-rename-form input').element as HTMLInputElement).value).toBe('Hoc thuat')
 
@@ -329,7 +329,7 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(promptSetRenameMock).toHaveBeenCalledWith('global', 3, 'Moi')
+    expect(promptSetRenameMock).toHaveBeenCalledWith('global', 'translate', 3, 'Moi')
     expect(promptSetUpdateBodyMock).not.toHaveBeenCalled()
 
     wrapper.unmount()
@@ -406,7 +406,7 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(promptSetUpdateBodyMock).toHaveBeenCalledWith('global', 3, '{{glosary_terms}} sai chinh ta')
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledWith('global', 'translate', 3, '{{glosary_terms}} sai chinh ta')
     expect(wrapper.text()).toContain('{{glosary_terms}}')
     expect(wrapper.text()).toContain('glossary_terms')
 
@@ -454,7 +454,7 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
 
     expect(promptSetUpdateBodyMock).toHaveBeenCalledTimes(1)
     expect(promptSetCreateMock).toHaveBeenCalledTimes(1)
-    expect(promptSetCreateMock.mock.calls[0][2]).toBe('than moi')
+    expect(promptSetCreateMock.mock.calls[0][3]).toBe('than moi')
 
     wrapper.unmount()
     promptLibraryState.resetPromptLibrary()
@@ -554,7 +554,7 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(promptSetDeleteMock).toHaveBeenCalledWith('global', 9)
+    expect(promptSetDeleteMock).toHaveBeenCalledWith('global', 'translate', 9)
     // Lựa chọn tự xoá sau lượt xoá thành công — form soạn không còn.
     expect(wrapper.find('.pl-rename-form').exists()).toBe(false)
 
@@ -687,7 +687,7 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     await wrapper.get('.pl-body-form textarea').setValue('sua do')
     promptSetUpdateBodyMock.mockResolvedValue({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
     await pick(wrapper, 1)
-    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 'translate', 3, 'sua do')
     wrapper.unmount()
   })
 
@@ -716,7 +716,7 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     })
     await wrapper.get('.pl-inspect-form').trigger('submit')
     await flushPromises()
-    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 'translate', 3, 'sua do')
     expect(openInspector).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
@@ -737,7 +737,7 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     })
     await closeBy(wrapper)
     await flushPromises()
-    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 'translate', 3, 'sua do')
     expect(promptLibraryState.promptLibraryOverlayIsOpen.value).toBe(false)
     wrapper.unmount()
   })
@@ -763,7 +763,7 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     promptSetUpdateBodyMock.mockResolvedValue({ warnings: null, error: { code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false } })
     dispatch('prompt.library.close')
     await flushPromises()
-    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 'translate', 3, 'sua do')
     expect(promptLibraryState.promptLibraryOverlayIsOpen.value).toBe(true)
     wrapper.unmount()
   })
@@ -791,7 +791,7 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     await wrapper.get('.pl-dup-form').trigger('submit')
     await flushPromises()
     expect(order).toEqual(['update', 'create'])
-    expect(promptSetCreateMock).toHaveBeenCalledExactlyOnceWith('global', 'A (bản sao)', 'sua do')
+    expect(promptSetCreateMock).toHaveBeenCalledExactlyOnceWith('global', 'translate', 'A (bản sao)', 'sua do')
     wrapper.unmount()
   })
 
@@ -803,7 +803,7 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     promptSetCreateMock.mockResolvedValueOnce({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
     await wrapper.get('.pl-dup-form').trigger('submit')
     await flushPromises()
-    expect(promptSetCreateMock.mock.calls.map((c) => c[1])).toEqual(['A (bản sao)', 'A (bản sao 2)'])
+    expect(promptSetCreateMock.mock.calls.map((c) => c[2])).toEqual(['A (bản sao)', 'A (bản sao 2)'])
 
     promptSetCreateMock.mockReset()
     promptSetCreateMock.mockResolvedValue({ warnings: null, error: { code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false } })

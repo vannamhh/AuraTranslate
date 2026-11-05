@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
+use super::PromptSetKind;
 use super::store::PromptSetError;
 
 /// Trần kích thước tệp NHẬP một bộ prompt — 1 MiB. Một bộ prompt là TÊN + THÂN, không hàng
@@ -62,7 +63,7 @@ pub fn read_import_file(path: &Path) -> Result<String, PromptSetError> {
     Ok(strip_bom(&text).to_owned())
 }
 
-pub fn export_file_name(name: &str) -> String {
+pub fn export_file_name(kind: PromptSetKind, name: &str) -> String {
     let cleaned: String = name
         .chars()
         .map(|c| {
@@ -79,21 +80,30 @@ pub fn export_file_name(name: &str) -> String {
     } else {
         trimmed
     };
-    format!("{stem}.prompt.md")
+    format!("{stem}{}", export_suffix(kind))
+}
+
+const fn export_suffix(kind: PromptSetKind) -> &'static str {
+    match kind {
+        PromptSetKind::Translate => ".prompt.md",
+        PromptSetKind::Proofread => ".proofread.prompt.md",
+    }
 }
 
 pub fn unique_export_path(
     dir: &Path,
+    kind: PromptSetKind,
     file_name: &str,
     taken: &mut std::collections::HashSet<String>,
 ) -> PathBuf {
-    let stem = file_name.strip_suffix(".prompt.md").unwrap_or(file_name);
+    let suffix = export_suffix(kind);
+    let stem = file_name.strip_suffix(suffix).unwrap_or(file_name);
     let mut n = 1u32;
     loop {
         let candidate = if n == 1 {
-            format!("{stem}.prompt.md")
+            format!("{stem}{suffix}")
         } else {
-            format!("{stem}-{n}.prompt.md")
+            format!("{stem}-{n}{suffix}")
         };
         let path = dir.join(&candidate);
         let key = candidate.to_lowercase();

@@ -41,11 +41,13 @@ import {
   promptSetRename,
   promptSetUpdateBody,
 } from './config/promptset'
-import type { PromptSetExportFile, PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
+import type { PromptSetExportFile, PromptSetKind, PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
 import { genreLabel } from './modes/libraryWorkCard'
 import type { GenreId } from './modes/libraryWorkCard'
 import { PROMPT_TEMPLATES } from './promptTemplates'
 import { glossaryExchangeBusy, setGlossaryExchangeBusy } from './glossaryExchangeGate'
+
+const LIBRARY_KIND: PromptSetKind = 'translate'
 
 const resolvedSets = ref<PromptSetWire[]>([])
 const workTierAvailable = ref(false)
@@ -152,7 +154,7 @@ export async function loadPromptSets(): Promise<void> {
 /** Re-reads without raising `loading`: the library hides its list and editor on that flag. */
 async function reloadPromptSets(): Promise<void> {
   const mine = ++sequence
-  const result = await promptSetList()
+  const result = await promptSetList(LIBRARY_KIND)
   if (mine !== sequence) return // một lượt tải MỚI đã vượt mặt lượt này
 
   loading.value = false
@@ -258,7 +260,7 @@ export async function createPromptSet(tier: PromptSetTier, name: string, body: s
   actionError.value = null
   actionWarnings.value = null
 
-  const result = await promptSetCreate(tier, name.trim(), body)
+  const result = await promptSetCreate(tier, LIBRARY_KIND, name.trim(), body)
 
   if (result.error !== null) {
     busy.value = false
@@ -302,7 +304,7 @@ export async function addPromptTemplates(tier: PromptSetTier, ids: ReadonlyArray
     const name = genreLabel(id)
     if (name === null) continue
     attempted += 1
-    const result = await promptSetCreate(tier, name, PROMPT_TEMPLATES[id])
+    const result = await promptSetCreate(tier, LIBRARY_KIND, name, PROMPT_TEMPLATES[id])
     if (result.error !== null) {
       if (result.error.code === 'prompt_set.name_taken') continue
       actionError.value = result.error
@@ -333,7 +335,7 @@ export async function renamePromptSet(tier: PromptSetTier, id: number, newName: 
   actionError.value = null
   actionWarnings.value = null
 
-  const err = await promptSetRename(tier, id, newName.trim())
+  const err = await promptSetRename(tier, LIBRARY_KIND, id, newName.trim())
 
   if (err !== null) {
     busy.value = false
@@ -356,7 +358,7 @@ export async function updatePromptSetBody(tier: PromptSetTier, id: number, body:
   actionError.value = null
   actionWarnings.value = null
 
-  const result = await promptSetUpdateBody(tier, id, body)
+  const result = await promptSetUpdateBody(tier, LIBRARY_KIND, id, body)
 
   if (result.error !== null) {
     busy.value = false
@@ -380,7 +382,7 @@ export async function deletePromptSet(tier: PromptSetTier, id: number): Promise<
   actionError.value = null
   actionWarnings.value = null
 
-  const err = await promptSetDelete(tier, id)
+  const err = await promptSetDelete(tier, LIBRARY_KIND, id)
 
   if (err !== null) {
     busy.value = false
@@ -407,7 +409,7 @@ export async function exportPromptSet(tier: PromptSetTier, id: number): Promise<
   setGlossaryExchangeBusy(true)
   exportError.value = null
   exportFiles.value = null
-  const result = await promptSetExport(tier, id)
+  const result = await promptSetExport(tier, LIBRARY_KIND, id)
   setGlossaryExchangeBusy(false)
 
   if (result.outcome === 'error') {
@@ -421,7 +423,7 @@ export async function exportPromptSets(sets: ReadonlyArray<{ tier: PromptSetTier
   setGlossaryExchangeBusy(true)
   exportManyError.value = null
   exportFiles.value = null
-  const result = await promptSetExportMany(sets)
+  const result = await promptSetExportMany(sets.map((s) => ({ ...s, kind: LIBRARY_KIND })))
   setGlossaryExchangeBusy(false)
 
   if (result.outcome === 'error') exportManyError.value = result.error

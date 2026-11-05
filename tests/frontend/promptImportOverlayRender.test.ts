@@ -31,6 +31,7 @@ vi.mock('../../src/commands', () => ({
 type TierPreview = { kind: 'new' | 'identical' | 'conflict'; existing_body: string | null }
 type Preview = {
   file_name: string
+  set_kind: 'translate' | 'proofread'
   name: string
   body: string
   warnings: { unknown_markers: string[]; glossary_terms_missing: boolean }
@@ -41,6 +42,7 @@ type Preview = {
 function preview(over: Partial<Preview> = {}): Preview {
   return {
     file_name: 'xianxia.prompt.md',
+    set_kind: 'translate',
     name: 'Xianxia',
     body: 'Dich: {{source_segment}}',
     warnings: { unknown_markers: [], glossary_terms_missing: false },

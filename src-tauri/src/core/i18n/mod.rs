@@ -810,9 +810,12 @@ message_keys! {
     /// Dòng 2 mang `name:` nhưng giá trị rỗng/toàn khoảng trắng — `ParseIssue::BlankName`.
     /// `line` luôn `"2"`.
     PromptSetImportBlankName => "err.prompt_set.import_blank_name" ["line"],
-    /// Dòng 3 không đúng `---` — `ParseIssue::MissingClosingDelimiter`. `line` luôn `"3"`.
+    /// Closing `---` missing — `ParseIssue::MissingClosingDelimiter` (`line` `"3"`) or
+    /// `MissingProofreadClosingDelimiter` (`line` `"4"`).
     PromptSetImportMissingClosingDelimiter =>
         "err.prompt_set.import_missing_closing_delimiter" ["line"],
+    /// Line 3 starts with `kind:` but is not `kind: proofread` (`line` is `"3"`).
+    PromptSetImportUnknownKind => "err.prompt_set.import_unknown_kind" ["line"],
     /// **SỬA khi kiểm chứng AC4 (2026-09-17)**: tệp hỏng ở NHIỀU HƠN MỘT trong ba dòng đầu —
     /// AC4 spec 4.5 đòi "every problem is reported with its line number", nên `lines` liệt kê
     /// TOÀN BỘ số dòng hỏng (sắp tăng dần, nối bằng ", "), không chỉ dòng đầu tiên tìm được.

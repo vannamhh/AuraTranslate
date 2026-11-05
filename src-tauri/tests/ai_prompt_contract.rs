@@ -54,7 +54,7 @@ use auratranslate_lib::commands::segment::{read_open_chapter_segments, set_segme
 use auratranslate_lib::core::ai::batch::{TM_BLOCK_LEAD, system_with_block_format};
 use auratranslate_lib::core::glossary::{Category, GlossaryTier, add_manual_term};
 use auratranslate_lib::core::i18n::MessageKey;
-use auratranslate_lib::core::promptset::PromptSetTier;
+use auratranslate_lib::core::promptset::{PromptSetKind, PromptSetTier};
 use auratranslate_lib::core::store::{Store, StoreSpec};
 use auratranslate_lib::core::tm::{PairOrigin, insert_pair};
 
@@ -127,6 +127,7 @@ fn marker_absent_states_no_glossary_query_ran_and_never_claims_zero_injected() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "NoMarker",
         "{{source_segment}}",
     )
@@ -185,6 +186,7 @@ fn asked_but_nothing_matched_says_zero_injected_not_not_asked() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "AskedEmpty",
         "Terms: {{glossary_terms}}\n{{source_segment}}",
     )
@@ -261,6 +263,7 @@ fn tm_setup(tag: &str) -> (PathBuf, PathBuf, Store, OpenWork, i64) {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "TmProbe",
         TM_BODY,
     )
@@ -291,6 +294,7 @@ fn a_body_without_the_tm_marker_reads_no_tm_and_reports_not_asked() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "TmProbe",
         "{{source_segment}}",
     )
@@ -524,6 +528,7 @@ fn a_chinese_source_work_inserts_its_similar_chinese_pair() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "TmProbe",
         TM_BODY,
     )
@@ -699,6 +704,7 @@ fn an_empty_prompt_set_body_is_recorded_as_present_not_as_nothing_recorded() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "EmptySet",
         "",
     )
@@ -790,6 +796,7 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Happy",
         "Terms: {{glossary_terms}}\nSentence: {{source_segment}}",
     )
@@ -952,6 +959,7 @@ fn a_pending_term_overlapping_a_confirmed_one_is_suppressed_not_injected() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Overlap",
         "Terms: {{glossary_terms}}\n{{source_segment}}",
     )
@@ -1021,6 +1029,7 @@ fn a_body_missing_the_source_segment_marker_still_assembles_and_the_ledger_flags
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "NoSentence",
         "Static text only.",
     )
@@ -1076,6 +1085,7 @@ fn an_unknown_marker_stands_verbatim_and_is_named_in_the_ledger() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "UnknownMarker",
         "{{chapter_context}} {{source_segment}}",
     )
@@ -1160,6 +1170,62 @@ fn an_unresolvable_prompt_set_name_also_returns_no_set_selected() {
     cleanup(&global_dir);
 }
 
+#[test]
+fn a_proofread_set_is_invisible_to_translation_assembly_even_under_its_exact_name() {
+    let global_dir = temp_dir("proofread-invisible-global");
+    let work_dir = temp_dir("proofread-invisible-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "Proofread Invisible", "en", "A dragon roared.");
+
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        PromptSetKind::Proofread,
+        "OnlyProofread",
+        "{{source_segment}}",
+    )
+    .expect("tao bo proofread");
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
+    let record = fresh_record();
+
+    let err = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("OnlyProofread"),
+        segment_id,
+    )
+    .expect_err("bo proofread khong duoc lap thanh prompt dich");
+    assert_eq!(err.code(), "ai_prompt.no_set_selected");
+
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        PromptSetKind::Translate,
+        "OnlyProofread",
+        "{{source_segment}} dich",
+    )
+    .expect("tao bo translate cung ten");
+    assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("OnlyProofread"),
+        segment_id,
+    )
+    .expect("co bo translate cung ten thi lap duoc");
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // No Work open / segment không có trong Chương — HAI KHOÁ RIÊNG (I/O Matrix: "the two causes
 // are distinct keys")
@@ -1179,6 +1245,7 @@ fn no_open_work_returns_work_none_open() {
         Some(&global),
         Some(&scratch),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "ValidSet",
         "{{source_segment}}",
     )
@@ -1211,6 +1278,7 @@ fn a_segment_id_absent_from_the_open_chapter_returns_its_own_key() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "ValidSet",
         "{{source_segment}}",
     )
@@ -1262,6 +1330,7 @@ fn no_work_open_and_segment_not_in_chapter_are_two_distinct_keys() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "ValidSet",
         "{{source_segment}}",
     )
@@ -1322,6 +1391,7 @@ fn the_record_carries_the_segment_identity_it_was_built_from() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "IdentitySet",
         "{{source_segment}}",
     )
@@ -1409,6 +1479,7 @@ fn the_record_is_cleared_when_the_open_work_closes() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "ClearSet",
         "{{source_segment}}",
     )
@@ -1502,6 +1573,7 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "SerdePin",
         "Terms: {{glossary_terms}}\nSentence: {{source_segment}}",
     )
@@ -1683,6 +1755,7 @@ fn the_wire_carries_matched_pending_entries_with_the_entry_id_and_null_when_glos
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "WithTerms",
         "Terms: {{glossary_terms}}\n{{source_segment}}",
     )
@@ -1691,6 +1764,7 @@ fn the_wire_carries_matched_pending_entries_with_the_entry_id_and_null_when_glos
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )
@@ -1829,6 +1903,7 @@ fn recorded_system_after_assembling(
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "Dich: {{source_segment}}",
     )
@@ -1956,6 +2031,7 @@ fn previewing_an_omitted_segment_still_records_its_sentence_alone() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )

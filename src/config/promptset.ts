@@ -31,6 +31,8 @@ export type PromptSetWarningsWire = {
   glossary_terms_missing: boolean
 }
 
+export type PromptSetKind = 'translate' | 'proofread'
+
 /**
  * Một bộ prompt đã phân giải — khớp NGUYÊN VĂN `PromptSetWire` phía Rust, **`snake_case`,
  * đúng như trên dây** (`shadowed_body`, không `shadowedBody`).
@@ -108,14 +110,14 @@ const CMD_CHOICE_SET = 'prompt_set_choice_set'
  * màn soạn thảo (§Always spec 4.4). `PromptLibraryOverlay.vue` render trực tiếp từ trường này,
  * không một mảng gõ tay nào của riêng nó.
  */
-export async function promptSetList(): Promise<{
+export async function promptSetList(kind: PromptSetKind): Promise<{
   sets: PromptSetWire[] | null
   workTierAvailable: boolean
   variables: string[] | null
   error: IpcError | null
 }> {
   try {
-    const wire = await invoke<PromptSetListWire>(CMD_LIST)
+    const wire = await invoke<PromptSetListWire>(CMD_LIST, { kind })
     return { sets: wire.sets, workTierAvailable: wire.work_tier_available, variables: wire.variables, error: null }
   } catch (err) {
     if (isIpcError(err)) return { sets: null, workTierAvailable: false, variables: null, error: err }
@@ -134,11 +136,12 @@ export async function promptSetList(): Promise<{
  */
 export async function promptSetCreate(
   tier: PromptSetTier,
+  kind: PromptSetKind,
   name: string,
   body: string,
 ): Promise<{ id: number | null; warnings: PromptSetWarningsWire | null; error: IpcError | null }> {
   try {
-    const wire = await invoke<PromptSetCreateWire>(CMD_CREATE, { tier, name, body })
+    const wire = await invoke<PromptSetCreateWire>(CMD_CREATE, { tier, kind, name, body })
     return { id: wire.id, warnings: wire.warnings, error: null }
   } catch (err) {
     if (isIpcError(err)) return { id: null, warnings: null, error: err }
@@ -152,9 +155,14 @@ export async function promptSetCreate(
 }
 
 /** Đổi TÊN của bộ `(tier, id)`. Không ném. */
-export async function promptSetRename(tier: PromptSetTier, id: number, newName: string): Promise<IpcError | null> {
+export async function promptSetRename(
+  tier: PromptSetTier,
+  kind: PromptSetKind,
+  id: number,
+  newName: string,
+): Promise<IpcError | null> {
   try {
-    await invoke(CMD_RENAME, { tier, id, newName })
+    await invoke(CMD_RENAME, { tier, kind, id, newName })
     return null
   } catch (err) {
     if (isIpcError(err)) return err
@@ -174,11 +182,12 @@ export async function promptSetRename(tier: PromptSetTier, id: number, newName: 
  */
 export async function promptSetUpdateBody(
   tier: PromptSetTier,
+  kind: PromptSetKind,
   id: number,
   body: string,
 ): Promise<{ warnings: PromptSetWarningsWire | null; error: IpcError | null }> {
   try {
-    const wire = await invoke<PromptSetWarningsWire>(CMD_UPDATE_BODY, { tier, id, body })
+    const wire = await invoke<PromptSetWarningsWire>(CMD_UPDATE_BODY, { tier, kind, id, body })
     return { warnings: wire, error: null }
   } catch (err) {
     if (isIpcError(err)) return { warnings: null, error: err }
@@ -196,9 +205,9 @@ export async function promptSetUpdateBody(
  * Global đó hiệu lực trở lại ngay ở lượt [`promptSetList`] tiếp theo (I/O Matrix spec 4.4
  * "Delete a shadowing Work set").
  */
-export async function promptSetDelete(tier: PromptSetTier, id: number): Promise<IpcError | null> {
+export async function promptSetDelete(tier: PromptSetTier, kind: PromptSetKind, id: number): Promise<IpcError | null> {
   try {
-    await invoke(CMD_DELETE, { tier, id })
+    await invoke(CMD_DELETE, { tier, kind, id })
     return null
   } catch (err) {
     if (isIpcError(err)) return err
@@ -274,9 +283,9 @@ export type PromptSetExportResult =
   | { outcome: 'error'; error: IpcError }
 
 /** Mở hộp thoại LƯU rồi xuất bộ `(tier, id)`. **Không bao giờ ném.** */
-export async function promptSetExport(tier: PromptSetTier, id: number): Promise<PromptSetExportResult> {
+export async function promptSetExport(tier: PromptSetTier, kind: PromptSetKind, id: number): Promise<PromptSetExportResult> {
   try {
-    const path = await invoke<unknown>(CMD_EXPORT, { tier, id })
+    const path = await invoke<unknown>(CMD_EXPORT, { tier, kind, id })
     if (path === null) return { outcome: 'cancelled' }
     if (typeof path !== 'string' || path === '') {
       console.error(`[promptset] \`${CMD_EXPORT}\` tra ve mot duong dan khong hop le: ${JSON.stringify(path)}`)
@@ -296,6 +305,7 @@ export async function promptSetExport(tier: PromptSetTier, id: number): Promise<
 
 export type PromptSetExportFile = {
   tier: PromptSetTier
+  kind: PromptSetKind
   id: number
   file_name: string | null
   path: string | null
@@ -312,16 +322,17 @@ function isExportFile(value: unknown): value is PromptSetExportFile {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
   const tierOk = v.tier === 'global' || v.tier === 'work'
+  const kindOk = v.kind === 'translate' || v.kind === 'proofread'
   const idOk = typeof v.id === 'number' && Number.isInteger(v.id)
   const nameOk = v.file_name === null || typeof v.file_name === 'string'
   const pathOk = v.path === null || typeof v.path === 'string'
   const errOk = v.error === null || isIpcError(v.error)
   const exclusive = v.error === null ? typeof v.path === 'string' : v.path === null
-  return tierOk && idOk && nameOk && pathOk && errOk && exclusive
+  return tierOk && kindOk && idOk && nameOk && pathOk && errOk && exclusive
 }
 
 export async function promptSetExportMany(
-  sets: ReadonlyArray<{ tier: PromptSetTier; id: number }>,
+  sets: ReadonlyArray<{ tier: PromptSetTier; kind: PromptSetKind; id: number }>,
 ): Promise<PromptSetExportManyResult> {
   try {
     const wire = await invoke<unknown>(CMD_EXPORT_MANY, { sets })
@@ -354,6 +365,7 @@ export type PromptSetImportTierPreview = {
  * một tuỳ chọn bị vô hiệu hoá rỗng). */
 export type PromptSetImportPreview = {
   file_name: string
+  set_kind: PromptSetKind
   name: string
   body: string
   warnings: PromptSetWarningsWire
@@ -377,6 +389,7 @@ function isPromptSetImportPreview(value: unknown): value is PromptSetImportPrevi
   const v = value as Partial<PromptSetImportPreview>
   return (
     typeof v.file_name === 'string' &&
+    (v.set_kind === 'translate' || v.set_kind === 'proofread') &&
     typeof v.name === 'string' &&
     typeof v.body === 'string' &&
     typeof v.warnings === 'object' &&

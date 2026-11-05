@@ -24,7 +24,7 @@ use auratranslate_lib::commands::project::{OpenWork, OpenWorkState, create_work_
 use auratranslate_lib::commands::promptset::prompt_set_create;
 use auratranslate_lib::commands::segment::read_open_chapter_segments;
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, write_field};
-use auratranslate_lib::core::promptset::PromptSetTier;
+use auratranslate_lib::core::promptset::{PromptSetKind, PromptSetTier};
 use auratranslate_lib::core::store::{Store, StoreSpec};
 use tauri::Manager as _;
 use tauri::test::{MockRuntime, mock_builder, mock_context, noop_assets};
@@ -197,6 +197,7 @@ impl Harness {
             Some(&global),
             Some(&open),
             PromptSetTier::Global,
+            PromptSetKind::Translate,
             "Plain",
             "{{source_segment}}",
         )

@@ -71,7 +71,7 @@ use auratranslate_lib::core::ai::client::{
 };
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, write_field};
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
-use auratranslate_lib::core::promptset::PromptSetTier;
+use auratranslate_lib::core::promptset::{PromptSetKind, PromptSetTier};
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 use auratranslate_lib::ports::translation_provider::{
     TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
@@ -710,6 +710,7 @@ fn translate_a_segment_sends_the_string_the_producer_recorded_byte_for_byte() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )
@@ -923,6 +924,7 @@ fn segment_cut_from_translation_is_refused_before_the_request_is_built() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )
@@ -1006,6 +1008,7 @@ fn segment_not_in_chapter_reuses_the_existing_ai_prompt_segment_not_in_chapter_k
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )
@@ -1057,6 +1060,7 @@ fn a_blank_temperature_and_max_tokens_does_not_yield_not_configured() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )
@@ -1117,6 +1121,7 @@ fn an_explicit_default_at_either_tier_leaves_temperature_and_max_tokens_unsent()
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )
@@ -1194,6 +1199,7 @@ fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_s
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )
@@ -1304,6 +1310,7 @@ fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "First",
         "{{source_segment}}",
     )
@@ -1312,6 +1319,7 @@ fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Second",
         "Da doi bo: {{source_segment}}",
     )
@@ -2583,6 +2591,7 @@ fn resend_fixture(tag: &str, configure: bool) -> ResendFixture {
         Some(&global),
         Some(&open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "Dich: {{source_segment}}",
     )
@@ -2828,6 +2837,7 @@ fn a_record_reassembled_after_a_send_carries_no_stale_sent_facts_and_a_late_stam
         Some(&fx.global),
         Some(&fx.open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Other",
         "Doi bo: {{source_segment}}",
     )
@@ -2882,6 +2892,7 @@ fn create_plain_set(global: &Store, open: &OpenWork) {
         Some(global),
         Some(open),
         PromptSetTier::Global,
+        PromptSetKind::Translate,
         "Plain",
         "{{source_segment}}",
     )

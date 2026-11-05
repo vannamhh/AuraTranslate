@@ -765,7 +765,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười lăm bước, và đích là phiên bản 15.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười sáu bước, và đích là phiên bản 16.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -872,7 +872,28 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
         to_version: 15,
         sql: PINNED_ENTRY_SOURCE_VERSION_DDL,
     },
+    Migration {
+        to_version: 16,
+        sql: PROMPT_SET_KIND_DDL,
+    },
 ];
+
+/// Global step 16 (AD-68 rule 1, 9): adds `prompt_set.kind`; name uniqueness becomes per kind.
+pub const PROMPT_SET_KIND_DDL: &str = "\
+ALTER TABLE prompt_set ADD COLUMN kind TEXT NOT NULL DEFAULT 'translate' CHECK (kind IN ('translate', 'proofread'));
+DROP INDEX idx_prompt_set_name;
+CREATE UNIQUE INDEX idx_prompt_set_kind_name ON prompt_set (kind, name);";
+
+/// Project step 43 (AD-68 rule 1, 3, 7, 9): step 16 plus the Work-level proofread instruction
+/// columns and the `proof_scan` trace columns.
+pub const PROMPT_SET_KIND_PROJECT_DDL: &str = "\
+ALTER TABLE prompt_set ADD COLUMN kind TEXT NOT NULL DEFAULT 'translate' CHECK (kind IN ('translate', 'proofread'));
+DROP INDEX idx_prompt_set_name;
+CREATE UNIQUE INDEX idx_prompt_set_kind_name ON prompt_set (kind, name);
+ALTER TABLE work ADD COLUMN chosen_proofread_prompt_set_name TEXT;
+ALTER TABLE work ADD COLUMN proofread_instruction_off INTEGER NOT NULL DEFAULT 0 CHECK (proofread_instruction_off IN (0, 1));
+ALTER TABLE proof_scan ADD COLUMN instruction_set_name TEXT;
+ALTER TABLE proof_scan ADD COLUMN instruction_set_tier TEXT CHECK (instruction_set_tier IN ('global', 'work'));";
 
 /// Adds `pinned_entry.source_version`: the `dict_source.source_version` the pin was taken
 /// from. `NULL` for pins made before this step or whose source was not loaded.
@@ -1363,7 +1384,7 @@ CREATE TABLE ai_config (
 /// một `id` đã về hưu (bị xoá, hoặc đổi tên rồi tên cũ được người khác dùng lại) không bao
 /// giờ được tái dùng.
 ///
-/// **`UNIQUE INDEX idx_prompt_set_name`** — cưỡng chế "trùng tên trong CÙNG tầng bị từ
+/// **`UNIQUE INDEX idx_prompt_set_name`** (bước đầu; từ bước kind thay bằng `idx_prompt_set_kind_name ON (kind, name)`, nên "cùng tầng" nghĩa là cùng tầng VÀ cùng loại) — cưỡng chế "trùng tên trong CÙNG tầng bị từ
 /// chối" (I/O Matrix) ở tầng SQL, lưới cuối sau lớp Rust
 /// (`core::promptset::store::create`/`rename` bắt vi phạm này bằng
 /// `core::store::is_unique_constraint_violation` ngay tại chỗ `INSERT`/`UPDATE` trượt, cùng
@@ -2133,7 +2154,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Bốn mươi mốt bước, và đích là phiên bản 42.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Bốn mươi hai bước, và đích là phiên bản 43.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2529,6 +2550,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 42,
         sql: CHAPTER_STARTED_BACKFILL_DDL,
+    },
+    Migration {
+        to_version: 43,
+        sql: PROMPT_SET_KIND_PROJECT_DDL,
     },
 ];
 

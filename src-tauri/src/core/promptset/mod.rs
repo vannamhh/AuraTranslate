@@ -69,12 +69,38 @@ pub struct PromptSet {
     /// không có gì để gửi lại làm định danh. Không có hàng SQL nào cần sửa: `id` đã tồn
     /// tại trong bảng từ Task 3 của Phase 1, chỉ là không được `SELECT`.
     pub id: i64,
-    /// Tên bộ — khoá ghi đè hai tầng (Quyết định #1). `UNIQUE` trong bảng
-    /// (`idx_prompt_set_name`), rào rỗng 25 điểm mã `White_Space`.
+    /// Tên bộ — khoá ghi đè hai tầng (Quyết định #1). `UNIQUE` trong bảng theo từng loại
+    /// (`idx_prompt_set_kind_name`), rào rỗng 25 điểm mã `White_Space`.
     pub name: String,
     /// Thân prompt — văn bản tự do, có thể mang `{{...}}`. Không bao giờ bị từ chối vì nội
     /// dung của nó (§Always spec 4.4) — chỉ [`vars::scan_markers`] soi nó, không từ chối.
     pub body: String,
+}
+
+/// Prompt set kind (AD-68 rule 1); always an explicit parameter, never defaulted in Rust.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+pub enum PromptSetKind {
+    #[serde(rename = "translate")]
+    Translate,
+    #[serde(rename = "proofread")]
+    Proofread,
+}
+
+impl PromptSetKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            PromptSetKind::Translate => "translate",
+            PromptSetKind::Proofread => "proofread",
+        }
+    }
+}
+
+impl fmt::Display for PromptSetKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Nhãn tầng của MỘT bộ đã phân giải — kiểu RIÊNG, không tái dùng `core::scope::Tier`,

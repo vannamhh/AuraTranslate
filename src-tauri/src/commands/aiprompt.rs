@@ -42,7 +42,7 @@ use crate::core::ai::rag::{
 };
 use crate::core::glossary::{GlossarySnapshot, GlossaryTier};
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::promptset::{PromptSetTier, resolve_two_tiers};
+use crate::core::promptset::{PromptSetKind, PromptSetTier, resolve_two_tiers};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
 use crate::core::tm::{PairSide, TmTier};
@@ -530,7 +530,12 @@ pub fn assemble_and_record_prompt_with_tm(
         .map(|w| w.scope.clone())
         .unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
-    let mut resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
+    let mut resolved = resolve_two_tiers(
+        &resolver,
+        global_store,
+        work_store,
+        PromptSetKind::Translate,
+    )?;
 
     let Some(name) = prompt_set_name.map(str::trim).filter(|n| !n.is_empty()) else {
         return Err(no_set_selected());
@@ -755,7 +760,12 @@ pub fn prepare_operation_prompt(
         .map(|w| w.scope.clone())
         .unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
-    let mut resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
+    let mut resolved = resolve_two_tiers(
+        &resolver,
+        global_store,
+        work_store,
+        PromptSetKind::Translate,
+    )?;
 
     let Some(name) = prompt_set_name.map(str::trim).filter(|n| !n.is_empty()) else {
         return Err(no_set_selected());
