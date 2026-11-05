@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, useTemplateRef } from 'vue'
+import { computed, nextTick, useId, useTemplateRef } from 'vue'
 import DropdownMenu from './DropdownMenu.vue'
 
 export interface SelectOption {
@@ -7,8 +7,6 @@ export interface SelectOption {
   label: string
   disabled?: boolean
 }
-
-let groupCounter = 0
 
 const props = defineProps<{
   modelValue: string
@@ -31,8 +29,8 @@ const emit = defineEmits<{
 }>()
 
 const menu = useTemplateRef<InstanceType<typeof DropdownMenu>>('menu')
-groupCounter += 1
-const groupName = computed(() => props.name ?? `select-menu-${groupCounter}`)
+const fallbackName = `select-menu-${useId()}`
+const groupName = computed(() => props.name ?? fallbackName)
 
 const pickedLabel = computed(() => props.options.find((option) => option.value === props.modelValue)?.label ?? null)
 const shownText = computed(() => props.triggerText ?? pickedLabel.value ?? props.placeholder ?? '')

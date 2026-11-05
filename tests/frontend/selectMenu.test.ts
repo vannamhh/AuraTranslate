@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { defineComponent } from 'vue'
 import { mount } from '@vue/test-utils'
 import SelectMenu from '../../src/SelectMenu.vue'
 
@@ -115,6 +116,19 @@ describe('SelectMenu.vue', () => {
     first!.open = true
     first!.dispatchEvent(new Event('toggle'))
     expect(first!.open).toBe(true)
+  })
+
+  it('two unnamed menus in one app get different radio group names', () => {
+    wrapper = mount(
+      defineComponent({
+        components: { SelectMenu },
+        setup: () => ({ OPTIONS }),
+        template: `<div><SelectMenu model-value="b" :options="OPTIONS" variant="field" label="One" /><SelectMenu model-value="a" :options="OPTIONS" variant="field" label="Two" /></div>`,
+      }),
+      { attachTo: document.body },
+    )
+    const [first, other] = Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-dropdown-menu]'))
+    expect(first!.querySelector('input')!.name).not.toBe(other!.querySelector('input')!.name)
   })
 
   it('disabled blocks opening and marks the trigger', async () => {
