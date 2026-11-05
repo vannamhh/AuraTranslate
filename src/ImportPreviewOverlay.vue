@@ -1224,16 +1224,16 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               <div class="ip-summary-line">
                 <dt>{{ t('mode.library.preview.summary_source_lang') }}</dt>
                 <dd class="ip-summary-lang">
-                  <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
-                  <span data-ip-source-lang-label>{{ destinationSourceLangLabel }}</span>
                   <SourceLangChips
                     v-if="importPreviewDestinationWorkId === null"
-                    :model-value="importPreviewSourceLangAuto ? '' : importPreviewPendingSourceLang"
+                    :model-value="importPreviewPendingSourceLang"
                     name="import-preview-source-lang"
                     :include-auto="false"
                     data-ip-source-lang
                     @update:model-value="onPreviewSourceLangChange"
                   />
+                  <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
+                  <span v-else data-ip-source-lang-label>{{ destinationSourceLangLabel }}</span>
                 </dd>
               </div>
             </dl>
@@ -2723,7 +2723,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-cleanup-add {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
 }

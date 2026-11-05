@@ -136,7 +136,7 @@ describe('Story 12-6: import preview screens', () => {
     await expectFocusOnAttribute('data-import-preview-open')
   })
 
-  it('"Tự nhận" is the default chip: pasted Chinese is detected, the label says so, and the preview chips re-run it with a manual language', async () => {
+  it('"Tự phát hiện" is the default chip: pasted Chinese is detected and lights its chip, and the preview chips re-run it with a manual language', async () => {
     await realClick(await $(OPEN_BTN))
     const form = await $(FORM)
     await form.waitForDisplayed({ timeout: 10_000 })
@@ -144,25 +144,25 @@ describe('Story 12-6: import preview screens', () => {
       await browser.execute(
         () => document.querySelector('[data-import-source-lang] .lang-chip--on')?.textContent?.trim() ?? '',
       ),
-    ).toBe('Tự nhận')
+    ).toBe('Tự phát hiện')
     await (await fieldByLabel(form, 0)).setValue(`e2e-126-auto-${RUN_TAG}`)
     await (await form.$('textarea')).setValue('他走进房间。她笑了！你好吗？')
     await realClick((await form.$$('[data-import-preview-open]'))[0])
     await $(SCREEN).waitForDisplayed({ timeout: 30_000 })
 
-    const langLine = () =>
+    const litChip = () =>
       browser.execute(
-        () => (document.querySelector('[data-ip-source-lang-label]')?.textContent || '').trim(),
+        () => (document.querySelector('[data-ip-source-lang] .lang-chip--on')?.textContent || '').trim(),
       )
-    expect(await langLine()).toContain('Tiếng Trung (tự nhận)')
+    expect(await litChip()).toBe('Tiếng Trung')
+    expect(await $('[data-ip-source-lang-label]').isExisting()).toBe(false)
 
     const englishChip = await (await $('[data-ip-source-lang] input[type="radio"][value="en"]')).$('..')
     await realClick(englishChip)
-    await browser.waitUntil(async () => !(await langLine()).includes('(tự nhận)'), {
+    await browser.waitUntil(async () => (await litChip()) === 'Tiếng Anh', {
       timeout: 15_000,
-      timeoutMsg: 'label kept "(tự nhận)" after choosing a manual language',
+      timeoutMsg: 'the English chip did not light after choosing it',
     })
-    expect(await langLine()).toContain('Tiếng Anh')
 
     await realClick(await $(`${SCREEN} .ip-actions .ip-act:not(.ip-act-primary)`))
     await $(SCREEN).waitForExist({ reverse: true, timeout: 10_000 })

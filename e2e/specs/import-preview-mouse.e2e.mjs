@@ -142,9 +142,9 @@ describe('Story 14-6: URL import preview block tier by pointer', () => {
 
     const footerIndex = startList.findIndex((b) => b.text.includes('CHANTRANG'))
     await clickBlock(adIndex + 1)
-    await clickAction('Đầu vùng giữ')
+    await clickAction('Giữ từ đây')
     await clickBlock(footerIndex - 1)
-    await clickAction('Cuối vùng giữ')
+    await clickAction('Giữ đến đây')
     await browser.waitUntil(async () => (await settledBlockStates())[footerIndex].dropped, { timeout: 15_000 })
     const after = await settledBlockStates()
     expect(after[adIndex].dropped).toBe(true)

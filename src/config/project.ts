@@ -337,7 +337,7 @@ export type EncodingCandidateWire = {
 
 /** Kết quả một lượt xem trước bảng mã — khớp `commands::project::ImportEncodingPreview`. */
 export type ImportEncodingPreview = {
-  /** Ngôn ngữ nguồn cụ thể (`zh`/`en`) Rust đã dùng; với chip "Tự nhận" đây là giá trị đã đoán. */
+  /** Ngôn ngữ nguồn cụ thể (`zh`/`en`) Rust đã dùng; với chip "Tự phát hiện" đây là giá trị đã đoán. */
   source_lang: string
   /** `true` khi `source_lang` do Rust tự nhận từ nội dung. */
   source_lang_auto: boolean

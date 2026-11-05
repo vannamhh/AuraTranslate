@@ -570,7 +570,7 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
 
     const chips = screen.get('[data-url-import-source-lang]')
     expect(chips.attributes('role')).toBe('radiogroup')
-    expect(chips.findAll('.lang-chip').map((c) => c.text())).toEqual(['Tự nhận', 'Tiếng Trung', 'Tiếng Anh'])
+    expect(chips.findAll('.lang-chip').map((c) => c.text())).toEqual(['Tự phát hiện', 'Tiếng Trung', 'Tiếng Anh'])
     await chips.get('input[value="en"]').setValue(true)
 
     const genreMenu = screen.get('[data-url-import-genre]')

@@ -54,7 +54,7 @@ async function freshState() {
   return import('../../src/importPreviewState')
 }
 
-describe('chip Tự nhận trong importPreviewState', () => {
+describe('chip Tự phát hiện trong importPreviewState', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('lượt xem trước đầu gửi auto; mọi lệnh sau gửi giá trị cụ thể Rust trả về, không bao giờ auto', async () => {
