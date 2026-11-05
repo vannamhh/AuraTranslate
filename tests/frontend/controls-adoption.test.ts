@@ -163,6 +163,17 @@ describe('controls adopt the ui-* layer', () => {
     })
   }
 
+  it('no template uses a native <select>: pickers go through SelectMenu', () => {
+    const native: string[] = []
+    for (const file of FILES) {
+      const { descriptor } = parse(readFileSync(join(__dirname, '../..', file), 'utf8'), { filename: file })
+      if (descriptor.template) walk(descriptor.template.ast as unknown as Node, [], (node) => {
+        if (node.tag === 'select') native.push(`${file}:${node.loc.start.line}`)
+      })
+    }
+    expect(native).toEqual([])
+  })
+
   it('every SHAPE_EXCEPTIONS key still exempts a scoped rule in its file', () => {
     const live = new Set(FILES.flatMap((file) => [...shapeOffences(file).exempted]))
     expect(Object.keys(SHAPE_EXCEPTIONS).filter((key) => !live.has(key))).toEqual([])

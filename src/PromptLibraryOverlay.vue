@@ -34,6 +34,8 @@ import { useSelectionSurface } from './panels/selectionContract'
 import { promptLibraryOverInspector, promptLibraryOverlayIsOpen, setPromptLibraryLeaveCheck } from './promptLibraryState'
 import { splitPromptBody } from './promptMarkers'
 import PromptTemplatePicker from './PromptTemplatePicker.vue'
+import SelectMenu from './SelectMenu.vue'
+import type { SelectOption } from './SelectMenu.vue'
 // Story 4.5 review fix — kết quả lượt Nhập gần nhất (`prompt.import.confirm`) không được hiện
 // ở đâu cả: lớp phủ Xem trước tự đóng ngay khi thành công, nên đây (màn Thư viện, vẫn mở bên
 // dưới) là chỗ RẺ NHẤT để nói cho người dùng biết lượt nhập đã tạo/thay/không ghi gì.
@@ -345,16 +347,29 @@ const missingWorkName = computed(() => {
 })
 const workChoiceOpen = computed(() => proofreadInstructionChoice.value?.work != null)
 
-function onGlobalChoiceChange(event: Event): void {
-  const target = event.target
-  if (!(target instanceof HTMLSelectElement)) return
-  void chooseProofreadGlobal(target.value === '' ? null : target.value)
+const globalChoiceOptions = computed<SelectOption[]>(() => [
+  { value: '', label: t('prompt.library.choice_global_none') },
+  ...(missingGlobalName.value === null
+    ? []
+    : [{ value: missingGlobalName.value, label: t('prompt.library.choice_missing_option', { name: missingGlobalName.value }) }]),
+  ...(unlistedGlobalName.value === null ? [] : [{ value: unlistedGlobalName.value, label: unlistedGlobalName.value }]),
+  ...globalChoiceNames.value.map((name) => ({ value: name, label: name })),
+])
+
+const workChoiceOptions = computed<SelectOption[]>(() => [
+  { value: 'follow', label: t('prompt.library.choice_work_follow') },
+  { value: 'off', label: t('prompt.library.choice_work_off') },
+  ...(missingWorkName.value === null
+    ? []
+    : [{ value: NAMED_PREFIX + missingWorkName.value, label: t('prompt.library.choice_missing_option', { name: missingWorkName.value }) }]),
+  ...workChoiceNames.value.map((name) => ({ value: NAMED_PREFIX + name, label: name })),
+])
+
+function onGlobalChoiceChange(value: string): void {
+  void chooseProofreadGlobal(value === '' ? null : value)
 }
 
-function onWorkChoiceChange(event: Event): void {
-  const target = event.target
-  if (!(target instanceof HTMLSelectElement)) return
-  const value = target.value
+function onWorkChoiceChange(value: string): void {
   if (value === 'off') void chooseProofreadWork('off', null)
   else if (value.startsWith(NAMED_PREFIX)) void chooseProofreadWork('named', value.slice(NAMED_PREFIX.length))
   else void chooseProofreadWork('follow_global', null)
@@ -445,11 +460,6 @@ async function switchKind(kind: PromptSetKind): Promise<void> {
   templateOpen.value = false
   clearPromptSetActionFeedback()
   await (kind === 'proofread' ? loadProofreadInstructions() : loadPromptSets())
-}
-
-function onKindChange(kind: PromptSetKind, event: Event): void {
-  const target = event.target
-  if (target instanceof HTMLInputElement && target.checked) void switchKind(kind)
 }
 
 watch(promptImportOverlayIsOpen, (open) => {
@@ -753,23 +763,19 @@ function onEscape(): void {
         </form>
       </header>
 
-      <fieldset class="pl-seg pl-kind" role="radiogroup" :aria-label="t('prompt.library.kind_label')" data-prompt-kind>
-        <legend class="pl-seg-legend">{{ t('prompt.library.kind_label') }}</legend>
-        <div class="ui-seg">
-          <label v-for="opt in KIND_OPTIONS" :key="opt.value" class="pl-pill ui-seg__item">
-            <input
-              type="radio"
-              class="pl-sr-only"
-              name="pl-kind"
-              :value="opt.value"
-              :data-prompt-kind-option="opt.value"
-              :checked="libraryKind === opt.value"
-              @change="onKindChange(opt.value, $event)"
-            />
+      <div class="pl-kind" role="tablist" :aria-label="t('prompt.library.kind_label')" data-prompt-kind>
+        <form v-for="opt in KIND_OPTIONS" :key="opt.value" class="pl-tab-form" @submit.prevent="switchKind(opt.value)">
+          <button
+            type="submit"
+            role="tab"
+            class="ui-tab"
+            :aria-selected="libraryKind === opt.value"
+            :data-prompt-kind-option="opt.value"
+          >
             {{ t(opt.labelKey) }}
-          </label>
-        </div>
-      </fieldset>
+          </button>
+        </form>
+      </div>
 
       <div v-if="promptSetLoadError === null && !promptSetLoading" class="pl-bar">
         <fieldset class="pl-seg" role="radiogroup" :aria-label="t('prompt.library.scope_label')">
@@ -819,30 +825,36 @@ function onEscape(): void {
       <template v-else>
       <section v-if="isProofread" class="pl-choice" data-proofread-choice>
         <h3 class="pl-sh">{{ t('prompt.library.choice_heading') }}</h3>
-        <label class="pl-field">
+        <div class="pl-field">
           <span class="pl-field-label">{{ t('prompt.library.choice_global_label') }}</span>
-          <select class="pl-input ui-field ui-field--lg ui-field--medium" data-proofread-choice-global :value="globalChoiceValue" @change="onGlobalChoiceChange">
-            <option value="">{{ t('prompt.library.choice_global_none') }}</option>
-            <option v-if="missingGlobalName !== null" :value="missingGlobalName">{{ t('prompt.library.choice_missing_option', { name: missingGlobalName }) }}</option>
-            <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
-            <option v-if="unlistedGlobalName !== null" :value="unlistedGlobalName">{{ unlistedGlobalName }}</option>
-            <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
-            <option v-for="name in globalChoiceNames" :key="name" :value="name">{{ name }}</option>
-          </select>
-        </label>
+          <SelectMenu
+            variant="field"
+            class="ui-field--medium"
+            data-proofread-choice-global
+            option-attr="data-proofread-choice-option"
+            :model-value="globalChoiceValue"
+            :options="globalChoiceOptions"
+            :label="t('prompt.library.choice_global_label')"
+            @change="onGlobalChoiceChange"
+          />
+        </div>
         <p v-if="missingGlobalName !== null" class="pl-alert" role="status" data-proofread-choice-missing="global">
           {{ t('prompt.library.choice_missing_note', { name: missingGlobalName }) }}
         </p>
-        <label class="pl-field">
+        <div class="pl-field">
           <span class="pl-field-label">{{ t('prompt.library.choice_work_label') }}</span>
-          <select class="pl-input ui-field ui-field--lg ui-field--medium" data-proofread-choice-work :value="workChoiceValue" :disabled="!workChoiceOpen" @change="onWorkChoiceChange">
-            <option value="follow">{{ t('prompt.library.choice_work_follow') }}</option>
-            <option value="off">{{ t('prompt.library.choice_work_off') }}</option>
-            <option v-if="missingWorkName !== null" :value="NAMED_PREFIX + missingWorkName">{{ t('prompt.library.choice_missing_option', { name: missingWorkName }) }}</option>
-            <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
-            <option v-for="name in workChoiceNames" :key="name" :value="NAMED_PREFIX + name">{{ name }}</option>
-          </select>
-        </label>
+          <SelectMenu
+            variant="field"
+            class="ui-field--medium"
+            data-proofread-choice-work
+            option-attr="data-proofread-choice-option"
+            :model-value="workChoiceValue"
+            :options="workChoiceOptions"
+            :label="t('prompt.library.choice_work_label')"
+            :disabled="!workChoiceOpen"
+            @change="onWorkChoiceChange"
+          />
+        </div>
         <p v-if="!workChoiceOpen" class="pl-note">{{ t('prompt.library.choice_no_work') }}</p>
         <p v-if="missingWorkName !== null" class="pl-alert" role="status" data-proofread-choice-missing="work">
           {{ t('prompt.library.choice_missing_note', { name: missingWorkName }) }}
@@ -1429,9 +1441,21 @@ function onEscape(): void {
   border-bottom: 1px solid var(--color-outline);
 }
 
-.pl-kind,
+.pl-kind {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 3);
+  padding-bottom: 6px; /* aura-allow-spacing: 1px bottom border sits inside the 7px inset */
+  margin-bottom: var(--space-panel-block);
+  border-bottom: 1px solid var(--color-outline);
+}
+
 .pl-choice {
   margin-bottom: var(--space-panel-block);
+}
+
+.pl-tab-form {
+  margin: 0;
 }
 
 .pl-seg {

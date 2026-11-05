@@ -83,8 +83,19 @@ async function openOverlay() {
 }
 
 async function toProofreadTab(wrapper: Awaited<ReturnType<typeof openOverlay>>['wrapper']) {
-  await wrapper.find('[data-prompt-kind-option="proofread"]').setValue(true)
+  await wrapper.find('[data-prompt-kind-option="proofread"]').trigger('click')
   await flushPromises()
+}
+
+type Mounted = Awaited<ReturnType<typeof openOverlay>>['wrapper']
+
+async function pick(wrapper: Mounted, box: 'global' | 'work', value: string) {
+  await wrapper.find(`[data-proofread-choice-${box}] [data-proofread-choice-option="${value}"]`).setValue(true)
+  await flushPromises()
+}
+
+function shown(wrapper: Mounted, box: 'global' | 'work'): string {
+  return wrapper.find(`[data-proofread-choice-${box}] .menu-label`).text()
 }
 
 describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
@@ -102,7 +113,7 @@ describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
     await flushPromises()
     await wrapper.find('.pl-delete-form').trigger('submit')
     await flushPromises()
-    await wrapper.find('[data-prompt-kind-option="translate"]').setValue(true)
+    await wrapper.find('[data-prompt-kind-option="translate"]').trigger('click')
     await flushPromises()
 
     expect(deleteMock).toHaveBeenCalledWith('global', 'proofread', 2)
@@ -144,16 +155,13 @@ describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
     await toProofreadTab(wrapper)
     proofreadChoiceGetMock.mockClear()
 
-    await wrapper.find('[data-proofread-choice-global]').setValue('')
-    await flushPromises()
+    await pick(wrapper, 'global', '')
     expect(setGlobalMock).toHaveBeenCalledWith(null)
 
-    await wrapper.find('[data-proofread-choice-work]').setValue('off')
-    await flushPromises()
+    await pick(wrapper, 'work', 'off')
     expect(setWorkMock).toHaveBeenLastCalledWith(null, true)
 
-    await wrapper.find('[data-proofread-choice-work]').setValue('named:Soát câu')
-    await flushPromises()
+    await pick(wrapper, 'work', 'named:Soát câu')
     expect(setWorkMock).toHaveBeenLastCalledWith('Soát câu', false)
     expect(proofreadChoiceGetMock).toHaveBeenCalledTimes(3)
     wrapper.unmount()
@@ -166,10 +174,8 @@ describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
     })
     const { wrapper } = await openOverlay()
     await toProofreadTab(wrapper)
-    const g = wrapper.find('[data-proofread-choice-global]').element as HTMLSelectElement
-    const w = wrapper.find('[data-proofread-choice-work]').element as HTMLSelectElement
-    expect(g.selectedOptions[0].textContent).toBe('Không chọn')
-    expect(w.selectedOptions[0].textContent).toBe('Theo Toàn cục')
+    expect(shown(wrapper, 'global')).toBe('Không chọn')
+    expect(shown(wrapper, 'work')).toBe('Theo Toàn cục')
     expect(wrapper.find('[data-proofread-choice-missing]').exists()).toBe(false)
     wrapper.unmount()
   })
@@ -192,8 +198,7 @@ describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
     const { renamePromptSet } = await import('../../src/promptSetState')
     await renamePromptSet('global', 2, 'Soát mới', 'proofread')
     await flushPromises()
-    const g = wrapper.find('[data-proofread-choice-global]').element as HTMLSelectElement
-    expect(g.selectedOptions[0].textContent).toBe('Soát mới')
+    expect(shown(wrapper, 'global')).toBe('Soát mới')
     wrapper.unmount()
   })
 
@@ -201,8 +206,7 @@ describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
     setGlobalMock.mockResolvedValueOnce({ code: 'prompt_set.invalid_name', message_key: 'err.prompt_set.invalid_name', params: {}, retryable: false })
     const { wrapper } = await openOverlay()
     await toProofreadTab(wrapper)
-    await wrapper.find('[data-proofread-choice-global]').setValue('')
-    await flushPromises()
+    await pick(wrapper, 'global', '')
     expect(wrapper.find('[data-proofread-choice-error]').exists()).toBe(true)
     wrapper.unmount()
   })
@@ -211,7 +215,7 @@ describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
     proofreadChoiceGetMock.mockResolvedValue({ choice: { global: null, work: null }, error: null })
     const { wrapper } = await openOverlay()
     await toProofreadTab(wrapper)
-    expect(wrapper.find('[data-proofread-choice-work]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-proofread-choice-work] summary').attributes('aria-disabled')).toBe('true')
     wrapper.unmount()
   })
 
@@ -270,9 +274,7 @@ describe('thư viện prompt — thẻ chỉ dẫn Proofreader (9-15)', () => {
     const { wrapper } = await openOverlay()
     await toProofreadTab(wrapper)
 
-    const select = wrapper.find('[data-proofread-choice-global]')
-    const selected = select.findAll('option').find((o) => (o.element as HTMLOptionElement).selected)
-    expect(selected?.text()).toBe('B')
+    expect(shown(wrapper, 'global')).toBe('B')
     wrapper.unmount()
   })
 

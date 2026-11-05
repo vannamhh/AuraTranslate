@@ -2509,6 +2509,7 @@ const HANDLER_TABLE = {
   'src/PromptLibraryOverlay.vue::onEscape': { ids: ['prompt.library.close'] },
   'src/PromptLibraryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/PromptLibraryOverlay.vue::selectRow': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::switchKind': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onOpenCreate': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onOpenTemplates': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptTemplatePicker.vue::onPreview': { nonCommand: R_SUBMIT_DIRECT },
