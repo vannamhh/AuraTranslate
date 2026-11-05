@@ -120,6 +120,7 @@ pub mod wire;
 
 mod chapter_read;
 mod confirm;
+mod convention_write;
 mod history;
 mod import;
 mod proofread_accept;
@@ -130,6 +131,7 @@ mod targets;
 mod tm_match;
 pub use chapter_read::*;
 pub use confirm::*;
+pub use convention_write::*;
 pub use history::*;
 pub use import::*;
 pub use proofread_accept::*;

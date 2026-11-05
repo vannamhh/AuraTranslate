@@ -1292,7 +1292,7 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
 
 /// Sàn quần thể RIÊNG cho ca trên, trên `src-tauri/src/**` — cùng khuôn `RS_FLOOR` của
 /// `glossary_boundary.rs`.
-const RS_FLOOR_FOR_DIALOG_CHECK: usize = 122;
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 133;
 
 /// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
 /// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
@@ -1494,6 +1494,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "src/commands/glossary.rs",
             "pub fn glossary_list_entries(\n        app: tauri::AppHandle",
             "nap TRON bang glossary_entry ca hai tang (`load_tier`) roi dung mot Vec co toan bo Glossary",
+        ),
+        (
+            "src/commands/convention.rs",
+            "pub fn convention_scan_chapter<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "matches every sentence of the open Chapter, cost scales with Chapter size",
         ),
         (
             "src/commands/segment/wire.rs",
@@ -2175,7 +2180,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
 /// 11 `(async)`): `start_url_import` và `reload_url_import_item`
 /// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     (
         "src/commands/aiconfig.rs",
         3,
@@ -2219,6 +2224,13 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
     ("src/commands/shortcuts.rs", 0, 2, 2, ""),
+    (
+        "src/commands/convention.rs",
+        2,
+        1,
+        1,
+        "`convention_scan_chapter` copies the open Chapter under the lock and matches after releasing it; the two rule shells read or insert one row.",
+    ),
     (
         "src/commands/cleanup.rs",
         5,
@@ -2293,7 +2305,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     // `tm_concordance` is the second `(async)` shell: it reads every pair of both TM tiers.
     // `accept_tm_fuzzy` and `accept_tm_exact` are plain: one pair read by id, then one `UPDATE`.
     // `ai_proofread_accept` and `ai_proofread_revert` are plain: one text splice, then one `UPDATE`.
-    ("src/commands/segment/wire.rs", 22, 2, 2, ""),
+    ("src/commands/segment/wire.rs", 24, 2, 2, ""),
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
@@ -2451,9 +2463,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (115, 69),
+        (119, 70),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         115/69.\n\n\
+         119/70.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -311,6 +311,12 @@ export function hideProofreadStrip(): void {
   hiddenForSegmentId.value = segmentId
 }
 
+/** Hides the Proofreader strip for one sentence so another strip family can take its place there. */
+export function suppressProofreadStripFor(segmentId: number): void {
+  if (state.value === 'scanning' || state.value === 'error' || state.value === 'not_configured') return
+  hiddenForSegmentId.value = segmentId
+}
+
 export function syncProofreadStripHidden(caretSegmentId: number | null): void {
   if (caretSegmentId !== null && hiddenForSegmentId.value !== caretSegmentId) hiddenForSegmentId.value = null
 }
@@ -681,4 +687,29 @@ export function nextProofreadFinding(): void {
 
 export function prevProofreadFinding(): void {
   step(-1)
+}
+
+export type ProofreadMarkPosition = {
+  readonly segmentId: number
+  readonly index: number
+  readonly start: number
+  readonly end: number
+}
+
+/** Every finding still holding its scanned text, in text order across the Chapter. */
+export function proofreadMarkPositions(): ProofreadMarkPosition[] {
+  const list: ProofreadMarkPosition[] = []
+  for (const segment of editorSegments.value) {
+    const entry = results.value.get(segment.id)
+    if (entry === undefined || entry.scannedText !== segment.target_text) continue
+    entry.findings.forEach((finding, index) => list.push({ segmentId: segment.id, index, start: finding.start, end: finding.end }))
+  }
+  return list
+}
+
+/** Points the strip at one finding of the caret sentence and shows the strip if Esc had hidden it. */
+export function focusProofreadFinding(segmentId: number, index: number): void {
+  actionFailure.value = null
+  focus.value = { segmentId, index }
+  if (hiddenForSegmentId.value === segmentId) hiddenForSegmentId.value = null
 }

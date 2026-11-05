@@ -13,7 +13,7 @@ const BROWSE_ALLOWED: [(&str, &str); 2] = [
     ("commands/tm.rs", "prepare_tm_list"),
 ];
 
-const SRC_RS_FLOOR: usize = 120;
+const SRC_RS_FLOOR: usize = 133;
 const POLICY_READ_FLOOR: usize = 5;
 
 fn fn_name(code: &str) -> Option<&str> {

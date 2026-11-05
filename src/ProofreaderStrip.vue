@@ -7,6 +7,14 @@ import { eligibleInlineStrips, proofreaderStripPlace } from './inlineStripEligib
 import type { ProofreaderStripPlace } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
 import { editorCaretSegmentId } from './panels/editorPanelState'
+import {
+  conventionActionError,
+  conventionBusy,
+  conventionCurrent,
+  conventionRevertConfirmed,
+  conventionRevertible,
+  syncConventionStrip,
+} from './conventionState'
 import ProofreadDecisionRatio from './ProofreadDecisionRatio.vue'
 import { commandTitle, shortcutRows } from './config/shortcutsState'
 import type { ProofreadFindingKind } from './config/proofread'
@@ -31,11 +39,58 @@ const props = defineProps<{ place?: ProofreaderStripPlace }>()
 
 const isVisible = computed(() => {
   const top = topmostStrip(eligibleInlineStrips.value)
-  if (top !== 'proofreader' && top !== 'proofreader_summary') return false
+  if (top !== 'proofreader' && top !== 'proofreader_summary' && top !== 'convention') return false
   return props.place === undefined || proofreaderStripPlace.value === props.place
 })
 
-watch(editorCaretSegmentId, (segmentId) => { syncProofreadStripHidden(segmentId) }, { immediate: true })
+const isConvention = computed(() => topmostStrip(eligibleInlineStrips.value) === 'convention')
+
+watch(
+  editorCaretSegmentId,
+  (segmentId) => {
+    syncProofreadStripHidden(segmentId)
+    syncConventionStrip(segmentId)
+  },
+  { immediate: true },
+)
+
+const conventionCard = computed(() => {
+  const current = conventionCurrent.value
+  if (current === null) return null
+  const { span, scannedText } = current
+  const from = scannedText.slice(span.start, span.end)
+  return {
+    avoid: t('convention.strip.avoid', { avoid_phrase: span.avoid }),
+    tier: t(span.tier === 'global' ? 'convention.strip.tier_global' : 'convention.strip.tier_work'),
+    position: t('convention.strip.position', {
+      spot_index: String(current.index + 1),
+      spot_count: String(current.count),
+    }),
+    suggestion:
+      span.replacement_cased === null
+        ? t('convention.strip.no_replacement')
+        : t('convention.strip.suggestion', { from_phrase: from, to_phrase: span.replacement_cased }),
+    locked: span.replacement_cased === null,
+    title: t('convention.strip.title_position', {
+      spot_index: String(current.index + 1),
+      spot_count: String(current.count),
+    }),
+  }
+})
+
+const conventionTitle = computed(() => conventionCard.value?.title ?? t('convention.strip.title'))
+
+const conventionHint = computed(() => {
+  const next = chordById.value.get('marks.next')
+  const prev = chordById.value.get('marks.prev')
+  if (next === undefined || next === '' || prev === undefined || prev === '') return null
+  return t('convention.strip.hint', { chord_next: next, chord_prev: prev })
+})
+
+const conventionErrorText = computed<string | null>(() => {
+  const err = conventionActionError.value
+  return err === null ? null : tError(err)
+})
 
 const chordById = computed(() => {
   const byId = new Map<string, string>()
@@ -45,8 +100,8 @@ const chordById = computed(() => {
 
 const hintText = computed(() => {
   const parts: string[] = []
-  const next = chordById.value.get('ai.proofread.next')
-  const prev = chordById.value.get('ai.proofread.prev')
+  const next = chordById.value.get('marks.next')
+  const prev = chordById.value.get('marks.prev')
   if (next !== undefined && next !== '') parts.push(t('proofread.strip.hint_next', { chord: next }))
   if (prev !== undefined && prev !== '') parts.push(t('proofread.strip.hint_prev', { chord: prev }))
   parts.push(t('proofread.strip.hint_hide'))
@@ -170,7 +225,89 @@ const filteredText = computed<string | null>(() =>
 
 <template>
   <section
-    v-if="isVisible"
+    v-if="isVisible && isConvention"
+    class="proofreader-strip proofreader-strip--convention"
+    :class="{ 'proofreader-strip--foot': place === 'foot', 'proofreader-strip--popup': place === 'track' }"
+    :aria-label="conventionTitle"
+    data-convention-strip
+    @keydown.esc.prevent="dispatch('convention.hide')"
+  >
+    <header class="pfs-head">
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <span class="pfs-title">{{ conventionTitle }}</span>
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <span v-if="conventionCard !== null && conventionHint !== null" class="pfs-hint">{{ conventionHint }}</span>
+      <div class="pfs-acts">
+        <button
+          type="button"
+          class="pfs-link ui-btn ui-btn--quiet"
+          data-convention-strip-manage
+          @mousedown="focusOnPointerDown($event)"
+          @click="dispatch('convention.manage.open')"
+        >
+          {{ t('convention.strip.manage_link') }}
+        </button>
+        <button
+          type="button"
+          class="pfs-link ui-btn ui-btn--quiet"
+          data-convention-strip-hide
+          :title="commandTitle('convention.hide')"
+          @mousedown.prevent
+          @click="dispatch('convention.hide')"
+        >
+          {{ t('convention.strip.hide') }}
+        </button>
+      </div>
+    </header>
+
+    <div v-if="conventionCard !== null" class="pfs-card">
+      <p class="pfs-status pfs-card-head">
+        <!-- aura-allow-text: result of t() computed in the script. -->
+        <span class="pfs-phrase">{{ conventionCard.avoid }}</span>
+        <!-- aura-allow-text: result of t() computed in the script. -->
+        <span class="pfs-tier">{{ conventionCard.tier }}</span>
+        <!-- aura-allow-text: result of t() computed in the script. -->
+        <span class="pfs-position">{{ conventionCard.position }}</span>
+      </p>
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <p class="pfs-status pfs-suggestion">{{ conventionCard.suggestion }}</p>
+      <div class="pfs-actions" @mousedown.prevent>
+        <button
+          type="button"
+          class="pfs-btn ui-btn"
+          data-convention-accept
+          :disabled="conventionBusy || conventionCard.locked"
+          @click="dispatch('convention.accept')"
+        >
+          {{ t('convention.strip.accept') }}
+        </button>
+        <button type="button" class="pfs-btn ui-btn" data-convention-skip @click="dispatch('convention.skip')">
+          {{ t('convention.strip.skip') }}
+        </button>
+        <button type="button" class="pfs-btn ui-btn" data-convention-prev @click="dispatch('marks.prev')">
+          {{ t('convention.strip.prev') }}
+        </button>
+        <button type="button" class="pfs-btn ui-btn" data-convention-next @click="dispatch('marks.next')">
+          {{ t('convention.strip.next') }}
+        </button>
+      </div>
+    </div>
+    <div v-if="conventionRevertible" class="pfs-actions" @mousedown.prevent>
+      <span class="pfs-status">{{ t('convention.strip.revert_note') }}</span>
+      <button type="button" class="pfs-btn ui-btn" data-convention-revert :disabled="conventionBusy" @click="dispatch('convention.revert')">
+        {{ t('convention.strip.revert') }}
+      </button>
+    </div>
+    <p v-if="conventionRevertible && conventionRevertConfirmed" class="pfs-status">
+      {{ t('convention.strip.confirmed_note') }}
+    </p>
+    <p v-if="conventionErrorText !== null" class="pfs-status pfs-error" role="alert">
+      <!-- aura-allow-text: result of tError(). -->
+      {{ conventionErrorText }}
+    </p>
+  </section>
+  <section
+    v-else-if="isVisible"
     class="proofreader-strip"
     :class="{ 'proofreader-strip--foot': place === 'foot', 'proofreader-strip--popup': place === 'track' }"
     :aria-label="titleText"
@@ -302,6 +439,14 @@ const filteredText = computed<string | null>(() =>
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.proofreader-strip--convention {
+  border-left-color: var(--color-on-surface-variant);
+}
+
+.pfs-tier {
+  color: var(--color-on-surface-variant);
 }
 
 .proofreader-strip--popup {

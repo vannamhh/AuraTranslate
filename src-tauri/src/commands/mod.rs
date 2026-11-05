@@ -44,6 +44,7 @@ pub mod attribution;
 pub mod chapter;
 pub mod cleanup;
 pub mod config;
+pub mod convention;
 pub mod dict;
 pub mod export;
 pub mod glossary;

@@ -57,6 +57,7 @@ import { reviewModeIsOpen } from './reviewModeState'
 import { readingMarksWalkProgress } from './modes/readingState'
 import { groupedLookup, sensesByLayer } from './panels/lookupPanelState'
 import { proofreadResults, proofreadStateValue } from './proofreadState'
+import { conventionNotice } from './conventionState'
 import { tmFuzzyThresholdInUse } from './tmSettingsState'
 import { refreshWorkspaceCounts, workspaceGlossaryEntryCount, workspaceTmPairCounts } from './workspaceCountsState'
 import {
@@ -494,6 +495,11 @@ const libraryErrorText = computed<string | null>(() => {
   if (libraryOpenWorkNotice.value === 'still-dirty') return t('mode.library.open_work_still_dirty')
   return null
 })
+
+const conventionNoticeText = computed<string | null>(() => {
+  const notice = conventionNotice.value
+  return notice === null ? null : t(notice.key, { ...notice.params })
+})
 </script>
 
 <template>
@@ -575,6 +581,8 @@ const libraryErrorText = computed<string | null>(() => {
         ở `noteEditorEdit`, không bằng một hẹn giờ.
       -->
       <span v-if="confirmNoticeKey !== null" class="notice">{{ t(confirmNoticeKey) }}</span>
+      <!-- aura-allow-text: result of t(); the F8 and Vietnamese-convention strip notice. -->
+      <span v-else-if="conventionNoticeText !== null" class="notice" data-status-convention>{{ conventionNoticeText }}</span>
       <!--
         aura-allow-text: KẾT QUẢ của `t()`/`tError()`. 🔵 Story 2.9, AC4 — câu của lượt gộp/tách.
 

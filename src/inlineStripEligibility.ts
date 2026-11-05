@@ -15,6 +15,7 @@ import {
   proofreadStateValue,
   proofreadStripHidden,
 } from './proofreadState'
+import { conventionStripIsEligible } from './conventionState'
 import { tmFuzzyIsEligible, tmFuzzySegmentId } from './tmFuzzyStripState'
 
 const proofreadScanLevelPresent = computed(() => {
@@ -35,13 +36,12 @@ export const eligibleInlineStrips = computed<InlineStripKind[]>(() => {
   const proofread = proofreadStateValue.value
   const caret = editorCaretSegmentId.value
   const hidden = proofreadStripHidden.value && !proofreadScanLevelPresent.value
-  const hasJob =
-    !hidden &&
-    (proofreadScanLevelPresent.value ||
-    proofreadCurrent.value !== null ||
-    proofreadRevertible.value ||
-    proofreadActionError.value !== null)
+  const ownJob =
+    proofreadCurrent.value !== null || proofreadRevertible.value || proofreadActionError.value !== null
+  const scanLevel = proofreadScanLevelPresent.value && !(conventionStripIsEligible.value && !ownJob)
+  const hasJob = !hidden && (scanLevel || ownJob)
   if (hasJob) list.push('proofreader')
+  if (conventionStripIsEligible.value) list.push('convention')
   if (tmFuzzyIsEligible.value) list.push('tm_fuzzy')
   if (!hidden && proofread !== 'idle' && (caret === null || summaryBelongsAt(caret))) {
     list.push('proofreader_summary')
@@ -62,6 +62,7 @@ export type ProofreaderStripPlace = 'foot' | 'track'
 /** Where the Proofreader strip renders: window foot for scan-level state, grid track for the caret sentence, `null` when it has no home. */
 export const proofreaderStripPlace = computed<ProofreaderStripPlace | null>(() => {
   const top = topmostStrip(eligibleInlineStrips.value)
+  if (top === 'convention') return editorCaretSegmentId.value === null ? null : 'track'
   if (top !== 'proofreader' && top !== 'proofreader_summary') return null
   if (proofreadScanLevelPresent.value) return 'foot'
   return editorCaretSegmentId.value === null ? null : 'track'
@@ -70,7 +71,7 @@ export const proofreaderStripPlace = computed<ProofreaderStripPlace | null>(() =
 /** The TM and Proofreader strips float over the rows below their anchor instead of pushing them down. */
 export const stripTrackFloats = computed(() => {
   const top = topmostStrip(eligibleInlineStrips.value)
-  return top === 'tm_fuzzy' || top === 'proofreader' || top === 'proofreader_summary'
+  return top === 'tm_fuzzy' || top === 'proofreader' || top === 'convention' || top === 'proofreader_summary'
 })
 
 /** Segment whose row the winning strip grows under; `null` when no strip takes a grid track. */
@@ -81,6 +82,7 @@ export const inlineStripAnchorSegmentId = computed<number | null>(() => {
     case 'glossary_confirm':
       return confirmStripIsOpen.value ? editorCaretSegmentId.value : confirmStripNoticeSegmentId.value
     case 'proofreader':
+    case 'convention':
     case 'proofreader_summary':
       return proofreaderStripPlace.value === 'track' ? editorCaretSegmentId.value : null
     default:

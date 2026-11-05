@@ -284,6 +284,36 @@ pub(super) fn write_non_user_target(
     Ok(())
 }
 
+/// The write of a convention replacement (AD-67 rule 7). A draft goes through the non-user
+/// write. A confirmed sentence stays confirmed: text, both baseline columns and the origin are
+/// set together, one `segment_version` is added and one TM pair carries the new text.
+pub(super) fn write_convention_target(
+    tx: &Transaction<'_>,
+    segment_id: i64,
+    target_text: &str,
+    pair_origin: crate::core::tm::PairOrigin,
+    source_text: &str,
+    confirmed: bool,
+) -> SqlResult<()> {
+    if !confirmed {
+        return write_non_user_target(
+            tx,
+            segment_id,
+            target_text,
+            pair_origin.as_str(),
+            Some(pair_origin.as_str()),
+        );
+    }
+    tx.execute(
+        "UPDATE segment SET target_text = ?1, baseline_target_text = ?1, \
+         baseline_translation_origin = ?2, translation_origin = ?2, \
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?3",
+        (target_text, pair_origin.as_str(), segment_id),
+    )?;
+    super::confirm::insert_segment_version(tx, segment_id, target_text, pair_origin.as_str())?;
+    crate::core::tm::insert_pair(tx, source_text, target_text, pair_origin)
+}
+
 pub(super) fn segment_source_changed(segment_id: i64) -> IpcError {
     IpcError::new(
         "segment.source_changed",

@@ -104,6 +104,7 @@ onBeforeUnmount(() => {
       data-tm-manage-open
       data-settings-open
       data-proofread-memory-open
+      data-convention-manage-open
       data-reviewer-import-open
       data-alignment-open
       data-glossary-harvest-open
@@ -165,6 +166,21 @@ onBeforeUnmount(() => {
             <span>{{ t('command.ai.proofread.memory.open') }}</span>
             <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
             <span class="tools-chord">{{ chordOf('ai.proofread.memory.open') }}</span>
+          </span>
+        </button>
+      </li>
+      <li role="none">
+        <button
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
+          data-tools-item="convention.manage.open" @click="dispatch('convention.manage.open')"
+        >
+          <span class="ui-row">
+            <span>{{ t('command.convention.manage.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('convention.manage.open') }}</span>
           </span>
         </button>
       </li>

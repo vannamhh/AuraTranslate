@@ -175,7 +175,7 @@ describe('proofread wiring in source', () => {
   it('GridPanel clears one cell on a typed edit and redraws every scanned cell by wrapping spans', () => {
     const grid = codeLines('src/panels/GridPanel.vue').join('\n')
     expect(grid).toMatch(/noteEditorEdit\(id, cell\.textContent\)\s+clearProofreadFor\(id\)/)
-    expect(grid).toContain('repaintProofreadHost(host, proofreadResults.value, isMeaningKind)')
+    expect(grid).toContain('repaintProofreadHost(host, proofreadResults.value, isMeaningKind, conventionMarkEntries())')
     expect(grid).not.toContain('CSS.highlights')
   })
 

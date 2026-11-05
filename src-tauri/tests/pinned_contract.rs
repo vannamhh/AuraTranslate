@@ -89,7 +89,7 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        16,
+        17,
         "`GLOBAL_MIGRATIONS` co muoi sau buoc (buoc 16 them prompt_set.kind, buoc 15 them pinned_entry.source_version, buoc 14 them glossary_entry.pending_confirmed_at); muoi ba buoc dau gom (1.7 so di tru, 1.8 `config_value`, 1.20 \
          `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
          Ice #1 bang library_orphan, 6.5 bang import_cleanup_rule, 4.2 bang ai_config, 4.4 \
@@ -98,7 +98,7 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        16,
+        17,
         "so buoc va so phien ban dich phai di cung nhau"
     );
     assert_eq!(
@@ -160,7 +160,7 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // doi: di tru khong dung toi cau hinh cu.
     // Target moved 9 -> 10 (occurrence_count + zero-width triggers step). Assertion unaffected:
     // migration doesn't touch old config.
-    assert_eq!(migrated.schema_version(), 16, "buoc 3 den 16 phai da chay");
+    assert_eq!(migrated.schema_version(), 17, "buoc 3 den 17 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
@@ -695,7 +695,7 @@ fn migrating_global_db_from_v14_keeps_the_existing_pins() {
     drop(old);
 
     let migrated = Store::open(StoreSpec::global(db)).expect("nang len v15");
-    assert_eq!(migrated.schema_version(), 16);
+    assert_eq!(migrated.schema_version(), 17);
     let pinned = list_pinned_entries(Some(&migrated)).expect("doc");
     assert_eq!(pinned.len(), 1);
     assert_eq!(pinned[0].headword, "a");

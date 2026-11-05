@@ -1216,6 +1216,17 @@ export type CommandDeps = {
   nextAiProofread?: () => void
   prevAiProofread?: () => void
   revertAiProofread?: () => void
+  /** F8: next Proofreader or convention mark in text order. Handler of `marks.next`. */
+  nextMark?: () => void
+  /** Shift+F8: previous mark. Handler of `marks.prev`. */
+  prevMark?: () => void
+  acceptConvention?: () => void
+  skipConvention?: () => void
+  revertConvention?: () => void
+  hideConvention?: () => void
+  openConventionManage?: () => void
+  closeConventionManage?: () => void
+  addConventionRule?: () => void
   /** Đưa kết quả AI đang hiện vào Editor tại đúng câu nó thuộc về, đặt
    * `translation_origin = 'other'` (AD-47③) — từ chối (kêu, không ném) khi chưa có kết quả hợp
    * lệ hoặc lượt dịch đang chạy. Handler của `ai.translate.promote`. Story 4.9, Phase 3 mở
@@ -5305,7 +5316,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'ai.proofread.next',
     labelKey: 'command.ai.proofread.next',
-    keys: ['F8'],
+    keys: undefined,
     run: () => {
       if (deps.nextAiProofread === undefined) {
         return portMissing('ai.proofread.next', 'nextAiProofread')
@@ -5316,7 +5327,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'ai.proofread.prev',
     labelKey: 'command.ai.proofread.prev',
-    keys: ['Shift+F8'],
+    keys: undefined,
     run: () => {
       if (deps.prevAiProofread === undefined) {
         return portMissing('ai.proofread.prev', 'prevAiProofread')
@@ -5333,6 +5344,105 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.proofread.revert', 'revertAiProofread')
       }
       deps.revertAiProofread()
+    },
+  })
+  target.register({
+    id: 'marks.next',
+    labelKey: 'command.marks.next',
+    keys: ['F8'],
+    run: () => {
+      if (deps.nextMark === undefined) {
+        return portMissing('marks.next', 'nextMark')
+      }
+      deps.nextMark()
+    },
+  })
+  target.register({
+    id: 'marks.prev',
+    labelKey: 'command.marks.prev',
+    keys: ['Shift+F8'],
+    run: () => {
+      if (deps.prevMark === undefined) {
+        return portMissing('marks.prev', 'prevMark')
+      }
+      deps.prevMark()
+    },
+  })
+  target.register({
+    id: 'convention.accept',
+    labelKey: 'command.convention.accept',
+    keys: undefined,
+    run: () => {
+      if (deps.acceptConvention === undefined) {
+        return portMissing('convention.accept', 'acceptConvention')
+      }
+      deps.acceptConvention()
+    },
+  })
+  target.register({
+    id: 'convention.skip',
+    labelKey: 'command.convention.skip',
+    keys: undefined,
+    run: () => {
+      if (deps.skipConvention === undefined) {
+        return portMissing('convention.skip', 'skipConvention')
+      }
+      deps.skipConvention()
+    },
+  })
+  target.register({
+    id: 'convention.revert',
+    labelKey: 'command.convention.revert',
+    keys: undefined,
+    run: () => {
+      if (deps.revertConvention === undefined) {
+        return portMissing('convention.revert', 'revertConvention')
+      }
+      deps.revertConvention()
+    },
+  })
+  target.register({
+    id: 'convention.hide',
+    labelKey: 'command.convention.hide',
+    keys: undefined,
+    run: () => {
+      if (deps.hideConvention === undefined) {
+        return portMissing('convention.hide', 'hideConvention')
+      }
+      deps.hideConvention()
+    },
+  })
+  target.register({
+    id: 'convention.manage.open',
+    labelKey: 'command.convention.manage.open',
+    keys: ['Mod+Alt+A'],
+    run: () => {
+      if (deps.openConventionManage === undefined) {
+        return portMissing('convention.manage.open', 'openConventionManage')
+      }
+      deps.openConventionManage()
+    },
+  })
+  target.register({
+    id: 'convention.manage.close',
+    labelKey: 'command.convention.manage.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeConventionManage === undefined) {
+        return portMissing('convention.manage.close', 'closeConventionManage')
+      }
+      deps.closeConventionManage()
+    },
+  })
+  target.register({
+    id: 'convention.manage.add',
+    labelKey: 'command.convention.manage.add',
+    keys: undefined,
+    run: () => {
+      if (deps.addConventionRule === undefined) {
+        return portMissing('convention.manage.add', 'addConventionRule')
+      }
+      deps.addConventionRule()
     },
   })
   target.register({

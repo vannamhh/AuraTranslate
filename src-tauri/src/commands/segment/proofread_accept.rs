@@ -116,6 +116,25 @@ pub(crate) fn check_proofread_range(
     }))
 }
 
+/// The origin a non-user write declares for a sentence: the AD-50 arbitration over the text as it
+/// stood before the write. An unsigned draft or a stored origin outside the catalogue refuses.
+pub(crate) fn arbitrate_before_write(
+    checked: &CheckedProofreadRange,
+    segment_id: i64,
+) -> Result<crate::core::tm::PairOrigin, IpcError> {
+    match arbitrate(
+        &checked.text,
+        &checked.baseline_text,
+        &checked.baseline_origin,
+    ) {
+        Ok(Arbitrated::PairOrigin(pair_origin)) => Ok(pair_origin),
+        Ok(Arbitrated::Unsigned) => Err(text_changed(segment_id)),
+        Err(UnknownBaselineOrigin(value)) => {
+            Err(segment_unknown_translation_origin(segment_id, &value))
+        }
+    }
+}
+
 /// Result of accepting a suggestion: the text write plus the `proof_decision` row it left, which
 /// the webview keeps in its undo entry and hands back to [`revert_proofread_range`] (AD-56).
 #[derive(Debug, Clone, serde::Serialize)]
@@ -182,16 +201,9 @@ fn splice_proofread_range(
         let declared_origin = match kind.acceptance_origin() {
             AcceptanceOrigin::OtherTranslated => TRANSLATION_ORIGIN_OTHER,
             AcceptanceOrigin::ArbitratedBeforeWrite => {
-                match arbitrate(
-                    &checked.text,
-                    &checked.baseline_text,
-                    &checked.baseline_origin,
-                ) {
-                    Ok(Arbitrated::PairOrigin(pair_origin)) => pair_origin.as_str(),
-                    Ok(Arbitrated::Unsigned) => return Ok(Err(text_changed(segment_id))),
-                    Err(UnknownBaselineOrigin(value)) => {
-                        return Ok(Err(segment_unknown_translation_origin(segment_id, &value)));
-                    }
+                match arbitrate_before_write(&checked, segment_id) {
+                    Ok(pair_origin) => pair_origin.as_str(),
+                    Err(err) => return Ok(Err(err)),
                 }
             }
         };

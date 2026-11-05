@@ -296,7 +296,7 @@ fn the_routing_predicate_lives_in_exactly_one_file_and_the_adapter_never_calls_i
 /// 🔴 **Quần thể này KHÁC bốn sàn `src/**` khác của kho** — nó gồm cả `tests/**`, vì bản sao
 /// `is_han` đã bị xoá sống ở `tests/**`. Chép sàn `RS_FLOOR` của `store_boundary.rs` sang
 /// đây là đặt một cái sàn cho một cây khác.
-const SRC_TAURI_RS_FLOOR: usize = 208;
+const SRC_TAURI_RS_FLOOR: usize = 223;
 
 /// 🔴 **AC2 vế cuối** — trong toàn bộ `src-tauri/**` chỉ còn **MỘT** định nghĩa `is_han`.
 ///
@@ -358,7 +358,7 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để bốn cổng dưới đây là thật — **không**
 /// gồm `tests/**`, khác [`SRC_TAURI_RS_FLOOR`] ngay trên.
-const SRC_ONLY_RS_FLOOR: usize = 122;
+const SRC_ONLY_RS_FLOOR: usize = 133;
 
 /// **Mười `code` THẬT**, đo trên bốn tệp `.db` ở `tools/dict-build/out/` ngày 2026-08-08.
 ///

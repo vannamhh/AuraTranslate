@@ -765,7 +765,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười sáu bước, và đích là phiên bản 16.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười bảy bước, và đích là phiên bản 17.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -876,6 +876,10 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
         to_version: 16,
         sql: PROMPT_SET_KIND_DDL,
     },
+    Migration {
+        to_version: 17,
+        sql: CONVENTION_RULE_DDL,
+    },
 ];
 
 /// Global step 16 (AD-68 rule 1, 9): adds `prompt_set.kind`; name uniqueness becomes per kind.
@@ -883,6 +887,21 @@ pub const PROMPT_SET_KIND_DDL: &str = "\
 ALTER TABLE prompt_set ADD COLUMN kind TEXT NOT NULL DEFAULT 'translate' CHECK (kind IN ('translate', 'proofread'));
 DROP INDEX idx_prompt_set_name;
 CREATE UNIQUE INDEX idx_prompt_set_kind_name ON prompt_set (kind, name);";
+
+/// Global step 17 (AD-67 rule 2): `rule_key` is the avoid phrase after NFC and Unicode
+/// lowercase, unique per store. One const so the Work tier can reuse it.
+pub const CONVENTION_RULE_DDL: &str = "\
+CREATE TABLE convention_rule (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  avoid_phrase       TEXT    NOT NULL,
+  replacement_phrase TEXT,
+  rule_key           TEXT    NOT NULL UNIQUE,
+  enabled            INTEGER NOT NULL DEFAULT 1,
+  created_at         TEXT    NOT NULL,
+  CHECK (enabled IN (0,1)),
+  CHECK (trim(avoid_phrase) <> ''),
+  CHECK (replacement_phrase IS NULL OR trim(replacement_phrase) <> '')
+);";
 
 /// Project step 43 (AD-68 rule 1, 3, 7, 9): step 16 plus the Work-level proofread instruction
 /// columns and the `proof_scan` trace columns.

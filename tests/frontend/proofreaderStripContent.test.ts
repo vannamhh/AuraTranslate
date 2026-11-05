@@ -69,8 +69,8 @@ beforeEach(() => {
   ]
   caretRef.value = 1
   chordRows.value = [
-    { id: 'ai.proofread.next', display: ['F8'] },
-    { id: 'ai.proofread.prev', display: ['⇧F8'] },
+    { id: 'marks.next', display: ['F8'] },
+    { id: 'marks.prev', display: ['⇧F8'] },
   ]
   recordMock.mockResolvedValue({ ok: true, error: null })
 })
@@ -100,8 +100,8 @@ describe('title and hint', () => {
 
   it('follows a rebound chord instead of a hard-coded F8', async () => {
     chordRows.value = [
-      { id: 'ai.proofread.next', display: ['F9'] },
-      { id: 'ai.proofread.prev', display: ['⇧F9'] },
+      { id: 'marks.next', display: ['F9'] },
+      { id: 'marks.prev', display: ['⇧F9'] },
     ]
     const wrapper = await mountWithScan()
     expect(wrapper.get('.pfs-hint').text()).toBe('F9 kế tiếp · ⇧F9 trước · Esc ẩn')
@@ -110,7 +110,7 @@ describe('title and hint', () => {
   })
 
   it('drops the hint for an unbound command', async () => {
-    chordRows.value = [{ id: 'ai.proofread.next', display: [] }]
+    chordRows.value = [{ id: 'marks.next', display: [] }]
     const wrapper = await mountWithScan()
     expect(wrapper.get('.pfs-hint').text()).toBe('Esc ẩn')
     wrapper.unmount()

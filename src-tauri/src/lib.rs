@@ -1173,6 +1173,9 @@ pub fn run() {
             crate::commands::cleanup::wire::cleanup_edit_rule,
             crate::commands::cleanup::wire::cleanup_delete_rule,
             crate::commands::cleanup::wire::cleanup_set_enabled,
+            crate::commands::convention::wire::convention_list_rules,
+            crate::commands::convention::wire::convention_add_rule,
+            crate::commands::convention::wire::convention_scan_chapter,
             // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
             // duong dan he tep -- `atproj_path` phan giai o Rust tu `library-index.db` qua
             // `Indexer::find_work`.
@@ -1229,6 +1232,8 @@ pub fn run() {
             crate::commands::segment::wire::review_accept_change,
             crate::commands::segment::wire::ai_proofread_accept,
             crate::commands::segment::wire::ai_proofread_revert,
+            crate::commands::segment::wire::convention_accept,
+            crate::commands::segment::wire::convention_revert,
             crate::commands::attribution::wire::translator_name_get,
             crate::commands::attribution::wire::translator_name_save,
             crate::commands::chapter::wire::open_chapter,
@@ -1732,6 +1737,7 @@ fn open_work_slot(app: &tauri::App) {
     app.manage(crate::commands::aitranslate::ConnectionCheckGeneration::default());
     app.manage(crate::commands::aitranslate::ContextReferenceGeneration::default());
     app.manage(crate::commands::proofread::ProofreadGeneration::default());
+    app.manage(crate::commands::convention::ConventionMatcherState::default());
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).

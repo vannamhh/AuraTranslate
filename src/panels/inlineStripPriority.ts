@@ -26,11 +26,12 @@
  * (`tests/frontend/inlineStripPriority.test.ts`).
  */
 
-/** Năm loại dải nội tuyến — danh mục ĐÓNG. Thêm một loại mới là một quyết định phải viết ra. */
+/** Sáu loại dải nội tuyến — danh mục ĐÓNG. Thêm một loại mới là một quyết định phải viết ra. */
 export type InlineStripKind =
   | 'glossary_quick_add'
   | 'glossary_confirm'
   | 'proofreader'
+  | 'convention'
   | 'tm_fuzzy'
   | 'proofreader_summary'
 
@@ -44,6 +45,7 @@ const PRIORITY_ORDER: readonly InlineStripKind[] = [
   'glossary_quick_add',
   'glossary_confirm',
   'proofreader',
+  'convention',
   'tm_fuzzy',
   'proofreader_summary',
 ]

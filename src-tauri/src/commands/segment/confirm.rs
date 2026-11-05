@@ -284,11 +284,7 @@ pub fn confirm_segment(
             "DELETE FROM segment_unlinked WHERE segment_id = ?1",
             [segment_id],
         )?;
-        tx.execute(
-            "INSERT INTO segment_version (segment_id, target_text, created_at, translation_origin) \
-             VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?3)",
-            (segment_id, &target_text, confirmed_origin.as_str()),
-        )?;
+        insert_segment_version(tx, segment_id, &target_text, confirmed_origin.as_str())?;
         crate::core::tm::insert_pair(tx, &source_text, &target_text, confirmed_origin)?;
 
         let chapter_started =
@@ -730,4 +726,20 @@ pub fn confirm_segment_and_fill(
         }
     }
     Ok(outcome)
+}
+
+/// The only `segment_version` insert; every signed or convention write of a confirmed sentence
+/// goes through it.
+pub(super) fn insert_segment_version(
+    tx: &Transaction<'_>,
+    segment_id: i64,
+    target_text: &str,
+    translation_origin: &str,
+) -> SqlResult<()> {
+    tx.execute(
+        "INSERT INTO segment_version (segment_id, target_text, created_at, translation_origin) \
+         VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?3)",
+        (segment_id, target_text, translation_origin),
+    )?;
+    Ok(())
 }

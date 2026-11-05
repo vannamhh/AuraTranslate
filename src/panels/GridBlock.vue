@@ -770,6 +770,15 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
   text-decoration-color: var(--color-tm-text);
 }
 
+.cell-tgt :deep(.convention-mark) {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--color-on-surface-variant);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
 .cell-tgt.empty {
   min-height: 1.95em;
   border-bottom-style: dashed;

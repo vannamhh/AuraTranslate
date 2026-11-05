@@ -154,3 +154,45 @@ describe('repaintProofreadHost after a typed edit in one segment', () => {
     expect(host.querySelectorAll('[data-segment-id="1"] span')).toHaveLength(2)
   })
 })
+
+describe('convention marks in repaintProofreadHost', () => {
+  const isMeaning = () => false
+  const host = () => {
+    const root = document.createElement('div')
+    const cell = cellOf('ab cd ef')
+    cell.setAttribute('data-segment-id', '1')
+    cell.setAttribute('data-col', 'tgt')
+    root.appendChild(cell)
+    return root
+  }
+  const spans = [{ start: 3, end: 5, title: 'tip' }, { start: 6, end: 8, title: 'tip' }]
+
+  it('wraps each spot in a dotted-mark span that remembers its start', () => {
+    const root = host()
+    repaintProofreadHost(root, new Map(), isMeaning, new Map([[1, { scannedText: 'ab cd ef', spans }]]))
+    const marks = [...root.querySelectorAll<HTMLElement>('.convention-mark')]
+    expect(marks.map((m) => m.textContent)).toEqual(['cd', 'ef'])
+    expect(marks.map((m) => m.dataset.conventionStart)).toEqual(['3', '6'])
+    expect(marks[0]?.title).toBe('tip')
+  })
+
+  it('the Proofreader wins an overlap and the convention mark returns once the finding is gone', () => {
+    const root = host()
+    const proofread = new Map([[1, { scannedText: 'ab cd ef', findings: [{ start: 2, end: 5, kind: 'spelling' }] }]])
+    const convention = new Map([[1, { scannedText: 'ab cd ef', spans }]])
+    repaintProofreadHost(root, proofread, isMeaning, convention)
+    expect([...root.querySelectorAll('.convention-mark')].map((m) => m.textContent)).toEqual(['ef'])
+    expect(root.querySelectorAll('.proofread-error')).toHaveLength(1)
+    repaintProofreadHost(root, new Map(), isMeaning, convention)
+    expect(root.querySelectorAll('.convention-mark')).toHaveLength(2)
+  })
+
+  it('draws nothing once the cell text differs from the scanned text, and unwrap removes both families', () => {
+    const root = host()
+    repaintProofreadHost(root, new Map(), isMeaning, new Map([[1, { scannedText: 'ab cd e', spans }]]))
+    expect(root.querySelectorAll('.convention-mark')).toHaveLength(0)
+    repaintProofreadHost(root, new Map(), isMeaning, new Map([[1, { scannedText: 'ab cd ef', spans }]]))
+    unwrapProofread(root.querySelector('[data-segment-id="1"]') as HTMLElement, true)
+    expect(root.querySelectorAll('span')).toHaveLength(0)
+  })
+})

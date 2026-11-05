@@ -941,6 +941,12 @@ message_keys! {
     AiProofreadDecisionMissing => "err.ai_proofread.decision_missing" ["decision_id"],
     AiProofreadScanRecordRejected => "err.ai_proofread.scan_record_rejected" [],
     AiProofreadInstructionMissing => "err.ai_proofread.instruction_missing" ["name", "tier"],
+    ConventionEmptyAvoidPhrase => "err.convention.empty_avoid_phrase" [],
+    ConventionDuplicateAvoidPhrase => "err.convention.duplicate_avoid_phrase" [],
+    ConventionTextChanged => "err.convention.text_changed" ["segment_id"],
+    ConventionRangeInvalid => "err.convention.range_invalid" ["segment_id"],
+    ConventionRuleUnavailable => "err.convention.rule_unavailable" [],
+    ConventionTextWouldBeEmpty => "err.convention.text_would_be_empty" ["segment_id"],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
     //

@@ -63,7 +63,11 @@ import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, toRaw, 
 import { isMeaningKind } from '../config/proofread'
 import { GRID_BLOCK_ROWS, gridBlocksOf } from './gridBlocks'
 import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './proofreadHighlight'
+import type { ConventionScanEntry } from './proofreadHighlight'
 import { clearProofreadFor, proofreadResults } from '../proofreadState'
+import { clearConventionFor, conventionResults, conventionStripIsEligible, openConventionAt, resetConvention, scanConventionNow } from '../conventionState'
+import { openWorkId } from '../openWorkIdentity'
+import { CONVENTION_MARK_CLASS } from './proofreadHighlight'
 import PanelFrame from './PanelFrame.vue'
 import GridBlock from './GridBlock.vue'
 import GridSentenceMenu from './GridSentenceMenu.vue'
@@ -1261,9 +1265,34 @@ watch([() => editorSegments.value, gridRoot], restoreEditedText, { flush: 'post'
 function repaintProofread(): void {
   const host = gridRoot.value
   if (host === null || composing) return
-  if (proofreadResults.value.size === 0 && !proofreadPainted) return
-  repaintProofreadHost(host, proofreadResults.value, isMeaningKind)
-  proofreadPainted = proofreadResults.value.size > 0
+  const marked = proofreadResults.value.size > 0 || conventionResults.value.size > 0
+  if (!marked && !proofreadPainted) return
+  repaintProofreadHost(host, proofreadResults.value, isMeaningKind, conventionMarkEntries())
+  proofreadPainted = marked
+}
+
+function conventionMarkEntries(): [number, ConventionScanEntry][] {
+  const entries: [number, ConventionScanEntry][] = []
+  for (const [id, entry] of conventionResults.value) {
+    entries.push([
+      id,
+      {
+        scannedText: entry.scannedText,
+        spans: entry.spans.map((span) => ({
+          start: span.start,
+          end: span.end,
+          title:
+            span.replacement_cased === null
+              ? t('convention.mark.title_no_replacement', { avoid_phrase: span.avoid })
+              : t('convention.mark.title_with_replacement', {
+                  avoid_phrase: span.avoid,
+                  replacement_phrase: span.replacement_cased,
+                }),
+        })),
+      },
+    ])
+  }
+  return entries
 }
 
 let proofreadPainted = false
@@ -1288,7 +1317,7 @@ function onCompositionEnd(): void {
   scheduleRepaintProofread()
 }
 
-watch([proofreadResults, () => editorSegments.value, gridRoot], repaintProofread, { flush: 'post' })
+watch([proofreadResults, conventionResults, () => editorSegments.value, gridRoot], repaintProofread, { flush: 'post' })
 onBeforeUnmount(() => {
   if (repaintTimer !== null) clearTimeout(repaintTimer)
   if (gridRoot.value !== null) unwrapAllProofread(gridRoot.value)
@@ -1399,13 +1428,37 @@ function onSourceSelectionChange(): void {
   setHoveredGlossaryTerm({ isConfirmed: span.isConfirmed, translation: span.translation })
 }
 
+function onConventionMarkClick(event: MouseEvent): void {
+  if (event.button !== 0 || !(event.target instanceof Element)) return
+  const mark = event.target.closest(`.${CONVENTION_MARK_CLASS}`)
+  if (!(mark instanceof HTMLElement) || gridRoot.value?.contains(mark) !== true) return
+  const selection = window.getSelection()
+  if (selection !== null && !selection.isCollapsed) return
+  const cell = mark.closest('[data-col="tgt"]')
+  const id = cell instanceof HTMLElement ? segmentIdOf(cell) : null
+  const start = Number.parseInt(mark.dataset.conventionStart ?? '', 10)
+  if (id === null || !Number.isFinite(start)) return
+  openConventionAt(id, start)
+}
+
+watch(
+  [editorChapterId, openWorkId],
+  ([chapter]) => {
+    resetConvention()
+    if (chapter !== null) void scanConventionNow()
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   document.addEventListener('selectionchange', onSelectionChange)
   document.addEventListener('selectionchange', onSourceSelectionChange)
+  document.addEventListener('click', onConventionMarkClick)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('selectionchange', onSelectionChange)
   document.removeEventListener('selectionchange', onSourceSelectionChange)
+  document.removeEventListener('click', onConventionMarkClick)
 })
 
 /**
@@ -1718,6 +1771,7 @@ function onEditKeydown(event: KeyboardEvent): void {
   // tiêu điểm tình cờ nằm trong lưới. Một lượt xoá tập điểm cắt **không** loại trừ một lượt
   // đóng lớp phủ — hai việc ở hai tầng.
   if (event.key === 'Escape') {
+    if (conventionStripIsEligible.value) dispatch('convention.hide')
     dispatch('editor.clear_source_cuts')
     dispatch('segment.selection.clear')
   }
@@ -1729,6 +1783,7 @@ function reportEdit(cell: HTMLElement): void {
   if (id === null) return
   noteEditorEdit(id, cell.textContent)
   clearProofreadFor(id)
+  clearConventionFor(id)
 }
 
 /**

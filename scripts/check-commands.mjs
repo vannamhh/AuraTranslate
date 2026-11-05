@@ -249,7 +249,7 @@ const COMMAND_FLOOR = 288
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 292
-const DISPATCH_FLOOR = 385
+const DISPATCH_FLOOR = 412
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2460,6 +2460,8 @@ const HANDLER_TABLE = {
   'src/ProofreadScopeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ProofreadMemoryOverlay.vue::onEscape': { ids: ['ai.proofread.memory.close'] },
   'src/ProofreadMemoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ConventionManageOverlay.vue::onEscape': { ids: ['convention.manage.close'] },
+  'src/ConventionManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/AttributionOverlay.vue::onEscape': { ids: ['attribution.close', 'attribution.close_license'] },
   'src/AttributionOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
   'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
@@ -2626,7 +2628,7 @@ const HANDLER_TABLE = {
   'src/layout/ReviewDock.vue::holdFocus': { nonCommand: R_BUTTON_HOLD_FOCUS },
   'src/panels/GridBlock.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridBlock.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
-  'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'segment.selection.clear'] },
+  'src/panels/GridBlock.vue::onEditKeydown': { ids: ['convention.hide', 'editor.clear_source_cuts', 'segment.selection.clear'] },
   // 🔴 Mũi tên trên dải tab Hán Việt gọi hàm này TRỰC TIẾP (không `dispatch('<id>')` trần),
   // vì nó phải dời tiêu điểm DOM NGAY SAU lượt dispatch — xem doc-comment tại chỗ định nghĩa.
   'src/panels/GridPanel.vue::selectTabViaArrow': {

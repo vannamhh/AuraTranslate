@@ -595,6 +595,86 @@ pub fn ai_proofread_revert<R: tauri::Runtime>(
     )
 }
 
+/// Wire shell of [`super::convention_accept_range`]: `expectedPhrase` is the flagged text,
+/// `ruleKey` the key of the rule that matched it. The webview never sends the replacement.
+#[tauri::command]
+pub fn convention_accept<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    segment_id: i64,
+    expected_text: String,
+    start: u32,
+    end: u32,
+    expected_phrase: String,
+    rule_key: String,
+) -> Result<super::ConventionWriteOutcome, IpcError> {
+    use tauri::Manager as _;
+
+    let global = app.try_state::<crate::core::store::Store>();
+    let rule = crate::commands::convention::convention_active_rule(global.as_deref(), &rule_key)?;
+    let Some(state) = app.try_state::<OpenWorkState>() else {
+        return super::convention_accept_range(
+            None,
+            segment_id,
+            &expected_text,
+            start,
+            end,
+            &expected_phrase,
+            &rule,
+        );
+    };
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    super::convention_accept_range(
+        guard.as_ref(),
+        segment_id,
+        &expected_text,
+        start,
+        end,
+        &expected_phrase,
+        &rule,
+    )
+}
+
+/// Wire shell of [`super::convention_revert_range`]: `expectedPhrase` is the replacement now in the
+/// text, `originalPhrase` the text it replaced.
+#[tauri::command]
+pub fn convention_revert<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    segment_id: i64,
+    expected_text: String,
+    start: u32,
+    end: u32,
+    expected_phrase: String,
+    original_phrase: String,
+) -> Result<super::ConventionWriteOutcome, IpcError> {
+    use tauri::Manager as _;
+
+    let Some(state) = app.try_state::<OpenWorkState>() else {
+        return super::convention_revert_range(
+            None,
+            segment_id,
+            &expected_text,
+            start,
+            end,
+            &expected_phrase,
+            &original_phrase,
+        );
+    };
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    super::convention_revert_range(
+        guard.as_ref(),
+        segment_id,
+        &expected_text,
+        start,
+        end,
+        &expected_phrase,
+        &original_phrase,
+    )
+}
+
 /// Wire shell of [`super::accept_tm_exact`]; `segmentId`, `tier`, `unitId`, `expectedTarget`, `force` on the wire.
 #[tauri::command]
 pub fn accept_tm_exact<R: tauri::Runtime>(

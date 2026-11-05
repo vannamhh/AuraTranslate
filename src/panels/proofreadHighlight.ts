@@ -1,9 +1,10 @@
 export const PROOFREAD_ERROR_CLASS = 'proofread-error'
 export const PROOFREAD_MEANING_CLASS = 'proofread-meaning'
-export const PROOFREAD_SPAN_SELECTOR = `.${PROOFREAD_ERROR_CLASS}, .${PROOFREAD_MEANING_CLASS}`
+export const CONVENTION_MARK_CLASS = 'convention-mark'
+export const PROOFREAD_SPAN_SELECTOR = `.${PROOFREAD_ERROR_CLASS}, .${PROOFREAD_MEANING_CLASS}, .${CONVENTION_MARK_CLASS}`
 
 export type OffsetSpan = { readonly start: number; readonly end: number }
-export type ProofreadMark = OffsetSpan & { readonly meaning: boolean }
+export type ProofreadMark = OffsetSpan & { readonly meaning: boolean; readonly convention?: boolean; readonly title?: string }
 
 /** Maps UTF-16 offsets of `cell.textContent` onto a Range, across any number of text nodes. */
 export function rangeForOffsets(cell: Element, start: number, end: number): Range | null {
@@ -91,7 +92,10 @@ export function wrapProofread(cell: Element, scannedText: string, marks: readonl
       const range = rangeForOffsets(cell, mark.start, mark.end)
       if (range === null) continue
       const span = cell.ownerDocument.createElement('span')
-      span.className = mark.meaning ? PROOFREAD_MEANING_CLASS : PROOFREAD_ERROR_CLASS
+      span.className =
+        mark.convention === true ? CONVENTION_MARK_CLASS : mark.meaning ? PROOFREAD_MEANING_CLASS : PROOFREAD_ERROR_CLASS
+      if (mark.title !== undefined) span.title = mark.title
+      if (mark.convention === true) span.dataset.conventionStart = String(mark.start)
       span.appendChild(range.extractContents())
       range.insertNode(span)
       drawnTo = mark.end
@@ -113,16 +117,46 @@ export type ScanEntry<K> = {
   readonly findings: readonly { readonly start: number; readonly end: number; readonly kind: K }[]
 }
 
-/** Redraws every scanned cell of `host` from scratch: unwrap all, then wrap each cell that still holds its scanned text. */
+export type ConventionScanEntry = {
+  readonly scannedText: string
+  readonly spans: readonly { readonly start: number; readonly end: number; readonly title: string }[]
+}
+
+function overlaps(a: OffsetSpan, b: OffsetSpan): boolean {
+  return a.start < b.end && b.start < a.end
+}
+
+/**
+ * Redraws every scanned cell of `host` from scratch: unwrap all, then wrap each cell that still holds its scanned text.
+ * A convention mark that overlaps a Proofreader finding of the same cell is not drawn; it returns once the finding is gone.
+ */
 export function repaintProofreadHost<K>(
   host: Element,
   results: Iterable<readonly [number, ScanEntry<K>]>,
   isMeaning: (kind: K) => boolean,
+  convention: Iterable<readonly [number, ConventionScanEntry]> = [],
 ): void {
   unwrapAllProofread(host)
-  for (const [id, entry] of results) {
+  const proofread = new Map<number, ScanEntry<K>>(results)
+  const conventional = new Map<number, ConventionScanEntry>(convention)
+  const ids = new Set<number>([...proofread.keys(), ...conventional.keys()])
+  for (const id of ids) {
     const cell = host.querySelector(`[data-col="tgt"][data-segment-id="${String(id)}"]`)
     if (cell === null) continue
-    wrapProofread(cell, entry.scannedText, entry.findings.map((f) => ({ start: f.start, end: f.end, meaning: isMeaning(f.kind) })))
+    const text = cell.textContent
+    const found = proofread.get(id)
+    const marks: ProofreadMark[] = []
+    if (found !== undefined && found.scannedText === text) {
+      for (const f of found.findings) marks.push({ start: f.start, end: f.end, meaning: isMeaning(f.kind) })
+    }
+    const own = conventional.get(id)
+    if (own !== undefined && own.scannedText === text) {
+      const drawn = [...marks]
+      for (const span of own.spans) {
+        if (drawn.some((m) => overlaps(m, span))) continue
+        marks.push({ start: span.start, end: span.end, meaning: false, convention: true, title: span.title })
+      }
+    }
+    wrapProofread(cell, text, marks)
   }
 }

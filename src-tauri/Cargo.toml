@@ -59,6 +59,7 @@ base64 = "=0.22.1"          # core::webimport -- decodes `data:` URI images
 # lượt bảy (spine §Stack, 2026-09-05): MIT OR Apache-2.0, đã ghim sẵn trong Cargo.lock từ
 # trước (bắc cầu qua jieba-rs/tantivy-stemmers) — khai tường minh ở đây thêm 0 byte payload.
 regex = "=1.13.1"
+aho-corasick = "=1.1.4"
 # commands::segment::confirm_segment — NFC hoá cả hai vế phép so mốc FR117,
 # composed với `trim()`, không thay nó. Rà NFR15: chỉ BẮC CẦU trước lượt này (Cargo.lock,
 # qua một phụ thuộc đã ghim), MIT OR Apache-2.0 đọc trong nguồn đã tải

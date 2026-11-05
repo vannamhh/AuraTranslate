@@ -1936,6 +1936,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `chardetng` *(core::webimport — dò bảng mã)* | 1.0.0 | Apache-2.0 OR MIT ✓ |
 | `encoding_rs` *(core::webimport — giải mã theo bảng mã đã dò; khai tường minh thêm 0 byte)* | 0.8.35 | (Apache-2.0 OR MIT) AND BSD-3-Clause ✓ |
 | `regex` *(core::cleanup — luật làm sạch dạng biểu thức chính quy; khai tường minh thêm 0 byte)* | =1.13.1 | MIT OR Apache-2.0 ✓ |
+| `aho-corasick` *(core::convention — bộ khớp nhiều cụm của AD-67; nâng từ bắc cầu qua `regex` thành phụ thuộc trực tiếp, 0 gói MỚI vào `Cargo.lock`; đọc `COPYING`, `UNLICENSE`, `LICENSE-MIT` và `license` trong `Cargo.toml` của nguồn đã tải)* | =1.1.4 | Unlicense OR MIT ✓ |
 | `dom_query` *(core::webimport::Extractor — nâng từ bắc cầu thành phụ thuộc trực tiếp; 0 gói MỚI vào `Cargo.lock`)* | =0.28.0 | MIT ✓ |
 | `unicode-normalization` *(commands::segment — NFC hoá cả hai vế phép so mốc FR117 trong `confirm_segment`; đã bắc cầu qua `Cargo.lock`, khai tường minh thêm 0 gói MỚI)* | =0.1.25 | MIT OR Apache-2.0 ✓ |
 | `zip` *(core::docx — đọc kho zip của `.docx`; thêm 0 gói MỚI, chỉ đổi từ bắc cầu sang trực tiếp)* | =8.6.0 | MIT ✓ |

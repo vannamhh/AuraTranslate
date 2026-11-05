@@ -13953,3 +13953,18 @@ chính nó.
   summary: Ice chưa chạy lượt dùng thật: viết chỉ dẫn "chỉ so bản dịch với bản gốc của chính câu đó", chọn ở Global, quét lại Chương có seg 162/163; thẻ chỉ dẫn cũng chưa được nhìn trong cửa sổ thật.
   evidence: AC cuối của 9.15 và mục Manual checks; vitest và e2e không thay được kết quả quét thật, và driver WKWebView không mở được ô `<select>` gốc nên spec e2e 9-15 đặt giá trị rồi phát `change`. 🔵 2026-11-05: ô chọn nay là `SelectMenu`, spec bấm chọn bằng chuột thật.
   Chủ: Epic 9
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-mot-luat-global-anh-dau-va-thay-mot-cho-trong-chuong-ang-mo-plan.md`
+  summary: Ice chưa chạy lượt dùng thật (thêm luật `đảm bảo → bảo đảm`, bấm dấu, Nhận thay, F8 qua cả hai họ dấu) và chưa ai đo "không frame nào vượt 50 ms" khi quét Chương trong app thật.
+  evidence: epic Done when 4 và AD-67 mục 11; vitest, e2e và số đo Rust (`story_16_1_measure_convention`) không thay được khung hình thật của WKWebView.
+  Chủ: Epic 16
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-mot-luat-global-anh-dau-va-thay-mot-cho-trong-chuong-ang-mo-plan.md`
+  summary: phép kiểm luật còn hiệu lực của Nhận thay đọc `global.db` trước lượt ghi `project.db` (`convention_active_rule` ở `commands/segment/wire.rs`), không trong cùng giao dịch như AD-67 mục 7 viết; luật sửa, tắt hay xoá giữa hai bước vẫn được áp.
+  evidence: 16.1 chưa có đường sửa/tắt/xoá luật nên khe chưa chạm được; 16.3 thêm các đường đó. Hai kho không có giao dịch chung, nên 16.3 đọc lại luật trong closure ghi hoặc nhờ Winston chữa câu chữ AD-67.
+  Chủ: Story 16.3
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-mot-luat-global-anh-dau-va-thay-mot-cho-trong-chuong-ang-mo-plan.md`
+  summary: `ai_config_get` giữ khoá `OpenWorkState` qua `keychain::configured()` (`commands/aiconfig.rs:421-424` → :206); một hộp thoại Keychain chờ người bấm làm treo mọi lệnh đồng bộ cần Tác phẩm đang mở.
+  evidence: có từ trước 16.1; `sample` lúc spec e2e 16-1 treo trên máy khoá cho thấy main thread chờ mutex trong `read_open_chapter_segments`, một task tokio nằm trong lượt dò Keychain, `SecurityAgent` đang chạy.
+  Chủ: Ice
