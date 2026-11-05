@@ -3,7 +3,7 @@ title: 'Thanh điều chỉnh Chế độ đọc dính ở trên cùng; danh sá
 type: 'feature'
 ticket: ''
 created: '2026-11-04'
-status: 'built'
+status: 'done'
 baseline_revision: 'e4e0b426c9ba8e32079e20dc981cc19a9094a70d'
 route: 'full'
 route_source: 'auto'
