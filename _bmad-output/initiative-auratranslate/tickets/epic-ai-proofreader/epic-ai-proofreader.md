@@ -2,7 +2,7 @@
 type: epic
 title: "AI Proofreader — bắt lỗi trước khi bàn giao"
 parent: initiative-auratranslate
-covers: [FR80, FR81, FR82, FR83, FR84, FR85, FR86]
+covers: [FR80, FR81, FR82, FR83, FR84, FR85, FR86, FR160]
 after: []
 assignee: ""
 risk: low
@@ -27,6 +27,7 @@ Người dịch bắt được lỗi chính tả, ngữ pháp và sai lệch ngh
 - FR84: **Bỏ qua có ghi nhớ:** đánh dấu một phát hiện là *"không phải lỗi"* thì lần quét sau không báo lại **trong cùng Tác phẩm**.
 - FR85: **Proofreader không được tự sửa văn bản.** Mọi thay đổi phải do người dùng chấp nhận.
 - FR86: Kết quả proofread hiển thị **ngay tại chỗ trên Editor**, không phải một danh sách rời.
+- FR160: **Chỉ dẫn riêng cho Proofreader** trong thư viện prompt, tách biệt với bộ prompt dịch; người dùng chỉ sửa phần chỉ dẫn, ứng dụng giữ phần quy định cách AI trả kết quả. Bộ mặc định ở tầng Global; Tác phẩm chọn theo Global, không dùng chỉ dẫn, hoặc một bộ cụ thể. Bộ đã chọn không còn thì lượt quét dừng trước khi gọi AI và báo tên bộ, không rơi im lặng về chỉ dẫn gốc (thêm 2026-11-04).
 
 ## Done when
 
@@ -34,6 +35,7 @@ Người dịch bắt được lỗi chính tả, ngữ pháp và sai lệch ngh
 2. Mỗi phát hiện có loại lỗi, vị trí, giải thích ngắn, đề xuất sửa, và hiện bằng gạch chân lượn sóng dưới đúng cụm chữ.
 3. Đánh dấu "không phải lỗi" thì lần quét sau không báo lại trong cùng Tác phẩm, kể cả sau gộp/tách segment.
 4. Proofreader không tự sửa văn bản; tỷ lệ báo động giả đo được và nằm dưới ngưỡng đã đặt.
+5. Chọn một bộ chỉ dẫn ở tầng Global thì lượt quét ở mọi Tác phẩm theo Global dùng nó; không chọn gì thì lượt quét giống hệt trước; bộ đã chọn mất thì lượt quét báo thiếu bộ nêu tên và không gọi AI (thêm 2026-11-04).
 
 ## Boundaries
 
@@ -41,9 +43,9 @@ Proofreader theo yêu cầu. Không phải dịch bằng AI (epic AI mở) và k
 
 ## References
 
-- parent — _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md, functional requirements FR80, FR81, FR82, FR83, FR84, FR85, FR86
+- parent — _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md, functional requirements FR80, FR81, FR82, FR83, FR84, FR85, FR86, FR160
 - spec — _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
-- constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, các AD nêu trong tiêu chí của story
+- constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, các AD nêu trong tiêu chí của story; AD-68 cho FR160
 
 ## Notes
 
@@ -62,3 +64,7 @@ Proofreader theo yêu cầu. Không phải dịch bằng AI (epic AI mở) và k
 - Source conflict: epic và spine gọi `RagInjector` như một kiểu vs mã là các hàm `core::ai::rag::{gather_*, assemble_prompt}`, và `assemble_prompt` không nhận văn bản bản dịch mà FR80/FR81 cần.
 - Source conflict: tiêu chí gốc 9.5 (WCAG AA cả hai theme) vs `tm-rule` 2,48:1 ở theme sáng, DESIGN.md ghi chỉ dùng làm màu nét; là `unknown` của 9.5.
 - Source conflict: spine AD-47 ③ — bảng lượt ghi không-phải-người-dùng đã đóng, không có hàng cho chấp nhận đề xuất proofreader; AD-53 (9.10) quyết. Spine AD-51 còn trỏ `commands/segment.rs::write_non_user_target`, nay ở `commands/segment/targets.rs`.
+- Decision: 2026-11-04 — thêm FR160 (AD-68) vào epic vì epic chưa đóng (9.8, 9.11 ở review); ba story 9.13 → 9.14 → 9.15 xếp sau 9.8 và 9.11 vì cùng chạm `core/promptset/`, schema và mã Proofreader.
+- Decision: 2026-11-04 — tracer của phần FR160 là 9.13 (đường rủi ro nhất: di trú và loại đi qua mọi đường thư viện), không có màn để xem; lần đầu thấy chạy là 9.15.
+- Decision: 2026-11-04 — không thêm Refactor sweep thứ hai: 9.11 chỉ dọn phạm vi trước FR160; 9.13–9.15 nhỏ và nối tiếp nhau.
+- Decision: 2026-11-04 — logic đổi tên kéo lựa chọn và hậu quả của xoá (AD-68 mục 4) thuộc 9.14, nơi đã có cột lựa chọn; 9.15 chỉ giữ màn xác nhận và ô chọn. Theo kiểm bộ story.

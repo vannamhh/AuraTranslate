@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-11-01'
+updated: '2026-11-04'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -261,7 +261,7 @@ graph TD
   | Loại | Ngữ nghĩa | FR |
   |---|---|---|
   | Glossary | **ghi đè** — tầng Tác phẩm thắng theo từng thuật ngữ | FR46 |
-  | Prompt | **ghi đè** | FR69 |
+  | Prompt | **ghi đè**, trong từng loại bộ (`translate`, `proofread`) — 🔵 2026-11-04, AD-68 mục 1 | FR69 |
   | Cấu hình AI | **ghi đè** — *theo từng **trường**, không theo cả struct* | FR68 |
   | Translation Memory | **hợp nhất** — trả kết quả cả hai tầng | FR57 |
   | Luật làm sạch khi nhập | **hợp nhất** — luật toàn cục **cộng** luật Tác phẩm cùng áp | FR124 |
@@ -1642,6 +1642,8 @@ graph TD
   4. **Người dùng phải biết ghi chú được gửi đi.** Ô ghi chú của mục Glossary nói rõ rằng ghi chú được gửi cho AI kèm thuật ngữ, qua một khoá i18n. Câu chữ cụ thể thuộc story.
   5. **FR71.** Ghi chú có mặt trong prompt đã ghi và trên màn xem prompt, như mọi phần chèn khác.
   6. **Không đổi:** thân prompt mặc định, bộ ba biến prompt, Proofreader (không chèn Glossary), dịch nhanh (AD-64, prompt cố định), cách quét và chọn mục của AD-36.
+
+     🔵 2026-11-04: Proofreader nhận chỉ dẫn tuỳ chỉnh từ thư viện prompt, loại `proofread` (AD-68). Proofreader vẫn không chèn Glossary.
   7. **Test canh.** Mỗi ca đỏ có đối chứng bằng phép GỠ thật, ghi trong ngoặc:
      - (a) Mục đã chốt có ghi chú, thuật ngữ có trong câu ⇒ prompt có dòng `nguồn → bản dịch — ghi chú`, ở cả đường một câu lẫn đường lô. (Gỡ phần in ghi chú.)
      - (b) Mục *chờ chốt* có ghi chú ⇒ ghi chú không có trong prompt nào.
@@ -1737,6 +1739,141 @@ graph TD
   → bằng chứng:
   - Đo 2026-11-03, `/tmp/fr159-bench` (release, ký ad hoc, `unicode-normalization 0.1.25`, `aho-corasick 1.1.4`; Intel i9-9980HK; load 1 phút 5,99 → 9,23, máy bận nên p95 nhiễu; 98 câu văn xuôi thật lặp thành Chương; luật rút ngẫu nhiên từ VietPhrase nên rất ít chỗ khớp). Aho-corasick, gồm NFC và chữ thường: một câu 4,5 µs trung vị / 7,0 µs p95 (câu dài nhất 14 / 18 µs) ở 2.000 luật; Chương 9.850 câu 56 / 65 ms ở 200 luật, 71 / 98 ms ở 2.000 luật; dựng bộ khớp 3,1 ms ở 2.000 luật. Chưa đo: chi phí vẽ dấu, vòng IPC thật, Chương có nhiều chỗ khớp.
   - Dữ kiện mã: `_bmad-output/initiative-auratranslate/ad-brief-quy-uoc-chu-viet/facts.md` (đọc ở `e85f8b13`).
+
+### AD-68 — Proofreader nhận chỉ dẫn tuỳ chỉnh từ thư viện prompt, loại `proofread`; hợp đồng trả lời là hằng số luôn đứng sau chỉ dẫn
+
+- **Binds:** C6, C7, C9. Các chỗ trong mã:
+  - `core/store/schema.rs`: cột loại của `prompt_set` ở cả hai kho; hai cột chọn trên `work`; hai cột vết trên `proof_scan`.
+  - `core/promptset/`: loại bộ, phân giải hai tầng theo loại, đổi tên và xoá, định dạng và tên tệp `.prompt.md`.
+  - `core/scope/store.rs`: khoá `app_config` cho lựa chọn tầng Global.
+  - `core/ai/rag.rs`, `core/ai/batch.rs`: `assemble_proofread_batch_prompt` nhận chỉ dẫn; bộ chèn U+200B biết dấu khối của lượt quét.
+  - `commands/proofread.rs`: đọc lựa chọn và phân giải bộ, một lần mỗi lượt quét.
+  - Frontend: thư viện prompt và màn nhập theo loại; chỗ chọn bộ proofread ở tầng Global và ở Tác phẩm.
+- **Prevents:**
+  1. **Người dùng làm gãy bộ đọc.** `locate_batch_findings` cần trả lời dạng JSON, năm loại lỗi, và `quote` chép từ TEXT. Prompt sửa tự do mà mất một luật trong số đó thì mọi phát hiện thành không định vị được hoặc biến mất. Đường dịch đã gặp đúng chuyện này (AD-60 Prevents 7).
+  2. **Bộ của loại này bị dùng cho loại kia.** Hai loại cùng nằm trong một bảng và một thư viện. Nếu loại không đi theo hàng và theo tệp, một bộ dịch có thể lọt vào lượt quét, hoặc chỉ dẫn proofread có thể thành thân prompt dịch.
+  3. **Hai đơn vị chọn bộ đang dùng theo hai cách.** Webview truyền tên còn Rust đọc tên, hoặc một bên rơi về chỉ dẫn gốc khi tên mất trong khi bên kia báo lỗi.
+  4. **Lựa chọn trỏ vào một bộ không còn mà không ai biết.** Lựa chọn lưu bằng tên. Đổi tên, xoá, hay chép `.atproj` sang máy khác đều có thể để lại một tên không phân giải được, hoặc phân giải sang một bộ khác.
+  5. **Mỗi Tác phẩm phải chọn lại.** Người dùng muốn viết chỉ dẫn một lần và áp cho mọi Tác phẩm.
+  6. **Không tách được kết quả theo chỉ dẫn.** Tỉ lệ quyết định (AD-56) trộn các lượt quét chạy bằng những chỉ dẫn khác nhau.
+- **Rule:**
+  1. **Loại bộ prompt.**
+     - `prompt_set` ở cả `global.db` và `project.db` có cột `kind TEXT NOT NULL DEFAULT 'translate'`, `CHECK (kind IN ('translate','proofread'))`. Hàng có sẵn thành `translate`.
+     - Tên là duy nhất theo cặp `(kind, name)` trong cùng tầng. Chỉ mục duy nhất trên `name` được thay bằng chỉ mục trên cặp đó.
+     - Phân giải hai tầng (AD-18, hàng Prompt: ghi đè cả bộ theo tên) chạy riêng trong từng loại. Bộ tầng Work chỉ che bộ tầng Global cùng tên và cùng loại.
+     - Mọi đường đọc, tạo, đổi tên, xoá, nhập và xuất đều nhận loại làm tham số bắt buộc, không có giá trị mặc định ở tầng Rust. Đường dịch chỉ thấy `translate`; lượt quét chỉ thấy `proofread`.
+  2. **Thân bộ `proofread` là chữ thuần.**
+     - Không marker nào được mở rộng: ba marker của `core/promptset/vars.rs` chỉ có nghĩa với `translate`. Chữ trông giống marker được gửi nguyên văn.
+     - Màn soạn không cảnh báo marker cho loại này.
+     - Thân rỗng sau khi cắt khoảng trắng nghĩa là không có chỉ dẫn.
+  3. **Bộ đang dùng do Rust tự đọc; webview không truyền tên.**
+     - **Tầng Global:** một hằng khoá `app_config` mới trong `core/scope/store.rs` (`proofread_prompt_set`), cùng khuôn với các khoá đã có. Không có hàng nghĩa là không chọn.
+     - **Tầng Tác phẩm** (`project.db`, đi theo `.atproj`, FR97): hai cột trên `work`, cho ba trạng thái.
+       - `chosen_proofread_prompt_set_name TEXT NULL`.
+       - `proofread_instruction_off INTEGER NOT NULL DEFAULT 0 CHECK (proofread_instruction_off IN (0,1))`.
+       - `off = 1` nghĩa là không dùng chỉ dẫn nào, kể cả khi Global có chọn.
+       - `off = 0` và tên `NULL` nghĩa là theo Global.
+       - `off = 0` và có tên nghĩa là dùng bộ mang tên đó.
+       - Một lệnh duy nhất ghi cả hai cột trong một câu `UPDATE`. Bật `off` thì tên về `NULL`. Không chuỗi rỗng nào mang nghĩa đặc biệt.
+     - **Lệnh ghi:** mỗi tầng có một lệnh IPC ghi lựa chọn. Lệnh tầng Global đi qua kho `config_value`; lệnh tầng Tác phẩm đi qua `core/promptset/store.rs`, theo khuôn `write_chosen_name`. Ghi `NULL` ở tầng Global là bỏ chọn.
+     - **Thứ tự phân giải:**
+       1. Tác phẩm `off = 1` thì không có chỉ dẫn.
+       2. Không thì lấy tên của Tác phẩm nếu có; không có thì lấy tên Global; không có nữa thì không có chỉ dẫn.
+       3. Tên được phân giải trong loại `proofread` qua hai tầng như mục 1. Một tên Tác phẩm chọn mà chỉ có ở tầng Global vẫn phân giải được.
+     - **Tên không phân giải được** (bị xoá, bị đổi ở một Tác phẩm đang đóng, hay `.atproj` chép sang máy thiếu bộ Global đó): lượt quét dừng trước mọi lời gọi mạng.
+       - Lỗi mang một `MessageKey` mới, có tham số tên bộ và cho biết tầng đặt lựa chọn đó. Không dùng lại `no_set_selected`: khoá đó không có tham số và gộp "chưa chọn" với "không tìm thấy".
+       - Không rơi về chỉ dẫn gốc mà không báo.
+       - Ô chọn hiện tên đã mất kèm dấu thiếu, không hiện ô trống.
+     - Lựa chọn và thân bộ được đọc một lần lúc bắt đầu lượt quét và dùng cho mọi lô của lượt.
+  4. **Đổi tên và xoá một bộ `proofread`.**
+     - Đổi tên trong cùng một lệnh:
+       - Lựa chọn của Tác phẩm đang mở mà bằng tên cũ thì ghi theo tên mới.
+       - Lựa chọn Global chỉ được ghi theo khi bộ được đổi tên ở tầng Global.
+       - Kho của bộ được ghi trước, lựa chọn ghi sau. Tác phẩm đang đóng giữ tên cũ và gặp lỗi của mục 3 ở lượt quét kế tiếp.
+     - Xoá một bộ mà lựa chọn của Tác phẩm đang mở hoặc lựa chọn Global đang phân giải tới thì cần xác nhận. Màn xác nhận nói đúng một trong hai hậu quả:
+       - lượt quét sau sẽ báo thiếu bộ;
+       - bộ Global cùng tên sẽ thay vào (khi xoá một bộ tầng Work đang che bộ Global cùng tên).
+     - Xoá không tự bỏ chọn.
+  5. **Lắp prompt (AD-14).**
+     - `assemble_proofread_batch_prompt` nhận thêm chỉ dẫn (có thể không có) và vẫn là hàm thuần.
+     - Thứ tự trong prompt:
+       1. câu giới thiệu khối cố định (`PROOFREAD_INSTRUCTION` hoặc `PROOFREAD_INSTRUCTION_WITH_SOURCE`);
+       2. chỉ dẫn của người dùng;
+       3. hợp đồng trả lời: `PROOFREAD_FORMAT`, luật loại, `PROOFREAD_QUOTE_RULE`, `PROOFREAD_EXPLANATION_RULE`;
+       4. các khối câu.
+     - Hợp đồng trả lời là hằng số trong `core/ai/`, luôn đứng sau chỉ dẫn, và không đường nào để người dùng sửa nó.
+     - Không có chỉ dẫn thì prompt trùng từng byte với prompt trước AD này.
+     - Bộ chèn U+200B của AD-60 mục 4 (`core/ai/batch.rs`) nhận thêm các dấu khối của lượt quét: mở và đóng của SEGMENT, SOURCE và TEXT. Mỗi dòng của chỉ dẫn trùng một dấu trong tập đó được chèn U+200B vào giữa dấu.
+     - Prompt vẫn đi trong một message user; `system` vẫn để trống.
+     - Chỉ dẫn không đổi cách chia lô: `plan_batches` vẫn chỉ đếm nguồn cộng bản dịch. ⚠️ Chỉ dẫn được gửi lại ở mỗi lô, nên chỉ dẫn dài làm tăng token của cả lượt. Token đó vào tổng sử dụng của lượt như mọi phần khác, và không có trần độ dài, như AD-66 mục 2.
+  6. **Trả lời không đọc được vẫn là "chưa quét".** Một chỉ dẫn làm model trả văn xuôi thay vì JSON thì lô đó đi nhánh `ProofreadReplyError::Malformed` hiện có: các câu của lô được đếm vào số chưa quét, không bao giờ thành câu sạch.
+  7. **Vết trên `proof_scan`.**
+     - Mỗi hàng `proof_scan` mới ghi `instruction_set_name TEXT NULL` và `instruction_set_tier TEXT NULL CHECK (instruction_set_tier IN ('global','work'))`. Cả hai `NULL` nghĩa là không có chỉ dẫn; hàng cũ giữ `NULL`.
+     - Giá trị là đúng bộ Rust đã phân giải lúc bắt đầu lượt. Webview không dựng giá trị này.
+     - Tỉ lệ FR150 (AD-56) chưa đổi cách đếm.
+  8. **Tệp `.prompt.md`.**
+     - Bộ `translate` giữ đúng ba dòng cố định của Story 4.5, trùng từng byte với tệp cũ, và giữ tên tệp xuất cũ.
+     - Bộ `proofread` có bốn dòng cố định: `---`, `name: <tên>`, `kind: proofread`, `---`, rồi thân nguyên văn. Tên tệp xuất mang đuôi `.proofread.prompt.md`, nên hai bộ cùng tên khác loại không ghi đè nhau.
+     - Bộ đọc: dòng 3 là `---` thì loại `translate`. Dòng 3 là `kind: proofread` và dòng 4 là `---` thì loại `proofread`. `kind:` mang giá trị khác thì cả tệp bị từ chối với một lỗi riêng.
+     - Tệp được nhập vào loại ghi trong tệp, không theo màn đang mở. Va chạm tên chỉ xét trong cùng loại.
+     - Đây là ngoại lệ duy nhất cho Quyết định #1 của Story 4.5 ("một bộ prompt là TÊN + THÂN"). Bản app cũ từ chối tệp `proofread` (`MissingClosingDelimiter`), nên tệp đó không thể bị nhập nhầm thành bộ dịch.
+  9. **Di trú.**
+     - `global.db` có một bước mới: thêm cột `kind`, bỏ chỉ mục duy nhất cũ, tạo chỉ mục trên `(kind, name)`.
+     - `project.db` có một bước mới: cùng ba việc trên cho `prompt_set`, cộng hai cột của `work` và hai cột của `proof_scan`.
+     - Mỗi bước chạy trong một giao dịch, theo khuôn `migrate` của `schema.rs`. SQLite đóng gói (`libsqlite3-sys` 0.38.1, SQLite 3.53.2) chạy được hình này.
+  10. **Không đổi:** năm loại lỗi, `locate_batch_findings`, ghi nhớ "không phải lỗi" theo chữ ký (AD-53), cách đếm quyết định (AD-56), cách chia lô, mọi prompt của đường dịch.
+  11. **Test canh.** Mỗi ca đỏ có đối chứng bằng phép GỠ thật, ghi trong ngoặc:
+      - (a) Không chọn bộ nào ở cả hai tầng ⇒ prompt trùng từng byte với bản ghi vàng lấy trước AD này. (Chèn chỉ dẫn rỗng thành một dòng trống.)
+      - (b) Có chỉ dẫn ⇒ chỉ dẫn đứng trước `PROOFREAD_FORMAT`, và hợp đồng trả lời nằm nguyên vẹn sau nó. (Đảo thứ tự hai phần.)
+      - (c) Phân giải:
+        - Tác phẩm chọn A, Global chọn B ⇒ A.
+        - Tác phẩm tên `NULL` ⇒ B.
+        - Tác phẩm `off = 1` ⇒ không có chỉ dẫn dù Global chọn B.
+        - Tác phẩm chọn một tên chỉ có ở Global ⇒ bộ Global đó.
+        - Bộ Work cùng tên che bộ Global ⇒ thân của bộ Work.
+        - (Bỏ lần lượt nhánh đọc tầng Tác phẩm, rồi nhánh đọc cờ `off`.)
+      - (d) Tên đã chọn không còn ⇒ lỗi mang tên bộ và 0 lời gọi mạng. (Thay lỗi bằng rơi về chỉ dẫn gốc.)
+      - (e) Ranh giới loại:
+        - Bộ `translate` trùng tên với bộ `proofread` đã chọn ⇒ lượt quét dùng bộ `proofread`.
+        - Danh sách và đường lắp của đường dịch không bao giờ thấy bộ `proofread`.
+        - (Bỏ điều kiện loại trong truy vấn đọc.)
+      - (f) Tệp `.prompt.md`:
+        - Tệp ba dòng ⇒ `translate`; tệp bốn dòng `kind: proofread` ⇒ `proofread`; `kind:` mang giá trị lạ ⇒ từ chối.
+        - Xuất rồi nhập lại cho ra đúng bộ đó, ở cả hai loại.
+        - Hai bộ cùng tên khác loại xuất ra hai tệp khác tên.
+        - (Bỏ nhánh đọc dòng `kind:`.)
+      - (g) Chỉ dẫn có một dòng trùng dấu mở hoặc đóng của SEGMENT, SOURCE hay TEXT ⇒ byte của prompt có U+200B chèn trong dòng đó, và không dòng nào của prompt ngoài các dấu thật bằng đúng một dấu. (Bỏ các dấu của lượt quét khỏi tập chèn.)
+      - (h) Thân bộ `proofread` chứa marker `source_segment` ⇒ marker được gửi nguyên văn, không mở rộng. (Gọi khâu mở rộng thân của `assemble_prompt`.)
+      - (i) Lượt quét có chỉ dẫn, model trả văn xuôi ⇒ các câu của lô vào số chưa quét, không câu nào thành sạch. (Đổi nhánh `Malformed` thành kết quả rỗng.)
+      - (j) Đổi tên bộ đang được Tác phẩm mở chọn ⇒ lượt quét sau dùng đúng bộ đó dưới tên mới. (Bỏ bước ghi lựa chọn theo tên mới.)
+      - (k) Di trú: một kho có sẵn bộ `translate` qua bước mới ⇒ bộ vẫn đọc được với loại `translate`; một bộ `proofread` cùng tên chèn được. Một `.atproj` cũ ⇒ hàng `work` có `off = 0`, tên `NULL`. (Bỏ bước di trú.)
+  12. **Đổi gì.**
+      - AD-66 mục 6 và AD-18 (hàng Prompt) nhận một dòng 🔵 trỏ về đây. Map C6, C7 và C9 thêm AD-68.
+      - PRD: một FR mới cho chỉ dẫn Proofreader, và FR79 thêm loại bộ prompt. Hai việc này thuộc lượt correct-course của John.
+- **Phương án bị loại** (Ice chọn ngày 2026-11-04):
+  - **Cho sửa toàn bộ prompt:** xem Prevents 1.
+  - **Ô soạn riêng trong Cài đặt, không qua thư viện:** Ice chọn dùng chung thư viện prompt, để nhập và xuất dùng lại đường FR79.
+  - **Bảng riêng cho chỉ dẫn proofread:** bị loại vì phải lặp lại toàn bộ đường tạo, đổi tên, xoá, nhập và xuất mà thư viện đã có.
+  - **Giữ tệp ba dòng và chọn loại lúc nhập:** nhập nhầm chỗ thì chỉ dẫn proofread thành prompt dịch mà không có báo lỗi nào.
+  - **Chỉ chọn theo Tác phẩm như đường dịch:** mỗi Tác phẩm mới phải chọn lại; quên chọn thì lượt quét chạy bằng chỉ dẫn gốc mà không ai hay.
+  - **Đặt chỉ dẫn sau hợp đồng trả lời, sát các khối câu:** một chỉ dẫn trái với định dạng dễ thắng, rồi cả lô thành chưa quét.
+  - **Cấm đổi tên hay xoá bộ đang được chọn:** app chỉ biết lựa chọn của tầng Global và của Tác phẩm đang mở, nên Tác phẩm đang đóng vẫn gãy và vẫn cần lỗi của mục 3.
+  - **Chép thân bộ Global vào tầng Work khi Tác phẩm chọn nó:** `.atproj` sẽ tự đủ, nhưng sửa bộ Global sau đó không còn ăn vào các Tác phẩm đã chọn.
+  - **Tắt chỉ dẫn Global bằng một bộ có thân rỗng:** bộ "tắt" nằm lẫn trong thư viện, xuất được, và ý nghĩa tắt không hiện ra ở đâu.
+  - **Chưa ghi vết chỉ dẫn trên `proof_scan`:** các lượt quét đã chạy sẽ không bao giờ tách lại được theo chỉ dẫn.
+
+  → bằng chứng:
+  - Ca thúc đẩy (2026-11-04): ở Tác phẩm "Mỹ dự định ban hành luật…", seg 163 (nguồn 5.2萬美元, bản dịch 52.000 USD) bị báo dịch lệch nghĩa với lời giải thích trích "25萬美元". Chuỗi đó thuộc nguồn của seg 162, nằm cùng lô. Prompt ghép đúng nguồn của từng khối, nên lỗi là model trộn khối kề. Chỉ dẫn tuỳ chỉnh là chỗ người dùng thử được luật "chỉ so với nguồn trong cùng khối" mà không phải đổi mã.
+  - Mã đọc ở `fb652559`:
+    - `src-tauri/src/core/ai/rag.rs`: `assemble_proofread_batch_prompt` và các hằng `PROOFREAD_*`.
+    - `src-tauri/src/core/ai/batch.rs`: `classify_line` chỉ biết dấu SEGMENT, CONTEXT và TM.
+    - `src-tauri/src/core/ai/proofread.rs`: `locate_batch_findings` trả `Malformed` khi trả lời không phải JSON.
+    - `src-tauri/src/commands/proofread.rs`: `system: None`; nhánh `Malformed` cộng vào số chưa quét.
+    - `src-tauri/src/core/store/schema.rs`: `PROMPT_SET_DDL`, `CONFIG_VALUE_DDL`, `chosen_prompt_set_name`.
+    - `src-tauri/src/core/promptset/exchange.rs` (`render`, `parse`) và `exchange_io.rs` (`export_file_name` chỉ nhận tên).
+    - `src-tauri/src/commands/aiprompt.rs`: `no_set_selected` không có tham số.
+  - SQLite: `libsqlite3-sys` 0.38.1 đóng gói SQLite 3.53.2 (`sqlite3.h` trong registry). Hình `ALTER TABLE … ADD COLUMN kind … NOT NULL DEFAULT 'translate' CHECK (…)`, rồi đổi chỉ mục duy nhất sang `(kind, name)`, đã chạy thử trên bảng có hàng bằng SQLite 3.43.2 của máy.
+  - Duyệt: `reviews/review-ad-68-{rubric,reality,adversary}-2026-11-04.md`.
 
 ## Consistency Conventions
 
@@ -2053,10 +2190,10 @@ AuraTranslate/
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/`, `core/convention/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63, AD-66, AD-67 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57, AD-63 |
-| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63, AD-64, AD-65, AD-66 |
-| **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56 |
+| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63, AD-64, AD-65, AD-66, AD-68 |
+| **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56, AD-68 |
 | **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51, AD-52, AD-63 |
-| **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43, AD-54, AD-55, AD-56, AD-57 |
+| **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43, AD-54, AD-55, AD-56, AD-57, AD-68 |
 | **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41 |
 
 ## Deferred
@@ -2084,6 +2221,8 @@ AuraTranslate/
 | **Nhiều thư mục gốc Library** | AD-23 đã cho phép về mặt cấu trúc; có cần hay không là câu hỏi sản phẩm | Sau khi dùng thật |
 | **Cấu trúc chi tiết chỉ mục FTS cho tìm kiếm Library** | AD-27 đã cố định phần bất biến (phân biệt dấu là chính); phần còn lại là hình dạng bảng mà code sở hữu | Giai đoạn 3 |
 | **Nguyên nhân gốc vòng phản hồi đứt** (Q1) | PRD để ngỏ có chủ ý; FR95 + AD-20 khiến câu trả lời không chặn tiến độ | — |
+| **FR71 cho lượt quét Proofreader** (xem prompt cuối cùng đã gửi) | AD-68 giữ prompt quét là hàm thuần (AD-14), nên dựng lại được từ thân bộ đã ghi trên `proof_scan` cộng hằng số; chưa ai cần màn đó để chẩn đoán | Ice cần xem prompt của một lượt quét có chỉ dẫn tuỳ chỉnh để tìm vì sao kết quả sai |
+| **Chèn U+200B vào nguồn và bản dịch của lượt quét** | AD-68 mục 5 chỉ chèn cho dòng của chỉ dẫn; `rag.rs` chưa chèn cho nguồn và bản dịch từ trước AD-68. Một câu có dòng đúng bằng một dấu SOURCE hay TEXT là hiếm | Gặp một lượt quét lệch khối vì chữ của câu trùng dấu |
 
 → chi tiết & bằng chứng: `spine-evidence.md#Deferred`
 

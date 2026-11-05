@@ -58,7 +58,7 @@ covers = ["FR54", "FR87", "FR88", "FR89", "FR90", "FR91", "FR92", "FR93", "FR94"
 id = 9
 slug = "epic-ai-proofreader"
 title = "AI Proofreader — bắt lỗi trước khi bàn giao"
-covers = ["FR80", "FR81", "FR82", "FR83", "FR84", "FR85", "FR86"]
+covers = ["FR80", "FR81", "FR82", "FR83", "FR84", "FR85", "FR86", "FR160"]
 
 [[epic]]
 id = 12

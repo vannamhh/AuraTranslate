@@ -4,7 +4,7 @@ skill: bmad-prd
 title: "PRD: AuraTranslate"
 status: final
 created: 2026-08-02
-updated: 2026-11-03
+updated: 2026-11-04
 ---
 
 # PRD: AuraTranslate
@@ -189,12 +189,12 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114, FR154, FR159 |
 | **C5** | Translation Memory & tái sử dụng | Không tra lại thứ đã tra | FR56–FR64, FR118 |
 | **C6** | AI mở & Smart RAG Injector | AI đề xuất dưới quyền người biên tập | FR65–FR77, FR153–FR158 |
-| **C7** | AI Proofreader | Bắt lỗi trước khi bàn giao | FR80–FR86 |
+| **C7** | AI Proofreader | Bắt lỗi trước khi bàn giao | FR80–FR86, FR150, FR160 *(🔵 2026-11-04: thêm FR150 còn thiếu từ 2026-10-13, và FR160)* |
 | **C8** | Cầu nối Reviewer — Export / Import / Diff | Cầu nối duy nhất tới nhóm review | FR87–FR95, FR121, FR130, FR131 |
 | **C9** | Dự án & dữ liệu — `.atproj`, chỉ mục, scope | Nền của C1–C8 | FR96–FR104 |
 | **C10** | Phát hành & tin cậy | Vượt rào cản không ký số | FR105–FR112 |
 
-**Tổng: 158 yêu cầu chức năng còn hiệu lực** (FR1–FR159, trừ FR20 đã rút). 🔵 2026-11-03: dòng này từng ghi 132, lệch với số định nghĩa có trong tài liệu; số mới đếm các định nghĩa `**FRn.**` sau khi thêm FR159.
+**Tổng: 159 yêu cầu chức năng còn hiệu lực** (FR1–FR160, trừ FR20 đã rút). 🔵 2026-11-04: thêm FR160. 🔵 2026-11-03: dòng này từng ghi 132, lệch với số định nghĩa có trong tài liệu; số mới đếm các định nghĩa `**FRn.**` sau khi thêm FR159.
 
 ### 5.2 Glossary thuật ngữ
 
@@ -599,7 +599,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR49.** Quản lý Glossary: tìm kiếm, sửa, xoá, **nhập và xuất** dưới định dạng văn bản mở (CSV/TSV) để chia sẻ giữa người dịch.
 
-**FR79.** **Xuất và nhập bộ prompt** dưới dạng file văn bản mở, để người dịch chia sẻ prompt theo thể loại cho nhau.
+**FR79.** **Xuất và nhập bộ prompt** dưới dạng file văn bản mở, để người dịch chia sẻ prompt theo thể loại cho nhau. 🔵 2026-11-04: bộ prompt có hai loại, prompt dịch và chỉ dẫn Proofreader (FR160). Tệp mang theo loại của nó, nên nhập một tệp chỉ dẫn Proofreader không bao giờ tạo ra một bộ prompt dịch, và ngược lại; tệp được nhập vào đúng loại ghi trong tệp, không theo màn đang mở. Va chạm tên chỉ xét trong cùng loại. Tệp mang loại lạ bị từ chối, và hai bộ khác loại cùng tên xuất ra hai tệp khác tên (AD-68).
 
 > **Ranh giới đã chốt:** v1 hỗ trợ chia sẻ cộng đồng **chỉ qua trao đổi file** — Glossary (CSV/TSV), prompt (file văn bản), TM (TMX), quy ước chữ Việt (CSV/TSV, FR159; 🔵 2026-11-03). **Không xây định dạng gói, không xây hạ tầng phân phối, không có server hay tài khoản.** Cộng đồng chia sẻ qua GitHub và diễn đàn, đúng cách QuickTranslator từng lan toả. Nhất quán với trụ định vị #3.
 
@@ -735,7 +735,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 #### Prompt
 
-**FR69.** **Custom prompt theo thể loại** (tiên hiệp, khoa học, pháp lý, báo chí…) và theo quy chuẩn dịch. Prompt tồn tại ở cả hai tầng — toàn cục và theo Tác phẩm; **tầng Tác phẩm thắng**.
+**FR69.** **Custom prompt theo thể loại** (tiên hiệp, khoa học, pháp lý, báo chí…) và theo quy chuẩn dịch. Prompt tồn tại ở cả hai tầng — toàn cục và theo Tác phẩm; **tầng Tác phẩm thắng**. 🔵 2026-11-04: thư viện prompt có hai loại bộ, prompt dịch (FR69) và chỉ dẫn Proofreader (FR160); luật "tầng Tác phẩm thắng" áp riêng trong từng loại.
 
 > **Vì sao đây là cơ chế chính chứ không phải tính năng phụ:** phạm vi đã chốt là *mọi lĩnh vực* với cặp ngôn ngữ cố định. Custom prompt chính là thứ khiến **một công cụ phục vụ được nhiều lĩnh vực** mà không cần nhiều chế độ riêng.
 
@@ -830,6 +830,30 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 > Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
 
+**FR160.** **Chỉ dẫn riêng cho Proofreader.** Người dùng viết thêm chỉ dẫn cho lượt quét, ví dụ quy ước viết số, hoặc *"chỉ so bản dịch với bản gốc của chính câu đó"*. Chỉ dẫn được lưu thành một bộ trong thư viện prompt (FR69), tách biệt với bộ prompt dịch.
+
+- **Chỉ sửa phần chỉ dẫn.** Phần quy định cách AI trả kết quả do ứng dụng giữ, người dùng không sửa được, để một chỉ dẫn không làm mất phát hiện. Chỉ dẫn khiến AI trả lời sai định dạng thì các câu đó được báo là **chưa quét**, không bao giờ là *không có lỗi*.
+- **Hai tầng.** Một bộ mặc định ở tầng Global áp cho mọi Tác phẩm. Mỗi Tác phẩm chọn một trong ba: **theo Global**, **không dùng chỉ dẫn**, hoặc **một bộ cụ thể**. Lựa chọn của Tác phẩm đi theo `.atproj` (FR97).
+- **Bộ chỉ dẫn và bộ prompt dịch tách nhau hoàn toàn.** Hai loại cùng nằm trong thư viện prompt nhưng không bao giờ lẫn: lượt quét chỉ thấy bộ chỉ dẫn, lượt dịch chỉ thấy bộ prompt dịch, và hai bộ khác loại được trùng tên. Trong cùng loại, bộ tầng Tác phẩm che bộ Global cùng tên (FR69). Tác phẩm chọn một tên chỉ có ở Global vẫn dùng được bộ đó.
+- **Chữ thuần.** Thân bộ chỉ dẫn được gửi nguyên văn: các biến của prompt dịch không có nghĩa ở đây và không được mở rộng. Thân rỗng nghĩa là không có chỉ dẫn.
+- **Chi phí.** Chỉ dẫn được gửi lại ở mỗi lô của lượt quét và không có trần độ dài; token của nó nằm trong mức dùng của lượt (FR76).
+- **Không rơi im lặng.** Bộ đã chọn có thể không còn: bị xoá, bị đổi tên trong lúc Tác phẩm đang đóng, hay `.atproj` được chép sang máy không có bộ đó. Khi đó lượt quét dừng trước khi gọi AI và báo **tên bộ bị thiếu** cùng tầng đặt lựa chọn đó. Ô chọn hiện tên đã mất kèm dấu thiếu, không để trống. Ứng dụng không tự quét bằng chỉ dẫn gốc.
+- **Ranh giới với FR97.** `.atproj` vẫn mở được nguyên vẹn trên máy khác; cái không đi theo tệp chỉ là thân của bộ Global mà Tác phẩm đã chọn, nên lượt quét dừng và báo tên bộ thiếu, không quét sai. Chỉ dẫn muốn đi theo Tác phẩm thì lưu ở tầng Tác phẩm. Sửa bộ Global vẫn ăn vào mọi Tác phẩm đã chọn nó.
+- **Đổi tên và xoá.** Đổi tên một bộ thì lựa chọn của Tác phẩm đang mở đi theo tên mới; lựa chọn Global đi theo khi bộ được đổi tên ở tầng Global. Tác phẩm đang đóng giữ tên cũ và gặp báo thiếu bộ ở lượt quét kế tiếp. Xoá một bộ mà lựa chọn của Tác phẩm đang mở hoặc lựa chọn Global đang trỏ tới thì cần xác nhận, và màn xác nhận nói đúng một hậu quả: lượt quét sau sẽ báo thiếu bộ, hoặc bộ Global cùng tên sẽ thay vào. Xoá không tự bỏ chọn.
+- **Mỗi lượt quét ghi lại bộ chỉ dẫn đã dùng** (hoặc "không có"), để về sau tỉ lệ ở FR150 tách được theo chỉ dẫn. Cách đếm FR150 hiện tại không đổi; lượt quét có trước tính năng này không mang thông tin chỉ dẫn.
+- Không chọn chỉ dẫn nào thì Proofreader quét đúng như trước. Màn xem prompt cuối cùng (FR71) chưa áp cho lượt quét; việc này nằm ở mục Deferred của spine.
+- **Nghiệm thu:**
+  - Global chọn bộ B, hai Tác phẩm đều ở "theo Global" và không có bộ Tác phẩm nào tên B: quét ở cả hai thì cả hai dùng chỉ dẫn của B.
+  - Global chọn B, một Tác phẩm chọn bộ A: Tác phẩm đó dùng A. Tác phẩm chọn "không dùng chỉ dẫn": quét đúng như khi chưa có tính năng này, dù Global có chọn.
+  - Một bộ tầng Tác phẩm trùng tên với bộ Global và được chọn: lượt quét dùng thân bộ tầng Tác phẩm.
+  - Xoá bộ Global mà Tác phẩm đang mở chọn, không còn bộ cùng tên ở tầng Tác phẩm, rồi quét: lượt quét báo thiếu bộ, nêu tên, và không có lời gọi AI nào.
+  - Chỉ dẫn khiến AI trả văn xuôi thay vì kết quả đọc được: các câu của lô được tính vào số chưa quét, không câu nào được báo là không có lỗi.
+  - Không chọn chỉ dẫn nào ở cả hai tầng: kết quả quét giống hệt bản trước tính năng này.
+  - Một bộ dịch và một bộ chỉ dẫn cùng tên tồn tại song song: lượt quét chỉ thấy bộ chỉ dẫn, lượt dịch chỉ thấy bộ dịch.
+  - Sau mỗi lượt quét, bộ chỉ dẫn đã dùng (hoặc "không có") được ghi lại.
+
+> Thêm 2026-11-04 qua `correct-course` (AD-68). Ca thúc đẩy: Proofreader báo *dịch lệch nghĩa* cho câu 5.2萬美元 → 52.000 USD, với lời giải thích trích con số 25萬美元 của câu đứng trước trong cùng lô.
+
 ---
 
 ### 6.8 C8 — Cầu nối Reviewer: Export / Import / Diff
@@ -908,7 +932,7 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 **FR96.** Mỗi Tác phẩm được lưu thành **một `.atproj` trên đĩa**. Đây là **nguồn sự thật**; người dùng copy, sao lưu và di chuyển tự do.
 
-**FR97.** `.atproj` **tự chứa** mọi thứ thuộc về Tác phẩm: văn bản nguồn, bản dịch, segment, lịch sử phiên bản, Glossary dự án, TM dự án, prompt dự án và hình ảnh. **Copy sang máy khác phải mở được nguyên vẹn.**
+**FR97.** `.atproj` **tự chứa** mọi thứ thuộc về Tác phẩm: văn bản nguồn, bản dịch, segment, lịch sử phiên bản, Glossary dự án, TM dự án, prompt dự án và hình ảnh. **Copy sang máy khác phải mở được nguyên vẹn.** 🔵 2026-11-04: thân bộ chỉ dẫn Proofreader chọn từ tầng Global không nằm trong tệp; lượt quét trên máy thiếu bộ đó dừng và báo tên bộ (FR160).
 
 **FR98.** Một **chỉ mục Library trung tâm** phục vụ tìm kiếm xuyên Tác phẩm (FR8). Chỉ mục này **phải dựng lại được hoàn toàn từ các `.atproj`** — mất chỉ mục không được làm mất dữ liệu.
 
@@ -940,8 +964,8 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 | Tầng | Chứa gì |
 |---|---|
-| **Global** | Cấu hình AI, prompt chung, Glossary toàn cục, TM toàn cục, quy ước chữ Việt toàn cục (FR159), phím tắt, preset bố cục |
-| **Tác phẩm** | Glossary riêng, prompt riêng, TM riêng, quy ước chữ Việt riêng và các luật Global đã tắt (FR159), **ngôn ngữ nguồn (cố định, đặt lúc tạo)** |
+| **Global** | Cấu hình AI, prompt chung, Glossary toàn cục, TM toàn cục, quy ước chữ Việt toàn cục (FR159), bộ chỉ dẫn Proofreader mặc định (FR160), phím tắt, preset bố cục |
+| **Tác phẩm** | Glossary riêng, prompt riêng, TM riêng, quy ước chữ Việt riêng và các luật Global đã tắt (FR159), lựa chọn chỉ dẫn Proofreader: theo Global, không dùng, hoặc một bộ (FR160), **ngôn ngữ nguồn (cố định, đặt lúc tạo)** |
 
 > *Tầng Tác phẩm tương ứng "Project Scope" trong PRD v8.0 — xem Glossary §5.2.*
 

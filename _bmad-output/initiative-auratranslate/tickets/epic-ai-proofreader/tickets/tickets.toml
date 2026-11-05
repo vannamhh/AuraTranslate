@@ -260,3 +260,68 @@ covers = []
 after = [1, 2, 3, 4, 5, 6, 8, 9, 10, 12]
 hitl = false
 risk = "low"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Loại bộ prompt: kho, di trú, nhập và xuất theo loại"
+description = '''
+Bộ prompt có loại `translate` hoặc `proofread` ở cả `global.db` và `project.db`, và loại đi qua mọi đường của thư viện: đọc, tạo, đổi tên, xoá, nhập, xuất (AD-68 mục 1, 8, 9). Đường dịch giữ nguyên hành vi.
+
+- Di trú: mỗi kho đúng một bước mới, gồm luôn hai cột của `work` và hai cột của `proof_scan` mà 9.14 dùng (AD-68 mục 9).
+- Tệp `.prompt.md`: bộ `proofread` bốn dòng `kind: proofread`, tên tệp `<tên>.proofread.prompt.md`; bộ `translate` trùng từng byte với tệp cũ (AD-68 mục 8).
+- FR79 🔵 2026-11-04 (hai loại bộ prompt trong tệp) được giao ở đây; FR79 vẫn thuộc epic sở hữu nó.
+- Test canh của AD-68 mục 11: (e) phần thư viện và đường lắp dịch, (f), (k).
+- Ghi cho người thi hành (bản duyệt reality của AD-68): số `schema_version` và census IPC trong các test hợp đồng phải cập nhật.
+- Bàn giao cho 9.14: các cột chọn trên `work` và cột vết trên `proof_scan` đã có, chưa đường nào đọc. Bàn giao cho 9.14 và 9.15: các lệnh thư viện nhận loại.
+'''
+verify = "Một kho cũ qua bước di trú giữ bộ dịch với loại `translate` và chèn được bộ `proofread` cùng tên; xuất bộ `proofread` ra tệp bốn dòng `<tên>.proofread.prompt.md` rồi nhập lại đúng loại; danh sách và đường lắp prompt dịch không thấy bộ `proofread`; ca (e)(f)(k) có đối chứng gỡ thật."
+covers = ["FR160"]
+after = [8, 11]
+hitl = false
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-68 mục 1, 2, 8, 9, 11", "prd-auratranslate/prd-auratranslate.md — FR79, FR160", "architecture-auratranslate/reviews/review-ad-68-{rubric,reality,adversary}-2026-11-04.md"]
+
+[[entry]]
+id = 14
+type = "story"
+title = "Lượt quét dùng chỉ dẫn đã chọn"
+description = '''
+Lượt quét tự phân giải bộ chỉ dẫn đang dùng (Tác phẩm tắt · tên của Tác phẩm · tên Global · không có) và lắp chỉ dẫn vào prompt trước hợp đồng trả lời (AD-68 mục 3, 5, 6, 7).
+
+- Hai lệnh ghi lựa chọn, mỗi tầng một lệnh; khoá `app_config` mới; một lệnh ghi cả hai cột của `work` (AD-68 mục 3).
+- Bộ đã chọn không phân giải được: dừng trước mọi lời gọi mạng, `MessageKey` mới mang tên bộ và tầng; dải Proofreader hiện lỗi đó qua đường lỗi quét hiện có.
+- Bộ chèn U+200B nhận dấu SOURCE và TEXT của lượt quét; trả lời không đọc được vẫn đi nhánh `Malformed` thành "chưa quét".
+- `proof_scan` ghi tên và tầng bộ do Rust phân giải; webview không dựng giá trị này.
+- Đổi tên kéo lựa chọn theo, và hậu quả của xoá một bộ đang được chọn (báo thiếu bộ, hay bộ Global cùng tên thay vào) do Rust tính (AD-68 mục 4).
+- Bản ghi vàng của ca (a): lấy từ `assemble_proofread_batch_prompt` hiện tại TRƯỚC mọi sửa đổi, commit cùng story.
+- Test canh của AD-68 mục 11: (a), (b), (c), (d), (e) phần lượt quét, (g), (h), (i), (j). Chạy `ai_boundary` với lệnh mới (bản duyệt reality của AD-68 chưa chạy).
+- Nhận từ 9.13: loại bộ, các cột, các lệnh thư viện. Bàn giao cho 9.15: hai lệnh ghi lựa chọn, lỗi thiếu bộ, hậu quả của xoá để màn xác nhận hiện.
+'''
+verify = "Không chọn bộ nào thì prompt quét trùng từng byte bản ghi vàng; Global chọn một bộ thì chỉ dẫn đứng trước `PROOFREAD_FORMAT`; Tác phẩm tắt thì không có chỉ dẫn; tên mất (kể cả `.atproj` mở trên máy thiếu bộ Global, FR97) thì lỗi nêu tên và 0 lời gọi mạng; đổi tên bộ đang chọn thì lượt sau dùng nó dưới tên mới; `proof_scan` ghi tên và tầng; mức dùng token của lượt gồm cả chỉ dẫn (FR76); ca (a)(b)(c)(d)(e)(g)(h)(i)(j) có đối chứng gỡ thật; `ai_boundary` xanh."
+covers = ["FR160"]
+after = [13]
+hitl = false
+risk = "high"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-68 mục 3, 4, 5, 6, 7, 11", "prd-auratranslate/prd-auratranslate.md — FR160, FR76, FR97", "architecture-auratranslate/reviews/review-ad-68-{rubric,reality,adversary}-2026-11-04.md"]
+
+[[entry]]
+id = 15
+type = "story"
+title = "Chọn và quản lý chỉ dẫn Proofreader trên giao diện"
+description = '''
+Người dùng tạo, sửa, nhập, xuất bộ chỉ dẫn trong thư viện prompt, chọn bộ mặc định ở tầng Global và chọn một trong ba trạng thái cho Tác phẩm (FR160).
+
+- Thư viện prompt tách theo loại; màn soạn bộ `proofread` không cảnh báo marker (AD-68 mục 2); nhập đi theo loại ghi trong tệp.
+- Ô chọn tầng Global và ô chọn ba trạng thái của Tác phẩm; tên đã mất hiện kèm dấu thiếu, không để trống (AD-68 mục 3).
+- Xoá bộ đang được chọn hiện màn xác nhận nói đúng hậu quả mà 9.14 tính (AD-68 mục 4).
+- Thiết kế: chưa có mockup cho loại `proofread` và ô chọn ba trạng thái; theo khuôn `mockups/prompt-library.html` và ô chọn bộ prompt dịch hiện có.
+- Nhận từ 9.13 các lệnh thư viện theo loại, từ 9.14 hai lệnh ghi lựa chọn, lỗi thiếu bộ và hậu quả của xoá.
+- Một lượt dùng thật của Ice: viết chỉ dẫn "chỉ so bản dịch với bản gốc của chính câu đó", chọn ở tầng Global, quét lại Chương có seg 162/163 của Tác phẩm "Mỹ dự định ban hành luật…", ghi kết quả. Chưa làm được trong story thì thành mục nợ `Chủ: Epic 9`.
+'''
+verify = "Tạo bộ chỉ dẫn, chọn ở tầng Global, quét ở hai Tác phẩm thì cả hai dùng nó; Tác phẩm chọn \"không dùng chỉ dẫn\" thì quét như trước; đổi tên bộ đang chọn thì ô chọn hiện tên mới; xoá bộ đang chọn hiện xác nhận đúng hậu quả và lượt quét sau báo thiếu bộ nêu tên, ô chọn hiện tên đã mất kèm dấu thiếu; Ice chạy lượt dùng thật và ghi kết quả."
+covers = ["FR160"]
+after = [14]
+hitl = true
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md — AD-68 mục 2, 3, 4", "prd-auratranslate/prd-auratranslate.md — FR160, FR69, FR103", "ux-auratranslate/EXPERIENCE.md — Bộ prompt theo thể loại", "ux-auratranslate/mockups/prompt-library.html", "ux-auratranslate/DESIGN.md"]
