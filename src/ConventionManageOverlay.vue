@@ -276,7 +276,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .cvm-none {
-  font-style: italic;
+  font-style: var(--style-ui-sm-italic);
   color: var(--color-on-surface-variant);
 }
 </style>

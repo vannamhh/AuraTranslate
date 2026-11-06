@@ -322,8 +322,8 @@ const EXPECTED_ROUNDED = {
  * `<ruby>` thay `position: absolute` làm cơ chế âm đọc — ruby chiếm chỗ thật nên không
  * cần một giãn dòng riêng. Ghi lại để lần sau không ai dựng lại token đó.
  *
- * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
- * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
+ * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật cho trạng thái rỗng cỡ
+ * `ui` 13px, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
  *
  * 🔵 2026-10-30 (Ice): `typography` lên 19 với `translation-ref` — bản dịch tham khảo 15px,
  * một bậc dưới `editor` 16px; hàng 15 của bảng `DESIGN.md`.
@@ -2419,7 +2419,7 @@ console.log('     `typography.ui-md-strong` (Story 1.14 · AC10), `colors.dark.s
 console.log('     2026-08-03), `typography.source-latin` (Story 1.16 · QĐ #6), `typography.ui-md-wrap`')
 console.log('     (Story 1.17 · QĐ #7), hai mục `source-hanviet` (`fontSize` 12,5→14,5px · `fontStyle`')
 console.log('     nghiêng→thường; Ice chốt 2026-08-07 vì âm Hán Việt quá nhỏ và khó đọc khi in nghiêng),')
-console.log('     `typography.ui-sm-italic` (ô xuất xứ Chương rỗng) và hai bóng `shadows.*.popover`.')
+console.log('     `typography.ui-sm-italic` (trạng thái rỗng nghiêng) và hai bóng `shadows.*.popover`.')
 console.log('     `DESIGN.md` chưa được sửa cho khớp — đó là một lượt riêng của Ice, không phải')
 console.log('     của dev. Xem `deviations` trong `tokens.json`.')
 console.log('  4. Cờ `wraps` là mệnh đề về NỘI DUNG sẽ chạy qua token; không phép kiểm tĩnh nào')
