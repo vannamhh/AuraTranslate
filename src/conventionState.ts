@@ -408,7 +408,7 @@ type MarkPosition = {
 /** UTF-16 offset of the caret inside its translation cell, or `null` when the selection is not there. */
 function caretOffsetIn(segmentId: number): number | null {
   const cell = document.querySelector(`[data-col="tgt"][data-segment-id="${String(segmentId)}"]`)
-  const selection = document.getSelection()
+  const selection = window.getSelection()
   if (cell === null || selection === null || selection.focusNode === null || !cell.contains(selection.focusNode)) return null
   const range = document.createRange()
   range.setStart(cell, 0)

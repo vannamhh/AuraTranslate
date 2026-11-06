@@ -49,6 +49,21 @@ export async function openConventionManage(): Promise<void> {
   if (mine === session) busy.value = false
 }
 
+/**
+ * Drops every cell of this module. The rule list itself is global, but the overlay's open flag,
+ * its in-flight error and the half-typed drafts belong to the session that opened it.
+ */
+export function resetConventionManage(): void {
+  session += 1
+  open.value = false
+  rules.value = []
+  hasLoaded.value = false
+  busy.value = false
+  failure.value = null
+  conventionAvoidDraft.value = ''
+  conventionReplacementDraft.value = ''
+}
+
 export function closeConventionManage(): void {
   session += 1
   open.value = false
