@@ -3,7 +3,7 @@ title: 'Một luật Global đánh dấu và thay một chỗ trong Chương đa
 type: 'feature'
 ticket: '1'
 created: '2026-11-05'
-status: 'built'
+status: 'done'
 baseline_revision: 'bfd6603d0a828f41a8031d1058f757e3e902722b'
 route: 'full'
 route_source: 'auto'
