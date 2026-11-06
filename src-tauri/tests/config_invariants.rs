@@ -1511,6 +1511,16 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "doc TOAN BO cap TM ca hai tang roi loc chuoi con, chi phi scale theo kich thuoc TM",
         ),
         (
+            "src/commands/segment/wire.rs",
+            "pub fn save_segment_targets(\n    app: tauri::AppHandle,",
+            "luot ghi cua Editor, no theo tran cung 5 giay NGAY TRONG luc go; giu MutexGuard cua OpenWorkState qua tron hai luot ghi",
+        ),
+        (
+            "src/commands/segment/wire.rs",
+            "pub fn save_chapter_position(\n    app: tauri::AppHandle,",
+            "no theo hen gio 500 ms moi luot con tro doi, tuc cung nhip voi duong go",
+        ),
+        (
             "src/commands/tm.rs",
             "pub fn tm_list_pairs<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "doc TOAN BO cap TM ca hai tang roi loc, nhom va sap xep, chi phi scale theo kich thuoc TM",
@@ -2301,11 +2311,11 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     // MOI luot ghi khac) mau thuan voi bat ky loi khai "nhe" nao.
     // 🔵 SUA 2026-09-21 (Story 4.8, Phase 2) -- 14 → 15: `promote_ai_translation` (vo PLAIN,
     // mot cau `UPDATE` tuc thoi) them vao.
-    // `tm_fuzzy_matches` is the one `(async)` shell here: it scans every pair of both TM tiers.
-    // `tm_concordance` is the second `(async)` shell: it reads every pair of both TM tiers.
+    // Four `(async)` shells here: `tm_fuzzy_matches` and `tm_concordance` each read every pair of
+    // both TM tiers; `save_segment_targets` and `save_chapter_position` ride the typing timers.
     // `accept_tm_fuzzy` and `accept_tm_exact` are plain: one pair read by id, then one `UPDATE`.
     // `ai_proofread_accept` and `ai_proofread_revert` are plain: one text splice, then one `UPDATE`.
-    ("src/commands/segment/wire.rs", 24, 2, 2, ""),
+    ("src/commands/segment/wire.rs", 22, 4, 4, ""),
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
@@ -2463,9 +2473,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (119, 70),
+        (117, 72),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         119/70.\n\n\
+         117/72.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

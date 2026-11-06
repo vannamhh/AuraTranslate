@@ -140,7 +140,9 @@ pub fn clear_reading_marks(app: tauri::AppHandle) -> Result<u32, IpcError> {
 /// là mở lại một cuộc đua ghi: `replace_open_work` có thể trỏ `OpenWorkState` sang một Tác
 /// phẩm **khác** giữa lúc lô này đang bay, và lúc đó lô ghi vào `project.db` của Tác phẩm
 /// vừa bị thay.
-#[tauri::command]
+// `async` keeps this off the main thread: on Windows that thread pumps the WebView2 message
+// loop, and a synchronous command body there freezes typing while the write runs.
+#[tauri::command(async)]
 pub fn save_segment_targets(
     app: tauri::AppHandle,
     chapter_id: i64,
@@ -170,7 +172,8 @@ pub fn save_segment_targets(
 ///
 /// ⚠️ `chapter_id`/`segment_id` đi trên dây dưới tên **`chapterId`**/**`segmentId`** —
 /// `invoke()` gửi tham số ở dạng camelCase.
-#[tauri::command]
+// `async` for the same reason as the write above: this one fires on a 500 ms caret timer.
+#[tauri::command(async)]
 pub fn save_chapter_position(
     app: tauri::AppHandle,
     chapter_id: i64,
