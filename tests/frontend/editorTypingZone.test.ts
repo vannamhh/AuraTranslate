@@ -30,6 +30,8 @@
  * một bản mô phỏng DOM trong Node. Vế đó thuộc **bàn đo** (`2-3-ban-do-vung-go.html`, mũi thăm
  * dò Task 0.1, hai engine thật) và **e2e trong WKWebView**. Bốn đường, bốn vai — AC25.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { FIXTURE_SEGMENTS, readFixture, recordSave, resetRecorder, saveCalls } from './support/segmentFixture'
@@ -143,6 +145,22 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
     expect(cells).toHaveLength(FIXTURE_SEGMENTS.length)
     for (const cell of cells) expect(cell.getAttribute('spellcheck')).toBe('false')
     wrapper.unmount()
+  })
+
+  it('hai bề mặt đọc `target_text` khai `white-space: pre-wrap` — `pre-line` nuốt space gõ ngay trước `\\n`', () => {
+    const ruleOf = (file: string, selector: string) => {
+      const css = readFileSync(resolve(process.cwd(), file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+      return new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? null
+    }
+    for (const [file, selector] of [
+      ['src/panels/GridBlock.vue', '.cell-tgt'],
+      ['src/SegmentHistoryOverlay.vue', '.hist-text'],
+    ] as const) {
+      const body = ruleOf(file, selector)
+      expect([file, body]).not.toEqual([file, null])
+      expect([file, /white-space:\s*pre-wrap;/.test(body!)]).toEqual([file, true])
+      expect([file, /pre-line/.test(body!)]).toEqual([file, false])
+    }
   })
 
   it('thuộc tính `contenteditable` KHÔNG đổi khi caret dời — nó không còn theo caret', async () => {

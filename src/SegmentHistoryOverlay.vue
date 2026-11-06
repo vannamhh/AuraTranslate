@@ -525,14 +525,8 @@ function aimRow(id: number): void {
 
 .hist-text {
   margin: var(--space-panel-block) 0 0 0;
-  /*
-   * ⚠️ `pre-line` — cùng lý do và cùng chữ ký với ô bản dịch của lưới (Quyết định #2 đường
-   * (b) của Story 2.5d): `target_text` **mang ký tự `\n` thật** từ khi AD-46 mở đường ngắt
-   * đoạn, và dưới `white-space: normal` mặc định chúng bị gộp thành một khoảng trắng. Một
-   * bản dịch hai đoạn sẽ hiện thành một khối liền ở đây, tức lịch sử nói sai về chính thứ
-   * nó đang cho xem.
-   */
-  white-space: pre-line;
+  /* Same whitespace contract as the grid's translation cell: this shows the same target_text. */
+  white-space: pre-wrap;
   font-family: var(--face-read-sm);
   font-size: var(--font-read-sm);
   line-height: var(--leading-read-sm);

@@ -723,33 +723,11 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  * đúng nằm ở **cấu trúc**, không ở một lượt vá hình học: một Ô có chiều cao, không một span.
  */
 /*
- * 🔴 `white-space: pre-line` — TIỀN ĐỀ VẬN HÀNH của FR134/AD-46, không một dòng trang trí.
- * Story 2.5d, Quyết định #2 đường (b) (Ice ký 2026-08-15). **Đừng đổi mà không đọc hết.**
- *
- * Nó làm HAI việc, và cả hai đều đo được trên WKWebView 605.1.15 thật
- * (`2-5d-ban-do/README.md`, 2026-08-15):
- *
- * ① **Vẽ ra `\n` đã lưu.** Ô này render `{{ s.target_text }}`, tức một chuỗi đi thẳng vào
- *    DOM thành text node. Đo được: cùng một `"A\nB"`, `white-space: normal` cho **1 dòng**,
- *    `pre-line` cho **2**. Không có dòng này, một Chương vừa mở hiện bản dịch **mất hết
- *    ngắt đoạn** — đĩa đúng, màn hình sai, không lỗi nào được ném.
- *
- * ② **Quyết định hình dạng DOM mà engine dựng lúc gõ.** Đo được: `execCommand(
- *    'insertLineBreak')` trong ô này dựng một **text node `"\n"`** *(0 phần tử con,
- *    `textContent === "A\nB"`)*; đối chứng **không** `pre-line` thì chính lệnh đó dựng
- *    `<br>` và `textContent` đọc ra **`"AB"`** — mất trắng ranh giới trên đường ghi.
- *    ⇒ Đổi giá trị này là **lật nhánh ① của `onBeforeInput`** ở một tệp khác, trong im lặng.
- *
- * ⚠️ `pre-line` chứ **không** `pre-wrap` (Ice ký): `pre-wrap` giữ cả khoảng trắng đầu/cuối
- * dòng, tức mọi bản dịch cũ trên đĩa có khoảng trắng thừa sẽ **đổi hình dạng hiển thị** ngay
- * lượt cập nhật này. Hai giá trị cho **cùng** số dòng (đo: 2/2) nên vế ① không mất gì.
- * ⚠️ `check:tokens` **không** soi `white-space` (`PURE_COLOR_PROPS`/`COMPOSITE_COLOR_PROPS`)
- * ⇒ viết thẳng ở đây là hợp lệ, không cần token, không cần miễn trừ có tên.
- * ⚠️ Cột nguyên văn **không** nhận dòng này — story không có AC nào đòi đụng nó, và
- * `SourceHanViet.vue` đã có `pre-wrap` riêng của nó.
+ * pre-wrap, not pre-line: Blink on Windows silently drops a typed space that sits right
+ * before a stored "\n", so target_text loses it with nothing reported.
  */
 .cell-tgt {
-  white-space: pre-line;
+  white-space: pre-wrap;
   /* Without containment WebKit relayouts and repaints beyond the edited cell on every keystroke. */
   contain: layout style;
 }

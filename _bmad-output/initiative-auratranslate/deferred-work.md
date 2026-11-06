@@ -13968,3 +13968,8 @@ chính nó.
   summary: `ai_config_get` giữ khoá `OpenWorkState` qua `keychain::configured()` (`commands/aiconfig.rs:421-424` → :206); một hộp thoại Keychain chờ người bấm làm treo mọi lệnh đồng bộ cần Tác phẩm đang mở.
   evidence: có từ trước 16.1; `sample` lúc spec e2e 16-1 treo trên máy khoá cho thấy main thread chờ mutex trong `read_open_chapter_segments`, một task tokio nằm trong lượt dò Keychain, `SecurityAgent` đang chạy.
   Chủ: Ice
+
+- source_plan: `research-go-cham-luoi-subgrid-webkit/research-go-cham-luoi-subgrid-webkit.md`
+  summary: bản dịch lưu trước 2026-11-06 có thể mang `U+00A0` ở chỗ người dùng gõ một dấu cách cuối dòng — dưới `white-space: pre-line` cả Blink lẫn WebKit chèn NBSP thay dấu cách thường, và nó đi thẳng vào `target_text` qua `noteEditorEdit`.
+  evidence: đo trên Chrome for Testing 156.0.8078.4 và WebKit 2370; NBSP làm lệch khớp TM chính xác, và làm `scannedText` khác `textContent` nên `wrapProofread` bỏ vẽ ⇒ dấu quy ước im lặng biến mất. Bản vá `pre-wrap` chặn đường sinh ra NBSP mới nhưng KHÔNG dọn dữ liệu cũ.
+  Chủ: Ice

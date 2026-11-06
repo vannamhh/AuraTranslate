@@ -1569,25 +1569,8 @@ function onBeforeInput(event: InputEvent): void {
     unwrapProofread(cell, event.inputType === 'historyUndo' || event.inputType === 'historyRedo')
   }
 
-  // ① Cấu trúc đoạn — AD-37 giữ cờ nguồn; AD-46 mở quyền xuống dòng ở ô bản dịch.
-  //
-  // 🔴 **`insertLineBreak` ĐI QUA, `insertParagraph` bị đổi thành `insertLineBreak`** — và
-  // đây là một PHÉP ĐO trên WKWebView thật (bàn đo Task 1, `2-5d-ban-do/README.md`,
-  // 2026-08-15), không một sở thích. Bốn số quyết định hình dạng này:
-  //
-  //   • thả `insertParagraph` chạy ⇒ engine dựng `A<div>B</div>`, và `cell.textContent`
-  //     đọc ra **`"AB"`** — DOM hai dòng, đĩa MỘT chuỗi liền. AC1 hỏng ở vế *"ký tự lưu vào
-  //     `target_text`"* mà **không cổng nào đỏ**;
-  //   • `insertLineBreak` dưới `white-space: pre-line` ⇒ engine dựng **text node `"\n"`**,
-  //     `0` phần tử con, `textContent === "A\nB"`. Đúng thứ đường ghi cần;
-  //   • ở **cuối** nội dung engine tự thêm một `\n` canh chót ⇒ ô vẽ ra **2 dòng** thật.
-  //     Đường `<br>` phải tự làm việc đó: đo được `A<br>` = **1 dòng**, `A<br><br>` = 2;
-  //   • đối chứng: **không** `pre-line` thì chính `insertLineBreak` lại dựng `<br>` và
-  //     `textContent` về lại `"AB"`.
-  //
-  // ⇒ 🔴 `white-space: pre-line` ở `<style scoped>` **KHÔNG phải một dòng trang trí** — nó
-  // là **tiền đề vận hành** của nhánh này. Đổi nó là lật hình dạng DOM mà engine dựng, và
-  // đường ghi im lặng mất `\n`. Hai chỗ đó phải đọc cùng nhau.
+  // insertParagraph is rewritten to insertLineBreak (AD-46): letting the engine run it builds
+  // `A<div>B</div>`, whose textContent reads "AB", so the newline never reaches target_text.
   if (event.inputType === 'insertParagraph') {
     event.preventDefault()
     // 🔴 CHỐT CHỐNG ĐỆ QUY. `execCommand('insertLineBreak')` tự phát một `beforeinput`
