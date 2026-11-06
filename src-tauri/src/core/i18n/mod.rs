@@ -1184,3 +1184,10 @@ impl IpcError {
         self.retryable
     }
 }
+
+/// Lives here, not in the AI command layer: non-AI features need it too, and AD-13 forbids a
+/// module outside `core/ai/` from depending on that layer — `pre-push` does not run that check.
+pub(crate) fn state_missing(tag: &str, state_name: &str, code: &'static str) -> IpcError {
+    eprintln!("{code} [{tag}] {state_name} chua duoc quan ly -- loi cau hinh setup()");
+    IpcError::new(code, MessageKey::Unknown, BTreeMap::new(), false)
+}

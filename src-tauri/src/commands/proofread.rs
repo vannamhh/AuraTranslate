@@ -718,9 +718,9 @@ pub mod wire {
         ProofreadIgnoreEntryWire, ProofreadPrepareOutcome, ScanTrace, prepare_proofread_call,
         send_prepared_proofread_call,
     };
-    use crate::commands::aitranslate::state_missing;
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
+    use crate::core::i18n::state_missing;
     use crate::core::segment::proofread_kind::ProofreadKind;
     use crate::core::store::Store;
 

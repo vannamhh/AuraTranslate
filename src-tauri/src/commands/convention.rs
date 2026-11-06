@@ -294,7 +294,7 @@ pub fn convention_scan_chapter(
 }
 
 fn state_missing() -> IpcError {
-    crate::commands::aitranslate::state_missing(
+    crate::core::i18n::state_missing(
         "convention",
         "ConventionMatcherState",
         "convention.state_missing",

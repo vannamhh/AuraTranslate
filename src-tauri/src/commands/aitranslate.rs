@@ -352,16 +352,6 @@ pub(crate) fn resolve_call_config<'a>(
     }))
 }
 
-pub(crate) fn state_missing(tag: &str, state_name: &str, code: &'static str) -> IpcError {
-    eprintln!("ai_translate[{tag}] {state_name} chua duoc quan ly -- loi cau hinh setup()");
-    IpcError::new(
-        code,
-        crate::core::i18n::MessageKey::Unknown,
-        std::collections::BTreeMap::new(),
-        false,
-    )
-}
-
 /// **Lớp ĐỒNG BỘ** — phân giải cấu hình, đọc khoá, từ chối một segment `is_omitted`, rồi gọi
 /// 4.7's producer ([`assemble_and_record_prompt`]) để lấy ĐÚNG chuỗi nó đã ghi (AD-14, §Always
 /// spec 4.8: "never a second assembly"). **Hàm thuần, đây là thứ test gọi** — không mạng, không
@@ -1778,7 +1768,7 @@ pub mod wire {
         AppStores, OperationCallSource, PrepareOperationOutcome, PrepareOutcome, ResendCallSource,
         SingleRun, StoreAccess, prepare_resend_call, prepare_translate_call,
         prepare_translate_operation, resend_plan, send_prepared_operation,
-        send_prepared_translate_call, single_run_outcome_wire, state_missing,
+        send_prepared_translate_call, single_run_outcome_wire,
     };
     use super::{
         ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire,
@@ -1790,7 +1780,7 @@ pub mod wire {
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::aiconfig::AiConfigTier;
-    use crate::core::i18n::IpcError;
+    use crate::core::i18n::{IpcError, state_missing};
     use crate::core::store::Store;
 
     /// Vỏ IPC của lượt dịch một segment — `async fn` LITERAL (xem doc-comment đầu tệp cho lý
