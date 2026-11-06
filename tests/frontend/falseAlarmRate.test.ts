@@ -23,8 +23,8 @@ let counter = 0
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'false-alarm-'))
-  // The first child `node` on a loaded Windows runner can exceed the first case's 5 s budget;
-  // pay that cold start here, under the wider hookTimeout.
+  // Every child `node` on a loaded Windows runner can spike, not just the first one; this pays
+  // one cold start up front and the describe below carries a budget wide enough for the rest.
   run([])
 })
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
@@ -66,7 +66,7 @@ function run(args: string[]) {
   return { code: r.status, out: r.stdout, err: r.stderr }
 }
 
-describe('đo tỷ lệ báo động giả', () => {
+describe('đo tỷ lệ báo động giả', { timeout: 20_000 }, () => {
   it('đủ mẫu, đỗ', () => {
     const p = build({ scans: [{ reported: 40 }], ignores: rows(6) })
     const r = run([p, '--chapter', '7'])
