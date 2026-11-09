@@ -14001,6 +14001,13 @@ chính nó.
     3,9 GB. Tải máy trước hai lượt là 3,90 và 10,63 nên 5 s chênh là TRẦN TRÊN, không một số sạch.
     Hôm nay chưa đau: exec một test binary ĐÃ KÝ trong deps đo 0,00 s (40 s từng đo ở 775k mục).
   Chủ: Ice
+  → 🟡 2026-11-09 (Ice chọn) — `[profile.dev] split-debuginfo = "packed"` nay nằm trong
+    `~/.cargo/config.toml`, KHÔNG trong kho, nên CI không đổi. Đo lại cùng cây cùng lệnh:
+    `cargo build --locked --lib` cold 131 s / 0 `.rcgu.o` / 1 `.dSYM` ở tải 4,98, so với 133 s /
+    1.175 `.rcgu.o` ở tải 3,90 khi chưa đặt ⇒ 5 giây chênh của lượt đo trước là TẢI MÁY, không
+    phải `packed`. `cargo test --no-run --test ai_boundary` cũng 0 `.rcgu.o` ⇒ profile `test`
+    thừa hưởng là phép ĐO, không một suy luận. CÒN HỞ: 147.115 tệp và 38 GB đã tích trong
+    `src-tauri/target/debug/deps` nằm đó tới khi có một lượt `cargo clean`. Chủ: Ice.
 
 - source_plan: none
   summary: `npm run test` thoát 1 với `Errors 1 error` dù 259/259 tệp và 4.106/4.106 ca XANH —
