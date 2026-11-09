@@ -12368,6 +12368,12 @@ chính nó.
     **(Chủ: Ice — quyết định hình dạng, rồi story nào chạm CI tiếp theo cài.)**
   → KHÔNG LÀM 2026-09-24 (phiếu quyết #106) — Ice không nhận zeroize; khoá API chỉ sống trong Rust, NFR11 (tệp, log, IPC) đã đóng.
   → 🟡 2026-09-24 (Story 11.1 lô B) — dòng `→ KHÔNG LÀM 2026-09-24 (phiếu quyết #106)` ngay TRÊN thuộc về mục `PreparedTranslateCall::api_key`/`spawn_blocking` PHÍA TRƯỚC (phiếu quyết #106 nói về zeroize, không về CI) — dán nhầm ở đây từ phiên quyết trước; đã ghi chú chéo ở mục đó. Mục NÀY (neo CI theo tên hàm test bằng `--exact`) vẫn CHƯA đóng: `ci.yml:342` vẫn lọc theo tên trần, chưa có hằng dùng chung hay bước sinh CI từ nguồn. **Chủ: Ice.**
+  → ✅ ĐÃ ĐÓNG 2026-11-09 — tên ca không còn là một chuỗi trần ở bất cứ đâu:
+    `scripts/check-fr77.mjs` đọc nó TỪ `src-tauri/tests/ai_boundary.rs` (ca `#[ignore]` duy
+    nhất; 0 hay ≥2 ca thì cổng dừng bằng `abort`, không chọn bừa một ca), và cả `ci.yml` lẫn
+    `.githooks/pre-push` nay gọi cùng một `npm run check:fr77` — cổng thứ mười lăm, 18,3 s trên
+    `target/` đã ấm. Đối chứng: đổi tên ca thật ⇒ `cargo test` in "running 0 tests" và thoát 0
+    trong khi cổng đỏ; gỡ lời gọi khỏi pre-push ⇒ Kiểm D đỏ; gỡ khỏi `ci.yml` ⇒ Kiểm A đỏ.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-dich-mot-segment-voi-ket-qua-chay-dan.md`
   summary: **`pop_piece` quyết định gỡ `'\r'` khỏi bản sao `pieces` dựa trên đuôi của `out`, không
@@ -13972,4 +13978,26 @@ chính nó.
 - source_plan: `research-go-cham-luoi-subgrid-webkit/research-go-cham-luoi-subgrid-webkit.md`
   summary: bản dịch lưu trước 2026-11-06 có thể mang `U+00A0` ở chỗ người dùng gõ một dấu cách cuối dòng — dưới `white-space: pre-line` cả Blink lẫn WebKit chèn NBSP thay dấu cách thường, và nó đi thẳng vào `target_text` qua `noteEditorEdit`.
   evidence: đo trên Chrome for Testing 156.0.8078.4 và WebKit 2370; NBSP làm lệch khớp TM chính xác, và làm `scannedText` khác `textContent` nên `wrapProofread` bỏ vẽ ⇒ dấu quy ước im lặng biến mất. Bản vá `pre-wrap` chặn đường sinh ra NBSP mới nhưng KHÔNG dọn dữ liệu cũ.
+  Chủ: Ice
+
+## Deferred from: lượt dọn bốn món nợ hạ tầng (2026-11-09)
+
+- source_plan: none
+  summary: ba spec e2e đỏ ở nightly — `titlebar-tools` (danh sách Công cụ nay mười mục, không
+    chín), `story-12-14-prompt-library` (ô soạn nay cao theo nội dung, không cuộn) và
+    `story-16-1-convention-mark-accept` (lưới không đọc lại sau lượt ghi qua IPC; `browser.keys`
+    rơi dấu cách) — nay xanh trên máy Ice; chưa lượt nào xác nhận trên runner.
+  evidence: máy Ice dpr=2, runner dpr=1 ở 1920×1080 và chạy 73 spec chung một `global.db`, nên ba
+    bản sửa chỉ được đo ở một trong hai nơi; nightly kế tiếp là phép đo trên runner.
+  Chủ: Ice
+
+- source_plan: none
+  summary: `src-tauri/target/debug/deps` tích 147.115 tệp `*.rcgu.o` (159.380 mục, 38 GB) vì
+    `split-debuginfo` của profile dev trên macOS mặc định là `unpacked` và cargo không dọn bao giờ;
+    chưa chọn nơi đặt `packed`: `~/.cargo/config.toml` (chạm MỌI dự án Rust của Ice, CI không đổi)
+    hay `src-tauri/Cargo.toml` (chạm kho này ở mọi nơi, CI kèm theo).
+  evidence: hai lượt `cargo build --locked --lib` cold vào một target dir riêng — mặc định 133 s /
+    2.352 mục / 1.175 `.rcgu.o` / 4,3 GB; `packed` 138 s / 1.178 mục / 0 `.rcgu.o` / 1 `.dSYM` /
+    3,9 GB. Tải máy trước hai lượt là 3,90 và 10,63 nên 5 s chênh là TRẦN TRÊN, không một số sạch.
+    Hôm nay chưa đau: exec một test binary ĐÃ KÝ trong deps đo 0,00 s (40 s từng đo ở 775k mục).
   Chủ: Ice

@@ -1,7 +1,9 @@
 #!/bin/sh
-# Push gate: 12 gates, vitest, build, cargo test. A red step blocks the push.
-# A push touching only documentation runs the gates and skips the rest (is_docs_only).
+# Push gate: 15 gates, vitest, build, cargo test. A red step blocks the push.
+# A push touching only documentation runs the first fourteen gates and skips the rest (is_docs_only).
 # check:scope, check:scope:bundled and the e2e suite stay out on purpose; CI and the nightly run cover them.
+# Every step writes its output to a log file and a red step prints the tail of that log:
+# re-running a twenty-minute step just to read why it went red is the cost this avoids.
 # History: _bmad-output/implementation-artifacts/agent-rules-evidence.md
 
 set -e
@@ -12,9 +14,25 @@ cd "$REPO_ROOT"
 red()   { printf '\033[31m%s\033[0m\n' "$1"; }
 green() { printf '\033[32m%s\033[0m\n' "$1"; }
 
+TMP_BASE=${TMPDIR:-/tmp}
+LOG_DIR=$(mktemp -d "${TMP_BASE%/}/auratranslate-pre-push.XXXXXX")
+
+TAIL_LINES=60
+
 fail() {
   echo ''
   red "PUSH BỊ CHẶN — $1 ĐỎ."
+  echo ''
+  if [ -s "$3" ]; then
+    echo "$TAIL_LINES dòng cuối ($3):"
+    echo '────────────────────────────────────────────────────────────────'
+    tail -n "$TAIL_LINES" "$3"
+    echo '────────────────────────────────────────────────────────────────'
+    echo ''
+    echo "Log đầy đủ còn ở:  $3"
+  else
+    echo "Bước này không in gì ra log ($3 rỗng)."
+  fi
   echo ''
   echo "Chạy lại một mình để đọc chi tiết:  $2"
   echo ''
@@ -41,15 +59,15 @@ done
 
 START=$(date +%s)
 echo ''
-echo 'pre-push — mười bốn cổng, test frontend, build, cargo test.'
+echo 'pre-push — mười lăm cổng, test frontend, build, cargo test.'
 
 for gate in deps tokens i18n commands layout panel-refs doc-refs dict dict-manifest lint clippy fmt gates debt-owner; do
   printf '  %-14s' "$gate"
-  if npm run --silent "check:$gate" >/dev/null 2>&1; then
+  if npm run --silent "check:$gate" >"$LOG_DIR/$gate.log" 2>&1; then
     green 'OK'
   else
     echo ''
-    fail "check:$gate" "npm run check:$gate"
+    fail "check:$gate" "npm run check:$gate" "$LOG_DIR/$gate.log"
   fi
 done
 
@@ -58,22 +76,44 @@ done
 node scripts/ci-previous-verdict.mjs || true
 
 if [ "$DOCS_ONLY" = 1 ]; then
-  echo '  (chỉ đổi tài liệu — bỏ qua test, build, cargo test)'
+  echo '  (chỉ đổi tài liệu — bỏ qua test, build, cargo test, fr77)'
 else
   printf '  %-14s' 'test'
-  if npm run --silent test >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run test' 'npm run test'; fi
-
-  printf '  %-14s' 'build'
-  if npm run build >/dev/null 2>&1; then green 'OK'; else echo ''; fail 'npm run build' 'npm run build'; fi
-
-  printf '  %-14s' 'cargo test'
-  if (cd src-tauri && cargo test --locked >/dev/null 2>&1); then
+  if npm run --silent test >"$LOG_DIR/test.log" 2>&1; then
     green 'OK'
   else
     echo ''
-    fail 'cargo test' 'cd src-tauri && cargo test --locked'
+    fail 'npm run test' 'npm run test' "$LOG_DIR/test.log"
+  fi
+
+  printf '  %-14s' 'build'
+  if npm run build >"$LOG_DIR/build.log" 2>&1; then
+    green 'OK'
+  else
+    echo ''
+    fail 'npm run build' 'npm run build' "$LOG_DIR/build.log"
+  fi
+
+  printf '  %-14s' 'cargo test'
+  if (cd src-tauri && cargo test --locked >"$LOG_DIR/cargo-test.log" 2>&1); then
+    green 'OK'
+  else
+    echo ''
+    fail 'cargo test' 'cd src-tauri && cargo test --locked' "$LOG_DIR/cargo-test.log"
+  fi
+
+  # Cổng thứ MƯỜI LĂM, và nó phải ở ĐÂY, không ở vòng lặp trên: nó trỏ `--target-dir` vào
+  # `target/` thật để dùng lại các crate vừa biên dịch, và cần `dist/` của `npm run build`.
+  printf '  %-14s' 'fr77'
+  if npm run --silent check:fr77 >"$LOG_DIR/fr77.log" 2>&1; then
+    green 'OK'
+  else
+    echo ''
+    fail 'check:fr77' 'npm run check:fr77' "$LOG_DIR/fr77.log"
   fi
 fi
+
+rm -rf "$LOG_DIR"
 
 echo ''
 green "Tất cả xanh trong $(( $(date +%s) - START ))s. Đẩy đi."

@@ -276,8 +276,19 @@ const runsScript = (text, name) =>
 const called = npmRunNames(ciText)
 
 /**
- * Tên cổng mà `.githooks/pre-push` thật sự chạy, đọc từ vòng lặp
- * `for gate in deps tokens … ; do` — thân vòng lặp gọi `npm run check:$gate`.
+ * Tên cổng mà `.githooks/pre-push` thật sự chạy — HAI nguồn, hợp lại:
+ *   ① vòng lặp `for gate in deps tokens … ; do`, thân vòng gọi `npm run check:$gate`;
+ *   ② mọi lời gọi `npm run <tên>` VIẾT THẲNG trong hook, cho cổng không nằm trong vòng.
+ *
+ * ⚠️ Vì sao nguồn ② tồn tại: thứ tự có nghĩa. `check:fr77` cần `dist/` và một `target/`
+ * đã ấm, nên nó chạy SAU `npm run build` và `cargo test`, ngoài vòng lặp. Một bộ đọc chỉ
+ * biết vòng lặp sẽ đọc nó thành "pre-push KHÔNG chạy cổng này" rồi đòi nhét nó vào vòng —
+ * tức để Kiểm D lái một quyết định về thứ tự mà nó không có thẩm quyền.
+ *
+ * ⚠️ Nguồn ② đòi `check:` đi LIỀN sau `npm run ` (hoặc `npm run --silent `), nên thân vòng
+ * lặp — `npm run --silent "check:$gate"` — KHÔNG khớp: dấu nháy đứng chắn, và `$gate`
+ * không phải một tên. Hai nguồn vì thế không đếm trùng nhau. Nguồn ② mang cùng một hở với
+ * bộ đọc `ci.yml`: một lời gọi nằm trong CHÚ THÍCH của hook vẫn được tính là "có chạy".
  *
  * 🔴 Trả `null` khi KHÔNG đọc nổi vòng lặp, và đó là chỗ quan trọng nhất của hàm này.
  * Một bộ đọc trả về tập RỖNG sẽ làm Kiểm D xanh trong khi nó chẳng kiểm gì — đúng lớp
@@ -287,7 +298,10 @@ const called = npmRunNames(ciText)
 /** @param {string} text @returns {Set<string> | null} */
 const prepushGateNames = (text) => {
   const m = text.match(/^for\s+gate\s+in\s+([^;]+);/m)
-  return m ? new Set(m[1].trim().split(/\s+/).map((g) => `check:${g}`)) : null
+  if (!m) return null
+  const names = new Set(m[1].trim().split(/\s+/).map((g) => `check:${g}`))
+  for (const d of text.matchAll(/npm run (?:--silent )?(check:[A-Za-z0-9:._-]+)/g)) names.add(d[1])
+  return names
 }
 
 const hooked = prepushGateNames(prepushText)
@@ -342,6 +356,7 @@ console.log('')
     for (const name of missing) {
       detail(`${name} — thêm tên (bỏ tiền tố \`check:\`) vào vòng lặp của .githooks/pre-push`)
     }
+    detail('hoặc một lời gọi `npm run check:<tên>` viết thẳng, nếu cổng cần một thứ tự riêng.')
     detail('Trong lúc GitHub Actions tạm dừng, pre-push là đường cưỡng chế DUY NHẤT chạy')
     detail('mỗi lượt. Một cổng vắng mặt ở đó là một cổng dựa vào trí nhớ (AC3, Story 1.3).')
   }
@@ -490,6 +505,18 @@ console.log('')
       why: 'vòng lặp đổi hình dạng cho ra `null`, KHÔNG cho ra tập rỗng',
       hook: 'for g in deps tokens; do\n  npm run --silent "check:$g"\ndone',
       expect: 'null',
+    },
+    {
+      why: 'cổng viết THẲNG ngoài vòng lặp cũng được nhận (nguồn ②)',
+      hook:
+        'for gate in deps; do\n  npm run --silent "check:$gate"\ndone\n' +
+        'npm run --silent check:fr77',
+      expect: 'check:deps,check:fr77',
+    },
+    {
+      why: 'thân vòng lặp `"check:$gate"` KHÔNG tự sinh thêm một tên nào',
+      hook: 'for gate in deps; do\n  npm run --silent "check:$gate"\ndone',
+      expect: 'check:deps',
     },
   ]
 
@@ -681,7 +708,8 @@ console.log('  1. `ci.yml` đọc bằng regex trên văn bản thuần, không 
 console.log('     (một phụ thuộc npm mới — NFR15). Một lời gọi nằm trong CHÚ THÍCH vẫn tính.')
 console.log('  2. `if:` của bước KHÔNG được đọc — cổng này bắt việc QUÊN HẲN, không bắt việc')
 console.log('     gọi có điều kiện.')
-console.log('  3. `.githooks/pre-push` đọc bằng một regex bám hình dạng `for gate in … ;`.')
+console.log('  3. `.githooks/pre-push` đọc từ HAI nguồn: vòng lặp `for gate in … ;` và các lời')
+console.log('     gọi `npm run check:*` viết thẳng ngoài vòng (cổng cần đúng thứ tự).')
 console.log('     Viết lại vòng lặp theo hình dạng khác làm cổng DỪNG bằng abort, không làm')
-console.log('     nó xanh oan — Kiểm C ca 6 giữ mệnh đề đó.')
+console.log('     nó xanh oan — một ca tự kiểm của Kiểm C giữ mệnh đề đó.')
 process.exit(0)

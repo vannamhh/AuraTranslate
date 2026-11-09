@@ -2204,9 +2204,10 @@ fn copy_bundled_resources_outside_src_tauri(
 /// `AGENTS.md`: *"sit outside `pre-push` on purpose... run them by hand"*) — ca này dựng một
 /// bản CHÉP RIÊNG của `src-tauri/` rồi gọi `cargo check` THẬT: tốn giây tới phút, không phải
 /// milli-giây như mọi ca tĩnh khác của tệp này, và không nên nằm trong đường `cargo test
-/// --locked` mặc định mà `pre-push` chạy mỗi lần push. Chạy tay:
-/// `cargo test --test ai_boundary --locked -- --ignored --exact
-/// deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_compiling`
+/// --locked` mặc định mà `pre-push` chạy mỗi lần push. Nó chạy ở một cổng RIÊNG,
+/// `npm run check:fr77` (`scripts/check-fr77.mjs`), sau `cargo test` trong cả `ci.yml` lẫn
+/// `.githooks/pre-push`; cổng đó đọc TÊN ca này từ chính tệp này, nên một lượt đổi tên không
+/// cắt dây nối. Chạy tay: `npm run check:fr77`.
 ///
 /// Dọn dẹp qua `Drop` (`ProbeDirGuard`) để một panic giữa ca vẫn gỡ được thư mục tạm — nhị
 /// phân test biên dịch với `unwind` (`src-tauri/AGENTS.md`), nên `Drop` vẫn chạy trên một
@@ -2223,7 +2224,7 @@ fn copy_bundled_resources_outside_src_tauri(
 /// (bao gồm mọi thay đổi CHƯA commit) sang một thư mục tạm, rồi xoá/sửa trên bản chép đó —
 /// nghiệm thu đúng CÂY ĐANG CÓ TRÊN ĐĨA, không phụ thuộc trạng thái commit.
 #[test]
-#[ignore = "copies the whole `src-tauri/` tree + runs a real `cargo check`; run by hand, see doc-comment"]
+#[ignore = "copies the whole `src-tauri/` tree + runs a real `cargo check`; runs in `check:fr77`"]
 fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_compiling() {
     let src_tauri_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 

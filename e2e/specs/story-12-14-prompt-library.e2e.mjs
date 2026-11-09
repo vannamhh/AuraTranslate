@@ -1,6 +1,7 @@
 /**
  * The Prompt library body box lays a mirror layer under a transparent textarea; the mirror must
- * sit on the same glyph positions, also after the box scrolls, and Duplicate saves the typed body.
+ * sit on the same glyph positions, the box must grow with the body instead of scrolling, and
+ * Duplicate must save the typed body.
  *
  *     npm run test:e2e -- --spec e2e/specs/story-12-14-prompt-library.e2e.mjs
  */
@@ -25,7 +26,7 @@ function longBody() {
 }
 
 describe('Story 12-14 -- Prompt library', () => {
-  it('the mirror tracks the textarea after the box scrolls, and Duplicate keeps the typed body', async () => {
+  it('the mirror tracks the textarea as the box grows with the body, and Duplicate keeps the typed body', async () => {
     await openWorkspaceWithWork('Story 12-14 -- prompt library')
     await invoke('prompt_set_create', { tier: 'global', kind: 'translate', name: NAME, body: longBody() })
 
@@ -44,21 +45,13 @@ describe('Story 12-14 -- Prompt library', () => {
     const textarea = await $('.pl-ta-input')
     await textarea.waitForDisplayed({ timeout: 15_000 })
 
-    const scrolled = await browser.execute(() => {
-      const area = document.querySelector('.pl-ta-input')
-      area.scrollTop = 120
-      area.dispatchEvent(new Event('scroll'))
-      return area.scrollTop
-    })
-    await expect(scrolled).toBeGreaterThan(0)
-
-    const offsets = await browser.execute(() => {
+    const grown = await browser.execute(() => {
       const area = document.querySelector('.pl-ta-input')
       const mirror = document.querySelector('.pl-ta-mirror')
       const firstVar = mirror.querySelector('.pl-var')
       return {
-        areaTop: area.scrollTop,
-        mirrorTop: mirror.scrollTop,
+        areaScroll: area.scrollHeight,
+        areaClient: area.clientHeight,
         areaWidth: area.clientWidth,
         mirrorWidth: mirror.clientWidth,
         varCount: mirror.querySelectorAll('.pl-var').length,
@@ -66,10 +59,13 @@ describe('Story 12-14 -- Prompt library', () => {
         hasVar: firstVar !== null,
       }
     })
-    await expect(Math.abs(offsets.areaTop - offsets.mirrorTop)).toBeLessThanOrEqual(TOLERANCE_PX)
-    await expect(Math.abs(offsets.areaWidth - offsets.mirrorWidth)).toBeLessThanOrEqual(TOLERANCE_PX)
-    await expect(offsets.hasVar).toBe(true)
-    await expect(offsets.unknownCount).toBeGreaterThan(0)
+    // The box grows with the body and never scrolls; that is what lets the mirror skip
+    // scroll syncing, so a box that scrolls here puts the two layers back out of step.
+    await expect(grown.areaClient).toBeGreaterThan(0)
+    await expect(grown.areaScroll).toBeLessThanOrEqual(grown.areaClient + TOLERANCE_PX)
+    await expect(Math.abs(grown.areaWidth - grown.mirrorWidth)).toBeLessThanOrEqual(TOLERANCE_PX)
+    await expect(grown.hasVar).toBe(true)
+    await expect(grown.unknownCount).toBeGreaterThan(0)
 
     const wrap = await browser.execute(async () => {
       const area = document.querySelector('.pl-ta-input')
@@ -88,7 +84,7 @@ describe('Story 12-14 -- Prompt library', () => {
       }
       return { unscrolled, worstHeightGap: Math.max(...heightGaps), overflows: area.scrollHeight > area.clientHeight }
     })
-    await expect(wrap.overflows).toBe(true)
+    await expect(wrap.overflows).toBe(false)
     await expect(Math.abs(wrap.unscrolled.areaWidth - wrap.unscrolled.mirrorWidth)).toBeLessThanOrEqual(TOLERANCE_PX)
     await expect(wrap.worstHeightGap).toBeLessThanOrEqual(TOLERANCE_PX)
 

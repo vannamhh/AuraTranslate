@@ -6,6 +6,7 @@
  */
 import { waitForGridRows, waitForGridText } from '../support/gridWait.mjs'
 import { realClick } from '../support/pointer.mjs'
+import { resetPanelState } from '../support/panelReset.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const NAME = `Story 16-1 -- convention ${Date.now()}`
@@ -23,28 +24,17 @@ async function invoke(command, args) {
   )
 }
 
+// The WebKit driver drops a space handed to `browser.keys` and keeps focus on the field clicked
+// first, so keystroke typing glues both phrases into one input; `setValue` addresses the element.
 async function typeInto(selector, value) {
   const input = await $(selector)
   await realClick(input)
-  await browser.keys(value.split(''))
-}
-
-async function workIdByName() {
-  let id = null
-  await browser.waitUntil(
-    async () => {
-      const report = await invoke('library_list_works', { filter: null, genre: null, sourceLang: null, sort: null })
-      id = report.works.find((w) => w.name === NAME)?.work_id ?? null
-      return id !== null
-    },
-    { timeout: 30_000, interval: 500, timeoutMsg: 'the Work never reached the library index' },
-  )
-  return id
+  await input.setValue(value)
+  expect(await input.getValue()).toBe(value)
 }
 
 describe('Story 16-1 -- convention rule, mark and accept', () => {
   let segmentId
-  let workId
 
   it('an AI-translated sentence is on the grid before any rule exists, with no mark', async () => {
     await openWorkspaceWithWork(NAME, 'Bảo đảm an toàn.')
@@ -52,8 +42,11 @@ describe('Story 16-1 -- convention rule, mark and accept', () => {
     const read = await invoke('read_open_chapter_segments', {})
     segmentId = read.segments[0].id
     await invoke('promote_ai_translation', { segmentId, targetText: BEFORE, force: false })
-    workId = await workIdByName()
-    await invoke('open_work', { workId })
+    const stored = (await invoke('read_open_chapter_segments', {})).segments[0]
+    await expect(stored.target_text).toBe(BEFORE)
+    // The bench writes `target_text` straight over IPC, so nothing mirrors it into the grid
+    // the way the product does; this replays the panel's own load so the grid rereads the row.
+    await resetPanelState()
     await waitForGridText(0, BEFORE, { col: 'tgt' })
     await expect(await browser.execute((sel) => document.querySelectorAll(sel).length, MARK)).toBe(0)
   })
