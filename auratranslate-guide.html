@@ -1,0 +1,2488 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraTranslate — Sổ tay Hướng dẫn Toàn diện & Mô tả Chức năng v2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cds-background: #161616;
+      --cds-background-hover: #262626;
+      --cds-layer-01: #262626;
+      --cds-layer-02: #393939;
+      --cds-layer-03: #525252;
+      --cds-text-primary: #f4f4f4;
+      --cds-text-secondary: #c6c6c6;
+      --cds-text-placeholder: #8d8d8d;
+      --cds-text-helper: #a8a8a8;
+      --cds-text-on-color: #ffffff;
+      --cds-border-subtle-01: #393939;
+      --cds-border-subtle-02: #525252;
+      --cds-border-strong-01: #6f6f6f;
+      --cds-link-primary: #78a9ff;
+      --cds-button-primary: #0f62fe;
+      --cds-button-primary-hover: #0353e9;
+      --cds-button-secondary: #6f6f6f;
+      --cds-button-secondary-hover: #525252;
+      --cds-button-tertiary: #ffffff;
+      --cds-support-error: #fa4d56;
+      --cds-support-success: #42be65;
+      --cds-support-warning: #f1c21b;
+      --cds-support-info: #4589ff;
+      --cds-support-purple: #a56eff;
+      --cds-support-cyan: #1192e8;
+      --cds-support-teal: #009d9a;
+      --cds-support-magenta: #ee5385;
+      --cds-field-01: #262626;
+      --cds-focus: #0f62fe;
+      --cds-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'IBM Plex Mono', Menlo, Monaco, monospace;
+      --font-serif: 'IBM Plex Serif', Georgia, serif;
+    }
+
+    [data-theme="light"] {
+      --cds-background: #f4f4f4;
+      --cds-background-hover: #e8e8e8;
+      --cds-layer-01: #ffffff;
+      --cds-layer-02: #f4f4f4;
+      --cds-layer-03: #e0e0e0;
+      --cds-text-primary: #161616;
+      --cds-text-secondary: #525252;
+      --cds-text-placeholder: #a8a8a8;
+      --cds-text-helper: #6f6f6f;
+      --cds-text-on-color: #ffffff;
+      --cds-border-subtle-01: #e0e0e0;
+      --cds-border-subtle-02: #c6c6c6;
+      --cds-border-strong-01: #8d8d8d;
+      --cds-link-primary: #0f62fe;
+      --cds-button-primary: #0f62fe;
+      --cds-button-primary-hover: #0353e9;
+      --cds-button-secondary: #393939;
+      --cds-button-secondary-hover: #4c4c4c;
+      --cds-button-tertiary: #161616;
+      --cds-support-error: #da1e28;
+      --cds-support-success: #24a148;
+      --cds-support-warning: #f1c21b;
+      --cds-support-info: #0043ce;
+      --cds-support-purple: #8a3ffc;
+      --cds-support-cyan: #0072c3;
+      --cds-support-teal: #007d79;
+      --cds-support-magenta: #d12771;
+      --cds-field-01: #ffffff;
+      --cds-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--cds-background);
+      color: var(--cds-text-primary);
+      line-height: 1.5;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Carbon Header */
+    .cds--header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background-color: var(--cds-background);
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 1000;
+    }
+    .cds--header__name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--cds-text-primary);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+    }
+    .cds--header__badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      background-color: var(--cds-layer-02);
+      border: 1px solid var(--cds-border-subtle-02);
+      border-radius: 2px;
+      color: var(--cds-support-cyan);
+    }
+    .cds--header__search {
+      position: relative;
+      width: 420px;
+      max-width: 100%;
+    }
+    .cds--header__search input {
+      width: 100%;
+      height: 32px;
+      background-color: var(--cds-field-01);
+      border: 1px solid var(--cds-border-subtle-01);
+      border-bottom: 1px solid var(--cds-border-strong-01);
+      color: var(--cds-text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      padding: 0 32px 0 12px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .cds--header__search input:focus {
+      border-color: var(--cds-focus);
+      outline: 2px solid var(--cds-focus);
+      outline-offset: -2px;
+    }
+    .cds--header__search-kbd {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--cds-text-placeholder);
+      background: var(--cds-layer-02);
+      padding: 1px 5px;
+      border-radius: 2px;
+      border: 1px solid var(--cds-border-subtle-02);
+      pointer-events: none;
+    }
+    .cds--header__actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Carbon SideNav */
+    .cds--side-nav {
+      position: fixed;
+      top: 48px;
+      left: 0;
+      bottom: 0;
+      width: 280px;
+      background-color: var(--cds-layer-01);
+      border-right: 1px solid var(--cds-border-subtle-01);
+      overflow-y: auto;
+      padding: 16px 0;
+      z-index: 900;
+    }
+    .cds--side-nav__group-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--cds-text-helper);
+      padding: 12px 16px 6px;
+    }
+    .cds--side-nav__link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      color: var(--cds-text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .cds--side-nav__link:hover {
+      background-color: var(--cds-layer-02);
+      color: var(--cds-text-primary);
+    }
+    .cds--side-nav__link.active {
+      background-color: var(--cds-layer-02);
+      color: var(--cds-text-primary);
+      border-left-color: var(--cds-button-primary);
+      font-weight: 600;
+    }
+    .cds--side-nav__count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--cds-text-placeholder);
+      background: var(--cds-layer-03);
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    /* Main Content Layout */
+    .cds--main-content {
+      margin-left: 280px;
+      margin-top: 48px;
+      padding: 40px 48px 100px;
+      max-width: 1280px;
+    }
+
+    /* Typography & Hierarchy */
+    h1.cds--page-title {
+      font-size: 36px;
+      font-weight: 300;
+      line-height: 1.25;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .cds--page-subtitle {
+      font-size: 16px;
+      color: var(--cds-text-secondary);
+      margin-bottom: 32px;
+      max-width: 860px;
+    }
+    h2.cds--section-title {
+      font-size: 24px;
+      font-weight: 400;
+      margin-top: 56px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    h3.cds--subsection-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 28px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    p {
+      color: var(--cds-text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    p strong {
+      color: var(--cds-text-primary);
+    }
+
+    /* Carbon Components */
+    .cds--tile {
+      background-color: var(--cds-layer-01);
+      border: 1px solid var(--cds-border-subtle-01);
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 0;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .cds--tile--clickable:hover {
+      background-color: var(--cds-layer-02);
+      border-color: var(--cds-border-strong-01);
+      cursor: pointer;
+    }
+    .cds--grid-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .cds--card {
+      background-color: var(--cds-layer-01);
+      border: 1px solid var(--cds-border-subtle-01);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .cds--card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .cds--card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--cds-text-primary);
+    }
+
+    /* Carbon Tags */
+    .cds--tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 12px;
+      background-color: var(--cds-layer-02);
+      color: var(--cds-text-secondary);
+      border: 1px solid transparent;
+      gap: 4px;
+    }
+    .cds--tag--blue { background: rgba(15, 98, 254, 0.15); color: #78a9ff; border-color: rgba(15, 98, 254, 0.3); }
+    .cds--tag--green { background: rgba(66, 190, 101, 0.15); color: #6fdc8c; border-color: rgba(66, 190, 101, 0.3); }
+    .cds--tag--purple { background: rgba(165, 110, 255, 0.15); color: #d4bbff; border-color: rgba(165, 110, 255, 0.3); }
+    .cds--tag--cyan { background: rgba(17, 146, 232, 0.15); color: #82cfff; border-color: rgba(17, 146, 232, 0.3); }
+    .cds--tag--red { background: rgba(250, 77, 86, 0.15); color: #ff8389; border-color: rgba(250, 77, 86, 0.3); }
+    .cds--tag--yellow { background: rgba(241, 194, 27, 0.15); color: #f1c21b; border-color: rgba(241, 194, 27, 0.3); }
+
+    /* Carbon Callout / Alert */
+    .cds--inline-notification {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      background-color: var(--cds-layer-01);
+      border-left: 4px solid var(--cds-support-info);
+      margin-bottom: 20px;
+    }
+    .cds--inline-notification--warning { border-left-color: var(--cds-support-warning); }
+    .cds--inline-notification--success { border-left-color: var(--cds-support-success); }
+    .cds--inline-notification--error { border-left-color: var(--cds-support-error); }
+    .cds--inline-notification__content {
+      font-size: 13.5px;
+      color: var(--cds-text-secondary);
+    }
+    .cds--inline-notification__title {
+      font-weight: 600;
+      color: var(--cds-text-primary);
+      margin-bottom: 2px;
+    }
+
+    /* Keyboard Shortcut Badges */
+    kbd {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      padding: 2px 6px;
+      background-color: var(--cds-layer-02);
+      border: 1px solid var(--cds-border-strong-01);
+      border-radius: 3px;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+      color: var(--cds-text-primary);
+      white-space: nowrap;
+    }
+
+    /* Carbon Tables */
+    .cds--data-table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-bottom: 24px;
+      border: 1px solid var(--cds-border-subtle-01);
+    }
+    .cds--data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13.5px;
+    }
+    .cds--data-table th {
+      background-color: var(--cds-layer-02);
+      color: var(--cds-text-primary);
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      white-space: nowrap;
+    }
+    .cds--data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      color: var(--cds-text-secondary);
+      background-color: var(--cds-layer-01);
+      vertical-align: top;
+    }
+    .cds--data-table tr:hover td {
+      background-color: var(--cds-layer-02);
+      color: var(--cds-text-primary);
+    }
+
+    /* Buttons */
+    .cds--btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 36px;
+      padding: 0 16px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      background-color: var(--cds-button-primary);
+      color: var(--cds-text-on-color);
+      transition: background-color 0.15s ease;
+    }
+    .cds--btn:hover { background-color: var(--cds-button-primary-hover); }
+    .cds--btn--secondary {
+      background-color: var(--cds-button-secondary);
+    }
+    .cds--btn--secondary:hover { background-color: var(--cds-button-secondary-hover); }
+    .cds--btn--tertiary {
+      background-color: transparent;
+      border: 1px solid var(--cds-border-strong-01);
+      color: var(--cds-text-primary);
+    }
+    .cds--btn--tertiary:hover {
+      background-color: var(--cds-layer-02);
+    }
+    .cds--btn--sm {
+      height: 28px;
+      padding: 0 10px;
+      font-size: 11.5px;
+    }
+    .cds--btn--danger {
+      background-color: var(--cds-support-error);
+    }
+
+    /* Interactive Simulators Styles */
+    .aura-simulator {
+      background-color: var(--cds-layer-01);
+      border: 1px solid var(--cds-border-subtle-01);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 24px 0 32px;
+      box-shadow: var(--cds-shadow);
+    }
+    .aura-simulator-header {
+      background-color: var(--cds-layer-02);
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .aura-simulator-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--cds-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .aura-simulator-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .aura-simulator-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cds-border-strong-01);
+    }
+    .aura-simulator-dot.red { background: #ff5f56; }
+    .aura-simulator-dot.yellow { background: #ffbd2e; }
+    .aura-simulator-dot.green { background: #27c93f; }
+
+    /* Workspace Dock Simulator */
+    .aura-titlebar-mock {
+      height: 38px;
+      background: #1f1f1f;
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+    }
+    .aura-modes-segmented {
+      display: flex;
+      background: #121212;
+      border-radius: 4px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .aura-mode-tab {
+      padding: 3px 12px;
+      font-size: 12px;
+      color: var(--cds-text-secondary);
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .aura-mode-tab:hover { color: #fff; }
+    .aura-mode-tab.active {
+      background: var(--cds-button-primary);
+      color: #fff;
+      font-weight: 500;
+    }
+    .aura-workspace-body {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      min-height: 480px;
+      background: var(--cds-background);
+    }
+    .aura-workspace-body.layout-vertical {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 300px;
+    }
+    .aura-grid-pane {
+      border-right: 1px solid var(--cds-border-subtle-01);
+      overflow-y: auto;
+      background: var(--cds-background);
+    }
+    .aura-side-pane {
+      display: flex;
+      flex-direction: column;
+      background: var(--cds-layer-01);
+      overflow-y: auto;
+    }
+    .aura-side-pane-top {
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      flex: 1;
+      padding: 12px;
+    }
+    .aura-side-pane-bottom {
+      flex: 1;
+      padding: 12px;
+    }
+
+    /* Grid Row Item */
+    .aura-grid-row {
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      padding: 12px 16px;
+      position: relative;
+      transition: background 0.15s ease;
+    }
+    .aura-grid-row:hover { background: var(--cds-layer-01); }
+    .aura-grid-row.active {
+      background: var(--cds-layer-01);
+      box-shadow: inset 3px 0 0 var(--cds-button-primary);
+    }
+    .aura-row-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--cds-text-placeholder);
+    }
+    .aura-source-group {
+      margin-bottom: 8px;
+    }
+    .aura-source-pinyin {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--cds-support-cyan);
+      letter-spacing: 0.3px;
+      margin-bottom: 2px;
+    }
+    .aura-source-text {
+      font-size: 15px;
+      color: var(--cds-text-primary);
+      font-weight: 500;
+      margin-bottom: 2px;
+      letter-spacing: 0.5px;
+    }
+    .aura-source-hanviet {
+      font-size: 12px;
+      color: var(--cds-support-purple);
+      font-style: italic;
+    }
+    .aura-target-editor {
+      width: 100%;
+      background: var(--cds-field-01);
+      border: 1px solid var(--cds-border-subtle-01);
+      color: var(--cds-text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 8px 10px;
+      outline: none;
+      border-radius: 2px;
+      resize: vertical;
+      min-height: 52px;
+    }
+    .aura-target-editor:focus {
+      border-color: var(--cds-focus);
+      outline: 2px solid var(--cds-focus);
+    }
+
+    /* Action Strips */
+    .aura-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--cds-layer-02);
+      border-radius: 3px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .aura-strip.glossary { border-left: 3px solid var(--cds-support-purple); }
+    .aura-strip.tm { border-left: 3px solid var(--cds-support-success); }
+    .aura-strip.proofreader { border-left: 3px solid var(--cds-support-warning); }
+
+    /* Context Menu Mock */
+    .aura-context-menu {
+      width: 220px;
+      background: var(--cds-layer-02);
+      border: 1px solid var(--cds-border-subtle-02);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      padding: 4px 0;
+      position: absolute;
+      z-index: 100;
+    }
+    .aura-context-menu-item {
+      padding: 6px 14px;
+      font-size: 12.5px;
+      color: var(--cds-text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .aura-context-menu-item:hover {
+      background: var(--cds-button-primary);
+      color: #fff;
+    }
+    .aura-context-menu-divider {
+      height: 1px;
+      background: var(--cds-border-subtle-01);
+      margin: 4px 0;
+    }
+
+    /* Modal Mock */
+    .cds--modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+    .cds--modal.is-visible { display: flex; }
+    .cds--modal-container {
+      background: var(--cds-layer-01);
+      border: 1px solid var(--cds-border-subtle-01);
+      width: 680px;
+      max-width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    }
+    .cds--modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--cds-border-subtle-01);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .cds--modal-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .cds--modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      font-size: 13.5px;
+    }
+    .cds--modal-footer {
+      padding: 12px 20px;
+      background: var(--cds-layer-02);
+      border-top: 1px solid var(--cds-border-subtle-01);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Step Process Component */
+    .cds--steps {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .cds--step-item {
+      display: flex;
+      gap: 16px;
+      background: var(--cds-layer-01);
+      border: 1px solid var(--cds-border-subtle-01);
+      padding: 16px;
+    }
+    .cds--step-num {
+      width: 32px;
+      height: 32px;
+      background: var(--cds-button-primary);
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .cds--step-content h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--cds-text-primary);
+      margin-bottom: 4px;
+    }
+
+    /* Diff Review Simulator */
+    .diff-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--cds-border-subtle-01);
+      background: var(--cds-layer-01);
+      font-size: 13.5px;
+    }
+    .diff-col {
+      padding: 16px;
+    }
+    .diff-col.original {
+      border-right: 1px solid var(--cds-border-subtle-01);
+      background: rgba(255,255,255,0.02);
+    }
+    .diff-del {
+      background: rgba(250, 77, 86, 0.2);
+      color: #ff8389;
+      text-decoration: line-through;
+      padding: 2px 4px;
+    }
+    .diff-add {
+      background: rgba(66, 190, 101, 0.2);
+      color: #6fdc8c;
+      padding: 2px 4px;
+      font-weight: 500;
+    }
+
+    /* Reading Mode Simulator */
+    .reading-mode-preview {
+      background: #1a1a1a;
+      color: #e0e0e0;
+      padding: 40px 60px;
+      font-family: var(--font-serif);
+      font-size: 17px;
+      line-height: 1.8;
+      max-width: 720px;
+      margin: 0 auto;
+      border: 1px solid var(--cds-border-subtle-01);
+      position: relative;
+    }
+    .reading-frontier-line {
+      border-bottom: 2px dashed var(--cds-support-cyan);
+      margin: 20px 0;
+      position: relative;
+    }
+    .reading-frontier-badge {
+      position: absolute;
+      right: 0;
+      top: -12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--cds-support-cyan);
+      color: #000;
+      padding: 2px 8px;
+      font-weight: 600;
+      border-radius: 2px;
+    }
+
+    @media (max-width: 1024px) {
+      .cds--side-nav { display: none; }
+      .cds--main-content { margin-left: 0; padding: 24px; }
+      .aura-workspace-body { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Carbon Shell Header -->
+  <header class="cds--header">
+    <a href="#overview" class="cds--header__name">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor">
+        <path d="M16 2L3 9l13 7 13-7-13-7zm0 17.5L5.4 12.4 3 13.7 16 21l13-7.3-2.4-1.3L16 19.5zM16 26.5L5.4 19.4 3 20.7 16 28l13-7.3-2.4-1.3L16 26.5z"/>
+      </svg>
+      AuraTranslate
+      <span class="cds--header__badge">Sổ tay Hướng dẫn Toàn diện v2.0</span>
+    </a>
+
+    <div class="cds--header__search">
+      <input type="text" id="globalSearch" placeholder="Tìm kiếm chức năng, phím tắt, thao tác...">
+      <span class="cds--header__search-kbd">⌘K</span>
+    </div>
+
+    <div class="cds--header__actions">
+      <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="toggleTheme()" title="Đổi giao diện Sáng / Tối">
+        <span id="themeBtnText">☀️ Giao diện Sáng</span>
+      </button>
+      <a href="#simulators" class="cds--btn cds--btn--secondary cds--btn--sm">
+        <span>🎮 Bộ Mô Phỏng</span>
+      </a>
+      <a href="#shortcuts-table" class="cds--btn cds--btn--primary cds--btn--sm">
+        <span>⌨️ Phím Tắt</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Carbon Side Navigation -->
+  <nav class="cds--side-nav" id="sideNav">
+    <div class="cds--side-nav__group-title">Khái niệm & Giao diện</div>
+    <a href="#overview" class="cds--side-nav__link active">
+      <span>1. Tổng quan & Triết lý Thiết kế</span>
+      <span class="cds--side-nav__count">Offline</span>
+    </a>
+    <a href="#simulators" class="cds--side-nav__link">
+      <span>2. Mô hình Giao diện & Mô phỏng</span>
+      <span class="cds--side-nav__count">4 Demo</span>
+    </a>
+
+    <div class="cds--side-nav__group-title">Quản lý Tài liệu</div>
+    <a href="#library-import" class="cds--side-nav__link">
+      <span>3. Thư viện & 4 Cổng Nhập Tài liệu</span>
+      <span class="cds--side-nav__count">EPUB/Word</span>
+    </a>
+    <a href="#chapter-management" class="cds--side-nav__link">
+      <span>4. Quản lý Chương & Xuất xứ</span>
+      <span class="cds--side-nav__count">Metadata</span>
+    </a>
+
+    <div class="cds--side-nav__group-title">Bàn Dịch Workspace</div>
+    <a href="#workspace-core" class="cds--side-nav__link">
+      <span>5. Bàn Dịch Workspace Chuyên sâu</span>
+      <span class="cds--side-nav__count">Pinyin/HV</span>
+    </a>
+    <a href="#sentence-menu" class="cds--side-nav__link">
+      <span>6. Menu Chuột Câu & Lịch sử Câu</span>
+      <span class="cds--side-nav__count">Tách/Gộp</span>
+    </a>
+    <a href="#lookup-offline" class="cds--side-nav__link">
+      <span>7. Tra Từ Điển Ngoại Tuyến Siêu tốc</span>
+      <span class="cds--side-nav__count">&lt;50ms</span>
+    </a>
+
+    <div class="cds--side-nav__group-title">Trí Tuệ Nhân Tạo (AI)</div>
+    <a href="#ai-translation" class="cds--side-nav__link">
+      <span>8. Dịch AI Cá nhân & Hàng loạt</span>
+      <span class="cds--side-nav__count">BYOK/Ollama</span>
+    </a>
+    <a href="#prompt-library" class="cds--side-nav__link">
+      <span>9. Thư viện Lời nhắc & Soi Prompt</span>
+      <span class="cds--side-nav__count">Inspector</span>
+    </a>
+
+    <div class="cds--side-nav__group-title">Dữ Liệu Dịch Thuật</div>
+    <a href="#glossary-system" class="cds--side-nav__link">
+      <span>10. Thuật ngữ & Tên riêng (Glossary)</span>
+      <span class="cds--side-nav__count">Harvest</span>
+    </a>
+    <a href="#tm-alignment" class="cds--side-nav__link">
+      <span>11. Bộ nhớ Dịch (TM) & Căn chỉnh</span>
+      <span class="cds--side-nav__count">Fuzzy/TMX</span>
+    </a>
+
+    <div class="cds--side-nav__group-title">Soát Lỗi & Hoàn Thiện</div>
+    <a href="#vietnamese-rules" class="cds--side-nav__link">
+      <span>12. Quy ước Chữ Việt & Soát lỗi</span>
+      <span class="cds--side-nav__count">0đ AI</span>
+    </a>
+    <a href="#word-review-reading" class="cds--side-nav__link">
+      <span>13. Soát lỗi qua Word & Chế độ Đọc</span>
+      <span class="cds--side-nav__count">Diff/Serif</span>
+    </a>
+
+    <div class="cds--side-nav__group-title">Hệ Thống & Tham Khảo</div>
+    <a href="#settings-shortcuts" class="cds--side-nav__link">
+      <span>14. Cài đặt & Bảng Phím tắt Toàn năng</span>
+      <span class="cds--side-nav__count">282 Lệnh</span>
+    </a>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="cds--main-content">
+
+    <!-- Page Header -->
+    <div style="margin-bottom: 32px;">
+      <h1 class="cds--page-title">Sổ tay Hướng dẫn Toàn diện AuraTranslate</h1>
+      <p class="cds--page-subtitle">
+        Tài liệu đặc tả và hướng dẫn sử dụng chuyên sâu cho nền tảng dịch thuật ngoại tuyến AuraTranslate. 
+        Được thiết kế theo tiêu chuẩn <strong>IBM Carbon Design System v11</strong>, hướng đến dịch giả chuyên nghiệp, biên tập viên văn học và nhà nghiên cứu ngôn ngữ.
+      </p>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <span class="cds--tag cds--tag--blue">Bản phát hành chính thức v2.0</span>
+        <span class="cds--tag cds--tag--green">100% Ngoại Tuyến (Offline-first)</span>
+        <span class="cds--tag cds--tag--purple">3 Chế độ Thao tác Độc lập</span>
+        <span class="cds--tag cds--tag--cyan">BYOK & Local AI (Ollama)</span>
+      </div>
+    </div>
+
+    <!-- CHƯƠNG 1 -->
+    <section id="overview" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>01</span>
+        <span>Tổng quan AuraTranslate & Triết lý Thiết kế</span>
+      </h2>
+      
+      <p>
+        <strong>AuraTranslate</strong> là không gian làm việc dịch thuật và đối chiếu văn bản cao cấp, chạy độc lập trên máy tính cá nhân. 
+        Khác biệt hoàn toàn với các công cụ dịch web trực tuyến hay các phần mềm văn phòng thông thường, AuraTranslate được kiến tạo xung quanh nhu cầu cốt lõi của người dịch sách, truyện dài kỳ và tài liệu học thuật: <em>tốc độ phản hồi tức thì, bảo mật tuyệt đối, và khả năng kiểm soát tỉ mỉ từng câu dịch</em>.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">100% Offline-First</span>
+            <span class="cds--tag cds--tag--green">An Toàn</span>
+          </div>
+          <p>
+            Toàn bộ từ điển tra cứu, bộ nhớ dịch (TM), thuật ngữ (Glossary) và bản thảo đều được lưu trữ trực tiếp trên ổ cứng trong định dạng tệp <code>.atproj</code> (cơ sở dữ liệu SQLite tối ưu). Bạn có thể làm việc mượt mà trên máy bay, nơi không có mạng Internet mà không mất bất kỳ tính năng cốt lõi nào.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">3 Chế Độ Thao Tác Độc Lập</span>
+            <span class="cds--tag cds--tag--blue">Tiện Lợi</span>
+          </div>
+          <p>
+            Thanh tiêu đề của ứng dụng phân chia rõ ràng thành 3 không gian làm việc chuyên biệt: 
+            <strong>Thư viện</strong> (<kbd>Mod+1</kbd>), <strong>Bàn dịch Workspace</strong> (<kbd>Mod+2</kbd>), và <strong>Chế độ đọc sách</strong> (<kbd>Mod+3</kbd>). 
+            Không gian soát lỗi (Review Mode) được tích hợp ngay tại bàn dịch khi cần đối chiếu Word.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Thiết Kế Chuẩn IBM Carbon v11</span>
+            <span class="cds--tag cds--tag--purple">Công Thái Học</span>
+          </div>
+          <p>
+            Giao diện được nghiên cứu tỉ mỉ về khoảng cách thị giác và độ tương phản quang học. Tông màu xám Carbon trung tính bảo vệ mắt khi dịch liên tục nhiều giờ liền, hỗ trợ đầy đủ 2 chủ đề Giao diện Tối (Dark) và Giao diện Sáng (Light).
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Quyền Riêng Tư AI (BYOK)</span>
+            <span class="cds--tag cds--tag--cyan">Bảo Mật</span>
+          </div>
+          <p>
+            Người dùng tự quản lý khóa API riêng (Bring Your Own Key) với Anthropic Claude, OpenAI, Google Gemini, OpenRouter hoặc kết nối trực tiếp với mô hình AI chạy cục bộ trên máy như Ollama và LM Studio. Bản dịch của bạn không bao giờ bị sử dụng để đào tạo AI.
+          </p>
+        </div>
+      </div>
+
+      <div class="cds--inline-notification">
+        <div class="cds--inline-notification__content">
+          <div class="cds--inline-notification__title">Quy ước phím bấm hệ thống:</div>
+          <div>Trong toàn bộ tài liệu này, ký hiệu <kbd>Mod</kbd> đại diện cho phím <strong>Command (⌘)</strong> trên máy Mac và phím <strong>Control (Ctrl)</strong> trên máy Windows / Linux.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 2: BỘ MÔ PHỎNG TƯƠNG TÁC -->
+    <section id="simulators" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>02</span>
+        <span>Mô hình Giao diện Trực quan & Bộ Mô phỏng Tương tác</span>
+      </h2>
+      <p>
+        Dưới đây là 4 bộ mô phỏng giao diện động thực tế của AuraTranslate. Bạn có thể tương tác trực tiếp với các nút bấm, chuyển đổi chế độ làm việc và xem cách phần mềm vận hành trực quan.
+      </p>
+
+      <!-- DEMO 1: WORKSPACE SIMULATOR -->
+      <div class="aura-simulator">
+        <div class="aura-simulator-header">
+          <div class="aura-simulator-title">
+            <div class="aura-simulator-dots">
+              <span class="aura-simulator-dot red"></span>
+              <span class="aura-simulator-dot yellow"></span>
+              <span class="aura-simulator-dot green"></span>
+            </div>
+            <span>Mô phỏng 1: Bàn Dịch Workspace (Không gian làm việc chính)</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="toggleSimLayout()">
+              <span id="simLayoutText">⊞ Đổi sang Bố cục Trên-Dưới</span>
+            </button>
+            <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="toggleSimContextMenu()">
+              <span>🖱️ Thử Menu Chuột Phải</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Titlebar Mock -->
+        <div class="aura-titlebar-mock">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-weight: 600; font-size: 13px;">AuraTranslate</span>
+            <div class="aura-modes-segmented">
+              <div class="aura-mode-tab" onclick="switchSimMode('library')">📚 Thư viện (Mod+1)</div>
+              <div class="aura-mode-tab active" onclick="switchSimMode('workspace')">✍️ Bàn dịch (Mod+2)</div>
+              <div class="aura-mode-tab" onclick="switchSimMode('reading')">📖 Đọc sách (Mod+3)</div>
+            </div>
+            <button class="cds--btn cds--btn--tertiary cds--btn--sm" style="height: 24px;" onclick="switchSimMode('review')">
+              <span>🔍 Soát Lỗi Review</span>
+            </button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--cds-text-secondary);">
+            <span class="cds--tag cds--tag--green">● Tự động lưu: Đã lưu</span>
+            <span>Chương 01: Khởi đầu (12/120 câu)</span>
+          </div>
+        </div>
+
+        <!-- Workspace Body -->
+        <div class="aura-workspace-body" id="simWorkspaceBody">
+          <!-- Left: Translation Grid -->
+          <div class="aura-grid-pane">
+            <!-- Row 1: Completed sentence -->
+            <div class="aura-grid-row">
+              <div class="aura-row-meta">
+                <span>#001 · Đã duyệt</span>
+                <span class="cds--tag cds--tag--green">100% Hoàn thành</span>
+              </div>
+              <div class="aura-source-group">
+                <div class="aura-source-pinyin">tiān qì qíng lǎng, wàn lǐ wú yún.</div>
+                <div class="aura-source-text">天气晴朗，万里无云。</div>
+                <div class="aura-source-hanviet">Thiên khí tình lãng, vạn lý vô vân.</div>
+              </div>
+              <textarea class="aura-target-editor" readonly>Trời trong nắng ấm, muôn dặm không một gợn mây.</textarea>
+            </div>
+
+            <!-- Row 2: Active translating sentence -->
+            <div class="aura-grid-row active" style="position: relative;">
+              <!-- Simulated context menu popover -->
+              <div class="aura-context-menu" id="simContextMenu" style="display: none; top: 30px; left: 180px;">
+                <div class="aura-context-menu-item" onclick="alert('Đã tách câu thành công tại vị trí con trỏ!')">
+                  <span>✂️ Tách câu (Split)</span>
+                  <kbd>Mod+K</kbd>
+                </div>
+                <div class="aura-context-menu-item" onclick="alert('Đã gộp với câu kế tiếp!')">
+                  <span>🔗 Gộp câu (Merge)</span>
+                  <kbd>Mod+J</kbd>
+                </div>
+                <div class="aura-context-menu-divider"></div>
+                <div class="aura-context-menu-item" onclick="alert('Đã đánh dấu cắt bỏ câu!')">
+                  <span>🚫 Cắt bỏ câu (Omit)</span>
+                  <kbd>Mod+Del</kbd>
+                </div>
+                <div class="aura-context-menu-item" onclick="openModal('modalSegmentHistory')">
+                  <span>🕒 Lịch sử câu (History)</span>
+                  <kbd>Mod+H</kbd>
+                </div>
+              </div>
+
+              <div class="aura-row-meta">
+                <span style="color: var(--cds-link-primary); font-weight: 600;">#002 · Đang dịch</span>
+                <span class="cds--tag cds--tag--blue">Con trỏ hiện tại</span>
+              </div>
+
+              <!-- Strip 1: Glossary hint -->
+              <div class="aura-strip glossary">
+                <span>📖 <strong>Thuật ngữ:</strong> <em>“Thanh Vân Môn”</em> (Qingyun Sect)</span>
+                <button class="cds--btn cds--btn--tertiary cds--btn--sm" style="height: 20px; padding: 0 6px;" onclick="applyGlossaryTerm()">Áp dụng</button>
+              </div>
+
+              <!-- Strip 2: Fuzzy TM hint -->
+              <div class="aura-strip tm">
+                <span>⚡ <strong>Bộ nhớ dịch (92% khớp):</strong> <em>“Hắn chậm rãi ngẩng đầu nhìn đỉnh núi.”</em></span>
+                <button class="cds--btn cds--btn--tertiary cds--btn--sm" style="height: 20px; padding: 0 6px;" onclick="applyTmSuggestion()">Chép vào</button>
+              </div>
+
+              <div class="aura-source-group">
+                <div class="aura-source-pinyin">tā huǎn huǎn tái tóu, wàng xiàng qīng yún mén de shān diān.</div>
+                <div class="aura-source-text">他缓缓抬头，望向青云门的山巅。</div>
+                <div class="aura-source-hanviet">Tha hoãn hoãn ngẩng đầu, vọng hướng Thanh Vân Môn đích sơn điên.</div>
+              </div>
+              <textarea class="aura-target-editor" id="simTargetInput" placeholder="Nhập bản dịch tiếng Việt tại đây... (Nhấn Ctrl+Enter để xác nhận)">Hắn chậm rãi ngẩng đầu, nhìn về phía đỉnh núi của Thanh Vân Môn.</textarea>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                <span style="font-size: 11px; color: var(--cds-text-placeholder);">Phím tắt: <kbd>Ctrl+Enter</kbd> Lưu & sang câu tiếp | Chuột phải để mở menu thao tác</span>
+                <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="alert('Đã lưu câu #002 vào bộ nhớ và tự động nhảy sang câu #003!')">Xác nhận câu (Ctrl+Enter)</button>
+              </div>
+            </div>
+
+            <!-- Row 3: Untranslated sentence -->
+            <div class="aura-grid-row">
+              <div class="aura-row-meta">
+                <span>#003 · Chưa dịch</span>
+                <span class="cds--tag cds--tag--yellow">Chờ dịch</span>
+              </div>
+              <div class="aura-source-group">
+                <div class="aura-source-pinyin">fēng shēng xiāo xiāo, dài zhe yī sī liáng yì.</div>
+                <div class="aura-source-text">风声萧萧，带着一丝凉意。</div>
+                <div class="aura-source-hanviet">Phong thanh tiêu tiêu, đái trước nhất ti lương ý.</div>
+              </div>
+              <textarea class="aura-target-editor" placeholder="Chưa dịch..."></textarea>
+            </div>
+          </div>
+
+          <!-- Right: Side Panel (Lookup & AI) -->
+          <div class="aura-side-pane">
+            <!-- Top half: Lookup Panel -->
+            <div class="aura-side-pane-top">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px;">
+                  <span style="color: var(--cds-link-primary); border-bottom: 2px solid var(--cds-link-primary); padding-bottom: 2px; cursor: pointer;">Từ điển</span>
+                  <span style="color: var(--cds-text-secondary); cursor: pointer;" onclick="alert('Chuyển sang tab Concordance (Tra chéo toàn bộ bản dịch cũ)!')">Bộ nhớ (TM)</span>
+                  <span style="color: var(--cds-text-secondary); cursor: pointer;" onclick="alert('Chuyển sang tab Lịch sử tra cứu có nút Ghim 📌!')">Lịch sử</span>
+                </div>
+                <button class="cds--btn cds--btn--tertiary cds--btn--sm" style="height: 22px; padding: 0 6px;" onclick="alert('Đã ghim kết quả từ điển này 📌!')" title="Ghim từ điển">📌 Ghim</button>
+              </div>
+
+              <div style="background: var(--cds-layer-02); padding: 10px; border-radius: 2px; font-size: 12.5px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <strong style="color: var(--cds-text-primary); font-size: 14px;">山巅 (shān diān)</strong>
+                  <span class="cds--tag cds--tag--purple" style="font-size: 10px; padding: 2px 6px;">Thiều Chửu</span>
+                </div>
+                <p style="margin-bottom: 4px; font-size: 12px; color: var(--cds-text-secondary);"><strong>Hán Việt:</strong> Sơn điên</p>
+                <p style="margin-bottom: 0; font-size: 12px; color: var(--cds-text-secondary);"><strong>Định nghĩa:</strong> Đỉnh núi, chỏm núi, ngọn núi cao nhất. (Đồng nghĩa: Sơn đỉnh, phong đỉnh).</p>
+              </div>
+            </div>
+
+            <!-- Bottom half: AI Translation Panel -->
+            <div class="aura-side-pane-bottom">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 600; font-size: 13px;">Trợ Lý AI (Claude 3.5 Sonnet)</span>
+                <div style="display: flex; gap: 4px;">
+                  <button class="cds--btn cds--btn--tertiary cds--btn--sm" style="height: 22px; padding: 0 6px;" onclick="openModal('modalPromptInspector')">🔍 Soi Prompt</button>
+                  <button class="cds--btn cds--btn--secondary cds--btn--sm" style="height: 22px; padding: 0 6px;" onclick="alert('Đã gửi yêu cầu dịch lại câu!')">↻ Dịch lại</button>
+                </div>
+              </div>
+
+              <div style="background: var(--cds-layer-02); padding: 10px; border-radius: 2px; font-size: 12.5px; border-left: 3px solid var(--cds-support-cyan); margin-bottom: 8px;">
+                <div style="font-size: 11px; color: var(--cds-text-placeholder); margin-bottom: 4px;">Gợi ý dịch theo thể loại: Tiên hiệp / Tu chân</div>
+                <div style="color: var(--cds-text-primary); line-height: 1.4;">"Hắn chậm rãi ngẩng đầu lên, phóng tầm mắt nhìn về phía đỉnh núi mù sương của Thanh Vân Môn."</div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 11px; color: var(--cds-text-placeholder);">Token: 142 prompt / 28 comp</span>
+                <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="document.getElementById('simTargetInput').value = 'Hắn chậm rãi ngẩng đầu lên, phóng tầm mắt nhìn về phía đỉnh núi mù sương của Thanh Vân Môn.'">Áp dụng gợi ý</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEMO 2: THƯ VIỆN SIMULATOR -->
+      <div class="aura-simulator">
+        <div class="aura-simulator-header">
+          <div class="aura-simulator-title">
+            <div class="aura-simulator-dots">
+              <span class="aura-simulator-dot red"></span>
+              <span class="aura-simulator-dot yellow"></span>
+              <span class="aura-simulator-dot green"></span>
+            </div>
+            <span>Mô phỏng 2: Không gian Thư viện (Library Mode — Mod+1)</span>
+          </div>
+          <div>
+            <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="alert('Mở hộp thoại chọn file nhập (TXT, EPUB, Word, Web URL)!')">
+              <span>+ Nhập Tác Phẩm Mới</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="padding: 24px; background: var(--cds-background);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div style="width: 320px;">
+              <input type="text" class="cds--header__search input" placeholder="Lọc tác phẩm theo tên sách, tác giả..." style="width: 100%; height: 32px; background: var(--cds-layer-01); border: 1px solid var(--cds-border-subtle-01); color: #fff; padding: 0 10px;">
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="alert('Quét tìm các tệp .atproj bị mất liên kết thư mục!')">🔍 Quét Tác Phẩm Mồ Côi</button>
+              <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="alert('Đã dựng lại toàn bộ chỉ mục tìm kiếm FTS!')">⚡ Dựng Lại Chỉ Mục</button>
+            </div>
+          </div>
+
+          <div class="cds--grid-cards">
+            <!-- Book Card 1 -->
+            <div class="cds--card cds--tile--clickable" onclick="switchSimMode('workspace')">
+              <div class="cds--card-header">
+                <div>
+                  <h4 style="font-size: 15px; font-weight: 600; color: var(--cds-text-primary);">Tru Tiên (Chỉnh sửa đặc biệt)</h4>
+                  <div style="font-size: 12px; color: var(--cds-text-placeholder);">Tác giả: Tiêu Đỉnh · 280 Chương</div>
+                </div>
+                <span class="cds--tag cds--tag--blue">Đang dịch</span>
+              </div>
+              <p style="font-size: 12.5px; margin-bottom: 12px;">Đã dịch: 1,420 / 3,500 câu (Tiến độ: 40.5%)</p>
+              <div style="width: 100%; height: 6px; background: var(--cds-layer-02); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
+                <div style="width: 40.5%; height: 100%; background: var(--cds-button-primary);"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--cds-text-helper);">
+                <span>Cập nhật: 2 giờ trước</span>
+                <span style="color: var(--cds-link-primary);">Nhấp để mở Bàn dịch →</span>
+              </div>
+            </div>
+
+            <!-- Book Card 2 -->
+            <div class="cds--card cds--tile--clickable">
+              <div class="cds--card-header">
+                <div>
+                  <h4 style="font-size: 15px; font-weight: 600; color: var(--cds-text-primary);">Phàm Nhân Tu Tiên Chi Tiên Giới Thiên</h4>
+                  <div style="font-size: 12px; color: var(--cds-text-placeholder);">Tác giả: Vong Ngữ · 1,200 Chương</div>
+                </div>
+                <span class="cds--tag cds--tag--green">Hoàn thành</span>
+              </div>
+              <p style="font-size: 12.5px; margin-bottom: 12px;">Đã dịch: 15,200 / 15,200 câu (Tiến độ: 100%)</p>
+              <div style="width: 100%; height: 6px; background: var(--cds-layer-02); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
+                <div style="width: 100%; height: 100%; background: var(--cds-support-success);"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--cds-text-helper);">
+                <span>Xuất bản: EPUB, Word, TXT</span>
+                <span style="color: var(--cds-link-primary);">Xem lại →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEMO 3: REVIEW MODE (WORD DIFF) SIMULATOR -->
+      <div class="aura-simulator">
+        <div class="aura-simulator-header">
+          <div class="aura-simulator-title">
+            <div class="aura-simulator-dots">
+              <span class="aura-simulator-dot red"></span>
+              <span class="aura-simulator-dot yellow"></span>
+              <span class="aura-simulator-dot green"></span>
+            </div>
+            <span>Mô phỏng 3: Khung Soát Lỗi Review (So sánh Đối chiếu Word .docx)</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="alert('Đã chấp nhận toàn bộ các chỉnh sửa của Biên tập viên!')">
+              <span>✓ Nhận Tất Cả Thay Đổi</span>
+            </button>
+            <button class="cds--btn cds--btn--secondary cds--btn--sm" onclick="switchSimMode('workspace')">
+              <span>✕ Đóng Soát Lỗi</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="padding: 16px; background: var(--cds-background);">
+          <div style="margin-bottom: 12px; font-size: 13px; color: var(--cds-text-secondary);">
+            Đang so sánh bản dịch hiện tại với tệp Word biên tập: <code>Ban_Thao_Bien_Tap_Chuong_1.docx</code>
+          </div>
+
+          <div class="diff-container">
+            <div class="diff-col original">
+              <div style="font-size: 12px; font-weight: 600; color: var(--cds-text-placeholder); margin-bottom: 8px;">BẢN DỊCH HIỆN TẠI (TRÊN MÁY BẠN)</div>
+              <div style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--cds-border-subtle-01);">
+                <div style="font-size: 11px; color: var(--cds-text-placeholder); margin-bottom: 2px;">#001</div>
+                <div>Trời <span class="diff-del">trong nắng ấm</span>, muôn dặm không một gợn mây.</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--cds-text-placeholder); margin-bottom: 2px;">#002</div>
+                <div>Hắn <span class="diff-del">chậm rãi</span> ngẩng đầu, nhìn về phía đỉnh núi của Thanh Vân Môn.</div>
+              </div>
+            </div>
+
+            <div class="diff-col">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 12px; font-weight: 600; color: var(--cds-support-cyan);">BẢN SỬA ĐỔI TỪ FILE WORD BIÊN TẬP</span>
+                <span class="cds--tag cds--tag--purple">2 Thay đổi</span>
+              </div>
+              <div style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--cds-border-subtle-01); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 11px; color: var(--cds-text-placeholder); margin-bottom: 2px;">#001</div>
+                  <div>Trời <span class="diff-add">quang mây tạnh</span>, muôn dặm không một gợn mây.</div>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                  <button class="cds--btn cds--btn--primary cds--btn--sm" style="height: 24px; padding: 0 8px;" onclick="alert('Đã nhận thay đổi câu #001!')">Nhận</button>
+                  <button class="cds--btn cds--btn--tertiary cds--btn--sm" style="height: 24px; padding: 0 8px;" onclick="alert('Đã bỏ qua thay đổi câu #001!')">Bỏ</button>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 11px; color: var(--cds-text-placeholder); margin-bottom: 2px;">#002</div>
+                  <div>Hắn <span class="diff-add">từ từ</span> ngẩng đầu, nhìn về phía đỉnh núi của Thanh Vân Môn.</div>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                  <button class="cds--btn cds--btn--primary cds--btn--sm" style="height: 24px; padding: 0 8px;" onclick="alert('Đã nhận thay đổi câu #002!')">Nhận</button>
+                  <button class="cds--btn cds--btn--tertiary cds--btn--sm" style="height: 24px; padding: 0 8px;" onclick="alert('Đã bỏ qua thay đổi câu #002!')">Bỏ</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEMO 4: READING MODE SIMULATOR -->
+      <div class="aura-simulator">
+        <div class="aura-simulator-header">
+          <div class="aura-simulator-title">
+            <div class="aura-simulator-dots">
+              <span class="aura-simulator-dot red"></span>
+              <span class="aura-simulator-dot yellow"></span>
+              <span class="aura-simulator-dot green"></span>
+            </div>
+            <span>Mô phỏng 4: Chế Độ Đọc Sách Thư Giãn (Reading Mode — Mod+3)</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="alert('Đã đánh dấu cắm cờ câu này để lát nữa quay lại sửa!')">
+              <span>⚑ Cắm cờ câu nghi vấn</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="padding: 30px; background: #121212;">
+          <div class="reading-mode-preview">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h2 style="font-family: var(--font-serif); font-size: 22px; font-weight: 600; margin-bottom: 8px;">Chương 01: Khởi đầu</h2>
+              <div style="font-size: 13px; color: #888; font-style: italic;">Tác phẩm: Tru Tiên · Bản dịch chính thức</div>
+            </div>
+
+            <p style="text-indent: 2em; margin-bottom: 16px;">
+              Trời quang mây tạnh, muôn dặm không một gợn mây. Ánh mặt trời buổi sớm rọi xuống rặng núi điệp trùng như dát một lớp hoàng kim rực rỡ.
+            </p>
+
+            <div class="reading-frontier-line">
+              <span class="reading-frontier-badge">VỊ TRÍ ĐỌC DỞ (FRONTIER)</span>
+            </div>
+
+            <p style="text-indent: 2em; margin-bottom: 16px;">
+              Hắn từ từ ngẩng đầu, nhìn về phía đỉnh núi cao vút của Thanh Vân Môn. Tiếng gió rít qua khe đá mang theo một luồng hàn khí thấu xương, dường như báo trước những biến cố kinh thiên động địa sắp sửa ập đến vùng đất thanh bình này...
+            </p>
+
+            <div style="display: flex; justify-content: center; margin-top: 32px;">
+              <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="switchSimMode('workspace')">
+                <span>← Trở lại Bàn dịch sửa chữa (Mod+2)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 3 -->
+    <section id="library-import" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>03</span>
+        <span>Thư viện & 4 Cổng Nhập Tài Liệu Đa Dạng</span>
+      </h2>
+      <p>
+        Không gian Thư viện (<kbd>Mod+1</kbd>) là nơi quản lý toàn bộ các tác phẩm dịch. AuraTranslate hỗ trợ <strong>4 cổng nhập dữ liệu thông minh</strong>, giúp người dùng đưa tài liệu vào dự án mà không cần phải chuyển đổi thủ công phức tạp.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">1. Văn Bản Thô (TXT / Markdown)</span>
+            <span class="cds--tag cds--tag--blue">Phổ Biến</span>
+          </div>
+          <p>
+            Tự động nhận diện bảng mã ký tự quốc tế (UTF-8, GBK, GB2312, Big5, Shift-JIS). Hệ thống tự phân tách các đoạn văn dài thành các câu đơn độc lập để sẵn sàng đưa vào bàn dịch đối chiếu.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">2. Sách Điện Tử (EPUB)</span>
+            <span class="cds--tag cds--tag--purple">Giữ Nguyên Mục Lục</span>
+          </div>
+          <p>
+            Đọc sâu cấu trúc file EPUB, bóc tách nguyên vẹn cây danh mục chương hồi (Table of Contents), trích xuất kho ảnh minh họa và bìa sách đưa vào cơ sở dữ liệu dự án mà không làm mất liên kết.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">3. Tài Liệu Word (.docx)</span>
+            <span class="cds--tag cds--tag--cyan">Cộng Tác Nhanh</span>
+          </div>
+          <p>
+            Nhập trực tiếp các tệp Word do dịch giả hoặc cộng tác viên gửi đến. Giữ nguyên cấu trúc phân đoạn và định dạng chữ cơ bản, chuyển đổi trơn tru thành các đơn vị câu cần dịch.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">4. Trang Web Trực Tuyến (URL)</span>
+            <span class="cds--tag cds--tag--green">Tự Động Bóc Tách</span>
+          </div>
+          <p>
+            Dán đường dẫn chương truyện hoặc bài báo trên mạng; AuraTranslate tự động làm sạch mã HTML, loại bỏ quảng cáo, trích xuất chính xác văn bản nội dung và tải toàn bộ ảnh minh họa về máy.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Cổng Nhập Song Ngữ Đối Chiếu (Bilingual Import)</h3>
+      <p>
+        Khi bạn đã có sẵn cả file tiếng nước ngoài và file tiếng Việt dịch sẵn từ trước (ví dụ file truyện đã dịch dở trên mạng), bạn có thể dùng tính năng <strong>Nhập Song Ngữ</strong>. Hệ thống sẽ mở giao diện Căn chỉnh (Alignment) để bạn ráp từng câu gốc với câu dịch tương ứng, tạo thành kho Bộ nhớ dịch (TM) cực kỳ giá trị.
+      </p>
+
+      <h3 class="cds--subsection-title">Công Cụ Quản Lý Thư Viện Chuyên Sâu</h3>
+      <div class="cds--steps">
+        <div class="cds--step-item">
+          <div class="cds--step-num">A</div>
+          <div class="cds--step-content">
+            <h4>Quét Tác Phẩm Mồ Côi (Orphan Works Scanner)</h4>
+            <p>
+              Khi bạn di chuyển thư mục dự án trên máy tính hoặc đổi tên ổ cứng, các tệp cơ sở dữ liệu <code>.atproj</code> có thể bị mất đường dẫn liên kết trong Thư viện. Tính năng này quét toàn bộ các thư mục bạn chỉ định và tự động kết nối lại các cuốn sách vào Thư viện nguyên vẹn 100%.
+            </p>
+          </div>
+        </div>
+
+        <div class="cds--step-item">
+          <div class="cds--step-num">B</div>
+          <div class="cds--step-content">
+            <h4>Dựng Lại Chỉ Mục Toàn Văn (Rebuild Full-Text Search Index)</h4>
+            <p>
+              Tối ưu hóa và tái tạo lại toàn bộ cây chỉ mục FTS của cơ sở dữ liệu SQLite sau khi nhập hàng triệu từ vựng. Đảm bảo tốc độ tra cứu từ khóa và thuật ngữ trên toàn bộ hàng nghìn chương sách luôn đạt tốc độ tức thì dưới 10 mili-giây.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 4 -->
+    <section id="chapter-management" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>04</span>
+        <span>Quản Lý Chương & Xuất Xứ Bản Thảo</span>
+      </h2>
+      <p>
+        Một tác phẩm dài thường bao gồm hàng trăm đến hàng nghìn chương. AuraTranslate cung cấp hệ thống cây mục lục động giúp bạn tổ chức tác phẩm một cách khoa học.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Tách Chương (Split Chapter)</span>
+            <span class="cds--tag cds--tag--blue">Linh Hoạt</span>
+          </div>
+          <p>
+            Khi tác giả gốc gom nhiều hồi nhỏ vào cùng 1 chương dài hàng vạn chữ, bạn chỉ cần chọn câu ngắt đoạn và nhấn <strong>Tách chương</strong>. Phần mềm sẽ tự động chia thành Chương 1a, Chương 1b hoặc đặt tên chương mới mà không làm xáo trộn tiến độ dịch.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Gộp Chương (Merge Chapters)</span>
+            <span class="cds--tag cds--tag--purple">Gọn Gàng</span>
+          </div>
+          <p>
+            Ngược lại, nếu các đoạn văn ngắn bị tải về thành các chương lắt nhắt, bạn có thể chọn nhiều chương liên tiếp và nhấn <strong>Gộp chương</strong>. Toàn bộ các câu dịch và thuật ngữ đi kèm sẽ được giữ nguyên vẹn.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Quản Lý Ảnh Minh Họa Chương</span>
+            <span class="cds--tag cds--tag--cyan">Hình Ảnh</span>
+          </div>
+          <p>
+            Xem danh sách ảnh minh họa đính kèm từng chương, chèn thêm tranh vẽ của họa sĩ hoặc sơ đồ bản đồ tu tiên/địa lý. Các bức ảnh này sẽ được nhúng tự động khi bạn xuất sách sang định dạng EPUB hoặc Word.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Lưu Trữ Xuất Xứ (Source Origin)</span>
+            <span class="cds--tag cds--tag--green">Bản Quyền</span>
+          </div>
+          <p>
+            Lưu giữ đầy đủ thông tin: Tác giả gốc, Tên trang web nguồn, Đường link URL gốc, Ngày xuất bản lần đầu. Giúp bạn dễ dàng đối chiếu bản quyền hoặc kiểm chứng phiên bản văn bản khi tác giả sửa đổi raw.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 5 -->
+    <section id="workspace-core" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>05</span>
+        <span>Bàn Dịch Workspace — Thao Tác Chuyên Sâu</span>
+      </h2>
+      <p>
+        Không gian Bàn dịch (<kbd>Mod+2</kbd>) là trái tim của AuraTranslate, nơi dịch giả dành 95% thời gian làm việc. Mọi chi tiết trên màn hình này đều được tinh chỉnh để giảm tối đa thao tác thừa.
+      </p>
+
+      <h3 class="cds--subsection-title">1. Dòng Câu Song Ngữ Đa Tầng</h3>
+      <p>
+        Mỗi đơn vị dịch trong bảng đối chiếu được trình bày theo cấu trúc 3 tầng trực quan:
+      </p>
+      <ul style="margin-left: 20px; margin-bottom: 20px; color: var(--cds-text-secondary); line-height: 1.8;">
+        <li><strong style="color: var(--cds-support-cyan);">Tầng 1 (Phiên âm Pinyin):</strong> Hiển thị phiên âm La-tinh có dấu thanh điệu chuẩn mực của từng chữ tiếng Trung, hỗ trợ người dịch nắm rõ cách phát âm và nhận diện đồng âm dị nghĩa.</li>
+        <li><strong style="color: var(--cds-text-primary);">Tầng 2 (Nguyên tác chữ gốc):</strong> Hiển thị chữ Hán rõ nét với độ tương phản cao, phông chữ được thiết kế chống mỏi mắt.</li>
+        <li><strong style="color: var(--cds-support-purple);">Tầng 3 (Chuyển tự Hán Việt):</strong> Tự động chuyển đổi từng chữ Hán sang âm Hán Việt chuẩn xác, cực kỳ đắc lực cho người dịch truyện kiếm hiệp, tiên hiệp hoặc tài liệu cổ.</li>
+      </ul>
+
+      <h3 class="cds--subsection-title">2. Ô Soạn Thảo Bản Dịch Trực Tiếp & Tự Động Lưu</h3>
+      <p>
+        Ngay dưới dòng nguyên tác là ô soạn thảo bản dịch tiếng Việt. 
+        AuraTranslate áp dụng cơ chế <strong>Lưu tức thời (Instant Auto-save)</strong>: Mọi ký tự bạn vừa gõ đều được ghi nhận trực tiếp vào cơ sở dữ liệu SQLite sau 300ms ngừng gõ. Dù mất điện đột ngột hoặc tắt máy bất ngờ, bạn không bao giờ bị mất dữ liệu.
+      </p>
+
+      <h3 class="cds--subsection-title">3. Tùy Chọn Đổi Bố Cục Màn Hình (Layout Presets)</h3>
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Bố Cục 2 Cột (Mặc Định)</span>
+            <kbd>Mod+Alt+1</kbd>
+          </div>
+          <p>
+            Cột bên trái là Bảng Lưới câu đối chiếu chiếm 65% chiều rộng. Cột bên phải chia làm 2 tầng: Nửa trên là Tra cứu Từ điển/TM, nửa dưới là Trợ lý AI. Tối ưu cho màn hình máy tính thông thường (16:9, 16:10).
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Bố Cục 2 Tầng (Trên - Dưới)</span>
+            <kbd>Mod+Alt+2</kbd>
+          </div>
+          <p>
+            Bảng Lưới câu nằm ở nửa trên màn hình, khung Tra cứu từ điển và Dịch AI nằm ở nửa dưới. Cực kỳ thuận tiện cho màn hình đặt dọc (Pivot) hoặc khi bạn cần chiều dài câu dịch trải rộng tối đa.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">4. Điều Hướng Câu Cực Nhanh Bằng Bàn Phím</h3>
+      <p>
+        Dịch giả chuyên nghiệp không cần phải nhấc tay khỏi bàn phím để cầm chuột. Hãy tận dụng hệ thống phím tắt điều hướng:
+      </p>
+      <div class="cds--data-table-container">
+        <table class="cds--data-table">
+          <thead>
+            <tr>
+              <th>Thao tác</th>
+              <th>Phím tắt</th>
+              <th>Mô tả tác vụ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Xác nhận & Nhảy câu</strong></td>
+              <td><kbd>Ctrl+Enter</kbd> hoặc <kbd>Cmd+Enter</kbd></td>
+              <td>Lưu câu hiện tại vào bộ nhớ dịch (TM) và tự động chuyển con trỏ sang câu kế tiếp.</td>
+            </tr>
+            <tr>
+              <td><strong>Di chuyển giữa các câu</strong></td>
+              <td><kbd>Alt+↓</kbd> / <kbd>Alt+↑</kbd></td>
+              <td>Di chuyển lên câu trước hoặc xuống câu sau mà không thay đổi nội dung.</td>
+            </tr>
+            <tr>
+              <td><strong>Nhảy đến câu chưa dịch</strong></td>
+              <td><kbd>Mod+Shift+↓</kbd></td>
+              <td>Tự động cuộn và đặt con trỏ vào câu trống gần nhất đang cần dịch.</td>
+            </tr>
+            <tr>
+              <td><strong>Nhảy đến câu cắm cờ</strong></td>
+              <td><kbd>Mod+Shift+F</kbd></td>
+              <td>Nhảy ngay đến các câu có đánh dấu nghi vấn ⚑ cần rà soát lại.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 6 -->
+    <section id="sentence-menu" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>06</span>
+        <span>Menu Chuột Từng Câu & Lịch Sử Phiên Bản</span>
+      </h2>
+      <p>
+        Khi nhấp chuột phải vào bất kỳ hàng câu nào trên Bàn dịch, một menu ngữ cảnh mạnh mẽ sẽ xuất hiện giúp bạn xử lý các tình huống cấu trúc câu đặc biệt.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Cắt Bỏ Câu (Omit Segment)</span>
+            <kbd>Mod+Del</kbd>
+          </div>
+          <p>
+            Áp dụng cho các dòng lời bạt của tác giả, quảng cáo trang web nguồn hoặc thông báo xin phiếu bầu. Câu bị cắt bỏ sẽ mờ đi và không được tính vào số từ cần dịch, đồng thời được bỏ qua khi xuất sách cuối cùng.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Khôi Phục Câu (Restore Segment)</span>
+            <kbd>Mod+Shift+Del</kbd>
+          </div>
+          <p>
+            Nếu bạn vô tình cắt nhầm một câu quan trọng, chỉ cần nhấp chuột phải và chọn <strong>Khôi phục câu</strong>. Dữ liệu gốc và câu dịch trước đó sẽ hiển thị lại trạng thái hoạt động bình thường.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Tách Câu (Split Segment)</span>
+            <kbd>Mod+K</kbd>
+          </div>
+          <p>
+            Văn phong tiếng nước ngoài thường có những câu ghép rất dài với nhiều vế phụ. Đặt con trỏ chuột tại vị trí muốn ngắt và chọn Tách câu: Hệ thống sẽ chia đôi câu gốc và tạo ra 2 hàng dịch độc lập giúp câu văn tiếng Việt trong sáng hơn.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Gộp Câu (Merge Segment)</span>
+            <kbd>Mod+J</kbd>
+          </div>
+          <p>
+            Khi tác giả gốc ngắt dòng giữa chừng làm câu văn bị gãy vụn, bạn chỉ cần chọn Gộp câu. Câu hiện tại sẽ tự động nối với câu tiếp theo ngay bên dưới thành một chỉnh thể hoàn chỉnh.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Lịch Sử Phiên Bản Từng Câu (Segment History)</h3>
+      <p>
+        AuraTranslate ghi lại toàn bộ dấu vết sửa đổi của từng câu. Nhấp chuột phải chọn <strong>Lịch sử câu</strong> (<kbd>Mod+H</kbd>) để mở cửa sổ đối chiếu:
+      </p>
+      <div class="cds--data-table-container">
+        <table class="cds--data-table">
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Nguồn gốc dịch</th>
+              <th>Nội dung câu dịch đã lưu</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>10:45:12 (Hôm nay)</td>
+              <td><span class="cds--tag cds--tag--blue">Người gõ trực tiếp</span></td>
+              <td>Hắn chậm rãi ngẩng đầu, nhìn về phía đỉnh núi của Thanh Vân Môn.</td>
+              <td><span class="cds--tag cds--tag--green">Phiên bản hiện tại</span></td>
+            </tr>
+            <tr>
+              <td>10:42:05 (Hôm nay)</td>
+              <td><span class="cds--tag cds--tag--cyan">Gợi ý AI (Claude)</span></td>
+              <td>Hắn từ từ ngước mắt, ngóng trông đỉnh núi Thanh Vân Môn.</td>
+              <td><button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="alert('Đã khôi phục về phiên bản gợi ý của Claude!')">Khôi phục bản này</button></td>
+            </tr>
+            <tr>
+              <td>Hôm qua</td>
+              <td><span class="cds--tag cds--tag--purple">Bộ nhớ TM (Fuzzy)</span></td>
+              <td>Hắn chậm rãi ngẩng đầu nhìn đỉnh núi.</td>
+              <td><button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="alert('Đã khôi phục về phiên bản Bộ nhớ TM!')">Khôi phục bản này</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 7 -->
+    <section id="lookup-offline" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>07</span>
+        <span>Tra Cứu Từ Điển Ngoại Tuyến Siêu Tốc</span>
+      </h2>
+      <p>
+        Tốc độ là yếu tố sống còn của dịch giả. Bộ công cụ tra cứu tích hợp sẵn trong AuraTranslate phản hồi với độ trễ <strong>dưới 50 mili-giây</strong> và hoạt động 100% không phụ thuộc vào kết nối mạng.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Tự Động Tra Khi Bôi Đen (Auto-Lookup)</span>
+            <span class="cds--tag cds--tag--green">&lt;50ms</span>
+          </div>
+          <p>
+            Chỉ cần dùng chuột bôi đen bất kỳ từ hoặc cụm từ nào trên câu gốc hoặc bản dịch, bảng tra cứu bên phải sẽ tự động hiển thị nghĩa ngay tức khắc mà không cần bấm thêm bất kỳ phím nào.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Kho Từ Điển Tích Hợp Phong Phú</span>
+            <span class="cds--tag cds--tag--purple">Đa Tầng</span>
+          </div>
+          <p>
+            Bao gồm: Từ điển Lạc Việt (Anh-Việt, Trung-Việt), Từ điển Thiều Chửu (phân tích chi tiết bộ thủ Hán tự, ngữ nghĩa cổ xưa), CC-CEDICT (Trung-Anh hiện đại kèm Pinyin), và Tự điển Hán Việt hiện đại.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Concordance — Tra Cứu Chéo Ngữ Cảnh</span>
+            <span class="cds--tag cds--tag--blue">Thực Tế</span>
+          </div>
+          <p>
+            Chuyển sang tab <strong>Bộ nhớ (TM)</strong> để tìm xem cụm từ này đã từng được bạn dịch như thế nào trong các chương trước hoặc trong các tác phẩm khác cùng tác giả. Giúp giọng văn luôn nhất quán từ đầu đến cuối sách.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Nút Ghim Kết Quả Tra Cứu (📌)</span>
+            <span class="cds--tag cds--tag--cyan">Cố Định</span>
+          </div>
+          <p>
+            Khi bạn tìm thấy một định nghĩa phức tạp cần lưu ý trong suốt cả đoạn văn, hãy bấm nút <strong>Ghim 📌</strong>. Dù bạn có nhấp chuột sang câu khác thì bảng tra cứu vẫn giữ nguyên nội dung từ đó cho bạn tham khảo.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Ngăn Kéo Tra Cứu Nhanh Bên Phải (Lookup Drawer)</h3>
+      <p>
+        Nếu bạn đang làm việc ở Thư viện hoặc Chế độ đọc sách mà muốn tra nhanh một từ ngữ mà không muốn chuyển sang Bàn dịch, bạn chỉ cần bấm <kbd>Mod+Shift+L</kbd>. Ngăn kéo tra cứu sẽ trượt ra từ mép phải màn hình, cho phép tra từ điển và tra cứu thuật ngữ rồi tự động thu gọn lại.
+      </p>
+    </section>
+
+    <!-- CHƯƠNG 8 -->
+    <section id="ai-translation" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>08</span>
+        <span>Dịch AI Cá Nhân Hóa & Dịch Hàng Loạt (Batch Translation)</span>
+      </h2>
+      <p>
+        AuraTranslate tiếp cận Trí Tuệ Nhân Tạo theo phương châm: <em>AI là người trợ lý đắc lực phục vụ con người, không phải người thay thế</em>. 
+        Mọi đề xuất dịch thuật của AI đều phải qua sự kiểm duyệt và phê duyệt của dịch giả.
+      </p>
+
+      <div class="cds--inline-notification cds--inline-notification--warning">
+        <div class="cds--inline-notification__content">
+          <div class="cds--inline-notification__title">Lưu ý quan trọng về các nhà cung cấp AI:</div>
+          <div>
+            AuraTranslate tích hợp trực tiếp các nhà cung cấp AI hàng đầu: 
+            <strong>Anthropic Claude</strong> (Claude 3.5 Sonnet / Haiku / Opus), 
+            <strong>Google Gemini</strong> (Gemini 1.5 Pro / Flash), 
+            <strong>OpenAI</strong> (GPT-4o, GPT-4o-mini), 
+            <strong>OpenRouter</strong>, <strong>Mistral</strong>, <strong>xAI</strong>, 
+            và các công cụ AI cục bộ 100% offline như <strong>Ollama</strong> và <strong>LM Studio</strong> (chạy các mô hình Llama, Qwen, Mistral trên GPU riêng của bạn).
+          </div>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Chế Độ Dịch Từng Câu & Dịch Hàng Loạt (Batch)</h3>
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Dịch Đơn Câu (Single Segment)</span>
+            <kbd>Mod+Space</kbd>
+          </div>
+          <p>
+            Khi con trỏ ở câu nào, bấm phím tắt để gửi riêng câu đó kèm ngữ cảnh xung quanh tới AI. Bản dịch gợi ý sẽ hiển thị ở khung AI; bạn có thể bấm <strong>Áp dụng</strong> hoặc tinh chỉnh trực tiếp trước khi xác nhận.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Dịch Hàng Loạt (Batch Translation)</span>
+            <span class="cds--tag cds--tag--purple">Tự Động Cả Chương</span>
+          </div>
+          <p>
+            Chọn chức năng <strong>Dịch hàng loạt chương này</strong>: AuraTranslate sẽ tự động gửi từng đợt câu đến AI, đưa kết quả vào ô dịch và tự động lưu. Bạn có thể thảnh thơi nhâm nhi tách cà phê trong lúc máy dịch hàng trăm câu liên tục.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Cơ Chế An Toàn Khi Dịch Hàng Loạt</h3>
+      <div class="cds--steps">
+        <div class="cds--step-item">
+          <div class="cds--step-num">1</div>
+          <div class="cds--step-content">
+            <h4>Nút HỦY DỊCH NGAY LẬP TỨC (Cancel Batch Translation)</h4>
+            <p>
+              Nếu phát hiện bạn chọn nhầm prompt hoặc muốn đổi mô hình AI giữa chừng, chỉ cần bấm nút <strong>Hủy Dịch</strong> màu đỏ. Quá trình dừng lại ngay lập tức mà <em>không làm mất hay ảnh hưởng đến bất kỳ câu nào đã được dịch xong trước đó</em>.
+            </p>
+          </div>
+        </div>
+
+        <div class="cds--step-item">
+          <div class="cds--step-num">2</div>
+          <div class="cds--step-content">
+            <h4>Nút THỬ LẠI CÂU LỖI (Retry Failed Segments)</h4>
+            <p>
+              Trong quá trình dịch hàng loạt, nếu gặp sự cố rớt mạng hoặc hết hạn mức (rate limit) ở câu nào, AuraTranslate sẽ gắn cờ báo lỗi riêng câu đó. Bạn chỉ cần bấm <strong>Thử lại câu lỗi</strong>: phần mềm sẽ chỉ gửi lại các câu lỗi mà không dịch lại những câu đã thành công, tiết kiệm tối đa thời gian và chi phí API.
+            </p>
+          </div>
+        </div>
+
+        <div class="cds--step-item">
+          <div class="cds--step-num">3</div>
+          <div class="cds--step-content">
+            <h4>Bảng Thống Kê Chi Phí & Token Minh Bạch</h4>
+            <p>
+              Phần mềm hiển thị chính xác số lượng Token gửi đi (Prompt tokens) và số lượng Token nhận về (Completion tokens) cho từng câu cũng như tổng kết toàn bộ chương, giúp bạn luôn chủ động kiểm soát chi tiêu API của mình.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 9 -->
+    <section id="prompt-library" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>09</span>
+        <span>Thư Viện Lời Nhắc (Prompt Library) & Công Cụ Soi Prompt</span>
+      </h2>
+      <p>
+        Chất lượng bản dịch AI phụ thuộc 80% vào chất lượng lời nhắc (Prompt). 
+        AuraTranslate tích hợp sẵn một kho <strong>Thư viện Prompt mẫu chuyên biệt</strong> và một <strong>Công cụ Soi Lời Nhắc (AI Prompt Inspector)</strong> độc đáo giúp bạn làm chủ hoàn toàn quá trình tạo bản dịch của máy học.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Tiên Hiệp / Huyền Huyễn</span>
+            <span class="cds--tag cds--tag--purple">Thể Loại</span>
+          </div>
+          <p>
+            Giữ nguyên chuẩn mực âm Hán Việt cho các cảnh giới tu luyện (Luyện Khí, Trúc Cơ, Kim Đan, Nguyên Anh), các loại đan dược, pháp bảo và danh xưng môn phái; ngôn phong cổ kính nhưng gãy gọn.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Kiếm Hiệp / Cổ Trang</span>
+            <span class="cds--tag cds--tag--blue">Thể Loại</span>
+          </div>
+          <p>
+            Đậm chất võ hiệp Kim Dung, Cổ Long. Chuẩn xác xưng hô huynh đệ, sư đồ, chưởng môn; miêu tả thế võ, chiêu thức uyển chuyển, mạch lạc và giàu hình tượng võ thuật.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Đô Thị / Hiện Đại / Ngôn Tình</span>
+            <span class="cds--tag cds--tag--cyan">Thể Loại</span>
+          </div>
+          <p>
+            Ngôn ngữ đời thường tự nhiên, thoát hẳn lối dịch convert thô kệch; đại từ xưng hô anh/em, cậu/tớ linh hoạt theo quan hệ xã hội, bắt kịp phong cách trò chuyện hiện đại.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Báo Chí & Kỹ Thuật</span>
+            <span class="cds--tag cds--tag--green">Thể Loại</span>
+          </div>
+          <p>
+            Đòi hỏi độ chính xác tuyệt đối về thuật ngữ chuyên ngành; câu văn khách quan, đúng ngữ pháp tiếng Việt chuẩn mực xuất bản, không thêm thắt văn hoa mỹ miều.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Cửa Sổ Soi Lời Nhắc (AI Prompt Inspector)</h3>
+      <p>
+        Đã bao giờ bạn tự hỏi: <em>“Tại sao AI lại dịch câu này ra từ kỳ lạ như vậy?”</em> 
+        Nút <strong>Soi Prompt</strong> ở góc bảng AI giải tỏa hoàn toàn băn khoăn đó bằng cách mở ra toàn bộ nội dung mà phần mềm chuẩn bị gửi đến API:
+      </p>
+      <div class="cds--steps">
+        <div class="cds--step-item">
+          <div class="cds--step-num">1</div>
+          <div class="cds--step-content">
+            <h4>Lời Nhắc Hệ Thống (System Prompt)</h4>
+            <p>Quy định vai trò dịch giả, phong cách hành văn và danh sách các điều cấm kỵ (ví dụ: không được dùng từ Hán Việt thô, không được bỏ bớt câu của tác giả).</p>
+          </div>
+        </div>
+        <div class="cds--step-item">
+          <div class="cds--step-num">2</div>
+          <div class="cds--step-content">
+            <h4>Bảng Thuật Ngữ Đi Kèm (Dynamic Glossary Injection)</h4>
+            <p>Hệ thống tự động lọc các từ khóa, tên nhân vật xuất hiện trong câu hiện tại và chèn bảng dịch nghĩa bắt buộc để AI phải tuân theo 100%.</p>
+          </div>
+        </div>
+        <div class="cds--step-item">
+          <div class="cds--step-num">3</div>
+          <div class="cds--step-content">
+            <h4>Ngữ Cảnh Các Câu Liền Kề (Context Window)</h4>
+            <p>Gửi kèm 2 câu trước và 1 câu sau để AI hiểu rõ ngữ cảnh câu chuyện, tránh hiện tượng dịch sai đại từ xưng hô (ông/bà/hắn/nàng).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 10 -->
+    <section id="glossary-system" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>10</span>
+        <span>Quản Lý Thuật Ngữ & Tên Riêng (Glossary System)</span>
+      </h2>
+      <p>
+        Một tác phẩm đồ sộ với hàng trăm nhân vật và địa danh sẽ trở thành thảm họa nếu mỗi chương dịch tên một kiểu. 
+        Hệ thống Thuật ngữ trong AuraTranslate được xây dựng theo mô hình 2 tầng thông minh:
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">1. Tầng Thuật Ngữ Toàn Cục (Global Glossary)</span>
+            <span class="cds--tag cds--tag--purple">Áp Dụng Toàn Bộ</span>
+          </div>
+          <p>
+            Chứa các quy ước xưng hô chung, các thuật ngữ tu tiên, kiếm hiệp hoặc kỹ thuật phổ biến áp dụng cho mọi cuốn sách bạn dịch trên máy tính.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">2. Tầng Thuật Ngữ Tác Phẩm (Project Glossary)</span>
+            <span class="cds--tag cds--tag--blue">Riêng Từng Bộ Sách</span>
+          </div>
+          <p>
+            Chỉ có hiệu lực trong cuốn sách đang mở. Chứa tên nhân vật chính, pháp bảo đặc hữu, tên các tông môn và địa danh cụ thể của tác phẩm đó.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Tính Năng Khảo Sát Tự Động (Glossary Harvest)</h3>
+      <p>
+        Thay vì phải đọc trước cả bộ sách và ghi chép thủ công từng cái tên vào sổ tay, bạn chỉ cần mở công cụ <strong>Khảo sát Thuật ngữ (Harvest)</strong>:
+      </p>
+      <ul style="margin-left: 20px; margin-bottom: 20px; color: var(--cds-text-secondary); line-height: 1.8;">
+        <li>AuraTranslate quét toàn bộ hàng triệu chữ của cuốn sách trong vài giây.</li>
+        <li>Tự động thống kê các cụm danh từ riêng, tên nhân vật xuất hiện với tần suất cao nhất.</li>
+        <li>Đưa danh sách vào <strong>Bảng Chờ Duyệt (Glossary Queue)</strong>: bạn chỉ việc gán nghĩa tiếng Việt chuẩn xác và bấm Duyệt một lần để áp dụng cho toàn bộ cuốn sách.</li>
+      </ul>
+
+      <h3 class="cds--subsection-title">Dải Gợi Ý Thuật Ngữ Nổi (Glossary Confirm Strip)</h3>
+      <p>
+        Khi bạn di chuyển con trỏ vào bất kỳ câu nào có chứa thuật ngữ đã lưu, dải gợi ý màu tím sẽ tự động nổi lên ngay trên ô dịch. Bạn chỉ cần nhấn phím tắt hoặc nhấp chuột để điền tên chuẩn vào bản dịch mà không sợ gõ sai chính tả.
+      </p>
+    </section>
+
+    <!-- CHƯƠNG 11 -->
+    <section id="tm-alignment" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>11</span>
+        <span>Bộ Nhớ Dịch (Translation Memory - TM) & Căn Chỉnh Song Ngữ</span>
+      </h2>
+      <p>
+        <strong>Bộ nhớ dịch (TM)</strong> lưu giữ toàn bộ các cặp câu gốc và câu dịch mà bạn đã hoàn thành. 
+        Càng dịch nhiều, kho dữ liệu này càng đồ sộ và thông minh, giúp bạn không bao giờ phải dịch lại lần thứ hai cùng một câu tương tự.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Gợi Ý Khớp Tương Đồng (Fuzzy Match 70% - 100%)</span>
+            <span class="cds--tag cds--tag--green">Tiết Kiệm Thời Gian</span>
+          </div>
+          <p>
+            Nếu câu mới giống 100% với câu cũ trong quá khứ, máy sẽ tự động điền bản dịch cũ. Nếu giống 70% - 99%, dải gợi ý xanh lá sẽ hiển thị sự tương đồng và tô đậm các chữ khác biệt để bạn chỉ cần chỉnh lại vài từ là xong.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Bảng Kiểm Tra Sức Khỏe Bộ Nhớ (TM Health)</span>
+            <span class="cds--tag cds--tag--cyan">Quản Lý Chất Lượng</span>
+          </div>
+          <p>
+            Thống kê tổng số lượng cặp câu, phát hiện các trường hợp cùng một câu gốc nhưng có 2 cách dịch mâu thuẫn nhau, dọn dẹp các cặp câu rác để bộ nhớ luôn trong sạch và chuẩn xác.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Xuất / Nhập Định Dạng Quốc Tế (TMX)</span>
+            <span class="cds--tag cds--tag--purple">Chuẩn Toàn Cầu</span>
+          </div>
+          <p>
+            Hỗ trợ đầy đủ chuẩn quốc tế <code>.tmx</code> (Translation Memory eXchange). Bạn có thể dễ dàng chuyển kho dữ liệu dịch thuật của mình qua lại giữa AuraTranslate và SDL Trados, memoQ, OmegaT.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Công Cụ Căn Chỉnh Song Ngữ (Alignment Tool)</span>
+            <span class="cds--tag cds--tag--blue">Tái Sử Dụng Sách Cũ</span>
+          </div>
+          <p>
+            Khi bạn có 1 file sách gốc và 1 file bản dịch tiếng Việt có sẵn từ trước, công cụ này sẽ mở 2 văn bản cạnh nhau, tự động so khớp từng câu và cung cấp các nút <strong>Nối câu (Join)</strong>, <strong>Tách câu (Split)</strong> để tạo ra kho TM khổng lồ chỉ trong vài phút.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 12 -->
+    <section id="vietnamese-rules" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>12</span>
+        <span>Quy Ước Chữ Việt & Trợ Lý Soát Lỗi Tự Động</span>
+      </h2>
+      <p>
+        Một tác phẩm hay không chỉ cần dịch đúng nghĩa mà phải chuẩn mực về tiếng Việt. 
+        AuraTranslate trang bị hệ thống kiểm tra quy ước ngôn ngữ chạy hoàn toàn tự động <strong>với chi phí 0đ</strong> và không cần gọi tới AI bên ngoài.
+      </p>
+
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Bộ Soát Lỗi Chữ Việt (Chi Phí 0đ)</span>
+            <span class="cds--tag cds--tag--green">Thuật Toán Cục Bộ</span>
+          </div>
+          <p>
+            Tự động dò tìm các lỗi chính tả phổ biến trong tiếng Việt (hỏi/ngã, s/x, tr/ch, d/gi), lỗi lặp từ không chủ đích, và các cấu trúc câu dịch thô bị lai tạp ngữ pháp tiếng nước ngoài (như lạm dụng từ "của", dịch thụ động vụng về).
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Chuẩn Hóa Vị Trí Dấu Thanh</span>
+            <span class="cds--tag cds--tag--blue">Xuất Bản</span>
+          </div>
+          <p>
+            Cho phép tùy chọn đồng bộ cách bỏ dấu thanh điệu theo chuẩn truyền thống (hòa, thủy) hoặc chuẩn hiện đại mới (hoà, thuỷ) trên toàn bộ hàng nghìn trang sách chỉ bằng một cú nhấp chuột.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Trợ Lý Soát Lỗi AI (AI Proofreader)</span>
+            <span class="cds--tag cds--tag--purple">Trau Chuốt Văn Phong</span>
+          </div>
+          <p>
+            Khi cần trau chuốt các đoạn văn cao trào hoặc thơ ca, hãy kích hoạt Trợ lý Soát lỗi AI. Công cụ này sẽ đọc lại câu dịch của bạn, đề xuất các từ ngữ đắt giá hơn và làm câu văn mềm mại, đậm chất văn học.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Tùy Chọn Phạm Vi Soát Lỗi</span>
+            <span class="cds--tag cds--tag--cyan">Linh Hoạt</span>
+          </div>
+          <p>
+            Bạn có thể chọn soát lỗi: <em>Chỉ riêng câu hiện tại</em>, <em>Cụm đoạn văn 5 câu xung quanh</em>, hoặc <em>Toàn bộ chương</em> tùy theo nhu cầu và ngân sách thời gian của mình.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 13 -->
+    <section id="word-review-reading" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>13</span>
+        <span>Quy Trình Soát Lỗi Qua Word & Chế Độ Đọc Sách</span>
+      </h2>
+      <p>
+        Trong thực tế xuất bản, dịch giả thường phải gửi bản thảo cho Biên tập viên hoặc người đọc duyệt ngoài chỉnh sửa qua Microsoft Word. 
+        AuraTranslate hỗ trợ quy trình khép kín hoàn hảo mà không làm đảo lộn cấu trúc câu dịch.
+      </p>
+
+      <div class="cds--steps">
+        <div class="cds--step-item">
+          <div class="cds--step-num">1</div>
+          <div class="cds--step-content">
+            <h4>Xuất Bản Thảo Sang Word Dạng Bảng 2 Cột</h4>
+            <p>AuraTranslate tạo ra tệp Word <code>.docx</code> chuẩn mực với cột trái là nguyên tác và cột phải là bản dịch tiếng Việt, giúp biên tập viên dễ dàng đối chiếu.</p>
+          </div>
+        </div>
+        <div class="cds--step-item">
+          <div class="cds--step-num">2</div>
+          <div class="cds--step-content">
+            <h4>Biên Tập Viên Chỉnh Sửa Tự Do</h4>
+            <p>Biên tập viên mở file bằng Word, sửa câu từ, đánh dấu thay đổi hoặc viết lại đoạn văn bình thường.</p>
+          </div>
+        </div>
+        <div class="cds--step-item">
+          <div class="cds--step-num">3</div>
+          <div class="cds--step-content">
+            <h4>Nhập Lại File Word Vào Chế Độ Soát Lỗi (Review Mode)</h4>
+            <p>Trở lại AuraTranslate, nhấn nút <strong>Soát Lỗi Review</strong> trên thanh tiêu đề và chọn file Word đã sửa. Hệ thống tự động so khớp từng câu và hiển thị màn hình đối chiếu Diff hai bên.</p>
+          </div>
+        </div>
+        <div class="cds--step-item">
+          <div class="cds--step-num">4</div>
+          <div class="cds--step-content">
+            <h4>Duyệt Từng Thay Đổi: Bấm Nhận (Accept) Hoặc Bỏ Qua (Reject)</h4>
+            <p>Bạn xem rõ từng chữ bị xóa (gạch đỏ) và chữ thêm mới (tô xanh). Bạn có quyền bấm <strong>Nhận</strong> câu hợp lý và <strong>Bỏ qua</strong> câu bạn thấy chưa ưng ý. Bản dịch trong máy sẽ được cập nhật chuẩn xác từng câu.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="cds--subsection-title">Chế Độ Đọc Sách Thư Giãn (Reading Mode — Mod+3)</h3>
+      <p>
+        Sau khi hoàn thành bản dịch, việc ngồi đọc lại toàn bộ tác phẩm như một cuốn sách thực thụ là cách tốt nhất để cảm nhận nhịp điệu của câu chuyện.
+      </p>
+      <div class="cds--grid-cards">
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Phông Chữ Serif Trang Nhã</span>
+            <span class="cds--tag cds--tag--purple">Chuẩn Xuất Bản</span>
+          </div>
+          <p>
+            Màn hình ẩn đi toàn bộ các nút bấm kỹ thuật, chuyển sang phông chữ IBM Plex Serif với căn lề, khoảng cách dòng và độ rộng trang tối ưu cho mắt.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Vạch Ghi Nhớ Vị Trí Đọc (Frontier Line)</span>
+            <span class="cds--tag cds--tag--cyan">Tiện Lợi</span>
+          </div>
+          <p>
+            Vạch đánh dấu màu xanh hiển thị rõ câu cuối cùng bạn vừa đọc trước khi tạm nghỉ, giúp bạn không bao giờ bị lạc khi quay lại đọc tiếp hôm sau.
+          </p>
+        </div>
+
+        <div class="cds--card">
+          <div class="cds--card-header">
+            <span class="cds--card-title">Cắm Cờ Nghi Vấn (Flag ⚑)</span>
+            <span class="cds--tag cds--tag--yellow">Sửa Nhanh</span>
+          </div>
+          <p>
+            Đang đọc mượt mà bỗng gặp một câu dịch gượng gạo? Bấm phím <kbd>F</kbd> để cắm cờ và nhập nhanh ghi chú. Bạn có thể tiếp tục đọc hết chương rồi bấm <kbd>Mod+2</kbd> quay lại Bàn dịch để nhảy thẳng tới các câu có cờ để tinh chỉnh.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHƯƠNG 14 -->
+    <section id="settings-shortcuts" style="margin-bottom: 60px;">
+      <h2 class="cds--section-title">
+        <span>14</span>
+        <span>Bảng Cài Đặt Toàn Diện & Tra Cứu Phím Tắt Toàn Năng</span>
+      </h2>
+      <p>
+        AuraTranslate tôn trọng thói quen của từng dịch giả, cho phép cấu hình chi tiết từ nhà cung cấp AI đến từng tổ hợp phím bấm.
+      </p>
+
+      <h3 class="cds--subsection-title">Bộ Tùy Biến Phím Tắt Trực Quan (Auto-Capture)</h3>
+      <p>
+        Trong bảng Cài đặt phím tắt (<kbd>Mod+,</kbd>), bạn không cần phải gõ tên phím bằng chữ. Chỉ cần nhấp vào chức năng muốn đổi và <strong>nhấn trực tiếp tổ hợp phím mong muốn trên bàn phím</strong>: Hệ thống sẽ tự động bắt phím (Auto-capture) và cảnh báo ngay lập tức nếu tổ hợp phím đó bị xung đột với một lệnh khác.
+      </p>
+
+      <h3 class="cds--subsection-title" id="shortcuts-table">Bảng Tra Cứu Phím Tắt Nhanh (Thao Tác Thường Dùng)</h3>
+      <div class="cds--data-table-container">
+        <table class="cds--data-table">
+          <thead>
+            <tr>
+              <th>Nhóm Chức Năng</th>
+              <th>Thao Tác</th>
+              <th>Phím Tắt</th>
+              <th>Công Dụng</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Chuyển Chế Độ</strong></td>
+              <td>Chuyển sang Thư viện</td>
+              <td><kbd>Mod+1</kbd></td>
+              <td>Mở danh sách tác phẩm và các dự án dịch</td>
+            </tr>
+            <tr>
+              <td><strong>Chuyển Chế Độ</strong></td>
+              <td>Chuyển sang Bàn dịch</td>
+              <td><kbd>Mod+2</kbd></td>
+              <td>Vào không gian dịch đối chiếu chính</td>
+            </tr>
+            <tr>
+              <td><strong>Chuyển Chế Độ</strong></td>
+              <td>Chuyển sang Đọc sách</td>
+              <td><kbd>Mod+3</kbd></td>
+              <td>Xem tác phẩm với giao diện trang sách êm mắt</td>
+            </tr>
+            <tr>
+              <td><strong>Bố Cục</strong></td>
+              <td>Bố cục 2 Cột</td>
+              <td><kbd>Mod+Alt+1</kbd></td>
+              <td>Bảng câu bên trái - Tra cứu & AI bên phải</td>
+            </tr>
+            <tr>
+              <td><strong>Bố Cục</strong></td>
+              <td>Bố cục 2 Tầng</td>
+              <td><kbd>Mod+Alt+2</kbd></td>
+              <td>Bảng câu ở trên - Tra cứu & AI ở dưới</td>
+            </tr>
+            <tr>
+              <td><strong>Điều Hướng Câu</strong></td>
+              <td>Xác nhận & Sang câu kế</td>
+              <td><kbd>Ctrl+Enter</kbd> / <kbd>Cmd+Enter</kbd></td>
+              <td>Lưu câu vào TM và nhảy đến câu tiếp theo</td>
+            </tr>
+            <tr>
+              <td><strong>Điều Hướng Câu</strong></td>
+              <td>Nhảy câu trên / dưới</td>
+              <td><kbd>Alt+↑</kbd> / <kbd>Alt+↓</kbd></td>
+              <td>Di chuyển con trỏ giữa các hàng câu</td>
+            </tr>
+            <tr>
+              <td><strong>Điều Hướng Câu</strong></td>
+              <td>Nhảy đến câu chưa dịch</td>
+              <td><kbd>Mod+Shift+↓</kbd></td>
+              <td>Tìm câu trống gần nhất để dịch tiếp</td>
+            </tr>
+            <tr>
+              <td><strong>Thao Tác Câu</strong></td>
+              <td>Tách câu (Split)</td>
+              <td><kbd>Mod+K</kbd></td>
+              <td>Chia câu dài thành 2 câu độc lập</td>
+            </tr>
+            <tr>
+              <td><strong>Thao Tác Câu</strong></td>
+              <td>Gộp câu (Merge)</td>
+              <td><kbd>Mod+J</kbd></td>
+              <td>Nối câu hiện tại với câu tiếp theo</td>
+            </tr>
+            <tr>
+              <td><strong>Thao Tác Câu</strong></td>
+              <td>Cắt bỏ câu (Omit)</td>
+              <td><kbd>Mod+Del</kbd></td>
+              <td>Ẩn câu thừa, lời bạt, quảng cáo</td>
+            </tr>
+            <tr>
+              <td><strong>Thao Tác Câu</strong></td>
+              <td>Lịch sử phiên bản câu</td>
+              <td><kbd>Mod+H</kbd></td>
+              <td>Xem lại các lần sửa trước đó và khôi phục</td>
+            </tr>
+            <tr>
+              <td><strong>Tra Cứu</strong></td>
+              <td>Tra cứu nhanh (Drawer)</td>
+              <td><kbd>Mod+Shift+L</kbd></td>
+              <td>Mở ngăn kéo từ điển từ bất kỳ màn hình nào</td>
+            </tr>
+            <tr>
+              <td><strong>Trí Tuệ Nhân Tạo</strong></td>
+              <td>Dịch AI câu hiện tại</td>
+              <td><kbd>Mod+Space</kbd></td>
+              <td>Gửi câu đang chọn đến mô hình AI đã cấu hình</td>
+            </tr>
+            <tr>
+              <td><strong>Trí Tuệ Nhân Tạo</strong></td>
+              <td>Soi lời nhắc (Inspector)</td>
+              <td><kbd>Mod+Shift+I</kbd></td>
+              <td>Xem chi tiết lời nhắc và ngữ cảnh gửi đến AI</td>
+            </tr>
+            <tr>
+              <td><strong>Hệ Thống</strong></td>
+              <td>Bảng cài đặt</td>
+              <td><kbd>Mod+,</kbd></td>
+              <td>Cấu hình khóa API, phông chữ, phím tắt</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="cds--footer">
+      <div>
+        <strong>AuraTranslate v2.0</strong> — Nền tảng Dịch thuật Ngoại tuyến Độc lập & An toàn.
+      </div>
+      <div>
+        Thiết kế theo chuẩn IBM Carbon Design System v11 · Bản quyền GPL-3.0.
+      </div>
+    </footer>
+  </main>
+
+  <!-- MODAL 1: PROMPT INSPECTOR -->
+  <div class="cds--modal" id="modalPromptInspector">
+    <div class="cds--modal-container">
+      <div class="cds--modal-header">
+        <h3 class="cds--modal-title">🔍 Cửa Sổ Soi Lời Nhắc (AI Prompt Inspector)</h3>
+        <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="closeModal('modalPromptInspector')">✕ Đóng</button>
+      </div>
+      <div class="cds--modal-body">
+        <p style="margin-bottom: 12px; color: var(--cds-text-secondary);">
+          Dưới đây là 100% nội dung thực tế mà AuraTranslate tổng hợp và gửi đến API của nhà cung cấp AI cho câu dịch hiện tại:
+        </p>
+
+        <div style="margin-bottom: 16px;">
+          <strong style="color: var(--cds-support-cyan); font-family: var(--font-mono); font-size: 12px;">SYSTEM PROMPT (LỜI NHẮC HỆ THỐNG):</strong>
+          <pre style="background: var(--cds-background); padding: 12px; border: 1px solid var(--cds-border-subtle-01); font-family: var(--font-mono); font-size: 12px; margin-top: 6px; white-space: pre-wrap; color: var(--cds-text-primary);">Bạn là một dịch giả văn học chuyên nghiệp, am hiểu sâu sắc thể loại Tiên hiệp và Cổ trang Trung Quốc.
+Nhiệm vụ: Dịch câu văn sang tiếng Việt tự nhiên, đậm chất văn học, giữ nguyên âm Hán Việt chuẩn mực cho danh xưng, môn phái và cảnh giới tu luyện.
+Bắt buộc tuân thủ danh mục thuật ngữ đã chỉ định.</pre>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <strong style="color: var(--cds-support-purple); font-family: var(--font-mono); font-size: 12px;">DYNAMIC GLOSSARY INJECTION (THUẬT NGỮ BẮT BUỘC):</strong>
+          <pre style="background: var(--cds-background); padding: 12px; border: 1px solid var(--cds-border-subtle-01); font-family: var(--font-mono); font-size: 12px; margin-top: 6px; white-space: pre-wrap; color: var(--cds-text-primary);">- 青云门 (Qingyun Sect) -> Thanh Vân Môn
+- 山巅 (Mountain Peak) -> Đỉnh núi / Sơn điên</pre>
+        </div>
+
+        <div>
+          <strong style="color: var(--cds-support-success); font-family: var(--font-mono); font-size: 12px;">USER CONTENT (CÂU GỐC & NGỮ CẢNH):</strong>
+          <pre style="background: var(--cds-background); padding: 12px; border: 1px solid var(--cds-border-subtle-01); font-family: var(--font-mono); font-size: 12px; margin-top: 6px; white-space: pre-wrap; color: var(--cds-text-primary);">[Ngữ cảnh trước]: 天气晴朗，万里无云。
+[Câu cần dịch]: 他缓缓抬头，望向青云门的山巅。
+[Ngữ cảnh sau]: 风声萧萧，带着一丝凉意。</pre>
+        </div>
+      </div>
+      <div class="cds--modal-footer">
+        <button class="cds--btn cds--btn--secondary cds--btn--sm" onclick="closeModal('modalPromptInspector')">Đóng cửa sổ</button>
+        <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="alert('Đã sao chép toàn bộ prompt vào khay nhớ tạm!'); closeModal('modalPromptInspector');">Sao chép Prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: SEGMENT HISTORY -->
+  <div class="cds--modal" id="modalSegmentHistory">
+    <div class="cds--modal-container">
+      <div class="cds--modal-header">
+        <h3 class="cds--modal-title">🕒 Lịch Sử Phiên Bản Câu Dịch #002</h3>
+        <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="closeModal('modalSegmentHistory')">✕ Đóng</button>
+      </div>
+      <div class="cds--modal-body">
+        <p style="margin-bottom: 12px; color: var(--cds-text-secondary);">
+          Mọi lần chỉnh sửa câu dịch này đều được tự động lưu lại. Bạn có thể chọn bất kỳ phiên bản nào để khôi phục:
+        </p>
+
+        <div class="cds--steps">
+          <div class="cds--step-item">
+            <div class="cds--step-num" style="background: var(--cds-support-success);">1</div>
+            <div class="cds--step-content">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <strong>Phiên bản hiện tại (Người dịch gõ trực tiếp)</strong>
+                <span style="font-size: 11px; color: var(--cds-text-placeholder);">10:45:12</span>
+              </div>
+              <p style="color: var(--cds-text-primary); font-size: 13.5px; margin-bottom: 4px;">"Hắn chậm rãi ngẩng đầu, nhìn về phía đỉnh núi của Thanh Vân Môn."</p>
+              <span class="cds--tag cds--tag--green">Đang hiển thị</span>
+            </div>
+          </div>
+
+          <div class="cds--step-item">
+            <div class="cds--step-num" style="background: var(--cds-support-cyan);">2</div>
+            <div class="cds--step-content">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <strong>Phiên bản gợi ý AI (Claude 3.5 Sonnet)</strong>
+                <span style="font-size: 11px; color: var(--cds-text-placeholder);">10:42:05</span>
+              </div>
+              <p style="color: var(--cds-text-primary); font-size: 13.5px; margin-bottom: 4px;">"Hắn từ từ ngước mắt, ngóng trông đỉnh núi mù sương Thanh Vân Môn."</p>
+              <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="document.getElementById('simTargetInput').value = 'Hắn từ từ ngước mắt, ngóng trông đỉnh núi mù sương Thanh Vân Môn.'; alert('Đã khôi phục câu dịch về phiên bản AI!'); closeModal('modalSegmentHistory');">Khôi phục bản này</button>
+            </div>
+          </div>
+
+          <div class="cds--step-item">
+            <div class="cds--step-num" style="background: var(--cds-support-purple);">3</div>
+            <div class="cds--step-content">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <strong>Phiên bản gợi ý Bộ nhớ dịch TM (92% Khớp)</strong>
+                <span style="font-size: 11px; color: var(--cds-text-placeholder);">Hôm qua</span>
+              </div>
+              <p style="color: var(--cds-text-primary); font-size: 13.5px; margin-bottom: 4px;">"Hắn chậm rãi ngẩng đầu nhìn đỉnh núi."</p>
+              <button class="cds--btn cds--btn--tertiary cds--btn--sm" onclick="document.getElementById('simTargetInput').value = 'Hắn chậm rãi ngẩng đầu nhìn đỉnh núi.'; alert('Đã khôi phục câu dịch về phiên bản TM!'); closeModal('modalSegmentHistory');">Khôi phục bản này</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cds--modal-footer">
+        <button class="cds--btn cds--btn--secondary cds--btn--sm" onclick="closeModal('modalSegmentHistory')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    // Theme toggle (Carbon Dark / Light)
+    function toggleTheme() {
+      const htmlEl = document.documentElement;
+      const currentTheme = htmlEl.getAttribute('data-theme');
+      const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+      htmlEl.setAttribute('data-theme', nextTheme);
+      
+      const btnText = document.getElementById('themeBtnText');
+      if (nextTheme === 'light') {
+        btnText.innerText = '🌙 Giao diện Tối';
+      } else {
+        btnText.innerText = '☀️ Giao diện Sáng';
+      }
+    }
+
+    // Toggle Workspace Layout in Simulator
+    function toggleSimLayout() {
+      const body = document.getElementById('simWorkspaceBody');
+      const text = document.getElementById('simLayoutText');
+      if (body.classList.contains('layout-vertical')) {
+        body.classList.remove('layout-vertical');
+        text.innerText = '⊞ Đổi sang Bố cục Trên-Dưới';
+      } else {
+        body.classList.add('layout-vertical');
+        text.innerText = '⊟ Đổi sang Bố cục 2 Cột';
+      }
+    }
+
+    // Toggle Context Menu in Simulator
+    function toggleSimContextMenu() {
+      const menu = document.getElementById('simContextMenu');
+      if (menu.style.display === 'none' || menu.style.display === '') {
+        menu.style.display = 'block';
+      } else {
+        menu.style.display = 'none';
+      }
+    }
+
+    // Switch between modes in simulator
+    function switchSimMode(mode) {
+      if (mode === 'library') {
+        document.getElementById('library-import').scrollIntoView({ behavior: 'smooth' });
+      } else if (mode === 'workspace') {
+        document.getElementById('workspace-core').scrollIntoView({ behavior: 'smooth' });
+      } else if (mode === 'reading') {
+        document.getElementById('word-review-reading').scrollIntoView({ behavior: 'smooth' });
+      } else if (mode === 'review') {
+        document.getElementById('word-review-reading').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    // Apply glossary in simulator
+    function applyGlossaryTerm() {
+      const input = document.getElementById('simTargetInput');
+      if (!input.value.includes('Thanh Vân Môn')) {
+        input.value += ' Thanh Vân Môn';
+      }
+      alert('Đã áp dụng chuẩn thuật ngữ "Thanh Vân Môn" vào bản dịch!');
+    }
+
+    // Apply TM suggestion in simulator
+    function applyTmSuggestion() {
+      document.getElementById('simTargetInput').value = 'Hắn chậm rãi ngẩng đầu nhìn đỉnh núi.';
+      alert('Đã chép câu từ Bộ nhớ dịch TM vào ô soạn thảo!');
+    }
+
+    // Modal Control
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.add('is-visible');
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.remove('is-visible');
+    }
+
+    // Global Search Filter (Cmd+K / Ctrl+K)
+    document.addEventListener('keydown', function(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.getElementById('globalSearch');
+        if (searchInput) searchInput.focus();
+      }
+    });
+
+    const searchInput = document.getElementById('globalSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        const navLinks = document.querySelectorAll('.cds--side-nav__link');
+        navLinks.forEach(link => {
+          const text = link.innerText.toLowerCase();
+          if (!query || text.includes(query)) {
+            link.style.display = 'flex';
+          } else {
+            link.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    // Highlight active nav link on scroll
+    window.addEventListener('scroll', function() {
+      const sections = document.querySelectorAll('section[id]');
+      let currentSectionId = '';
+      const scrollPos = window.scrollY + 100;
+
+      sections.forEach(sec => {
+        if (sec.offsetTop <= scrollPos) {
+          currentSectionId = sec.getAttribute('id');
+        }
+      });
+
+      if (currentSectionId) {
+        const links = document.querySelectorAll('.cds--side-nav__link');
+        links.forEach(l => {
+          if (l.getAttribute('href') === '#' + currentSectionId) {
+            l.classList.add('active');
+          } else {
+            l.classList.remove('active');
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
