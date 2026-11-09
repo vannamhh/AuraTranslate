@@ -14001,3 +14001,15 @@ chính nó.
     3,9 GB. Tải máy trước hai lượt là 3,90 và 10,63 nên 5 s chênh là TRẦN TRÊN, không một số sạch.
     Hôm nay chưa đau: exec một test binary ĐÃ KÝ trong deps đo 0,00 s (40 s từng đo ở 775k mục).
   Chủ: Ice
+
+- source_plan: none
+  summary: `npm run test` thoát 1 với `Errors 1 error` dù 259/259 tệp và 4.106/4.106 ca XANH —
+    `EnvironmentTeardownError: Closing rpc while "onUserConsoleLog" was pending`, khai là từ
+    `tests/frontend/editorConfirmSegment.test.ts` — nên nó chặn một lượt push ở `pre-push` một
+    cách ngẫu nhiên, không kèm một ca đỏ nào để đọc.
+  evidence: cùng cây `dd1d3f9c`, lượt đầu đỏ (tải máy 3,18) và lượt hai xanh (tải 61,96) ⇒ chập
+    chờn, và KHÔNG theo tải. Tệp đó cố ý chạm hai đường log của sản phẩm (`[editor] flush
+    TRƯỢT…`, `[editor] KHÔNG ký segment…`), nên mỗi lượt có log đi qua RPC `onUserConsoleLog` mà
+    teardown worker có thể đóng trước. Reporter mặc định ẩn log của tệp XANH, nên lượt chạy đủ
+    không cho đếm còn bao nhiêu tệp cùng hình dạng.
+  Chủ: Ice
