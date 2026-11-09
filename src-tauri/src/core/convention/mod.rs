@@ -5,10 +5,12 @@ mod casing;
 mod matcher;
 mod normalize;
 mod rule;
+mod splice;
 mod store;
 
 pub use casing::transfer_case;
 pub use matcher::{Hit, Matcher, Scan, phrase_spans};
 pub use normalize::rule_key;
 pub use rule::{Rule, RuleTier};
+pub use splice::apply_spans;
 pub use store::{ConventionStoreError, RuleRow, add_rule, find_active_rule, list_rules};

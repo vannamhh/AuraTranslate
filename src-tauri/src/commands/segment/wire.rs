@@ -639,6 +639,28 @@ pub fn convention_accept<R: tauri::Runtime>(
     )
 }
 
+/// Wire shell of [`super::convention_replace_chapter`]: the webview sends the selected spots
+/// (`rule_key` names the rule; the replacement is never sent). Every rule is read from `global.db`
+/// before the Work lock is taken; one that is gone, disabled or has no replacement refuses with
+/// nothing written.
+#[tauri::command(async)]
+pub fn convention_replace_chapter<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    groups: Vec<super::ConventionReplaceGroup>,
+) -> Result<super::ConventionReplaceOutcome, IpcError> {
+    use tauri::Manager as _;
+
+    let global = app.try_state::<crate::core::store::Store>();
+    let rules = super::resolve_convention_rules(global.as_deref(), &groups)?;
+    let Some(state) = app.try_state::<OpenWorkState>() else {
+        return super::convention_replace_chapter(None, &groups, &rules);
+    };
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    super::convention_replace_chapter(guard.as_ref(), &groups, &rules)
+}
+
 /// Wire shell of [`super::convention_revert_range`]: `expectedPhrase` is the replacement now in the
 /// text, `originalPhrase` the text it replaced.
 #[tauri::command]

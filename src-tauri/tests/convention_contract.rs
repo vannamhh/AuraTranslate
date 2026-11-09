@@ -8,13 +8,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::convention::{
     ConventionMatcherState, ConventionScanWire, convention_active_rule, convention_add_rule,
-    convention_list_rules, convention_scan_chapter,
+    convention_list_rules, convention_scan_chapter, convention_scan_chapter_with_progress,
 };
 use auratranslate_lib::commands::glossary::glossary_add_term;
 use auratranslate_lib::commands::project::{OpenWork, OpenWorkState, create_work_from_text};
 use auratranslate_lib::commands::segment::{
-    ConventionWriteOutcome, convention_accept_range, convention_revert_range,
-    read_open_chapter_segments,
+    ConventionReplaceGroup, ConventionReplaceOutcome, ConventionReplaceSpot,
+    ConventionWriteOutcome, convention_accept_range, convention_replace_chapter,
+    convention_revert_range, read_open_chapter_segments, resolve_convention_rules,
 };
 use auratranslate_lib::core::convention::{Matcher, Rule, RuleTier, rule_key, transfer_case};
 use auratranslate_lib::core::glossary::{Category, GlossaryTier};
@@ -261,6 +262,14 @@ impl Fixture {
             phrase,
             &rule,
         )
+    }
+
+    fn replace(
+        &self,
+        groups: &[ConventionReplaceGroup],
+    ) -> Result<ConventionReplaceOutcome, IpcError> {
+        let rules = resolve_convention_rules(Some(&self.global), groups)?;
+        convention_replace_chapter(open_of(self).as_ref(), groups, &rules)
     }
 
     fn revert(
@@ -539,4 +548,317 @@ fn a_match_inside_a_pinned_glossary_translation_gets_no_mark() {
     assert_eq!(scan.glossary_suppressed, 1);
     assert_eq!(scan.segments.len(), 1);
     assert_eq!(scan.segments[0].segment_id, f.segment_ids[1]);
+}
+
+fn spot(start: u32, end: u32, phrase: &str) -> ConventionReplaceSpot {
+    ConventionReplaceSpot {
+        start,
+        end,
+        expected_phrase: phrase.to_owned(),
+        rule_key: KEY.to_owned(),
+    }
+}
+
+fn group(
+    f: &Fixture,
+    index: usize,
+    text: &str,
+    spots: Vec<ConventionReplaceSpot>,
+) -> ConventionReplaceGroup {
+    ConventionReplaceGroup {
+        segment_id: f.segment_ids[index],
+        expected_text: text.to_owned(),
+        spots,
+    }
+}
+
+#[test]
+fn a_deselected_syllable_boundary_spot_stays_byte_for_byte_and_the_rest_is_replaced() {
+    let f = fixture("batch-deselect");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    f.seed(1, "nhằm bảo đảm bảo vệ", "other", "other", "draft");
+    f.seed(2, "Hãy đảm bảo.", "other", "other", "draft");
+    let before = f.dump();
+    let done = f
+        .replace(&[
+            group(&f, 0, "Đảm bảo an toàn.", vec![spot(0, 7, "Đảm bảo")]),
+            group(&f, 2, "Hãy đảm bảo.", vec![spot(4, 11, "đảm bảo")]),
+        ])
+        .expect("batch");
+    assert_eq!(
+        (done.replaced, done.sentences, done.drafts, done.confirmed),
+        (2, 2, 2, 0)
+    );
+    let after = f.dump();
+    assert_eq!(after[0].1, "Bảo đảm an toàn.");
+    assert_eq!(after[1], before[1]);
+    assert_eq!(after[2].1, "Hãy bảo đảm.");
+    assert_eq!(
+        f.scan()
+            .segments
+            .iter()
+            .filter(|s| s.segment_id == f.segment_ids[1])
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn a_selected_syllable_boundary_spot_is_replaced_where_it_sits() {
+    let f = fixture("batch-select");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(1, "nhằm bảo đảm bảo vệ", "other", "other", "draft");
+    let found = f.scan();
+    let span = &found.segments[0].spans[0];
+    let done = f
+        .replace(&[group(
+            &f,
+            1,
+            "nhằm bảo đảm bảo vệ",
+            vec![spot(span.start, span.end, "đảm bảo")],
+        )])
+        .expect("batch");
+    assert_eq!(done.outcomes[0].target_text, "nhằm bảo bảo đảm vệ");
+    assert_eq!(f.dump()[1].1, "nhằm bảo bảo đảm vệ");
+}
+
+#[test]
+fn two_spots_in_one_sentence_make_one_version_and_one_pair() {
+    let f = fixture("batch-two-spots");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo rằng đảm bảo.", "other", "other", "confirmed");
+    let done = f
+        .replace(&[group(
+            &f,
+            0,
+            "Đảm bảo rằng đảm bảo.",
+            vec![spot(0, 7, "Đảm bảo"), spot(13, 20, "đảm bảo")],
+        )])
+        .expect("batch");
+    assert_eq!(done.outcomes[0].target_text, "Bảo đảm rằng bảo đảm.");
+    assert_eq!(done.outcomes[0].spans.len(), 2);
+    assert_eq!(f.versions(0), 1);
+    assert_eq!(f.pairs_with("Bảo đảm rằng bảo đảm."), 1);
+}
+
+#[test]
+fn a_confirmed_sentence_stays_confirmed_and_a_draft_stays_a_draft() {
+    let f = fixture("batch-status");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Hãy đảm bảo an toàn.", "other", "other", "confirmed");
+    f.seed(1, "Phải đảm bảo.", "other", "other", "draft");
+    let done = f
+        .replace(&[
+            group(&f, 0, "Hãy đảm bảo an toàn.", vec![spot(4, 11, "đảm bảo")]),
+            group(&f, 1, "Phải đảm bảo.", vec![spot(5, 12, "đảm bảo")]),
+        ])
+        .expect("batch");
+    assert_eq!((done.confirmed, done.drafts), (1, 1));
+    let rows = f.dump();
+    assert_eq!(
+        (rows[0].4.as_str(), rows[0].3.as_str()),
+        ("confirmed", "other")
+    );
+    assert_eq!((rows[1].4.as_str(), rows[1].3.as_str()), ("draft", "other"));
+    assert_eq!(f.versions(0), 1);
+    assert_eq!(f.pairs_with("Hãy bảo đảm an toàn."), 1);
+    assert_eq!(f.versions(1), 0);
+    assert_eq!(f.pairs_with("Phải bảo đảm."), 0);
+}
+
+#[test]
+fn sentences_changed_since_the_scan_refuse_the_whole_batch_and_name_each() {
+    let f = fixture("batch-changed");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "confirmed");
+    f.seed(1, "Phải đảm bảo.", "other", "other", "draft");
+    f.seed(2, "Cần đảm bảo.", "other", "other", "draft");
+    let before = f.dump();
+    let refused = f
+        .replace(&[
+            group(&f, 0, "Đảm bảo an toàn.", vec![spot(0, 7, "Đảm bảo")]),
+            group(&f, 1, "Phải đảm bảo!", vec![spot(5, 12, "đảm bảo")]),
+            group(&f, 2, "Cần đảm bảo?", vec![spot(4, 11, "đảm bảo")]),
+        ])
+        .expect_err("stale");
+    assert_eq!(refused.code(), "convention.chapter_changed");
+    let params = format!("{:?}", refused);
+    assert!(
+        params.contains(&format!("{}, {}", f.segment_ids[1], f.segment_ids[2])),
+        "{params}"
+    );
+    assert_eq!(f.dump(), before);
+    assert_eq!(f.versions(0), 0);
+    assert_eq!(f.pairs_with("Bảo đảm an toàn."), 0);
+}
+
+#[test]
+fn a_rule_disabled_or_without_replacement_refuses_the_batch() {
+    let f = fixture("batch-rule");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    let groups = [group(
+        &f,
+        0,
+        "Đảm bảo an toàn.",
+        vec![spot(0, 7, "Đảm bảo")],
+    )];
+    let before = f.dump();
+    f.global
+        .write(|tx: &Transaction<'_>| tx.execute("UPDATE convention_rule SET enabled = 0", []))
+        .expect("disable");
+    assert_eq!(
+        f.replace(&groups).expect_err("disabled").code(),
+        "convention.rule_changed"
+    );
+    f.global
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE convention_rule SET enabled = 1, replacement_phrase = NULL",
+                [],
+            )
+        })
+        .expect("mark only");
+    assert_eq!(
+        f.replace(&groups).expect_err("mark only").code(),
+        "convention.rule_changed"
+    );
+    assert_eq!(f.dump(), before);
+}
+
+#[test]
+fn overlapping_or_out_of_order_spans_are_a_range_error() {
+    let f = fixture("batch-range");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "đảm bảo đảm bảo", "other", "other", "draft");
+    let before = f.dump();
+    for spots in [
+        vec![spot(0, 7, "đảm bảo"), spot(0, 7, "đảm bảo")],
+        vec![spot(8, 15, "đảm bảo"), spot(0, 7, "đảm bảo")],
+    ] {
+        let refused = f
+            .replace(&[group(&f, 0, "đảm bảo đảm bảo", spots)])
+            .expect_err("range");
+        assert_eq!(refused.code(), "convention.range_invalid");
+        assert_eq!(f.dump(), before);
+    }
+}
+
+#[test]
+fn an_omitted_or_retired_sentence_is_refused_and_a_group_without_spots_too() {
+    let f = fixture("batch-omitted");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    f.seed(1, "Phải đảm bảo.", "other", "other", "draft");
+    let (omit, retire) = (f.segment_ids[0], f.segment_ids[1]);
+    open_of(&f)
+        .as_ref()
+        .expect("open")
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE segment SET is_omitted = 1 WHERE id = ?1", [omit])?;
+            tx.execute(
+                "UPDATE segment SET retired_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?1",
+                [retire],
+            )
+        })
+        .expect("omit and retire");
+    let before = f.dump();
+    let omitted = f
+        .replace(&[group(
+            &f,
+            0,
+            "Đảm bảo an toàn.",
+            vec![spot(0, 7, "Đảm bảo")],
+        )])
+        .expect_err("omitted");
+    assert_eq!(omitted.code(), "convention.chapter_changed");
+    let retired = f
+        .replace(&[group(&f, 1, "Phải đảm bảo.", vec![spot(5, 12, "đảm bảo")])])
+        .expect_err("retired");
+    assert_eq!(retired.code(), "segment.retired");
+    let bare = f
+        .replace(&[group(&f, 2, "Third one.", vec![])])
+        .expect_err("no spots");
+    assert_eq!(bare.code(), "convention.range_invalid");
+    assert_eq!(f.dump(), before);
+    let none = f.replace(&[]).expect("empty batch");
+    assert_eq!((none.replaced, none.sentences), (0, 0));
+}
+
+#[test]
+fn the_progress_callback_reaches_done_equals_total_and_the_result_equals_the_plain_scan() {
+    let f = fixture("progress-small");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    let mut seen = Vec::new();
+    let with = convention_scan_chapter_with_progress(
+        Some(&f.global),
+        Some(&f.state),
+        &f.cache,
+        7,
+        |done, total| seen.push((done, total)),
+    )
+    .expect("scan");
+    assert_eq!(with, f.scan());
+    assert_eq!(seen, vec![(1, 1)]);
+}
+
+#[test]
+fn progress_is_reported_every_250_sentences_and_once_at_the_end() {
+    let global = Store::open(StoreSpec::global(
+        temp_dir("progress-big").join("global.db"),
+    ))
+    .expect("global");
+    let text: String = (0..600).map(|n| format!("Sentence number {n}. ")).collect();
+    let open =
+        create_work_from_text(&temp_dir("progress-big"), "Big", "en", "", text).expect("work");
+    open.store
+        .write(|tx: &Transaction<'_>| tx.execute("UPDATE segment SET target_text = 'Đảm bảo.'", []))
+        .expect("fill");
+    let cache = ConventionMatcherState::default();
+    convention_add_rule(Some(&global), &cache, "đảm bảo", Some("bảo đảm")).expect("rule");
+    let state: OpenWorkState = Mutex::new(Some(open));
+    let mut seen = Vec::new();
+    let wire =
+        convention_scan_chapter_with_progress(Some(&global), Some(&state), &cache, 1, |d, t| {
+            seen.push((d, t))
+        })
+        .expect("scan");
+    assert_eq!(wire.segments.len(), 600);
+    assert_eq!(seen, vec![(250, 600), (500, 600), (600, 600)]);
+}
+
+#[test]
+fn a_replacement_that_trims_to_nothing_refuses_the_batch_with_empty_result() {
+    let f = fixture("batch-empty");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "đảm bảo", "other", "other", "confirmed");
+    let groups = [group(&f, 0, "đảm bảo", vec![spot(0, 7, "đảm bảo")])];
+    let mut rules = resolve_convention_rules(Some(&f.global), &groups).expect("rules");
+    rules.get_mut(KEY).expect("rule").replacement_phrase = Some("   ".to_owned());
+    let before = f.dump();
+    let refused = convention_replace_chapter(open_of(&f).as_ref(), &groups, &rules)
+        .expect_err("blank result");
+    assert_eq!(refused.code(), "convention.empty_result");
+    assert_eq!(f.dump(), before);
+    assert_eq!(f.versions(0), 0);
+}
+
+#[test]
+fn a_spot_left_out_of_a_selected_sentence_keeps_its_own_bytes() {
+    let f = fixture("batch-partial");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo rằng đảm bảo.", "other", "other", "draft");
+    let done = f
+        .replace(&[group(
+            &f,
+            0,
+            "Đảm bảo rằng đảm bảo.",
+            vec![spot(13, 20, "đảm bảo")],
+        )])
+        .expect("batch");
+    assert_eq!(done.replaced, 1);
+    assert_eq!(f.dump()[0].1, "Đảm bảo rằng bảo đảm.");
 }

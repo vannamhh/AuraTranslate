@@ -421,6 +421,7 @@ import { aiPromptInspectorHandlers } from './aiPromptInspectorHandlers'
 import { proofreadHandlers } from './proofreadHandlers'
 import { conventionHandlers } from './conventionHandlers'
 import { conventionManageIsOpen } from './conventionManageState'
+import { conventionReplaceIsOpen } from './conventionReplaceState'
 import { proofreadMemoryIsOpen } from './proofreadMemoryState'
 import { proofreadScopeIsOpen } from './proofreadState'
 // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ──────────────────
@@ -1187,7 +1188,8 @@ async function boot(): Promise<void> {
         aiPromptInspectorIsOpen.value ||
         proofreadScopeIsOpen.value ||
         proofreadMemoryIsOpen.value ||
-        conventionManageIsOpen.value,
+        conventionManageIsOpen.value ||
+        conventionReplaceIsOpen.value,
     })
   } catch (err) {
     // ⚠️ Cố ý KHÔNG đi qua `t()`: lượt cài đặt vừa gãy, nên mọi giả định về trạng thái ứng

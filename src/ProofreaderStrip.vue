@@ -13,6 +13,7 @@ import {
   conventionCurrent,
   conventionRevertConfirmed,
   conventionRevertible,
+  conventionViewedRuleCount,
   syncConventionStrip,
 } from './conventionState'
 import ProofreadDecisionRatio from './ProofreadDecisionRatio.vue'
@@ -283,6 +284,15 @@ const filteredText = computed<string | null>(() =>
         </button>
         <button type="button" class="pfs-btn ui-btn" data-convention-skip @click="dispatch('convention.skip')">
           {{ t('convention.strip.skip') }}
+        </button>
+        <button
+          v-if="conventionViewedRuleCount !== null"
+          type="button"
+          class="pfs-btn ui-btn"
+          data-convention-replace-chapter
+          @click="dispatch('convention.replace_chapter_open_rule')"
+        >
+          {{ t('convention.strip.replace_chapter', { spot_count: String(conventionViewedRuleCount) }) }}
         </button>
         <button type="button" class="pfs-btn ui-btn" data-convention-prev @click="dispatch('marks.prev')">
           {{ t('convention.strip.prev') }}

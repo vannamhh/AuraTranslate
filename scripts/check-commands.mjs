@@ -232,7 +232,7 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 57
+const VUE_FLOOR = 62
 const TS_FLOOR = 131
 
 /**
@@ -2462,6 +2462,10 @@ const HANDLER_TABLE = {
   'src/ProofreadMemoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ConventionManageOverlay.vue::onEscape': { ids: ['convention.manage.close'] },
   'src/ConventionManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ConventionReplaceOverlay.vue::onEscape': { ids: ['convention.replace_chapter_close'] },
+  'src/ConventionReplaceOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ConventionReplaceOverlay.vue::onListKeydown': { nonCommand: R_SELECT_IN_PLACE },
+  'src/ConventionReplaceOverlay.vue::onRowMouseDown': { nonCommand: R_SELECT_IN_PLACE },
   'src/AttributionOverlay.vue::onEscape': { ids: ['attribution.close', 'attribution.close_license'] },
   'src/AttributionOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
   'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
@@ -2961,7 +2965,7 @@ const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
 ])
 
 /** `ceil(0.85 × live)` over commands with a mouse point, via `judgeFloor`. */
-const POINTER_FLOOR = 253
+const POINTER_FLOOR = 273
 
 /**
  * Self-check: the verdict must go red on each bad case and stay green on the good ones.

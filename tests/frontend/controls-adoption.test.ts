@@ -22,6 +22,7 @@ const SHAPE_EXCEPTIONS: Record<string, string> = {
   'src/GlossaryQueueOverlay.vue .gq-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/TmManageOverlay.vue .tm-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/PromptLibraryOverlay.vue .pl-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
+  'src/ConventionReplaceOverlay.vue .crv-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/AlignmentOverlay.vue .al-sr-only': 'visually hidden native radio; its wrapping label carries the row hit area',
   'src/modes/LibraryMode.vue .lib-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
 }

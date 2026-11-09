@@ -1227,6 +1227,13 @@ export type CommandDeps = {
   openConventionManage?: () => void
   closeConventionManage?: () => void
   addConventionRule?: () => void
+  openConventionReplace?: () => void
+  openConventionReplaceForRule?: () => void
+  selectAllConventionReplace?: () => void
+  selectNoneConventionReplace?: () => void
+  confirmConventionReplace?: () => void
+  rescanConventionReplace?: () => void
+  closeConventionReplace?: () => void
   /** Đưa kết quả AI đang hiện vào Editor tại đúng câu nó thuộc về, đặt
    * `translation_origin = 'other'` (AD-47③) — từ chối (kêu, không ném) khi chưa có kết quả hợp
    * lệ hoặc lượt dịch đang chạy. Handler của `ai.translate.promote`. Story 4.9, Phase 3 mở
@@ -5443,6 +5450,83 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('convention.manage.add', 'addConventionRule')
       }
       deps.addConventionRule()
+    },
+  })
+  target.register({
+    id: 'convention.replace_chapter_open',
+    labelKey: 'command.convention.replace_chapter_open',
+    keys: undefined,
+    run: () => {
+      if (deps.openConventionReplace === undefined) {
+        return portMissing('convention.replace_chapter_open', 'openConventionReplace')
+      }
+      deps.openConventionReplace()
+    },
+  })
+  target.register({
+    id: 'convention.replace_chapter_open_rule',
+    labelKey: 'command.convention.replace_chapter_open_rule',
+    keys: undefined,
+    run: () => {
+      if (deps.openConventionReplaceForRule === undefined) {
+        return portMissing('convention.replace_chapter_open_rule', 'openConventionReplaceForRule')
+      }
+      deps.openConventionReplaceForRule()
+    },
+  })
+  target.register({
+    id: 'convention.replace_chapter_select_all',
+    labelKey: 'command.convention.replace_chapter_select_all',
+    keys: undefined,
+    run: () => {
+      if (deps.selectAllConventionReplace === undefined) {
+        return portMissing('convention.replace_chapter_select_all', 'selectAllConventionReplace')
+      }
+      deps.selectAllConventionReplace()
+    },
+  })
+  target.register({
+    id: 'convention.replace_chapter_select_none',
+    labelKey: 'command.convention.replace_chapter_select_none',
+    keys: undefined,
+    run: () => {
+      if (deps.selectNoneConventionReplace === undefined) {
+        return portMissing('convention.replace_chapter_select_none', 'selectNoneConventionReplace')
+      }
+      deps.selectNoneConventionReplace()
+    },
+  })
+  target.register({
+    id: 'convention.replace_chapter_confirm',
+    labelKey: 'command.convention.replace_chapter_confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmConventionReplace === undefined) {
+        return portMissing('convention.replace_chapter_confirm', 'confirmConventionReplace')
+      }
+      deps.confirmConventionReplace()
+    },
+  })
+  target.register({
+    id: 'convention.replace_chapter_rescan',
+    labelKey: 'command.convention.replace_chapter_rescan',
+    keys: undefined,
+    run: () => {
+      if (deps.rescanConventionReplace === undefined) {
+        return portMissing('convention.replace_chapter_rescan', 'rescanConventionReplace')
+      }
+      deps.rescanConventionReplace()
+    },
+  })
+  target.register({
+    id: 'convention.replace_chapter_close',
+    labelKey: 'command.convention.replace_chapter_close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeConventionReplace === undefined) {
+        return portMissing('convention.replace_chapter_close', 'closeConventionReplace')
+      }
+      deps.closeConventionReplace()
     },
   })
   target.register({

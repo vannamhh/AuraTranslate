@@ -34,7 +34,7 @@ afterEach(() => {
 })
 
 describe('Công cụ ▾ list', () => {
-  it('lists exactly ten items in IA order, showing a chord only where the command has one', async () => {
+  it('lists every item in IA order, showing a chord only where the command has one', async () => {
     const { state, Menu, i18n } = await setup()
     const wrapper = mount(Menu, { attachTo: document.body })
     expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(0)
@@ -50,16 +50,17 @@ describe('Công cụ ▾ list', () => {
         'command.settings.open',
         'command.ai.proofread.memory.open',
         'command.convention.manage.open',
+        'command.convention.replace_chapter_open',
         'command.export.reviewer_import.open',
         'command.export.alignment.open',
         'command.glossary.harvest.open',
       ].map((key) => i18n.t(key)),
     )
-    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+T', 'Ctrl+Alt+B', 'Ctrl+,', '', 'Ctrl+Alt+A', '', '', ''])
+    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+T', 'Ctrl+Alt+B', 'Ctrl+,', '', 'Ctrl+Alt+A', '', '', '', ''])
     wrapper.unmount()
   })
 
-  it('the trigger carries all eight opener hooks and the items carry none', async () => {
+  it('the trigger carries all nine opener hooks and the items carry none', async () => {
     const { state, Menu } = await setup()
     const wrapper = mount(Menu, { attachTo: document.body })
     state.toggleToolsMenu()
@@ -70,6 +71,7 @@ describe('Công cụ ▾ list', () => {
       'settings',
       'proofread-memory',
       'convention-manage',
+      'convention-replace',
       'reviewer-import',
       'alignment',
       'glossary-harvest',
@@ -96,7 +98,7 @@ describe('Công cụ ▾ list', () => {
     expect(document.activeElement).toBe(items[1]?.element)
     await items[1]?.trigger('keydown', { key: 'ArrowUp' })
     await items[0]?.trigger('keydown', { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(items[9]?.element)
+    expect(document.activeElement).toBe(items[10]?.element)
 
     await items[9]?.trigger('keydown', { key: 'Escape' })
     expect(state.toolsMenuIsOpen.value).toBe(false)
@@ -138,7 +140,7 @@ describe('Công cụ ▾ list', () => {
     const wrapper = mount(Menu, { attachTo: document.body })
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(true)
-    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(9)
+    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(10)
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(false)
     wrapper.unmount()

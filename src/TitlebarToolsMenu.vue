@@ -105,6 +105,7 @@ onBeforeUnmount(() => {
       data-settings-open
       data-proofread-memory-open
       data-convention-manage-open
+      data-convention-replace-open
       data-reviewer-import-open
       data-alignment-open
       data-glossary-harvest-open
@@ -181,6 +182,21 @@ onBeforeUnmount(() => {
             <span>{{ t('command.convention.manage.open') }}</span>
             <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
             <span class="tools-chord">{{ chordOf('convention.manage.open') }}</span>
+          </span>
+        </button>
+      </li>
+      <li role="none">
+        <button
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
+          data-tools-item="convention.replace_chapter_open" @click="dispatch('convention.replace_chapter_open')"
+        >
+          <span class="ui-row">
+            <span>{{ t('command.convention.replace_chapter_open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('convention.replace_chapter_open') }}</span>
           </span>
         </button>
       </li>

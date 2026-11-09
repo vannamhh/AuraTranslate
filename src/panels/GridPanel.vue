@@ -65,6 +65,7 @@ import { GRID_BLOCK_ROWS, gridBlocksOf } from './gridBlocks'
 import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './proofreadHighlight'
 import type { ConventionScanEntry } from './proofreadHighlight'
 import { clearProofreadFor, proofreadResults } from '../proofreadState'
+import { resetConventionReplace } from '../conventionReplaceState'
 import { clearConventionFor, conventionResults, conventionStripIsEligible, openConventionAt, resetConvention, scanConventionNow } from '../conventionState'
 import { openWorkId } from '../openWorkIdentity'
 import { CONVENTION_MARK_CLASS } from './proofreadHighlight'
@@ -1445,6 +1446,7 @@ watch(
   [editorChapterId, openWorkId],
   ([chapter]) => {
     resetConvention()
+    resetConventionReplace()
     if (chapter !== null) void scanConventionNow()
   },
   { immediate: true },

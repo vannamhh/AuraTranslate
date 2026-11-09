@@ -250,3 +250,40 @@ describe('accept and revert', () => {
     expect(state.conventionRevertible.value).toBe(false)
   })
 })
+
+describe('Chapter replace hooks', () => {
+  it('the viewed rule count is the Chapter-wide count of spots with a replacement, and null without one', async () => {
+    await loadScan({
+      1: ['Đảm bảo an toàn.', [span(0, 7)]],
+      3: ['Cần đảm bảo. Đảm bảo nữa.', [span(4, 11), span(13, 20), span(21, 24, null)]],
+    })
+    expect(state.conventionViewedRuleCount.value).toBeNull()
+    caret.value = 1
+    state.openConventionAt(1, 0)
+    expect(state.conventionViewedRuleCount.value).toBe(3)
+    expect(state.viewedConventionRuleKey()).toBe('đảm bảo')
+  })
+
+  it('a committed replace mirrors each sentence, drops its marks and tray, keeps other marks, and says what happened', async () => {
+    await loadScan({ 1: ['Đảm bảo an toàn.', [span(0, 7)]], 3: ['Cần đảm bảo. Đảm bảo nữa.', [span(4, 11), span(13, 20)]] })
+    scanMock.mockClear()
+    state.applyConventionReplaced({
+      outcomes: [
+        { segment_id: 1, target_text: 'Bảo đảm an toàn.', translation_origin: 'other', status: 'draft', version_created: false },
+      ],
+      replaced: 1,
+      sentences: 1,
+      confirmed: 0,
+      drafts: 1,
+      chapter_started: false,
+    })
+    expect(replaceMock).toHaveBeenCalledWith(1, { target_text: 'Bảo đảm an toàn.', translation_origin: 'other', status: 'draft' })
+    expect(state.conventionResults.value.has(1)).toBe(false)
+    expect(state.conventionResults.value.has(3)).toBe(true)
+    expect(state.conventionNotice.value).toEqual({
+      key: 'convention.status.replaced',
+      params: { replaced_count: '1', sentence_count: '1', confirmed_count: '0', draft_count: '1' },
+    })
+    expect(scanMock).toHaveBeenCalledTimes(1)
+  })
+})

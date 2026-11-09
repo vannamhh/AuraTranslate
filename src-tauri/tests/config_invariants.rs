@@ -1501,6 +1501,16 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "matches every sentence of the open Chapter, cost scales with Chapter size",
         ),
         (
+            "src/commands/convention.rs",
+            "pub fn convention_scan_chapter_progress<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "the same whole-Chapter match as `convention_scan_chapter`, with a progress channel",
+        ),
+        (
+            "src/commands/segment/wire.rs",
+            "pub fn convention_replace_chapter<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
+            "one transaction over every selected sentence of the Chapter, holding the Work lock for the whole write",
+        ),
+        (
             "src/commands/segment/wire.rs",
             "pub fn tm_fuzzy_matches<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
             "quet TOAN BO cap TM ca hai tang (Dice tren n-gram), chi phi scale theo kich thuoc TM",
@@ -2237,9 +2247,9 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     (
         "src/commands/convention.rs",
         2,
-        1,
-        1,
-        "`convention_scan_chapter` copies the open Chapter under the lock and matches after releasing it; the two rule shells read or insert one row.",
+        2,
+        2,
+        "`convention_scan_chapter` and its progress twin copy the open Chapter under the lock and match after releasing it; the two rule shells read or insert one row.",
     ),
     (
         "src/commands/cleanup.rs",
@@ -2315,7 +2325,8 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     // both TM tiers; `save_segment_targets` and `save_chapter_position` ride the typing timers.
     // `accept_tm_fuzzy` and `accept_tm_exact` are plain: one pair read by id, then one `UPDATE`.
     // `ai_proofread_accept` and `ai_proofread_revert` are plain: one text splice, then one `UPDATE`.
-    ("src/commands/segment/wire.rs", 22, 4, 4, ""),
+    // `convention_replace_chapter` is `(async)`: one transaction over every selected sentence.
+    ("src/commands/segment/wire.rs", 22, 5, 5, ""),
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
@@ -2473,9 +2484,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (117, 72),
+        (117, 74),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         117/72.\n\n\
+         117/74.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

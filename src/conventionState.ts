@@ -1,7 +1,7 @@
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { acceptConventionSpan, revertConventionSpan, scanConventionChapter } from './config/convention'
-import type { ConventionSpanWire, ConventionWriteResult } from './config/convention'
+import type { ConventionReplaceOutcome, ConventionSpanWire, ConventionWriteResult } from './config/convention'
 import type { IpcError } from './i18n'
 import {
   editorCaretSegmentId,
@@ -176,6 +176,23 @@ export const conventionCurrent: ComputedRef<ConventionCurrent | null> = computed
   }
 })
 
+/** Spots with a replacement that carry the viewed spot's rule across the scanned Chapter; `null` when the rule cannot replace. */
+export const conventionViewedRuleCount: ComputedRef<number | null> = computed(() => {
+  const current = conventionCurrent.value
+  if (current === null || current.span.replacement_cased === null) return null
+  let count = 0
+  for (const entry of results.value.values()) {
+    for (const span of entry.spans) {
+      if (span.rule_key === current.span.rule_key && span.replacement_cased !== null) count += 1
+    }
+  }
+  return count
+})
+
+export function viewedConventionRuleKey(): string | null {
+  return conventionCurrent.value?.span.rule_key ?? null
+}
+
 function topRevert(segmentId: number): RevertItem | null {
   const stack = reverts.value.get(segmentId)
   const latest = stack?.[stack.length - 1]
@@ -275,6 +292,25 @@ function mirror(outcome: NonNullable<ConventionWriteResult['outcome']>): void {
     translation_origin: outcome.translation_origin,
     status: outcome.status,
   })
+}
+
+/** Mirrors a committed Chapter replace into the Editor, drops marks and trays of those sentences, rescans the rest. */
+export function applyConventionReplaced(summary: ConventionReplaceOutcome): void {
+  for (const outcome of summary.outcomes) {
+    replaceEditorSegment(outcome.segment_id, {
+      target_text: outcome.target_text,
+      translation_origin: outcome.translation_origin,
+      status: outcome.status,
+    })
+    clearConventionFor(outcome.segment_id)
+  }
+  say('convention.status.replaced', {
+    replaced_count: String(summary.replaced),
+    sentence_count: String(summary.sentences),
+    confirmed_count: String(summary.confirmed),
+    draft_count: String(summary.drafts),
+  })
+  void scanConventionNow()
 }
 
 export async function acceptConventionSpot(): Promise<void> {

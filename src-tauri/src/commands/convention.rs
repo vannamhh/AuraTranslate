@@ -132,6 +132,14 @@ pub struct ConventionScanWire {
     pub not_scanned: u32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct ConventionScanProgressWire {
+    pub done: u32,
+    pub total: u32,
+}
+
+const SCAN_PROGRESS_EVERY: u32 = 250;
+
 struct SentenceInput {
     segment_id: i64,
     source_text: String,
@@ -197,12 +205,18 @@ fn match_sentences(
     input: ScanInput,
     matcher: &Matcher,
     mut snapshot: impl FnMut() -> Result<Option<GlossarySnapshot>, IpcError>,
+    mut progress: impl FnMut(u32, u32),
 ) -> Result<ConventionScanWire, IpcError> {
+    let total = u32::try_from(input.sentences.len()).unwrap_or(u32::MAX);
     let lang = match_lang_for_source_lang(&input.source_lang);
     let mut loaded: Option<Option<GlossarySnapshot>> = None;
     let mut segments = Vec::new();
     let (mut overlapped, mut suppressed) = (0u32, 0u32);
-    for sentence in input.sentences {
+    for (index, sentence) in input.sentences.into_iter().enumerate() {
+        let done = u32::try_from(index).unwrap_or(u32::MAX);
+        if done > 0 && done % SCAN_PROGRESS_EVERY == 0 {
+            progress(done, total);
+        }
         let scan = matcher.scan(&sentence.target_text);
         overlapped += scan.overlapped;
         if scan.hits.is_empty() {
@@ -254,6 +268,7 @@ fn match_sentences(
             });
         }
     }
+    progress(total, total);
     Ok(ConventionScanWire {
         generation,
         chapter_id: input.chapter_id,
@@ -272,6 +287,18 @@ pub fn convention_scan_chapter(
     cache: &ConventionMatcherState,
     generation: u64,
 ) -> Result<ConventionScanWire, IpcError> {
+    convention_scan_chapter_with_progress(global, open_state, cache, generation, |_, _| {})
+}
+
+/// [`convention_scan_chapter`] reporting `(done, total)` sentences every 250 sentences and once at
+/// the end (`done == total`, also for a Chapter with nothing to scan).
+pub fn convention_scan_chapter_with_progress(
+    global: Option<&Store>,
+    open_state: Option<&OpenWorkState>,
+    cache: &ConventionMatcherState,
+    generation: u64,
+    progress: impl FnMut(u32, u32),
+) -> Result<ConventionScanWire, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
     let lock = || {
         open_state.map(|state| {
@@ -283,14 +310,20 @@ pub fn convention_scan_chapter(
     let input = read_scan_input(lock().as_deref().and_then(Option::as_ref))?;
     let matcher = cache.matcher(global)?;
     let chapter_id = input.chapter_id;
-    match_sentences(generation, input, &matcher, || {
-        let guard = lock();
-        load_glossary(
-            global,
-            guard.as_deref().and_then(Option::as_ref),
-            chapter_id,
-        )
-    })
+    match_sentences(
+        generation,
+        input,
+        &matcher,
+        || {
+            let guard = lock();
+            load_glossary(
+                global,
+                guard.as_deref().and_then(Option::as_ref),
+                chapter_id,
+            )
+        },
+        progress,
+    )
 }
 
 fn state_missing() -> IpcError {
@@ -302,7 +335,10 @@ fn state_missing() -> IpcError {
 }
 
 pub mod wire {
-    use super::{ConventionMatcherState, ConventionRuleWire, ConventionScanWire, state_missing};
+    use super::{
+        ConventionMatcherState, ConventionRuleWire, ConventionScanProgressWire, ConventionScanWire,
+        state_missing,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
@@ -351,5 +387,31 @@ pub mod wire {
         };
         let state = app.try_state::<OpenWorkState>();
         super::convention_scan_chapter(global.as_deref(), state.as_deref(), &cache, generation)
+    }
+
+    /// Same scan and result as `convention_scan_chapter`; `progress` receives the sentence count
+    /// as it goes. A closed channel never fails the scan.
+    #[tauri::command(async)]
+    pub fn convention_scan_chapter_progress<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        generation: u64,
+        progress: tauri::ipc::Channel<ConventionScanProgressWire>,
+    ) -> Result<ConventionScanWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(cache) = app.try_state::<ConventionMatcherState>() else {
+            return Err(state_missing());
+        };
+        let state = app.try_state::<OpenWorkState>();
+        super::convention_scan_chapter_with_progress(
+            global.as_deref(),
+            state.as_deref(),
+            &cache,
+            generation,
+            |done, total| {
+                let _ = progress.send(ConventionScanProgressWire { done, total });
+            },
+        )
     }
 }

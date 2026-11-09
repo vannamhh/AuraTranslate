@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import type { IpcError } from '../i18n'
 import { hasIpcBridge, isIpcError, UNKNOWN_IPC_ERROR } from './aitranslate'
 import { noteChapterStarted } from './lifecycle'
@@ -66,8 +66,10 @@ const CMD_ADD = 'convention_add_rule'
 const CMD_SCAN = 'convention_scan_chapter'
 const CMD_ACCEPT = 'convention_accept'
 const CMD_REVERT = 'convention_revert'
+const CMD_SCAN_PROGRESS = 'convention_scan_chapter_progress'
+const CMD_REPLACE_CHAPTER = 'convention_replace_chapter'
 
-type Label = 'scan_chapter' | 'list_rules' | 'add_rule' | 'accept' | 'revert'
+type Label = 'scan_chapter' | 'scan_chapter_progress' | 'list_rules' | 'add_rule' | 'accept' | 'revert' | 'replace_chapter'
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
@@ -238,5 +240,103 @@ export async function revertConventionSpan(
     return checkedOutcome('revert', wire)
   } catch (err) {
     return { outcome: null, error: failure('revert', err) }
+  }
+}
+
+export type ConventionScanProgress = { done: number; total: number }
+
+function isScanProgress(value: unknown): value is ConventionScanProgress {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ConventionScanProgress, unknown>>
+  return isCount(v.done) && isCount(v.total)
+}
+
+/** Same scan as `scanConventionChapter`; `onProgress` may fire zero times. Never throws. */
+export async function scanConventionChapterWithProgress(
+  generation: number,
+  onProgress: (progress: ConventionScanProgress) => void,
+): Promise<{ scan: ConventionScanWire | null; error: IpcError | null }> {
+  const progress = new Channel<unknown>()
+  progress.onmessage = (raw) => {
+    if (isScanProgress(raw)) onProgress(raw)
+    else console.error('[convention] `convention_scan_chapter_progress` sent a frame that is not a progress count')
+  }
+  try {
+    const wire = await invoke<unknown>(CMD_SCAN_PROGRESS, { generation, progress })
+    if (!isConventionScanWire(wire)) return { scan: null, error: badShape('scan_chapter_progress', 'ConventionScanWire') }
+    return { scan: wire, error: null }
+  } catch (err) {
+    return { scan: null, error: failure('scan_chapter_progress', err) }
+  }
+}
+
+/** Wire names are snake_case: the nested items of `groups` carry no serde rename. */
+export type ConventionReplaceSpotArg = {
+  start: number
+  end: number
+  expected_phrase: string
+  rule_key: string
+}
+
+export type ConventionReplaceGroupArg = {
+  segment_id: number
+  expected_text: string
+  spots: ConventionReplaceSpotArg[]
+}
+
+export type ConventionReplaceSentenceOutcome = {
+  segment_id: number
+  target_text: string
+  translation_origin: PromoteAiTranslationOutcome['translation_origin']
+  status: 'draft' | 'confirmed'
+  version_created: boolean
+}
+
+export type ConventionReplaceOutcome = {
+  outcomes: ConventionReplaceSentenceOutcome[]
+  replaced: number
+  sentences: number
+  confirmed: number
+  drafts: number
+  chapter_started: boolean
+}
+
+function isSentenceOutcome(value: unknown): value is ConventionReplaceSentenceOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ConventionReplaceSentenceOutcome, unknown>>
+  return (
+    typeof v.segment_id === 'number' &&
+    typeof v.target_text === 'string' &&
+    typeof v.translation_origin === 'string' &&
+    (v.status === 'draft' || v.status === 'confirmed') &&
+    typeof v.version_created === 'boolean'
+  )
+}
+
+function isReplaceOutcome(value: unknown): value is ConventionReplaceOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ConventionReplaceOutcome, unknown>>
+  return (
+    Array.isArray(v.outcomes) &&
+    v.outcomes.every(isSentenceOutcome) &&
+    isCount(v.replaced) &&
+    isCount(v.sentences) &&
+    isCount(v.confirmed) &&
+    isCount(v.drafts) &&
+    typeof v.chapter_started === 'boolean'
+  )
+}
+
+/** One transaction for every group: all written or none. Never throws. */
+export async function replaceConventionChapter(
+  groups: ConventionReplaceGroupArg[],
+): Promise<{ outcome: ConventionReplaceOutcome | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_REPLACE_CHAPTER, { groups })
+    if (!isReplaceOutcome(wire)) return { outcome: null, error: badShape('replace_chapter', 'a replace outcome') }
+    void noteChapterStarted(wire)
+    return { outcome: wire, error: null }
+  } catch (err) {
+    return { outcome: null, error: failure('replace_chapter', err) }
   }
 }

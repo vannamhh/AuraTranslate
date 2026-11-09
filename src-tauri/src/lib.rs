@@ -1176,6 +1176,7 @@ pub fn run() {
             crate::commands::convention::wire::convention_list_rules,
             crate::commands::convention::wire::convention_add_rule,
             crate::commands::convention::wire::convention_scan_chapter,
+            crate::commands::convention::wire::convention_scan_chapter_progress,
             // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
             // duong dan he tep -- `atproj_path` phan giai o Rust tu `library-index.db` qua
             // `Indexer::find_work`.
@@ -1233,6 +1234,7 @@ pub fn run() {
             crate::commands::segment::wire::ai_proofread_accept,
             crate::commands::segment::wire::ai_proofread_revert,
             crate::commands::segment::wire::convention_accept,
+            crate::commands::segment::wire::convention_replace_chapter,
             crate::commands::segment::wire::convention_revert,
             crate::commands::attribution::wire::translator_name_get,
             crate::commands::attribution::wire::translator_name_save,
