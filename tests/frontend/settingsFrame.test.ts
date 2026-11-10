@@ -4,7 +4,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { watch } from 'vue'
 
@@ -46,6 +46,14 @@ const EXPECTED_SECTIONS = [
 ]
 
 const cleanups: Array<() => void> = []
+
+// Without this the FIRST case pays the transform of the whole Settings graph inside its own 5 s
+// budget — measured 1.129 ms of 5.000 ms on an idle machine, so a loaded one reds it. The
+// `vi.resetModules()` below drops module instances, not Vite's transform cache, so one warm-up
+// here is enough and no case's isolation changes.
+beforeAll(async () => {
+  await freshFrame()
+})
 
 beforeEach(() => {
   document.body.innerHTML = ''

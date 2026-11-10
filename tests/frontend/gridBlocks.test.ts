@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import type { ChapterSegment } from '../../src/config/segment'
@@ -72,6 +72,12 @@ beforeEach(() => {
   segmentCount = 450
   insertAt = null
   loadedCaretIndex = null
+})
+
+// One warm-up so no case pays the transform of the GridPanel graph inside its own budget;
+// `vi.resetModules()` below drops module instances, not Vite's transform cache.
+beforeAll(async () => {
+  await import('../../src/panels/GridPanel.vue')
 })
 
 async function mountGrid() {

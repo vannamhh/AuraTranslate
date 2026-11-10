@@ -625,18 +625,25 @@ function resetScope(rawSource) {
   }
 
   const direct = []
+  const seeded = new Set()
   // 🔵 2026-08-19: `(?:async )?` — bản đầu bỏ nó ở ĐÂY nhưng có nó ở vòng tìm hàm phụ ngay
   // dưới, tức hai regex trong cùng một hàm không khai cùng một tập cú pháp.
   for (const m of source.matchAll(/^export (?:async )?function (reset[A-Za-z0-9_$]*)\s*\(/gm)) {
+    seeded.add(m[1])
     direct.push(bodyOf(m.index))
   }
   bodies.push(...direct)
 
   // Tầng một: mọi hàm cùng tệp có tên xuất hiện như một lời gọi trong thân hàm reset.
+  //
+  // 🔴 Bỏ qua đúng những tên ĐÃ GIEO, không mọi tên bắt đầu bằng `reset`. Bản cũ bỏ qua cả
+  // hàm phụ KHÔNG export mà tên bắt đầu bằng `reset`: nó vừa không được gieo (vòng trên chỉ
+  // nhận `export`), vừa bị bỏ ở đây, nên 10 ô mà `resetCells()` của `conventionManageState`
+  // dọn thật bị chấm ĐỎ OAN — đo 2026-11-10, đổi tên hàm phụ làm 15 lỗi còn 5.
   const joined = direct.join('\n')
   for (const m of source.matchAll(/^(?:export )?(?:async )?function ([A-Za-z_$][\w$]*)\s*\(/gm)) {
     const name = m[1]
-    if (name.startsWith('reset')) continue
+    if (seeded.has(name)) continue
     if (new RegExp(`\\b${name}\\s*\\(`).test(joined)) bodies.push(bodyOf(m.index))
   }
   return bodies.join('\n')
