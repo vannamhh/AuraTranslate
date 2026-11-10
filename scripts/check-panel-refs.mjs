@@ -173,6 +173,16 @@ const EXEMPT = new Map([
       'nạp module. Dọn nó cắt im lặng việc đóng phiên Rà soát khi Chương khác đã mở.',
   ],
   [
+    'src/panels/editorPanelState.ts::flushedListeners',
+    'Người nghe `onEditorFlushed`, không phải dữ liệu Tác phẩm: `conventionState` đăng ký một lần ở ' +
+      'lượt quét Chương đầu tiên. Dọn nó cắt im lặng lượt quét lại quy ước sau mọi lượt flush về sau.',
+  ],
+  [
+    'src/conventionState.ts::followsFlush',
+    'Cờ đã đăng ký người theo flush, không phải dữ liệu Tác phẩm: đặt lại nó mà không gỡ người ' +
+      'theo cũ sẽ đăng ký người thứ hai và mỗi lượt flush quét lại hai lần.',
+  ],
+  [
     'src/tokens/fonts.ts::inflight',
     'Chống nạp font hai lần trong MỘT phiên. Font là tài nguyên cấp ứng dụng, không theo Tác ' +
       'phẩm — CSP ghim `$RESOURCE/fonts/**`, không có đường nào tải font theo Tác phẩm.',

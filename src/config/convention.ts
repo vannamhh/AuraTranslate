@@ -32,6 +32,17 @@ export type ConventionScanWire = {
   not_scanned: number
 }
 
+export type ConventionSuggestionScanWire = {
+  generation: number
+  chapter_id: number | null
+  items: ConventionSegmentWire[]
+  ignored: number
+  glossary_suppressed: number
+  overlapped: number
+}
+
+export type ConventionSuggestionItem = { segment_id: number; text: string }
+
 export type ConventionRuleStatus = 'in_use' | 'shadowed' | 'disabled_in_work'
 
 export type ConventionRuleWire = {
@@ -74,6 +85,8 @@ const CMD_EDIT = 'convention_edit_rule'
 const CMD_DELETE = 'convention_delete_rule'
 const CMD_SET_ENABLED = 'convention_set_enabled'
 const CMD_SCAN = 'convention_scan_chapter'
+const CMD_SCAN_SEGMENTS = 'convention_scan_segments'
+const CMD_SCAN_SUGGESTIONS = 'convention_scan_suggestions'
 const CMD_ACCEPT = 'convention_accept'
 const CMD_REVERT = 'convention_revert'
 const CMD_SCAN_PROGRESS = 'convention_scan_chapter_progress'
@@ -82,6 +95,8 @@ const CMD_REPLACE_CHAPTER = 'convention_replace_chapter'
 type Label =
   | 'scan_chapter'
   | 'scan_chapter_progress'
+  | 'scan_segments'
+  | 'scan_suggestions'
   | 'list_rules'
   | 'add_rule'
   | 'edit_rule'
@@ -129,6 +144,20 @@ export function isConventionScanWire(value: unknown): value is ConventionScanWir
     isCount(v.glossary_suppressed) &&
     isCount(v.overlapped) &&
     isCount(v.not_scanned)
+  )
+}
+
+export function isConventionSuggestionScanWire(value: unknown): value is ConventionSuggestionScanWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ConventionSuggestionScanWire, unknown>>
+  return (
+    isCount(v.generation) &&
+    (typeof v.chapter_id === 'number' || v.chapter_id === null) &&
+    Array.isArray(v.items) &&
+    v.items.every(isSegmentWire) &&
+    isCount(v.ignored) &&
+    isCount(v.glossary_suppressed) &&
+    isCount(v.overlapped)
   )
 }
 
@@ -187,6 +216,36 @@ export async function scanConventionChapter(
     return { scan: wire, error: null }
   } catch (err) {
     return { scan: null, error: failure('scan_chapter', err) }
+  }
+}
+
+/** Rescans only `segmentIds`, read from disk by Rust. Never throws; `error === null` with `scan === null` means no IPC bridge. */
+export async function scanConventionSegments(
+  generation: number,
+  segmentIds: readonly number[],
+): Promise<{ scan: ConventionScanWire | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_SCAN_SEGMENTS, { generation, segmentIds: [...segmentIds] })
+    if (!isConventionScanWire(wire)) return { scan: null, error: badShape('scan_segments', 'ConventionScanWire') }
+    return { scan: wire, error: null }
+  } catch (err) {
+    return { scan: null, error: failure('scan_segments', err) }
+  }
+}
+
+/** Read-only scan of AI suggestion texts in one call. Never throws; no write command ever takes these spans. */
+export async function scanConventionSuggestions(
+  generation: number,
+  items: readonly ConventionSuggestionItem[],
+): Promise<{ scan: ConventionSuggestionScanWire | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_SCAN_SUGGESTIONS, { generation, items: [...items] })
+    if (!isConventionSuggestionScanWire(wire)) {
+      return { scan: null, error: badShape('scan_suggestions', 'ConventionSuggestionScanWire') }
+    }
+    return { scan: wire, error: null }
+  } catch (err) {
+    return { scan: null, error: failure('scan_suggestions', err) }
   }
 }
 

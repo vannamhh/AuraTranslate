@@ -753,6 +753,31 @@ export const editorEditedShape: Readonly<Ref<ReadonlyMap<number, TextShape>>> = 
 const lastSavedAt = ref<number | null>(null)
 export const editorLastSavedAt: DeepReadonly<Ref<number | null>> = readonly(lastSavedAt)
 
+const flushedListeners = new Set<(segmentIds: readonly number[]) => void>()
+
+/** Runs `listener` after every successful flush with the ids that batch wrote; the listener must not be awaited by the flush. */
+export function onEditorFlushed(listener: (segmentIds: readonly number[]) => void): () => void {
+  flushedListeners.add(listener)
+  return () => {
+    flushedListeners.delete(listener)
+  }
+}
+
+/** The sentence holds typed text the store has not seen yet. */
+export function editorSegmentIsPending(segmentId: number): boolean {
+  return flush.pending().has(segmentId)
+}
+
+function notifyFlushed(segmentIds: readonly number[]): void {
+  for (const listener of [...flushedListeners]) {
+    try {
+      listener(segmentIds)
+    } catch (err) {
+      console.error(`[editor] a flush listener threw: ${String(err)}`)
+    }
+  }
+}
+
 /** Timer tới `flush.deadline()`. Một cái, không một cái mỗi phím. */
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -933,6 +958,7 @@ export async function flushEditorNow(): Promise<FlushResult> {
       flushError.value = null
       flush.onFlushed(Date.now(), snapshot)
       lastSavedAt.value = Date.now()
+      notifyFlushed([...snapshot.keys()])
       return 'saved'
     } catch (err) {
       // `saveSegmentTargets` đã nuốt mọi đường ném của nó, nên tới đây là một khuyết tật ở

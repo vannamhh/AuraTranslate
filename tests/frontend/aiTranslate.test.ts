@@ -60,6 +60,10 @@ vi.mock('../../src/config/aitranslate', () => ({
   cancelAiTranslateCall: (...args: unknown[]) => cancelMock(...args),
 }))
 
+vi.mock('../../src/config/convention', () => ({
+  scanConventionSuggestions: () => Promise.resolve({ scan: null, error: null }),
+}))
+
 type RunResult = { value: AiTranslateOutcomeWire | null; error: IpcError | null }
 
 /** Kiểu callback `onToken` mà `runAiTranslateSegment` (thật lẫn mock) nhận ở tham số thứ ba. */

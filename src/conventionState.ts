@@ -1,13 +1,20 @@
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
-import { acceptConventionSpan, revertConventionSpan, scanConventionChapter } from './config/convention'
+import {
+  acceptConventionSpan,
+  revertConventionSpan,
+  scanConventionChapter,
+  scanConventionSegments as scanConventionSegmentsCall,
+} from './config/convention'
 import type { ConventionReplaceOutcome, ConventionSpanWire, ConventionWriteResult } from './config/convention'
 import type { IpcError } from './i18n'
 import {
   editorCaretSegmentId,
+  editorSegmentIsPending,
   editorSegments,
   flushEditorBeforeDiscreteWrite,
   moveEditorCaretTo,
+  onEditorFlushed,
   replaceEditorSegment,
 } from './panels/editorPanelState'
 import {
@@ -57,6 +64,11 @@ const actionFailure = shallowRef<{ segmentId: number; error: IpcError } | null>(
 const notice = shallowRef<ConventionNotice | null>(null)
 
 let generation = 0
+
+// Ids a flush rescan wrote while the newest whole-Chapter scan was still in flight. That scan read
+// the disk BEFORE the flush, so its entry for such an id is older and must not replace the fresher one.
+const mergedSinceScan = new Set<number>()
+const generationNow = ref(0)
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 
 export const conventionResults: Readonly<Ref<ReadonlyMap<number, ConventionSegmentResult>>> = results
@@ -64,6 +76,8 @@ export const conventionCounts: Readonly<Ref<ConventionCounts>> = counts
 export const conventionScanning: DeepReadonly<Ref<boolean>> = readonly(scanning)
 export const conventionScanFailed: DeepReadonly<Ref<boolean>> = readonly(scanFailed)
 export const conventionBusy: DeepReadonly<Ref<boolean>> = readonly(acting)
+/** Bumps on every Chapter, Work or rule-list change; a result carrying an older value is dropped. */
+export const conventionGeneration: DeepReadonly<Ref<number>> = readonly(generationNow)
 export const conventionNotice: Readonly<Ref<ConventionNotice | null>> = notice
 
 function say(key: string, params: Record<string, string> = {}): void {
@@ -84,6 +98,7 @@ function stopSaying(): void {
 /** Drops every mark, tray and pending result; the next scan carries a newer generation. */
 export function resetConvention(): void {
   generation += 1
+  generationNow.value = generation
   results.value = new Map()
   counts.value = EMPTY_COUNTS
   scanning.value = false
@@ -92,12 +107,16 @@ export function resetConvention(): void {
   reverts.value = new Map()
   acting.value = false
   actionFailure.value = null
+  mergedSinceScan.clear()
   stopSaying()
 }
 
 /** Scans the stored text of the open Chapter. A result older than the newest request is dropped. */
 export async function scanConventionNow(): Promise<void> {
+  followFlushOnce()
   const mine = ++generation
+  generationNow.value = mine
+  mergedSinceScan.clear()
   scanning.value = true
   const { scan, error } = await scanConventionChapter(mine)
   if (mine !== generation) return
@@ -116,6 +135,11 @@ export async function scanConventionNow(): Promise<void> {
       spans: [...segment.spans].sort((a, b) => a.start - b.start),
     })
   }
+  for (const id of mergedSinceScan) {
+    const fresher = results.value.get(id)
+    if (fresher === undefined) next.delete(id)
+    else next.set(id, fresher)
+  }
   results.value = next
   counts.value = {
     ignored: scan.ignored,
@@ -125,6 +149,43 @@ export async function scanConventionNow(): Promise<void> {
   }
   const current = opened.value
   if (current !== null && !next.has(current.segmentId)) opened.value = null
+}
+
+/** Rescans exactly `segmentIds` after a flush and merges the outcome into the current results; other sentences keep their entries. */
+export async function scanConventionSegments(segmentIds: readonly number[]): Promise<void> {
+  const wanted = [...new Set(segmentIds)]
+  if (wanted.length === 0) return
+  const mine = generation
+  const { scan, error } = await scanConventionSegmentsCall(mine, wanted)
+  if (mine !== generation) return
+  if (error !== null) {
+    say('convention.status.scan_failed')
+    return
+  }
+  if (scan === null || scan.generation !== mine) return
+  const next = new Map(results.value)
+  for (const id of wanted) next.delete(id)
+  for (const segment of scan.segments) {
+    next.set(segment.segment_id, {
+      scannedText: segment.scanned_text,
+      spans: [...segment.spans].sort((a, b) => a.start - b.start),
+    })
+  }
+  results.value = next
+  // `counts` is a whole-Chapter total; a scan of a few sentences cannot restate it, so it stays put.
+  for (const id of wanted) mergedSinceScan.add(id)
+  const current = opened.value
+  if (current !== null && wanted.includes(current.segmentId) && !next.has(current.segmentId)) opened.value = null
+}
+
+let followsFlush = false
+
+function followFlushOnce(): void {
+  if (followsFlush) return
+  followsFlush = true
+  onEditorFlushed((segmentIds) => {
+    void scanConventionSegments(segmentIds)
+  })
 }
 
 /** A typed edit in a sentence kills its marks and its undo tray; other sentences are untouched. */
@@ -492,11 +553,16 @@ function land(target: MarkPosition): void {
   opened.value = { segmentId: target.segmentId, index: target.index }
 }
 
+function caretSentenceIsPending(): boolean {
+  const caret = editorCaretSegmentId.value
+  return caret !== null && editorSegmentIsPending(caret)
+}
+
 /** F8 / Shift+F8: the next or previous mark of either family; the end stops with a status message, no wrap. */
 export function stepMarks(direction: 1 | -1): void {
   const list = markPositions()
   if (list.length === 0) {
-    say('convention.status.no_marks')
+    say(caretSentenceIsPending() ? 'convention.status.sentence_pending' : 'convention.status.no_marks')
     return
   }
   const order = editorSegments.value.map((segment) => segment.id)
@@ -523,7 +589,13 @@ export function stepMarks(direction: 1 | -1): void {
     }
   }
   if (target === undefined) {
-    say(direction === 1 ? 'convention.status.no_next' : 'convention.status.no_prev')
+    say(
+      caretSentenceIsPending()
+        ? 'convention.status.sentence_pending'
+        : direction === 1
+          ? 'convention.status.no_next'
+          : 'convention.status.no_prev',
+    )
     return
   }
   land(target)

@@ -16,7 +16,7 @@ use crate::core::convention::{
 use crate::core::glossary::{GlossarySnapshot, match_lang_for_source_lang};
 use crate::core::i18n::IpcError;
 use crate::core::segment::utf16::utf16_to_byte;
-use crate::core::store::{Store, StoreError, StoreKind};
+use crate::core::store::{SqlError, SqlResult, Store, StoreError, StoreKind};
 
 pub(crate) fn store_is_missing() -> IpcError {
     StoreError::OpenFailed {
@@ -270,23 +270,29 @@ struct ScanInput {
 }
 
 /// One read of the open Chapter, copied out so the caller can drop the `OpenWorkState` lock before
-/// matching.
-fn read_scan_input(open: Option<&OpenWork>) -> Result<ScanInput, IpcError> {
+/// matching. With `only` set, just those live sentences of the open Chapter are read; an id that is
+/// unknown, retired or in another Chapter is skipped.
+fn read_scan_input(open: Option<&OpenWork>, only: Option<&[i64]>) -> Result<ScanInput, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     let chapter_id = open.chapter_id;
-    let rows = open
-        .store
-        .read(|conn| select_chapter_segments(conn, chapter_id))?;
+    let rows: Vec<(i64, String, String, bool)> = open.store.read(|conn| match only {
+        None => select_chapter_segments(conn, chapter_id).map(|rows| {
+            rows.into_iter()
+                .map(|row| (row.id, row.source_text, row.target_text, row.is_omitted))
+                .collect()
+        }),
+        Some(ids) => select_segments_by_id(conn, chapter_id, ids),
+    })?;
     let mut not_scanned = 0u32;
     let mut sentences = Vec::new();
-    for row in rows {
-        if row.is_omitted {
+    for (id, source_text, target_text, is_omitted) in rows {
+        if is_omitted {
             not_scanned += 1;
-        } else if !row.target_text.trim().is_empty() {
+        } else if !target_text.trim().is_empty() {
             sentences.push(SentenceInput {
-                segment_id: row.id,
-                source_text: row.source_text,
-                target_text: row.target_text,
+                segment_id: id,
+                source_text,
+                target_text,
             });
         }
     }
@@ -296,6 +302,34 @@ fn read_scan_input(open: Option<&OpenWork>) -> Result<ScanInput, IpcError> {
         sentences,
         not_scanned,
     })
+}
+
+fn select_segments_by_id(
+    conn: crate::core::store::ReadHandle<'_>,
+    chapter_id: i64,
+    ids: &[i64],
+) -> SqlResult<Vec<(i64, String, String, bool)>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, source_text, target_text, is_omitted FROM segment \
+         WHERE id = ?1 AND chapter_id = ?2 AND retired_at IS NULL",
+    )?;
+    let mut seen = std::collections::HashSet::new();
+    let mut rows = Vec::new();
+    for &id in ids {
+        if !seen.insert(id) {
+            continue;
+        }
+        let found = stmt.query_row([id, chapter_id], |row| {
+            let omitted: i64 = row.get(3)?;
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, omitted != 0))
+        });
+        match found {
+            Ok(row) => rows.push(row),
+            Err(SqlError::QueryReturnedNoRows) => {}
+            Err(err) => return Err(err),
+        }
+    }
+    Ok(rows)
 }
 
 fn load_glossary(
@@ -311,6 +345,49 @@ fn load_glossary(
         global,
         Some(&open.store),
     )?))
+}
+
+/// Turns the raw hits of one sentence into wire spans, dropping and counting the ones that lie
+/// inside a pinned Glossary translation of that sentence (AD-67 rule 5).
+fn resolve_spans(
+    matcher: &Matcher,
+    lang: crate::core::matching::MatchLang,
+    glossary: Option<&GlossarySnapshot>,
+    source_text: &str,
+    text: &str,
+    hits: Vec<crate::core::convention::Hit>,
+) -> (Vec<ConventionSpanWire>, u32) {
+    let pinned: Vec<(u32, u32)> = glossary
+        .map(|glossary| glossary.confirmed_terms(source_text, lang).injected)
+        .unwrap_or_default()
+        .iter()
+        .flat_map(|term| phrase_spans(text, &term.translation))
+        .collect();
+    let mut spans = Vec::new();
+    let mut suppressed = 0u32;
+    for hit in hits {
+        if pinned.iter().any(|&(s, e)| s <= hit.start && hit.end <= e) {
+            suppressed += 1;
+            continue;
+        }
+        let rule = matcher.rule(hit.rule);
+        let matched = utf16_to_byte(text, hit.start)
+            .zip(utf16_to_byte(text, hit.end))
+            .map(|(a, b)| &text[a..b])
+            .unwrap_or_default();
+        spans.push(ConventionSpanWire {
+            start: hit.start,
+            end: hit.end,
+            rule_key: rule.key.clone(),
+            avoid: rule.avoid_phrase.clone(),
+            replacement_cased: rule
+                .replacement_phrase
+                .as_deref()
+                .map(|replacement| transfer_case(matched, replacement)),
+            tier: rule.tier.as_str().to_owned(),
+        });
+    }
+    (spans, suppressed)
 }
 
 /// Matches `input` against `matcher`. A match that lies inside a pinned Glossary translation found
@@ -341,41 +418,15 @@ fn match_sentences(
         if loaded.is_none() {
             loaded = Some(snapshot()?);
         }
-        let pinned: Vec<(u32, u32)> = loaded
-            .as_ref()
-            .and_then(Option::as_ref)
-            .map(|glossary| {
-                glossary
-                    .confirmed_terms(&sentence.source_text, lang)
-                    .injected
-            })
-            .unwrap_or_default()
-            .iter()
-            .flat_map(|term| phrase_spans(&sentence.target_text, &term.translation))
-            .collect();
-        let mut spans = Vec::new();
-        for hit in scan.hits {
-            if pinned.iter().any(|&(s, e)| s <= hit.start && hit.end <= e) {
-                suppressed += 1;
-                continue;
-            }
-            let rule = matcher.rule(hit.rule);
-            let matched = utf16_to_byte(&sentence.target_text, hit.start)
-                .zip(utf16_to_byte(&sentence.target_text, hit.end))
-                .map(|(a, b)| &sentence.target_text[a..b])
-                .unwrap_or_default();
-            spans.push(ConventionSpanWire {
-                start: hit.start,
-                end: hit.end,
-                rule_key: rule.key.clone(),
-                avoid: rule.avoid_phrase.clone(),
-                replacement_cased: rule
-                    .replacement_phrase
-                    .as_deref()
-                    .map(|replacement| transfer_case(matched, replacement)),
-                tier: rule.tier.as_str().to_owned(),
-            });
-        }
+        let (spans, dropped) = resolve_spans(
+            matcher,
+            lang,
+            loaded.as_ref().and_then(Option::as_ref),
+            &sentence.source_text,
+            &sentence.target_text,
+            scan.hits,
+        );
+        suppressed += dropped;
         if !spans.is_empty() {
             segments.push(ConventionSegmentWire {
                 segment_id: sentence.segment_id,
@@ -426,7 +477,7 @@ pub fn convention_scan_chapter_with_progress(
     let (input, matcher) = {
         let guard = lock();
         let open = guard.as_deref().and_then(Option::as_ref);
-        let input = read_scan_input(open)?;
+        let input = read_scan_input(open, None)?;
         let matcher = cache.matcher(global, open)?;
         (input, matcher)
     };
@@ -447,6 +498,166 @@ pub fn convention_scan_chapter_with_progress(
     )
 }
 
+/// Re-scan of just `segment_ids`, read from disk like the whole-Chapter scan and returning the same
+/// wire. Ids that are unknown, retired or outside the open Chapter are skipped without an error.
+pub fn convention_scan_segments(
+    global: Option<&Store>,
+    open_state: Option<&OpenWorkState>,
+    cache: &ConventionMatcherState,
+    generation: u64,
+    segment_ids: &[i64],
+) -> Result<ConventionScanWire, IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let lock = || {
+        open_state.map(|state| {
+            state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        })
+    };
+    let (input, matcher) = {
+        let guard = lock();
+        let open = guard.as_deref().and_then(Option::as_ref);
+        let input = read_scan_input(open, Some(segment_ids))?;
+        let matcher = cache.matcher(global, open)?;
+        (input, matcher)
+    };
+    let chapter_id = input.chapter_id;
+    match_sentences(
+        generation,
+        input,
+        &matcher,
+        || {
+            let guard = lock();
+            load_glossary(
+                global,
+                guard.as_deref().and_then(Option::as_ref),
+                chapter_id,
+            )
+        },
+        |_, _| {},
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct ConventionSuggestionItem {
+    pub segment_id: i64,
+    pub text: String,
+}
+
+/// Matches of one batch of AI suggestions. `chapter_id` is `None` when no Work is open, which is a
+/// valid empty answer rather than an error. `items` holds only the suggestions that have a mark,
+/// each carrying the text that was scanned.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConventionSuggestionScanWire {
+    pub generation: u64,
+    pub chapter_id: Option<i64>,
+    pub items: Vec<ConventionSegmentWire>,
+    pub ignored: u32,
+    pub glossary_suppressed: u32,
+    pub overlapped: u32,
+}
+
+/// Scan of suggestion texts. The text comes from the caller (a suggestion exists nowhere on disk);
+/// the source sentence is read from disk by `segment_id`, only for suggestions that have a match,
+/// and one Glossary snapshot serves the whole batch. Writes nothing.
+pub fn convention_scan_suggestions(
+    global: Option<&Store>,
+    open_state: Option<&OpenWorkState>,
+    cache: &ConventionMatcherState,
+    generation: u64,
+    items: Vec<ConventionSuggestionItem>,
+) -> Result<ConventionSuggestionScanWire, IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let lock = || {
+        open_state.map(|state| {
+            state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        })
+    };
+    let (chapter_id, source_lang, matcher) = {
+        let guard = lock();
+        let open = guard.as_deref().and_then(Option::as_ref);
+        let Some(open) = open else {
+            return Ok(ConventionSuggestionScanWire {
+                generation,
+                chapter_id: None,
+                items: Vec::new(),
+                ignored: 0,
+                glossary_suppressed: 0,
+                overlapped: 0,
+            });
+        };
+        (
+            open.chapter_id,
+            open.meta.source_lang.clone(),
+            cache.matcher(global, Some(open))?,
+        )
+    };
+    let lang = match_lang_for_source_lang(&source_lang);
+    let mut overlapped = 0u32;
+    let mut matched = Vec::new();
+    for item in items {
+        if item.text.trim().is_empty() {
+            continue;
+        }
+        let scan = matcher.scan(&item.text);
+        overlapped += scan.overlapped;
+        if !scan.hits.is_empty() {
+            matched.push((item, scan.hits));
+        }
+    }
+    let mut out = Vec::new();
+    let mut suppressed = 0u32;
+    if !matched.is_empty() {
+        let ids: Vec<i64> = matched.iter().map(|(item, _)| item.segment_id).collect();
+        let (sources, glossary) = {
+            let guard = lock();
+            let open = guard.as_deref().and_then(Option::as_ref);
+            let sources: std::collections::HashMap<i64, String> = match open {
+                Some(open) if open.chapter_id == chapter_id => open
+                    .store
+                    .read(|conn| select_segments_by_id(conn, chapter_id, &ids))?
+                    .into_iter()
+                    .map(|(id, source, _, _)| (id, source))
+                    .collect(),
+                _ => std::collections::HashMap::new(),
+            };
+            (sources, load_glossary(global, open, chapter_id)?)
+        };
+        for (item, hits) in matched {
+            let Some(source_text) = sources.get(&item.segment_id) else {
+                continue;
+            };
+            let (spans, dropped) = resolve_spans(
+                &matcher,
+                lang,
+                glossary.as_ref(),
+                source_text,
+                &item.text,
+                hits,
+            );
+            suppressed += dropped;
+            if !spans.is_empty() {
+                out.push(ConventionSegmentWire {
+                    segment_id: item.segment_id,
+                    scanned_text: item.text,
+                    spans,
+                });
+            }
+        }
+    }
+    Ok(ConventionSuggestionScanWire {
+        generation,
+        chapter_id: Some(chapter_id),
+        items: out,
+        ignored: 0,
+        glossary_suppressed: suppressed,
+        overlapped,
+    })
+}
+
 fn state_missing() -> IpcError {
     crate::core::i18n::state_missing(
         "convention",
@@ -458,7 +669,8 @@ fn state_missing() -> IpcError {
 pub mod wire {
     use super::{
         ConventionMatcherState, ConventionRuleWire, ConventionScanProgressWire, ConventionScanWire,
-        ConventionTierFilter, state_missing,
+        ConventionSuggestionItem, ConventionSuggestionScanWire, ConventionTierFilter,
+        state_missing,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::convention::RuleTier;
@@ -636,6 +848,53 @@ pub mod wire {
             |done, total| {
                 let _ = progress.send(ConventionScanProgressWire { done, total });
             },
+        )
+    }
+
+    /// Async: reads the listed sentences from disk and matches them outside the Work lock.
+    #[tauri::command(async)]
+    pub fn convention_scan_segments<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        generation: u64,
+        segment_ids: Vec<i64>,
+    ) -> Result<ConventionScanWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(cache) = app.try_state::<ConventionMatcherState>() else {
+            return Err(state_missing());
+        };
+        let state = app.try_state::<OpenWorkState>();
+        super::convention_scan_segments(
+            global.as_deref(),
+            state.as_deref(),
+            &cache,
+            generation,
+            &segment_ids,
+        )
+    }
+
+    /// Async: one match per suggestion and one Glossary snapshot per batch. Read-only; no command
+    /// accepts a span of a suggestion.
+    #[tauri::command(async)]
+    pub fn convention_scan_suggestions<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        generation: u64,
+        items: Vec<ConventionSuggestionItem>,
+    ) -> Result<ConventionSuggestionScanWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(cache) = app.try_state::<ConventionMatcherState>() else {
+            return Err(state_missing());
+        };
+        let state = app.try_state::<OpenWorkState>();
+        super::convention_scan_suggestions(
+            global.as_deref(),
+            state.as_deref(),
+            &cache,
+            generation,
+            items,
         )
     }
 }

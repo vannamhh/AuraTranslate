@@ -22,6 +22,10 @@ vi.mock('../../src/config/aitranslate', () => ({
   resendAiCall: (...args: unknown[]) => resendCallMock(...args),
 }))
 
+vi.mock('../../src/config/convention', () => ({
+  scanConventionSuggestions: () => Promise.resolve({ scan: null, error: null }),
+}))
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return { ...actual, readOpenChapterSegments: readFixture }

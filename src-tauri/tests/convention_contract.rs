@@ -7,9 +7,10 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::convention::{
-    ConventionMatcherState, ConventionScanWire, ConventionTierFilter, convention_active_rule,
-    convention_add_rule, convention_delete_rule, convention_edit_rule, convention_list_rules,
-    convention_scan_chapter, convention_scan_chapter_with_progress, convention_set_enabled,
+    ConventionMatcherState, ConventionScanWire, ConventionSuggestionItem, ConventionTierFilter,
+    convention_active_rule, convention_add_rule, convention_delete_rule, convention_edit_rule,
+    convention_list_rules, convention_scan_chapter, convention_scan_chapter_with_progress,
+    convention_scan_segments, convention_scan_suggestions, convention_set_enabled,
 };
 use auratranslate_lib::commands::glossary::glossary_add_term;
 use auratranslate_lib::commands::project::{OpenWork, OpenWorkState, create_work_from_text};
@@ -235,6 +236,46 @@ impl Fixture {
     fn scan(&self) -> ConventionScanWire {
         convention_scan_chapter(Some(&self.global), Some(&self.state), &self.cache, 7)
             .expect("scan")
+    }
+
+    fn scan_ids(&self, ids: &[i64]) -> ConventionScanWire {
+        convention_scan_segments(Some(&self.global), Some(&self.state), &self.cache, 9, ids)
+            .expect("scan segments")
+    }
+
+    fn scan_suggestions(
+        &self,
+        items: &[(usize, &str)],
+    ) -> auratranslate_lib::commands::convention::ConventionSuggestionScanWire {
+        let items = items
+            .iter()
+            .map(|&(index, text)| ConventionSuggestionItem {
+                segment_id: self.segment_ids[index],
+                text: text.to_owned(),
+            })
+            .collect();
+        convention_scan_suggestions(
+            Some(&self.global),
+            Some(&self.state),
+            &self.cache,
+            11,
+            items,
+        )
+        .expect("scan suggestions")
+    }
+
+    fn pin_term(&self, translation: &str) {
+        let guard = open_of(self);
+        glossary_add_term(
+            Some(&self.global),
+            guard.as_ref(),
+            GlossaryTier::Global,
+            "Assure",
+            Some(translation),
+            "",
+            Category::Other,
+        )
+        .expect("pin term");
     }
 
     fn dump(&self) -> Vec<(i64, String, String, String, String)> {
@@ -1226,4 +1267,196 @@ fn a_switched_off_work_row_is_never_listed_in_the_work_tier() {
     let both = f.list(ConventionTierFilter::Both);
     assert_eq!(both.len(), 1);
     assert_eq!(both[0].2, "disabled_in_work");
+}
+
+#[test]
+fn scanning_a_set_of_ids_touches_no_other_sentence() {
+    let f = fixture("segments-subset");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    f.seed(1, "Hãy đảm bảo.", "other", "other", "draft");
+    let scan = f.scan_ids(&[f.segment_ids[1]]);
+    assert_eq!(scan.generation, 9);
+    assert_eq!(scan.segments.len(), 1);
+    assert_eq!(scan.segments[0].segment_id, f.segment_ids[1]);
+    assert_eq!(scan.segments[0].scanned_text, "Hãy đảm bảo.");
+}
+
+#[test]
+fn unknown_retired_and_foreign_ids_are_skipped_and_an_empty_list_scans_nothing() {
+    let f = fixture("segments-unknown");
+    f.add_rule("đảm bảo", None);
+    f.seed(0, "Đảm bảo.", "other", "other", "draft");
+    f.seed(1, "Hãy đảm bảo.", "other", "other", "draft");
+    let retire = f.segment_ids[1];
+    open_of(&f)
+        .as_ref()
+        .expect("open")
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET retired_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?1",
+                [retire],
+            )
+        })
+        .expect("retire");
+    let scan = f.scan_ids(&[f.segment_ids[0], retire, 999_999, f.segment_ids[0]]);
+    assert_eq!(scan.segments.len(), 1);
+    assert_eq!(scan.segments[0].segment_id, f.segment_ids[0]);
+    assert_eq!(scan.not_scanned, 0);
+    let none = f.scan_ids(&[]);
+    assert!(none.segments.is_empty());
+    assert_eq!(
+        (none.glossary_suppressed, none.overlapped, none.not_scanned),
+        (0, 0, 0)
+    );
+}
+
+#[test]
+fn a_sentence_emptied_or_omitted_since_the_last_scan_gets_no_mark_and_the_omitted_one_is_counted() {
+    let f = fixture("segments-empty-omitted");
+    f.add_rule("đảm bảo", None);
+    f.seed(0, "", "other", "other", "draft");
+    f.seed(1, "Hãy đảm bảo.", "other", "other", "draft");
+    let omitted = f.segment_ids[1];
+    open_of(&f)
+        .as_ref()
+        .expect("open")
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE segment SET is_omitted = 1 WHERE id = ?1", [omitted])
+        })
+        .expect("omit");
+    let scan = f.scan_ids(&[f.segment_ids[0], omitted]);
+    assert!(scan.segments.is_empty());
+    assert_eq!(scan.not_scanned, 1);
+}
+
+#[test]
+fn a_rescan_of_pinned_glossary_text_suppresses_the_match_and_counts_it() {
+    let f = fixture("segments-glossary");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đội đảm bảo.", "other", "other", "draft");
+    f.seed(1, "Hãy đảm bảo.", "other", "other", "draft");
+    f.pin_term("đội đảm bảo");
+    let scan = f.scan_ids(&[f.segment_ids[0], f.segment_ids[1]]);
+    assert_eq!(scan.glossary_suppressed, 1);
+    assert_eq!(scan.segments.len(), 1);
+    assert_eq!(scan.segments[0].segment_id, f.segment_ids[1]);
+}
+
+#[test]
+fn the_chapter_scan_and_the_segment_scan_give_the_same_matches_on_the_same_sentence() {
+    let f = fixture("segments-equal");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.add_rule("an", None);
+    f.seed(0, "Đảm bảo an toàn, đảm bảo an.", "other", "other", "draft");
+    f.seed(1, "Đội đảm bảo.", "other", "other", "draft");
+    f.pin_term("đội đảm bảo");
+    let whole = f.scan();
+    let part = f.scan_ids(&f.segment_ids.clone());
+    assert!(!whole.segments.is_empty());
+    assert_eq!(whole.segments, part.segments);
+    assert_eq!(whole.glossary_suppressed, part.glossary_suppressed);
+    assert_eq!(whole.overlapped, part.overlapped);
+}
+
+#[test]
+fn the_segment_scan_writes_nothing() {
+    let f = fixture("segments-readonly");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    let before = f.dump();
+    let _ = f.scan_ids(&f.segment_ids.clone());
+    assert_eq!(f.dump(), before);
+}
+
+#[test]
+fn a_suggestion_is_matched_on_its_own_text_not_on_the_stored_translation() {
+    let f = fixture("suggest-own-text");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Câu cũ.", "other", "other", "draft");
+    let scan = f.scan_suggestions(&[(0, "Đảm bảo an toàn.")]);
+    assert_eq!(scan.generation, 11);
+    assert!(scan.chapter_id.is_some());
+    assert_eq!(scan.items.len(), 1);
+    assert_eq!(scan.items[0].segment_id, f.segment_ids[0]);
+    assert_eq!(scan.items[0].scanned_text, "Đảm bảo an toàn.");
+    let span = &scan.items[0].spans[0];
+    assert_eq!((span.start, span.end), (0, 7));
+    assert_eq!(span.replacement_cased.as_deref(), Some("Bảo đảm"));
+}
+
+#[test]
+fn a_suggestion_scan_writes_nothing() {
+    let f = fixture("suggest-readonly");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Câu cũ.", "other", "other", "draft");
+    f.seed(1, "Hãy đảm bảo.", "self", "self", "confirmed");
+    let before = f.dump();
+    let _ = f.scan_suggestions(&[(0, "Đảm bảo."), (1, "Phải đảm bảo.")]);
+    assert_eq!(f.dump(), before);
+    assert_eq!(f.versions(1), 0);
+    assert_eq!(f.pairs_with("Đảm bảo."), 0);
+}
+
+#[test]
+fn a_suggestion_inside_a_pinned_glossary_translation_gets_no_mark_and_is_counted() {
+    let f = fixture("suggest-glossary");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.pin_term("đội đảm bảo");
+    let scan = f.scan_suggestions(&[(0, "Đội đảm bảo."), (1, "Hãy đảm bảo.")]);
+    assert_eq!(scan.glossary_suppressed, 1);
+    assert_eq!(scan.items.len(), 1);
+    assert_eq!(scan.items[0].segment_id, f.segment_ids[1]);
+}
+
+#[test]
+fn one_batch_of_suggestions_marks_each_row_and_skips_blank_and_unknown_ones() {
+    let f = fixture("suggest-batch");
+    f.add_rule("đảm bảo", None);
+    let items = vec![
+        ConventionSuggestionItem {
+            segment_id: f.segment_ids[0],
+            text: "Đảm bảo.".to_owned(),
+        },
+        ConventionSuggestionItem {
+            segment_id: f.segment_ids[1],
+            text: "  ".to_owned(),
+        },
+        ConventionSuggestionItem {
+            segment_id: f.segment_ids[2],
+            text: "Không có.".to_owned(),
+        },
+        ConventionSuggestionItem {
+            segment_id: 999_999,
+            text: "Đảm bảo.".to_owned(),
+        },
+    ];
+    let scan = convention_scan_suggestions(Some(&f.global), Some(&f.state), &f.cache, 1, items)
+        .expect("batch");
+    assert_eq!(scan.items.len(), 1);
+    assert_eq!(scan.items[0].segment_id, f.segment_ids[0]);
+}
+
+#[test]
+fn a_suggestion_with_no_work_open_or_no_rule_is_an_empty_answer_not_an_error() {
+    let f = fixture("suggest-empty");
+    let none = f.scan_suggestions(&[(0, "Đảm bảo.")]);
+    assert!(none.items.is_empty());
+    assert!(none.chapter_id.is_some());
+    let closed: OpenWorkState = Mutex::new(None);
+    let scan = convention_scan_suggestions(
+        Some(&f.global),
+        Some(&closed),
+        &f.cache,
+        2,
+        vec![ConventionSuggestionItem {
+            segment_id: 1,
+            text: "Đảm bảo.".to_owned(),
+        }],
+    )
+    .expect("no work");
+    assert_eq!(scan.chapter_id, None);
+    assert!(scan.items.is_empty());
 }

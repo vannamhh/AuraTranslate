@@ -86,6 +86,11 @@ import {
   aiTranslateBatchUsageSummary,
 } from '../aiTranslateBatchState'
 import type { AiTranslateBatchRow } from '../aiTranslateBatchState'
+import {
+  conventionSuggestionBatch,
+  conventionSuggestionParts,
+  conventionSuggestionSingle,
+} from '../conventionSuggestionMarks'
 import type { AiTranslateUsageWire } from '../config/aitranslate'
 import { chapterUntranslatedIds } from '../chapterTranslateScope'
 import { aiUsageSummaryLine, formatUsdParam } from '../aiUsageLine'
@@ -357,6 +362,21 @@ const batchRowTexts = computed<string[]>(() => {
   return aiTranslateBatchRows.value.map((row) => (row.text !== '' ? row.text : (sourceById.get(row.segmentId) ?? '')))
 })
 
+const aiTranslateParts = computed(() => {
+  const entry = conventionSuggestionSingle.value
+  const marks = entry !== null && entry.segmentId === aiTranslateRunSegmentId.value ? entry : null
+  return conventionSuggestionParts(aiTranslateAccumulatedText.value, marks)
+})
+
+const batchRowParts = computed(() =>
+  aiTranslateBatchRows.value.map((row, index) =>
+    conventionSuggestionParts(
+      batchRowTexts.value[index] ?? '',
+      row.status === 'received' ? conventionSuggestionBatch.value.get(row.segmentId) : null,
+    ),
+  ),
+)
+
 const batchErrorSpan = computed(() =>
   aiTranslateBatchStateValue.value === 'error'
     ? aiTranslateBatchErrorSpan(aiTranslateBatchRows.value, aiTranslateBatchError.value)
@@ -621,8 +641,10 @@ const openSettingsLabel = computed(() =>
         data-ai-result-card
       >
         <p v-if="aiTranslateAccumulatedText !== '' && !isAiTranslateStale" class="ai-translate-text" data-ai-translate-text>
-          <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
-          {{ aiTranslateAccumulatedText }}
+          <template v-for="(part, partIndex) in aiTranslateParts" :key="partIndex">
+            <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel; phần khớp quy ước mang `title`). -->
+            <span :class="{ 'convention-mark': part.title !== null }" :title="part.title ?? undefined" :data-convention-suggestion-mark="part.title !== null ? '' : undefined">{{ part.text }}</span>
+          </template>
         </p>
         <p v-if="aiTranslateMaybeTruncated" class="ai-translate-usage" role="status" data-ai-translate-maybe-truncated>
           {{ t('panel.ai_translation.flag_maybe_truncated') }}
@@ -797,8 +819,10 @@ const openSettingsLabel = computed(() =>
               {{ index + 1 }}
             </span>
             <span class="ai-batch-row-text" data-ai-translate-batch-row-text>
-              <!-- aura-allow-text: DỮ LIỆU (bản dịch AI, hoặc câu nguồn khi chưa có bản dịch). -->
-              {{ batchRowTexts[index] }}
+              <template v-for="(part, partIndex) in batchRowParts[index]" :key="partIndex">
+                <!-- aura-allow-text: DỮ LIỆU (bản dịch AI, hoặc câu nguồn khi chưa có bản dịch; phần khớp quy ước mang `title`). -->
+                <span :class="{ 'convention-mark': part.title !== null }" :title="part.title ?? undefined" :data-convention-suggestion-mark="part.title !== null ? '' : undefined">{{ part.text }}</span>
+              </template>
             </span>
             <span v-if="row.hasHan" class="ai-batch-row-flag" data-ai-translate-batch-row-han>
               {{ t('panel.ai_translation.flag_has_han') }}
@@ -956,6 +980,15 @@ const openSettingsLabel = computed(() =>
   font-size: var(--font-ui-sm);
   font-weight: var(--weight-ui-md-strong);
   color: var(--color-on-surface-variant);
+}
+
+.ai-translate-text :deep(.convention-mark),
+.ai-batch-row-text :deep(.convention-mark) {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--color-on-surface-variant);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .ai-translate-text {

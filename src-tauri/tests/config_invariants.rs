@@ -1506,6 +1506,16 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "the same whole-Chapter match as `convention_scan_chapter`, with a progress channel",
         ),
         (
+            "src/commands/convention.rs",
+            "pub fn convention_scan_segments<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "reads the listed sentences from disk and matches them, cost scales with the list",
+        ),
+        (
+            "src/commands/convention.rs",
+            "pub fn convention_scan_suggestions<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "matches a whole batch of suggestions and loads a Glossary snapshot, cost scales with the batch",
+        ),
+        (
             "src/commands/segment/wire.rs",
             "pub fn convention_replace_chapter<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
             "one transaction over every selected sentence of the Chapter, holding the Work lock for the whole write",
@@ -2247,9 +2257,9 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     (
         "src/commands/convention.rs",
         5,
-        2,
-        2,
-        "`convention_scan_chapter` and its progress twin copy the open Chapter under the lock and match after releasing it; the five rule shells list, add, edit, delete or switch one row and stay synchronous so they never interleave with `convention_accept`.",
+        4,
+        4,
+        "`convention_scan_chapter`, its progress twin, `convention_scan_segments` and `convention_scan_suggestions` copy what they need under the lock and match after releasing it; the five rule shells list, add, edit, delete or switch one row and stay synchronous so they never interleave with `convention_accept`.",
     ),
     (
         "src/commands/cleanup.rs",
@@ -2484,9 +2494,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (120, 74),
+        (120, 76),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         120/74.\n\n\
+         120/76.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

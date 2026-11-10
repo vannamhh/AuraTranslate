@@ -30,6 +30,10 @@ vi.mock('../../src/config/aitranslate', () => ({
   resendAiCall: vi.fn(),
 }))
 
+vi.mock('../../src/config/convention', () => ({
+  scanConventionSuggestions: () => Promise.resolve({ scan: null, error: null }),
+}))
+
 vi.mock('../../src/config/aiconfig', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/aiconfig')>()
   return { ...actual, aiConfigGet: (...args: unknown[]) => aiConfigGetMock(...args) }

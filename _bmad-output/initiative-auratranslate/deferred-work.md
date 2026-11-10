@@ -14026,3 +14026,8 @@ chính nó.
   summary: lớp phủ Quản lý quy ước vẽ MỌI hàng luật một lúc, không cắt khúc và không cuộn ảo; chưa ai đo nó ở 2.000 luật, là chính con số AD-67 mục 11 lấy làm thang.
   evidence: ngân sách AD-67 mục 11 chỉ nói về lượt quét và bộ khớp, không nói về bảng luật, nên không cổng nào canh chỗ này; vitest dựng 3–4 hàng và e2e cũng vậy, nên cả hai im lặng. Số đo phải lấy trong app thật trên WKWebView, kèm thời gian mở lớp phủ và độ trễ của phím lên xuống.
   Chủ: Ice
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-quet-lai-sau-flush-va-quet-goi-y-o-panel-ai-translation-plan.md`
+  summary: `check:panel-refs` đỏ 15 lỗi ở `conventionManageState.ts` (`search`, `cursor`, `editing`, `deletePendingId`) và `conventionReplaceState.ts` (`hasScanned`, `hidden`, `filter`, `cursor`, `slowTimer`, …) từ 16-2/16-3; cổng này ở trong `pre-push` và `ci.yml` nên nó chặn lượt push đầu tiên dù 16.4 không chạm hai tệp đó.
+  evidence: đo trên một worktree sạch của `9d61b71a` (`node scripts/check-panel-refs.mjs`, exit 1, đúng 15 lỗi), nên không do 16.4 sinh ra. Ba commit 99381b00, 9d61b71a và e82a1bd6 còn chưa đẩy lên `origin`, vì thế `pre-push` chưa bao giờ chạy trên chúng — cùng hình với mục `check:panel-refs` đỏ từ `48ea2d4b` (Story 14.11). Hai lối: đặt lại từng ô trong một hàm `reset*` của chính tệp, hay miễn trừ CÓ TÊN kèm lý do.
+  Chủ: Ice

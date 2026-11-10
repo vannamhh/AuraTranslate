@@ -934,6 +934,7 @@
   "convention.status.no_next": "Không còn chỗ đánh dấu nào phía sau trong Chương này.",
   "convention.status.no_prev": "Không còn chỗ đánh dấu nào phía trước trong Chương này.",
   "convention.status.scan_failed": "Chưa quét được quy ước chữ Việt. Bản dịch không bị đổi.",
+  "convention.status.sentence_pending": "Câu đang gõ chưa quét lại; dấu hiện sau lượt lưu kế tiếp.",
   "convention.replace.title": "Thay theo quy ước trong {chapter_title}",
   "convention.replace.this_chapter": "Chương này",
   "convention.replace.summary": "{match_count} chỗ trong {sentence_count} câu · đã chọn {selected_count}",
