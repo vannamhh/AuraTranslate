@@ -144,7 +144,7 @@ async function load(mine: number): Promise<void> {
   clampCursor()
 }
 
-function resetCells(): void {
+function clearCells(): void {
   globalRules.value = []
   workRules.value = []
   workTierAvailable.value = false
@@ -166,7 +166,7 @@ export async function openConventionManage(): Promise<void> {
   if (open.value) return
   session += 1
   const mine = session
-  resetCells()
+  clearCells()
   open.value = true
   busy.value = true
   await load(mine)
@@ -185,7 +185,7 @@ export function resetConventionManage(): void {
   session += 1
   open.value = false
   busy.value = false
-  resetCells()
+  clearCells()
 }
 
 export function cancelConventionManageDeleteConfirm(): void {

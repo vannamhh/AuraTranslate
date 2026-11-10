@@ -244,12 +244,17 @@ export function closeConventionReplace(): void {
   progress.value = null
   groups.value = []
   selected.value = new Set()
+  hasScanned.value = false
+  hidden.value = NO_HIDDEN
+  filter.value = null
+  cursor.value = 0
   stopSlowTimer()
 }
 
 /** Chapter or Work swapped under the overlay. */
 export function resetConventionReplace(): void {
   if (open.value) closeConventionReplace()
+  stopSlowTimer()
 }
 
 export const conventionReplaceOptions: ComputedRef<readonly ReplaceFilterOption[]> = computed(() => {
