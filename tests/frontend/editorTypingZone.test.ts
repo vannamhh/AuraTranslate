@@ -115,6 +115,8 @@ function putCaretIn(id: number, offset: number): void {
 }
 
 beforeEach(() => {
+  // A case that installs fake timers must not leak them into the next one, failure included.
+  vi.useRealTimers()
   resetRecorder()
   document.body.innerHTML = ''
 })
@@ -563,6 +565,9 @@ describe('vùng gõ — MỖI Ô MỘT EDITING HOST RIÊNG (Quyết định #3, 
     // `WorkspaceDock.vue::applyPreset()` gọi `api.clear()` rồi dựng lại cả ba panel. Không có
     // nó, lượt mount lại vẽ chữ **lúc nạp** đè lên chữ người dùng vừa gõ.
     const { state, wrapper } = await mountEditor()
+    // The claim is about the unmount, not about elapsed time. On a loaded machine the real
+    // `EDITOR_IDLE_MS` flush fires inside this case and reds it for a reason it never measured.
+    vi.useFakeTimers()
     putCaretIn(13, 0)
     await wrapper.vm.$nextTick()
     sentence(13).textContent = 'chữ vừa gõ'
