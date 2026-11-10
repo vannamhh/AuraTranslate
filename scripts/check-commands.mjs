@@ -239,7 +239,7 @@ const TS_FLOOR = 131
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
  * không kiểm gì. `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const COMMAND_FLOOR = 288
+const COMMAND_FLOOR = 309
 
 /**
  * SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy. Sàn tệp ở trên đóng được "cây rỗng
@@ -248,7 +248,7 @@ const COMMAND_FLOOR = 288
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 292
+const CLICK_FLOOR = 312
 const DISPATCH_FLOOR = 412
 
 {
@@ -2460,8 +2460,19 @@ const HANDLER_TABLE = {
   'src/ProofreadScopeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ProofreadMemoryOverlay.vue::onEscape': { ids: ['ai.proofread.memory.close'] },
   'src/ProofreadMemoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
-  'src/ConventionManageOverlay.vue::onEscape': { ids: ['convention.manage.close'] },
+  'src/ConventionManageOverlay.vue::onEscape': { ids: ['convention.manage.cancel', 'convention.manage.close'] },
   'src/ConventionManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ConventionManageOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
+  'src/ConventionManageOverlay.vue::onKeydown': {
+    ids: [
+      'convention.manage.next',
+      'convention.manage.prev',
+      'convention.manage.edit',
+      'convention.manage.enable',
+      'convention.manage.disable',
+      'convention.manage.delete',
+    ],
+  },
   'src/ConventionReplaceOverlay.vue::onEscape': { ids: ['convention.replace_chapter_close'] },
   'src/ConventionReplaceOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ConventionReplaceOverlay.vue::onListKeydown': { nonCommand: R_SELECT_IN_PLACE },
@@ -2887,7 +2898,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 180
+const HANDLER_ATTR_FLOOR = 193
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

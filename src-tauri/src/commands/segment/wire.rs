@@ -613,8 +613,12 @@ pub fn convention_accept<R: tauri::Runtime>(
     use tauri::Manager as _;
 
     let global = app.try_state::<crate::core::store::Store>();
-    let rule = crate::commands::convention::convention_active_rule(global.as_deref(), &rule_key)?;
     let Some(state) = app.try_state::<OpenWorkState>() else {
+        let rule = crate::commands::convention::convention_active_rule(
+            global.as_deref(),
+            None,
+            &rule_key,
+        )?;
         return super::convention_accept_range(
             None,
             segment_id,
@@ -628,6 +632,11 @@ pub fn convention_accept<R: tauri::Runtime>(
     let guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let rule = crate::commands::convention::convention_active_rule(
+        global.as_deref(),
+        guard.as_ref(),
+        &rule_key,
+    )?;
     super::convention_accept_range(
         guard.as_ref(),
         segment_id,
@@ -640,9 +649,9 @@ pub fn convention_accept<R: tauri::Runtime>(
 }
 
 /// Wire shell of [`super::convention_replace_chapter`]: the webview sends the selected spots
-/// (`rule_key` names the rule; the replacement is never sent). Every rule is read from `global.db`
-/// before the Work lock is taken; one that is gone, disabled or has no replacement refuses with
-/// nothing written.
+/// (`rule_key` names the rule; the replacement is never sent). The Global rule list is read just
+/// before the Work lock; the Work half of the rule check runs inside the write, so a rule that is
+/// gone, disabled or has no replacement refuses with nothing written.
 #[tauri::command(async)]
 pub fn convention_replace_chapter<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -651,14 +660,17 @@ pub fn convention_replace_chapter<R: tauri::Runtime>(
     use tauri::Manager as _;
 
     let global = app.try_state::<crate::core::store::Store>();
-    let rules = super::resolve_convention_rules(global.as_deref(), &groups)?;
+    let global_rows = match global.as_deref() {
+        Some(global) => crate::core::convention::list_rules(global)?,
+        None => return Err(crate::commands::convention::store_is_missing()),
+    };
     let Some(state) = app.try_state::<OpenWorkState>() else {
-        return super::convention_replace_chapter(None, &groups, &rules);
+        return super::convention_replace_chapter(None, &groups, &global_rows);
     };
     let guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    super::convention_replace_chapter(guard.as_ref(), &groups, &rules)
+    super::convention_replace_chapter(guard.as_ref(), &groups, &global_rows)
 }
 
 /// Wire shell of [`super::convention_revert_range`]: `expectedPhrase` is the replacement now in the

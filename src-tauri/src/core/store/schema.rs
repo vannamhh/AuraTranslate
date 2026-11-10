@@ -765,7 +765,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười bảy bước, và đích là phiên bản 17.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười bảy bước, và đích là phiên bản 17** (bước 17 là `CONVENTION_RULE_DDL`, dùng lại ở bước 44 của `project.db`). Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -889,7 +889,7 @@ DROP INDEX idx_prompt_set_name;
 CREATE UNIQUE INDEX idx_prompt_set_kind_name ON prompt_set (kind, name);";
 
 /// Global step 17 (AD-67 rule 2): `rule_key` is the avoid phrase after NFC and Unicode
-/// lowercase, unique per store. One const so the Work tier can reuse it.
+/// lowercase, unique per store. Also project step 44.
 pub const CONVENTION_RULE_DDL: &str = "\
 CREATE TABLE convention_rule (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2173,7 +2173,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Bốn mươi hai bước, và đích là phiên bản 43.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Bốn mươi ba bước, và đích là phiên bản 44.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2573,6 +2573,11 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 43,
         sql: PROMPT_SET_KIND_PROJECT_DDL,
+    },
+    // AD-67 rule 2: the Work tier of the convention rule list, the same const as global step 17.
+    Migration {
+        to_version: 44,
+        sql: CONVENTION_RULE_DDL,
     },
 ];
 

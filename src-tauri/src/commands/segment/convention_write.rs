@@ -1,5 +1,5 @@
 use super::*;
-use crate::core::convention::{RuleRow, apply_spans, rule_key, transfer_case};
+use crate::core::convention::{RuleRow, apply_spans, effective_row, rule_key, transfer_case};
 
 /// What the webview needs after a convention write: the sentence as stored, and where the
 /// inserted phrase sits in it (UTF-16) for the undo tray and for shifting the other marks.
@@ -306,12 +306,15 @@ fn rule_changed() -> IpcError {
     )
 }
 
-/// The enabled Global rule for each distinct `rule_key` the groups name. One that is gone,
-/// disabled or unknown refuses the whole batch as `convention.rule_changed`.
-pub fn resolve_convention_rules(
-    global: Option<&crate::core::store::Store>,
+/// The rule in force for each distinct `rule_key` the groups name, resolved across both tiers
+/// from the Global rows read just before the write and the Work rows read in `tx`. One that is
+/// gone, disabled or unknown refuses the whole batch as `convention.rule_changed`.
+fn resolve_convention_rules(
+    tx: &Transaction<'_>,
+    global_rows: &[RuleRow],
     groups: &[ConventionReplaceGroup],
-) -> Result<BTreeMap<String, RuleRow>, IpcError> {
+) -> SqlResult<Result<BTreeMap<String, RuleRow>, IpcError>> {
+    let work_rows = crate::core::convention::list_rules_in(tx)?;
     let mut rules = BTreeMap::new();
     for key in groups
         .iter()
@@ -320,17 +323,12 @@ pub fn resolve_convention_rules(
         if rules.contains_key(key) {
             continue;
         }
-        let rule =
-            crate::commands::convention::convention_active_rule(global, key).map_err(|err| {
-                if err.code() == "convention.rule_unavailable" {
-                    rule_changed()
-                } else {
-                    err
-                }
-            })?;
+        let Some(rule) = effective_row(key, global_rows, &work_rows) else {
+            return Ok(Err(rule_changed()));
+        };
         rules.insert(key.to_owned(), rule);
     }
-    Ok(rules)
+    Ok(Ok(rules))
 }
 
 /// Checks one sentence of the batch against the stored row and builds its new text; nothing is
@@ -439,12 +437,12 @@ fn plan_sentence(
 /// sentence is checked before any is written, and one that fails any check refuses the whole batch
 /// with 0 rows changed. Text changes (including a sentence omitted since the scan) are reported
 /// together as `convention.chapter_changed`; any other refusal returns the first one found.
-/// `rules` holds the enabled Global rule for each `rule_key` the spots name, read by the shell
-/// before the transaction.
+/// `global_rows` is the Global rule list read by the shell just before the write; the Work half of
+/// the rule check runs inside the transaction.
 pub fn convention_replace_chapter(
     open: Option<&OpenWork>,
     groups: &[ConventionReplaceGroup],
-    rules: &BTreeMap<String, RuleRow>,
+    global_rows: &[RuleRow],
 ) -> Result<ConventionReplaceOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     if groups.is_empty() {
@@ -459,7 +457,7 @@ pub fn convention_replace_chapter(
     }
     let open_chapter_id = open.chapter_id;
     let groups = groups.to_vec();
-    let rules = rules.clone();
+    let global_rows = global_rows.to_vec();
     let reject: Arc<Mutex<Option<IpcError>>> = Arc::new(Mutex::new(None));
     let reject_in = Arc::clone(&reject);
 
@@ -468,6 +466,13 @@ pub fn convention_replace_chapter(
             *reject_in
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(err);
+        };
+        let rules = match resolve_convention_rules(tx, &global_rows, &groups)? {
+            Ok(rules) => rules,
+            Err(err) => {
+                set_reject(err);
+                return Err(SqlError::QueryReturnedNoRows);
+            }
         };
         let mut planned = Vec::with_capacity(groups.len());
         let mut changed: Vec<i64> = Vec::new();

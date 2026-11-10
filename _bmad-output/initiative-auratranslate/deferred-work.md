@@ -13969,6 +13969,7 @@ chính nó.
   summary: phép kiểm luật còn hiệu lực của Nhận thay đọc `global.db` trước lượt ghi `project.db` (`convention_active_rule` ở `commands/segment/wire.rs`), không trong cùng giao dịch như AD-67 mục 7 viết; luật sửa, tắt hay xoá giữa hai bước vẫn được áp.
   evidence: 16.1 chưa có đường sửa/tắt/xoá luật nên khe chưa chạm được; 16.3 thêm các đường đó. Hai kho không có giao dịch chung, nên 16.3 đọc lại luật trong closure ghi hoặc nhờ Winston chữa câu chữ AD-67.
   Chủ: Story 16.3
+  → 🟡 2026-11-09 (Story 16.3, Ice chọn hình thi hành được) — nửa tầng Tác phẩm của phép kiểm nằm trong giao dịch `project.db` ở `convention_replace_chapter` (`async`); nửa tầng Global là một lượt đọc `global.db` ngay trước lượt ghi, không nằm trong giao dịch. Khoảng còn hở: một luật Global sửa giữa lượt đọc và lượt ghi vẫn được áp; câu chữ AD-67 mục 7 để Winston chữa. Chủ: Winston
 
 - source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-mot-luat-global-anh-dau-va-thay-mot-cho-trong-chuong-ang-mo-plan.md`
   summary: `ai_config_get` giữ khoá `OpenWorkState` qua `keychain::configured()` (`commands/aiconfig.rs:421-424` → :206); một hộp thoại Keychain chờ người bấm làm treo mọi lệnh đồng bộ cần Tác phẩm đang mở.
@@ -14019,4 +14020,9 @@ chính nó.
     TRƯỢT…`, `[editor] KHÔNG ký segment…`), nên mỗi lượt có log đi qua RPC `onUserConsoleLog` mà
     teardown worker có thể đóng trước. Reporter mặc định ẩn log của tệp XANH, nên lượt chạy đủ
     không cho đếm còn bao nhiêu tệp cùng hình dạng.
+  Chủ: Ice
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-quan-ly-luat-hai-tang-global-va-tac-pham-plan.md`
+  summary: lớp phủ Quản lý quy ước vẽ MỌI hàng luật một lúc, không cắt khúc và không cuộn ảo; chưa ai đo nó ở 2.000 luật, là chính con số AD-67 mục 11 lấy làm thang.
+  evidence: ngân sách AD-67 mục 11 chỉ nói về lượt quét và bộ khớp, không nói về bảng luật, nên không cổng nào canh chỗ này; vitest dựng 3–4 hàng và e2e cũng vậy, nên cả hai im lặng. Số đo phải lấy trong app thật trên WKWebView, kèm thời gian mở lớp phủ và độ trễ của phím lên xuống.
   Chủ: Ice

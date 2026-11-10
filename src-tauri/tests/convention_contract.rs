@@ -7,17 +7,20 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::convention::{
-    ConventionMatcherState, ConventionScanWire, convention_active_rule, convention_add_rule,
-    convention_list_rules, convention_scan_chapter, convention_scan_chapter_with_progress,
+    ConventionMatcherState, ConventionScanWire, ConventionTierFilter, convention_active_rule,
+    convention_add_rule, convention_delete_rule, convention_edit_rule, convention_list_rules,
+    convention_scan_chapter, convention_scan_chapter_with_progress, convention_set_enabled,
 };
 use auratranslate_lib::commands::glossary::glossary_add_term;
 use auratranslate_lib::commands::project::{OpenWork, OpenWorkState, create_work_from_text};
 use auratranslate_lib::commands::segment::{
     ConventionReplaceGroup, ConventionReplaceOutcome, ConventionReplaceSpot,
     ConventionWriteOutcome, convention_accept_range, convention_replace_chapter,
-    convention_revert_range, read_open_chapter_segments, resolve_convention_rules,
+    convention_revert_range, read_open_chapter_segments,
 };
-use auratranslate_lib::core::convention::{Matcher, Rule, RuleTier, rule_key, transfer_case};
+use auratranslate_lib::core::convention::{
+    Matcher, Rule, RuleRow, RuleTier, list_rules, resolve_two_tiers, rule_key, transfer_case,
+};
 use auratranslate_lib::core::glossary::{Category, GlossaryTier};
 use auratranslate_lib::core::i18n::IpcError;
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
@@ -194,7 +197,39 @@ impl Fixture {
     }
 
     fn add_rule(&self, avoid: &str, replacement: Option<&str>) {
-        convention_add_rule(Some(&self.global), &self.cache, avoid, replacement).expect("add rule");
+        convention_add_rule(
+            Some(&self.global),
+            None,
+            &self.cache,
+            RuleTier::Global,
+            avoid,
+            replacement,
+        )
+        .expect("add rule");
+    }
+
+    fn add_work_rule(&self, avoid: &str, replacement: Option<&str>) {
+        convention_add_rule(
+            Some(&self.global),
+            open_of(self).as_ref(),
+            &self.cache,
+            RuleTier::Work,
+            avoid,
+            replacement,
+        )
+        .expect("add work rule");
+    }
+
+    fn list(&self, tier: ConventionTierFilter) -> Vec<(String, String, String)> {
+        convention_list_rules(Some(&self.global), open_of(self).as_ref(), tier)
+            .expect("list")
+            .into_iter()
+            .map(|r| (r.tier, r.rule_key, r.status))
+            .collect()
+    }
+
+    fn global_rows(&self) -> Vec<RuleRow> {
+        list_rules(&self.global).expect("global rows")
     }
 
     fn scan(&self) -> ConventionScanWire {
@@ -252,7 +287,7 @@ impl Fixture {
         phrase: &str,
         key: &str,
     ) -> Result<ConventionWriteOutcome, IpcError> {
-        let rule = convention_active_rule(Some(&self.global), key)?;
+        let rule = convention_active_rule(Some(&self.global), open_of(self).as_ref(), key)?;
         convention_accept_range(
             open_of(self).as_ref(),
             self.segment_ids[index],
@@ -268,8 +303,7 @@ impl Fixture {
         &self,
         groups: &[ConventionReplaceGroup],
     ) -> Result<ConventionReplaceOutcome, IpcError> {
-        let rules = resolve_convention_rules(Some(&self.global), groups)?;
-        convention_replace_chapter(open_of(self).as_ref(), groups, &rules)
+        convention_replace_chapter(open_of(self).as_ref(), groups, &self.global_rows())
     }
 
     fn revert(
@@ -309,7 +343,8 @@ fn adding_a_rule_makes_the_open_chapter_scan_find_it() {
     assert_eq!(span.replacement_cased.as_deref(), Some("Bảo đảm"));
     assert_eq!(span.rule_key, KEY);
     assert_eq!(scan.ignored, 0);
-    let listed = convention_list_rules(Some(&f.global)).expect("list");
+    let listed =
+        convention_list_rules(Some(&f.global), None, ConventionTierFilter::Global).expect("list");
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].replacement_phrase.as_deref(), Some("bảo đảm"));
 }
@@ -317,17 +352,28 @@ fn adding_a_rule_makes_the_open_chapter_scan_find_it() {
 #[test]
 fn a_blank_or_repeated_avoid_phrase_is_refused_and_writes_nothing() {
     let f = fixture("add-refused");
-    let blank = convention_add_rule(Some(&f.global), &f.cache, "  \u{3000} ", None)
-        .expect_err("blank avoid phrase");
+    let blank = convention_add_rule(
+        Some(&f.global),
+        None,
+        &f.cache,
+        RuleTier::Global,
+        "  \u{3000} ",
+        None,
+    )
+    .expect_err("blank avoid phrase");
     assert_eq!(blank.code(), "convention.empty_avoid_phrase");
     f.add_rule("Đảm bảo", Some("bảo đảm"));
-    let repeated =
-        convention_add_rule(Some(&f.global), &f.cache, "đảm bảo", None).expect_err("same key");
+    let repeated = convention_add_rule(
+        Some(&f.global),
+        None,
+        &f.cache,
+        RuleTier::Global,
+        "đảm bảo",
+        None,
+    )
+    .expect_err("same key");
     assert_eq!(repeated.code(), "convention.duplicate_avoid_phrase");
-    assert_eq!(
-        convention_list_rules(Some(&f.global)).expect("list").len(),
-        1
-    );
+    assert_eq!(f.list(ConventionTierFilter::Global).len(), 1);
 }
 
 #[test]
@@ -818,7 +864,15 @@ fn progress_is_reported_every_250_sentences_and_once_at_the_end() {
         .write(|tx: &Transaction<'_>| tx.execute("UPDATE segment SET target_text = 'Đảm bảo.'", []))
         .expect("fill");
     let cache = ConventionMatcherState::default();
-    convention_add_rule(Some(&global), &cache, "đảm bảo", Some("bảo đảm")).expect("rule");
+    convention_add_rule(
+        Some(&global),
+        None,
+        &cache,
+        RuleTier::Global,
+        "đảm bảo",
+        Some("bảo đảm"),
+    )
+    .expect("rule");
     let state: OpenWorkState = Mutex::new(Some(open));
     let mut seen = Vec::new();
     let wire =
@@ -836,11 +890,11 @@ fn a_replacement_that_trims_to_nothing_refuses_the_batch_with_empty_result() {
     f.add_rule("đảm bảo", Some("bảo đảm"));
     f.seed(0, "đảm bảo", "other", "other", "confirmed");
     let groups = [group(&f, 0, "đảm bảo", vec![spot(0, 7, "đảm bảo")])];
-    let mut rules = resolve_convention_rules(Some(&f.global), &groups).expect("rules");
-    rules.get_mut(KEY).expect("rule").replacement_phrase = Some("   ".to_owned());
+    let mut rows = f.global_rows();
+    rows[0].replacement_phrase = Some("   ".to_owned());
     let before = f.dump();
-    let refused = convention_replace_chapter(open_of(&f).as_ref(), &groups, &rules)
-        .expect_err("blank result");
+    let refused =
+        convention_replace_chapter(open_of(&f).as_ref(), &groups, &rows).expect_err("blank result");
     assert_eq!(refused.code(), "convention.empty_result");
     assert_eq!(f.dump(), before);
     assert_eq!(f.versions(0), 0);
@@ -861,4 +915,315 @@ fn a_spot_left_out_of_a_selected_sentence_keeps_its_own_bytes() {
         .expect("batch");
     assert_eq!(done.replaced, 1);
     assert_eq!(f.dump()[0].1, "Đảm bảo rằng bảo đảm.");
+}
+
+fn second_work(tag: &str) -> OpenWorkState {
+    let open = create_work_from_text(
+        &temp_dir(tag),
+        "Second",
+        "en",
+        "",
+        "Assure safety. Second one. Third one.".to_owned(),
+    )
+    .expect("second work");
+    Mutex::new(Some(open))
+}
+
+fn scan_in(f: &Fixture, state: &OpenWorkState) -> ConventionScanWire {
+    convention_scan_chapter(Some(&f.global), Some(state), &f.cache, 3).expect("scan")
+}
+
+fn fill_all(state: &OpenWorkState, text: &str) {
+    let text = text.to_owned();
+    state
+        .lock()
+        .expect("lock")
+        .as_ref()
+        .expect("open")
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE segment SET target_text = ?1", [&text])
+        })
+        .expect("fill");
+}
+
+#[test]
+fn a_global_rule_switched_off_in_one_work_still_matches_in_another() {
+    let f = fixture("tier-off");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    let other = second_work("tier-off-b");
+    fill_all(&other, "Đảm bảo an toàn.");
+    assert_eq!(f.scan().segments.len(), 1);
+    assert_eq!(scan_in(&f, &other).segments.len(), 3);
+
+    convention_set_enabled(Some(&f.global), open_of(&f).as_ref(), &f.cache, KEY, false)
+        .expect("switch off");
+    assert_eq!(f.scan().segments.len(), 0);
+    assert_eq!(scan_in(&f, &other).segments.len(), 3);
+    let both = f.list(ConventionTierFilter::Both);
+    assert!(both.contains(&("global".into(), KEY.into(), "disabled_in_work".into())));
+    assert_eq!(f.list(ConventionTierFilter::Global).len(), 1);
+}
+
+#[test]
+fn switching_a_rule_back_on_deletes_the_disabled_work_row() {
+    let f = fixture("tier-on");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    let off = |enabled| {
+        convention_set_enabled(
+            Some(&f.global),
+            open_of(&f).as_ref(),
+            &f.cache,
+            KEY,
+            enabled,
+        )
+    };
+    off(false).expect("off");
+    assert_eq!(f.scan().segments.len(), 0);
+    off(true).expect("on");
+    assert_eq!(f.scan().segments.len(), 1);
+    assert_eq!(f.list(ConventionTierFilter::Work).len(), 0);
+    let gone = off(true).expect_err("row already gone");
+    assert_eq!(gone.code(), "convention.rule_missing");
+}
+
+#[test]
+fn a_work_rule_shadows_the_global_rule_with_the_same_key() {
+    let f = fixture("tier-shadow");
+    f.add_rule("bằng hữu", Some("bạn hữu"));
+    f.add_work_rule("bằng hữu", Some("bạn bè"));
+    f.seed(0, "Bằng hữu ơi.", "other", "other", "draft");
+    let scan = f.scan();
+    let span = &scan.segments[0].spans[0];
+    assert_eq!(span.replacement_cased.as_deref(), Some("Bạn bè"));
+    assert_eq!(span.tier, "work");
+    assert_eq!(scan.segments[0].spans.len(), 1);
+    let both = f.list(ConventionTierFilter::Both);
+    assert!(both.contains(&("global".into(), rule_key("bằng hữu"), "shadowed".into())));
+    assert!(both.contains(&("work".into(), rule_key("bằng hữu"), "in_use".into())));
+}
+
+#[test]
+fn resolution_prefers_the_work_row_even_when_it_is_disabled() {
+    let global = vec![row(1, "đảm bảo", Some("bảo đảm"), true)];
+    let work = vec![row(1, "đảm bảo", None, false)];
+    assert!(resolve_two_tiers(&global, &work).is_empty());
+    let other = vec![row(1, "đảm bảo", Some("bảo đảm"), true)];
+    assert_eq!(resolve_two_tiers(&global, &other)[0].tier, RuleTier::Work);
+    assert_eq!(resolve_two_tiers(&global, &[])[0].tier, RuleTier::Global);
+}
+
+fn row(id: i64, avoid: &str, replacement: Option<&str>, enabled: bool) -> RuleRow {
+    RuleRow {
+        id,
+        rule_key: rule_key(avoid),
+        avoid_phrase: avoid.to_owned(),
+        replacement_phrase: replacement.map(str::to_owned),
+        enabled,
+    }
+}
+
+#[test]
+fn the_work_tier_is_refused_when_no_work_is_open() {
+    let global =
+        Store::open(StoreSpec::global(temp_dir("no-work").join("global.db"))).expect("global");
+    let cache = ConventionMatcherState::default();
+    let add = convention_add_rule(Some(&global), None, &cache, RuleTier::Work, "x", None)
+        .expect_err("work tier");
+    assert_eq!(add.code(), "convention.work_tier_unavailable");
+    let list = convention_list_rules(Some(&global), None, ConventionTierFilter::Work)
+        .expect_err("work tier");
+    assert_eq!(list.code(), "convention.work_tier_unavailable");
+    let off =
+        convention_set_enabled(Some(&global), None, &cache, "x", false).expect_err("work tier");
+    assert_eq!(off.code(), "convention.work_tier_unavailable");
+    assert!(
+        convention_list_rules(Some(&global), None, ConventionTierFilter::Both)
+            .expect("both")
+            .is_empty()
+    );
+}
+
+#[test]
+fn editing_a_rule_into_another_rules_phrase_is_refused_and_writes_nothing() {
+    let f = fixture("edit-dup");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.add_rule("kỷ", Some("kỉ"));
+    let rows = f.global_rows();
+    let kỷ = rows.iter().find(|r| r.avoid_phrase == "kỷ").expect("row");
+    let refused = convention_edit_rule(
+        Some(&f.global),
+        None,
+        &f.cache,
+        RuleTier::Global,
+        kỷ.id,
+        "Đảm Bảo",
+        None,
+    )
+    .expect_err("duplicate");
+    assert_eq!(refused.code(), "convention.duplicate_avoid_phrase");
+    assert_eq!(f.global_rows(), rows);
+    convention_edit_rule(
+        Some(&f.global),
+        None,
+        &f.cache,
+        RuleTier::Global,
+        kỷ.id,
+        "Kỷ",
+        Some("kỉ luật"),
+    )
+    .expect("edit own key");
+    assert_eq!(
+        f.global_rows()
+            .iter()
+            .find(|r| r.id == kỷ.id)
+            .and_then(|r| r.replacement_phrase.clone())
+            .as_deref(),
+        Some("kỉ luật")
+    );
+}
+
+#[test]
+fn editing_or_switching_a_vanished_rule_is_rule_missing_and_delete_is_harmless() {
+    let f = fixture("vanished");
+    let edit = convention_edit_rule(
+        Some(&f.global),
+        None,
+        &f.cache,
+        RuleTier::Global,
+        999,
+        "a",
+        None,
+    )
+    .expect_err("missing");
+    assert_eq!(edit.code(), "convention.rule_missing");
+    let off = convention_set_enabled(
+        Some(&f.global),
+        open_of(&f).as_ref(),
+        &f.cache,
+        "zzz",
+        false,
+    )
+    .expect_err("missing global");
+    assert_eq!(off.code(), "convention.rule_missing");
+    convention_delete_rule(Some(&f.global), None, &f.cache, RuleTier::Global, 999)
+        .expect("harmless");
+}
+
+#[test]
+fn every_rule_write_drops_the_cached_matcher() {
+    let f = fixture("invalidate");
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    assert_eq!(f.scan().segments.len(), 1);
+    let id = f.global_rows()[0].id;
+    convention_edit_rule(
+        Some(&f.global),
+        None,
+        &f.cache,
+        RuleTier::Global,
+        id,
+        "an toàn",
+        Some("yên ổn"),
+    )
+    .expect("edit");
+    let after_edit = f.scan();
+    assert_eq!(
+        after_edit.segments[0].spans[0].rule_key,
+        rule_key("an toàn")
+    );
+    convention_delete_rule(Some(&f.global), None, &f.cache, RuleTier::Global, id).expect("delete");
+    assert!(f.scan().segments.is_empty());
+}
+
+#[test]
+fn a_rule_switched_off_in_the_work_during_a_chapter_replace_refuses_the_whole_batch() {
+    let f = fixture("replace-changed");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    let groups = [group(
+        &f,
+        0,
+        "Đảm bảo an toàn.",
+        vec![spot(0, 7, "Đảm bảo")],
+    )];
+    let global_rows = f.global_rows();
+    convention_set_enabled(Some(&f.global), open_of(&f).as_ref(), &f.cache, KEY, false)
+        .expect("off");
+    let before = f.dump();
+    let refused = convention_replace_chapter(open_of(&f).as_ref(), &groups, &global_rows)
+        .expect_err("rule changed");
+    assert_eq!(refused.code(), "convention.rule_changed");
+    assert_eq!(f.dump(), before);
+}
+
+#[test]
+fn a_global_rule_deleted_before_the_write_refuses_the_chapter_replace() {
+    let f = fixture("replace-global-gone");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    let groups = [group(
+        &f,
+        0,
+        "Đảm bảo an toàn.",
+        vec![spot(0, 7, "Đảm bảo")],
+    )];
+    let id = f.global_rows()[0].id;
+    convention_delete_rule(Some(&f.global), None, &f.cache, RuleTier::Global, id).expect("delete");
+    let before = f.dump();
+    let refused = f.replace(&groups).expect_err("rule changed");
+    assert_eq!(refused.code(), "convention.rule_changed");
+    assert_eq!(f.dump(), before);
+}
+
+#[test]
+fn two_work_rules_with_the_same_key_are_refused_by_the_work_store() {
+    let f = fixture("work-unique");
+    f.add_work_rule("đảm bảo", Some("bảo đảm"));
+    let repeated = convention_add_rule(
+        Some(&f.global),
+        open_of(&f).as_ref(),
+        &f.cache,
+        RuleTier::Work,
+        "Đảm Bảo",
+        Some("chắc chắn"),
+    )
+    .expect_err("same key in the Work tier");
+    assert_eq!(repeated.code(), "convention.duplicate_avoid_phrase");
+    assert_eq!(f.list(ConventionTierFilter::Work).len(), 1);
+}
+
+#[test]
+fn adding_a_work_rule_over_a_switched_off_phrase_takes_the_row_over_and_turns_it_on() {
+    let f = fixture("work-takeover");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Đảm bảo an toàn.", "other", "other", "draft");
+    convention_set_enabled(Some(&f.global), open_of(&f).as_ref(), &f.cache, KEY, false)
+        .expect("off");
+    assert_eq!(f.scan().segments.len(), 0);
+    f.add_work_rule("đảm bảo", Some("chắc chắn"));
+    let scan = f.scan();
+    assert_eq!(
+        scan.segments[0].spans[0].replacement_cased.as_deref(),
+        Some("Chắc chắn")
+    );
+    assert_eq!(scan.segments[0].spans[0].tier, "work");
+    let both = f.list(ConventionTierFilter::Both);
+    assert!(both.contains(&("global".into(), KEY.into(), "shadowed".into())));
+    assert!(both.contains(&("work".into(), KEY.into(), "in_use".into())));
+    assert_eq!(f.list(ConventionTierFilter::Work).len(), 1);
+}
+
+#[test]
+fn a_switched_off_work_row_is_never_listed_in_the_work_tier() {
+    let f = fixture("work-hidden");
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    convention_set_enabled(Some(&f.global), open_of(&f).as_ref(), &f.cache, KEY, false)
+        .expect("off");
+    assert!(f.list(ConventionTierFilter::Work).is_empty());
+    let both = f.list(ConventionTierFilter::Both);
+    assert_eq!(both.len(), 1);
+    assert_eq!(both[0].2, "disabled_in_work");
 }

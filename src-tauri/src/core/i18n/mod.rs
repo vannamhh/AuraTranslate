@@ -949,6 +949,8 @@ message_keys! {
     ConventionTextWouldBeEmpty => "err.convention.text_would_be_empty" ["segment_id"],
     ConventionChapterChanged => "err.convention.chapter_changed" ["segment_ids"],
     ConventionRuleChanged => "err.convention.rule_changed" [],
+    ConventionRuleMissing => "err.convention.rule_missing" [],
+    ConventionWorkTierUnavailable => "err.convention.work_tier_unavailable" [],
     ConventionEmptyResult => "err.convention.empty_result" ["segment_id"],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──

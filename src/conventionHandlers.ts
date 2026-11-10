@@ -13,7 +13,20 @@ import {
   rescanConventionReplace,
   selectConventionReplaceVisible,
 } from './conventionReplaceState'
-import { closeConventionManage, openConventionManage, submitConventionRule } from './conventionManageState'
+import {
+  beginConventionManageEdit,
+  cancelConventionManageDeleteConfirm,
+  cancelConventionManageEdit,
+  closeConventionManage,
+  deleteConventionManageRule,
+  disableConventionManageRule,
+  enableConventionManageRule,
+  nextConventionManageTier,
+  openConventionManage,
+  saveConventionManageEdit,
+  stepConventionManageCursor,
+  submitConventionRule,
+} from './conventionManageState'
 
 export const conventionHandlers = {
   nextMark: (): void => {
@@ -50,6 +63,43 @@ export const conventionHandlers = {
 
   addConventionRule: (): void => {
     void submitConventionRule()
+  },
+
+  beginConventionManageEdit: (): void => {
+    beginConventionManageEdit()
+  },
+
+  saveConventionManageEdit: (): void => {
+    void saveConventionManageEdit()
+  },
+
+  cancelConventionManageEdit: (): void => {
+    cancelConventionManageDeleteConfirm()
+    cancelConventionManageEdit()
+  },
+
+  deleteConventionManageRule: (): void => {
+    void deleteConventionManageRule()
+  },
+
+  disableConventionManageRule: (): void => {
+    void disableConventionManageRule()
+  },
+
+  enableConventionManageRule: (): void => {
+    void enableConventionManageRule()
+  },
+
+  nextConventionManageRow: (): void => {
+    stepConventionManageCursor(1)
+  },
+
+  prevConventionManageRow: (): void => {
+    stepConventionManageCursor(-1)
+  },
+
+  nextConventionManageTier: (): void => {
+    nextConventionManageTier()
   },
 
   openConventionReplace: (): void => {

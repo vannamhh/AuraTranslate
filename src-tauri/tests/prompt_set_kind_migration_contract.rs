@@ -149,7 +149,7 @@ fn a_project_store_from_step_42_gains_kind_and_the_proofread_columns_with_neutra
         "than cu",
     )
     .expect("tao bo Work");
-    assert_eq!(open.store.schema_version(), 43, "kho moi phai co buoc 43");
+    assert_eq!(open.store.schema_version(), 44, "kho moi phai co buoc 44");
     open.store
         .write(|tx: &Transaction<'_>| {
             tx.execute_batch(&format!(
@@ -159,14 +159,14 @@ fn a_project_store_from_step_42_gains_kind_and_the_proofread_columns_with_neutra
                  ALTER TABLE proof_scan DROP COLUMN instruction_set_name; \
                  ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; \
                  INSERT INTO proof_scan (id, scope, scanned_at, reported, filtered) VALUES (1, 'chapter', '2026-01-01T00:00:00Z', 0, 0); \
-                 DELETE FROM schema_migration_log WHERE version = 43; \
+                 DROP TABLE convention_rule; DELETE FROM schema_migration_log WHERE version IN (43, 44); \
                  PRAGMA user_version = 42;"
             ))
         })
         .expect("ha ve buoc 42");
     let open = reopen_work(open);
 
-    assert_eq!(open.store.schema_version(), 43);
+    assert_eq!(open.store.schema_version(), 44);
     let translate = prompt_set_list(Some(&global), Some(&open), PromptSetKind::Translate).unwrap();
     assert_eq!(names(&translate.sets), [("A", "than cu")]);
     prompt_set_create(

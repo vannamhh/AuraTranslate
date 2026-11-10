@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::store::{ReadHandle, SqlResult, Store, StoreError, Transaction};
+use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
 use super::normalize::rule_key;
 use super::rule::{Rule, RuleTier};
@@ -17,12 +17,12 @@ pub struct RuleRow {
 }
 
 impl RuleRow {
-    pub fn into_rule(self) -> Rule {
+    pub fn into_rule(self, tier: RuleTier) -> Rule {
         Rule {
             key: self.rule_key,
             avoid_phrase: self.avoid_phrase,
             replacement_phrase: self.replacement_phrase,
-            tier: RuleTier::Global,
+            tier,
         }
     }
 }
@@ -32,6 +32,8 @@ pub enum ConventionStoreError {
     Store(StoreError),
     EmptyAvoidPhrase,
     DuplicateAvoidPhrase,
+    RuleMissing,
+    WorkTierUnavailable,
 }
 
 impl std::fmt::Display for ConventionStoreError {
@@ -40,6 +42,8 @@ impl std::fmt::Display for ConventionStoreError {
             Self::Store(e) => write!(f, "convention[store] {e}"),
             Self::EmptyAvoidPhrase => write!(f, "convention[empty_avoid_phrase]"),
             Self::DuplicateAvoidPhrase => write!(f, "convention[duplicate_avoid_phrase]"),
+            Self::RuleMissing => write!(f, "convention[rule_missing]"),
+            Self::WorkTierUnavailable => write!(f, "convention[work_tier_unavailable]"),
         }
     }
 }
@@ -68,6 +72,18 @@ impl From<ConventionStoreError> for IpcError {
                 BTreeMap::new(),
                 false,
             ),
+            ConventionStoreError::RuleMissing => IpcError::new(
+                "convention.rule_missing",
+                MessageKey::ConventionRuleMissing,
+                BTreeMap::new(),
+                false,
+            ),
+            ConventionStoreError::WorkTierUnavailable => IpcError::new(
+                "convention.work_tier_unavailable",
+                MessageKey::ConventionWorkTierUnavailable,
+                BTreeMap::new(),
+                false,
+            ),
         }
     }
 }
@@ -92,6 +108,13 @@ pub fn list_rules(store: &Store) -> Result<Vec<RuleRow>, StoreError> {
         let rows = stmt.query_map([], row)?;
         rows.collect::<SqlResult<Vec<RuleRow>>>()
     })
+}
+
+/// Every rule of the store the transaction belongs to.
+pub fn list_rules_in(tx: &Transaction<'_>) -> SqlResult<Vec<RuleRow>> {
+    let mut stmt = tx.prepare(SELECT_RULES)?;
+    let rows = stmt.query_map([], row)?;
+    rows.collect::<SqlResult<Vec<RuleRow>>>()
 }
 
 /// The enabled rule with `key`, or `None` when it is gone or disabled.
@@ -124,6 +147,119 @@ pub fn add_rule(
         .map(str::to_owned);
     let key = rule_key(&avoid);
     let inserted = store.write(move |tx: &Transaction<'_>| {
+        let existing: Option<(i64, i64)> = match tx.query_row(
+            "SELECT id, enabled FROM convention_rule WHERE rule_key = ?1",
+            [&key],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ) {
+            Ok(found) => Some(found),
+            Err(SqlError::QueryReturnedNoRows) => None,
+            Err(err) => return Err(err),
+        };
+        match existing {
+            Some((_, enabled)) if enabled != 0 => return Ok(None),
+            Some((id, _)) => {
+                tx.execute(
+                    "UPDATE convention_rule SET avoid_phrase = ?1, replacement_phrase = ?2, \
+                     enabled = 1 WHERE id = ?3",
+                    (&avoid, &replacement, id),
+                )?;
+                return Ok(Some(id));
+            }
+            None => {}
+        }
+        tx.execute(
+            "INSERT INTO convention_rule \
+             (avoid_phrase, replacement_phrase, rule_key, enabled, created_at) \
+             VALUES (?1, ?2, ?3, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            (&avoid, &replacement, &key),
+        )?;
+        Ok(Some(tx.last_insert_rowid()))
+    })?;
+    inserted.ok_or(ConventionStoreError::DuplicateAvoidPhrase)
+}
+
+fn normalized(
+    avoid_phrase: &str,
+    replacement_phrase: Option<&str>,
+) -> Result<(String, Option<String>, String), ConventionStoreError> {
+    let avoid = avoid_phrase.trim().to_owned();
+    if avoid.is_empty() {
+        return Err(ConventionStoreError::EmptyAvoidPhrase);
+    }
+    let replacement = replacement_phrase
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned);
+    let key = rule_key(&avoid);
+    Ok((avoid, replacement, key))
+}
+
+/// The row with `key` whether or not it is enabled.
+pub fn find_row_by_key(store: &Store, key: &str) -> Result<Option<RuleRow>, StoreError> {
+    let key = key.to_owned();
+    store.read(move |conn: ReadHandle<'_>| {
+        let mut stmt = conn.prepare(
+            "SELECT id, rule_key, avoid_phrase, replacement_phrase, enabled \
+             FROM convention_rule WHERE rule_key = ?1",
+        )?;
+        let mut rows = stmt.query_map([key], row)?;
+        rows.next().transpose()
+    })
+}
+
+/// Rewrites rule `id`. Another row of the same store already holding the new key is refused; a
+/// row that is gone is `RuleMissing`. Nothing is written on a refusal.
+pub fn edit_rule(
+    store: &Store,
+    id: i64,
+    avoid_phrase: &str,
+    replacement_phrase: Option<&str>,
+) -> Result<(), ConventionStoreError> {
+    let (avoid, replacement, key) = normalized(avoid_phrase, replacement_phrase)?;
+    store.write(move |tx: &Transaction<'_>| {
+        let exists: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM convention_rule WHERE id = ?1)",
+            [id],
+            |r| r.get(0),
+        )?;
+        if !exists {
+            return Ok(Err(ConventionStoreError::RuleMissing));
+        }
+        let clash: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM convention_rule WHERE rule_key = ?1 AND id <> ?2)",
+            (&key, id),
+            |r| r.get(0),
+        )?;
+        if clash {
+            return Ok(Err(ConventionStoreError::DuplicateAvoidPhrase));
+        }
+        tx.execute(
+            "UPDATE convention_rule SET avoid_phrase = ?1, replacement_phrase = ?2, rule_key = ?3 \
+             WHERE id = ?4",
+            (&avoid, &replacement, &key, id),
+        )?;
+        Ok(Ok(()))
+    })?
+}
+
+/// Deletes rule `id`; a row that is already gone is not an error.
+pub fn delete_rule(store: &Store, id: i64) -> Result<(), ConventionStoreError> {
+    store.write(move |tx: &Transaction<'_>| {
+        tx.execute("DELETE FROM convention_rule WHERE id = ?1", [id])
+    })?;
+    Ok(())
+}
+
+/// Switches a Global rule off for the open Work: inserts the Work-tier row with the same key,
+/// no replacement and `enabled = 0`. A Work row already holding the key refuses.
+pub fn disable_in_work(
+    work: &Store,
+    avoid_phrase: &str,
+    key: &str,
+) -> Result<i64, ConventionStoreError> {
+    let (avoid, key) = (avoid_phrase.to_owned(), key.to_owned());
+    let inserted = work.write(move |tx: &Transaction<'_>| {
         let exists: bool = tx.query_row(
             "SELECT EXISTS(SELECT 1 FROM convention_rule WHERE rule_key = ?1)",
             [&key],
@@ -135,10 +271,26 @@ pub fn add_rule(
         tx.execute(
             "INSERT INTO convention_rule \
              (avoid_phrase, replacement_phrase, rule_key, enabled, created_at) \
-             VALUES (?1, ?2, ?3, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-            (&avoid, &replacement, &key),
+             VALUES (?1, NULL, ?2, 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            (&avoid, &key),
         )?;
         Ok(Some(tx.last_insert_rowid()))
     })?;
     inserted.ok_or(ConventionStoreError::DuplicateAvoidPhrase)
+}
+
+/// Switches a Global rule back on for the open Work: deletes the disabled Work row with `key`.
+/// No such row is `RuleMissing`.
+pub fn enable_in_work(work: &Store, key: &str) -> Result<(), ConventionStoreError> {
+    let key = key.to_owned();
+    let changed = work.write(move |tx: &Transaction<'_>| {
+        tx.execute(
+            "DELETE FROM convention_rule WHERE rule_key = ?1 AND enabled = 0",
+            [&key],
+        )
+    })?;
+    if changed == 0 {
+        return Err(ConventionStoreError::RuleMissing);
+    }
+    Ok(())
 }

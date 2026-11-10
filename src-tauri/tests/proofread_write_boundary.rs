@@ -584,7 +584,7 @@ fn no_work_open_is_refused() {
     assert_eq!(r.expect_err("no work").code(), "work.none_open");
 }
 
-const SRC_RS_FLOOR: usize = 126;
+const SRC_RS_FLOOR: usize = 135;
 const WEBVIEW_PROOFREAD_FILE_FLOOR: usize = 11;
 const WRITE_CALL: &str = "write_non_user_target(";
 const ACCEPT_FILE: &str = "commands/segment/proofread_accept.rs";

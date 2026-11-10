@@ -4,6 +4,7 @@
 mod casing;
 mod matcher;
 mod normalize;
+mod resolve;
 mod rule;
 mod splice;
 mod store;
@@ -11,6 +12,10 @@ mod store;
 pub use casing::transfer_case;
 pub use matcher::{Hit, Matcher, Scan, phrase_spans};
 pub use normalize::rule_key;
+pub use resolve::{RuleStatus, effective_row, resolve_two_tiers, row_status};
 pub use rule::{Rule, RuleTier};
 pub use splice::apply_spans;
-pub use store::{ConventionStoreError, RuleRow, add_rule, find_active_rule, list_rules};
+pub use store::{
+    ConventionStoreError, RuleRow, add_rule, delete_rule, disable_in_work, edit_rule,
+    enable_in_work, find_active_rule, find_row_by_key, list_rules, list_rules_in,
+};

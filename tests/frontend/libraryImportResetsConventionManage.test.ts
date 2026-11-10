@@ -37,8 +37,8 @@ vi.mock('../../src/config/convention', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/convention')>()
   return {
     ...actual,
-    listConventionRules: async () => ({
-      rules: [{ rule_id: 'r-1', avoid: 'đảm bảo', replacement_cased: 'bảo đảm' }],
+    listConventionRules: async (tier: string) => ({
+      rules: tier === 'work' ? [] : [{ rule_id: 'r-1', avoid: 'đảm bảo', replacement_cased: 'bảo đảm' }],
       error: null,
     }),
   }

@@ -1227,6 +1227,15 @@ export type CommandDeps = {
   openConventionManage?: () => void
   closeConventionManage?: () => void
   addConventionRule?: () => void
+  beginConventionManageEdit?: () => void
+  saveConventionManageEdit?: () => void
+  cancelConventionManageEdit?: () => void
+  deleteConventionManageRule?: () => void
+  disableConventionManageRule?: () => void
+  enableConventionManageRule?: () => void
+  nextConventionManageRow?: () => void
+  prevConventionManageRow?: () => void
+  nextConventionManageTier?: () => void
   openConventionReplace?: () => void
   openConventionReplaceForRule?: () => void
   selectAllConventionReplace?: () => void
@@ -5450,6 +5459,108 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('convention.manage.add', 'addConventionRule')
       }
       deps.addConventionRule()
+    },
+  })
+  target.register({
+    id: 'convention.manage.edit',
+    labelKey: 'command.convention.manage.edit',
+    keys: undefined,
+    run: () => {
+      if (deps.beginConventionManageEdit === undefined) {
+        return portMissing('convention.manage.edit', 'beginConventionManageEdit')
+      }
+      deps.beginConventionManageEdit()
+    },
+  })
+  target.register({
+    id: 'convention.manage.save',
+    labelKey: 'command.convention.manage.save',
+    keys: undefined,
+    run: () => {
+      if (deps.saveConventionManageEdit === undefined) {
+        return portMissing('convention.manage.save', 'saveConventionManageEdit')
+      }
+      deps.saveConventionManageEdit()
+    },
+  })
+  target.register({
+    id: 'convention.manage.cancel',
+    labelKey: 'command.convention.manage.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelConventionManageEdit === undefined) {
+        return portMissing('convention.manage.cancel', 'cancelConventionManageEdit')
+      }
+      deps.cancelConventionManageEdit()
+    },
+  })
+  target.register({
+    id: 'convention.manage.delete',
+    labelKey: 'command.convention.manage.delete',
+    keys: undefined,
+    run: () => {
+      if (deps.deleteConventionManageRule === undefined) {
+        return portMissing('convention.manage.delete', 'deleteConventionManageRule')
+      }
+      deps.deleteConventionManageRule()
+    },
+  })
+  target.register({
+    id: 'convention.manage.disable',
+    labelKey: 'command.convention.manage.disable',
+    keys: undefined,
+    run: () => {
+      if (deps.disableConventionManageRule === undefined) {
+        return portMissing('convention.manage.disable', 'disableConventionManageRule')
+      }
+      deps.disableConventionManageRule()
+    },
+  })
+  target.register({
+    id: 'convention.manage.enable',
+    labelKey: 'command.convention.manage.enable',
+    keys: undefined,
+    run: () => {
+      if (deps.enableConventionManageRule === undefined) {
+        return portMissing('convention.manage.enable', 'enableConventionManageRule')
+      }
+      deps.enableConventionManageRule()
+    },
+  })
+  target.register({
+    id: 'convention.manage.next',
+    labelKey: 'command.convention.manage.next',
+    keys: undefined,
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách luật mà chuột nhắm thẳng được từng hàng.', at: 'src/ConventionManageOverlay.vue' },
+    run: () => {
+      if (deps.nextConventionManageRow === undefined) {
+        return portMissing('convention.manage.next', 'nextConventionManageRow')
+      }
+      deps.nextConventionManageRow()
+    },
+  })
+  target.register({
+    id: 'convention.manage.prev',
+    labelKey: 'command.convention.manage.prev',
+    keys: undefined,
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách luật mà chuột nhắm thẳng được từng hàng.', at: 'src/ConventionManageOverlay.vue' },
+    run: () => {
+      if (deps.prevConventionManageRow === undefined) {
+        return portMissing('convention.manage.prev', 'prevConventionManageRow')
+      }
+      deps.prevConventionManageRow()
+    },
+  })
+  target.register({
+    id: 'convention.manage.tier_next',
+    labelKey: 'command.convention.manage.tier_next',
+    keys: undefined,
+    pointer: { kind: 'aim', reason: 'Thanh tầng là ba nút radio bấm thẳng được từng nấc.', at: 'src/ConventionManageOverlay.vue' },
+    run: () => {
+      if (deps.nextConventionManageTier === undefined) {
+        return portMissing('convention.manage.tier_next', 'nextConventionManageTier')
+      }
+      deps.nextConventionManageTier()
     },
   })
   target.register({

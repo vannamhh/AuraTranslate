@@ -37,6 +37,15 @@ async function invoke(command, args) {
   )
 }
 
+async function pickAddTier(value) {
+  const trigger = await $('[data-convention-add-tier] summary')
+  await trigger.waitForDisplayed({ timeout: 10_000 })
+  await realClick(trigger)
+  const option = await $(`//input[@data-convention-add-tier-option="${value}"]/parent::label`)
+  await option.waitForDisplayed({ timeout: 10_000 })
+  await realClick(option)
+}
+
 async function typeInto(selector, value) {
   const input = await $(selector)
   await realClick(input)
@@ -79,6 +88,7 @@ describe('Story 16-2 -- replace the whole Chapter from a list', () => {
     await $('[data-convention-add-avoid]').waitForDisplayed({ timeout: 10_000 })
     await typeInto('[data-convention-add-avoid]', AVOID)
     await typeInto('[data-convention-add-replacement]', REPLACEMENT)
+    await pickAddTier('global')
     await realClick(await $('[data-convention-add]'))
     await browser.waitUntil(
       async () => browser.execute(() => document.querySelectorAll('[data-convention-rule-row]').length === 1),

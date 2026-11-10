@@ -8,7 +8,7 @@ use boundary_scan::{code_lines, is_inside};
 
 const CONVENTION_DIR: &str = "core/convention";
 const AI_DIR: &str = "core/ai";
-const CONVENTION_FLOOR: usize = 6;
+const CONVENTION_FLOOR: usize = 7;
 const AI_FLOOR: usize = 5;
 const SRC_RS_FLOOR: usize = 133;
 

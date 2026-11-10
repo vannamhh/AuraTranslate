@@ -960,7 +960,7 @@ fn migration_42_starts_only_chapters_that_hold_a_translation_and_opening_refresh
     sql(
         &opened,
         "UPDATE chapter SET status = 'not_started' WHERE id = 1; \
-         DROP INDEX idx_prompt_set_kind_name; CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name); ALTER TABLE prompt_set DROP COLUMN kind; ALTER TABLE work DROP COLUMN chosen_proofread_prompt_set_name; ALTER TABLE work DROP COLUMN proofread_instruction_off; ALTER TABLE proof_scan DROP COLUMN instruction_set_name; ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; DELETE FROM schema_migration_log WHERE version IN (42, 43); PRAGMA user_version = 41;",
+         DROP INDEX idx_prompt_set_kind_name; CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name); ALTER TABLE prompt_set DROP COLUMN kind; ALTER TABLE work DROP COLUMN chosen_proofread_prompt_set_name; ALTER TABLE work DROP COLUMN proofread_instruction_off; ALTER TABLE proof_scan DROP COLUMN instruction_set_name; ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; DROP TABLE convention_rule; DELETE FROM schema_migration_log WHERE version IN (42, 43, 44); PRAGMA user_version = 41;",
     );
     assert_eq!(
         read_meta_from_disk(&opened.dir).status.as_deref(),

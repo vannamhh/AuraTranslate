@@ -32,6 +32,8 @@ export type ConventionScanWire = {
   not_scanned: number
 }
 
+export type ConventionRuleStatus = 'in_use' | 'shadowed' | 'disabled_in_work'
+
 export type ConventionRuleWire = {
   id: number
   rule_key: string
@@ -39,7 +41,12 @@ export type ConventionRuleWire = {
   replacement_phrase: string | null
   enabled: boolean
   tier: ConventionTier
+  status: ConventionRuleStatus
 }
+
+export type ConventionTierFilter = ConventionTier | 'both'
+
+export const CONVENTION_WORK_TIER_UNAVAILABLE = 'convention.work_tier_unavailable'
 
 export type ConventionWriteOutcome = {
   segment_id: number
@@ -63,13 +70,24 @@ export type ConventionRangeWrite = {
 
 const CMD_LIST = 'convention_list_rules'
 const CMD_ADD = 'convention_add_rule'
+const CMD_EDIT = 'convention_edit_rule'
+const CMD_DELETE = 'convention_delete_rule'
+const CMD_SET_ENABLED = 'convention_set_enabled'
 const CMD_SCAN = 'convention_scan_chapter'
 const CMD_ACCEPT = 'convention_accept'
 const CMD_REVERT = 'convention_revert'
 const CMD_SCAN_PROGRESS = 'convention_scan_chapter_progress'
 const CMD_REPLACE_CHAPTER = 'convention_replace_chapter'
 
-type Label = 'scan_chapter' | 'scan_chapter_progress' | 'list_rules' | 'add_rule' | 'accept' | 'revert' | 'replace_chapter'
+type Label =
+  | 'scan_chapter'
+  | 'scan_chapter_progress'
+  | 'list_rules'
+  | 'add_rule'
+  | 'edit_rule'
+  | 'delete_rule'
+  | 'set_enabled'
+  | 'accept' | 'revert' | 'replace_chapter'
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
@@ -123,7 +141,8 @@ function isRuleWire(value: unknown): value is ConventionRuleWire {
     typeof v.avoid_phrase === 'string' &&
     (typeof v.replacement_phrase === 'string' || v.replacement_phrase === null) &&
     typeof v.enabled === 'boolean' &&
-    (v.tier === 'global' || v.tier === 'work')
+    (v.tier === 'global' || v.tier === 'work') &&
+    (v.status === 'in_use' || v.status === 'shadowed' || v.status === 'disabled_in_work')
   )
 }
 
@@ -171,9 +190,11 @@ export async function scanConventionChapter(
   }
 }
 
-export async function listConventionRules(): Promise<{ rules: ConventionRuleWire[] | null; error: IpcError | null }> {
+export async function listConventionRules(
+  tier: ConventionTierFilter,
+): Promise<{ rules: ConventionRuleWire[] | null; error: IpcError | null }> {
   try {
-    const wire = await invoke<unknown>(CMD_LIST)
+    const wire = await invoke<unknown>(CMD_LIST, { tier })
     if (!Array.isArray(wire) || !wire.every(isRuleWire)) {
       return { rules: null, error: badShape('list_rules', 'ConventionRuleWire[]') }
     }
@@ -183,17 +204,53 @@ export async function listConventionRules(): Promise<{ rules: ConventionRuleWire
   }
 }
 
+export type ConventionWriteAck = { ok: boolean; error: IpcError | null }
+
 /** A blank replacement is stored as "không dùng". */
 export async function addConventionRule(
+  tier: ConventionTier,
   avoidPhrase: string,
   replacementPhrase: string | null,
-): Promise<{ ok: boolean; error: IpcError | null }> {
+): Promise<ConventionWriteAck> {
   try {
-    const id = await invoke<unknown>(CMD_ADD, { avoidPhrase, replacementPhrase })
+    const id = await invoke<unknown>(CMD_ADD, { tier, avoidPhrase, replacementPhrase })
     if (!isCount(id)) return { ok: false, error: badShape('add_rule', 'a rule id') }
     return { ok: true, error: null }
   } catch (err) {
     return { ok: false, error: failure('add_rule', err) }
+  }
+}
+
+export async function editConventionRule(
+  tier: ConventionTier,
+  id: number,
+  avoidPhrase: string,
+  replacementPhrase: string | null,
+): Promise<ConventionWriteAck> {
+  try {
+    await invoke<unknown>(CMD_EDIT, { tier, id, avoidPhrase, replacementPhrase })
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: failure('edit_rule', err) }
+  }
+}
+
+export async function deleteConventionRule(tier: ConventionTier, id: number): Promise<ConventionWriteAck> {
+  try {
+    await invoke<unknown>(CMD_DELETE, { tier, id })
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: failure('delete_rule', err) }
+  }
+}
+
+/** Switches the Global rule `ruleKey` off or back on for the open Work only. */
+export async function setConventionRuleEnabled(ruleKey: string, enabled: boolean): Promise<ConventionWriteAck> {
+  try {
+    await invoke<unknown>(CMD_SET_ENABLED, { ruleKey, enabled })
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: failure('set_enabled', err) }
   }
 }
 

@@ -2076,7 +2076,7 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
 /// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
 /// container giữa Work và Chapter).
-const NON_ENTITY_DETAIL_TABLES: [&str; 22] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 23] = [
     // Story 6.11 (FR127) -- moi hang la MOT ANH cua MOT Chuong (chapter_id, khong work_id --
     // xem doc-comment ASSET_DDL: "project.db la kho cua DUNG mot Tac pham nen chapter_id da
     // xac dinh no"), cung vai voi `segment`/`chapter_position` -- mot chi tiet VE tren mot
@@ -2090,6 +2090,8 @@ const NON_ENTITY_DETAIL_TABLES: [&str; 22] = [
     "alignment_group",
     "alignment_member",
     "chapter_position",
+    // AD-67 rule 2: the Work tier of the convention rule list, a flat avoid/replace table.
+    "convention_rule",
     "glossary_candidate",
     "glossary_entry",
     "import_cleanup_rule",

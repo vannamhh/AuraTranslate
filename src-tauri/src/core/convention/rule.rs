@@ -1,13 +1,16 @@
-/// The store a rule lives in. The Work tier arrives with the management screen.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The store a rule lives in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum RuleTier {
     Global,
+    Work,
 }
 
 impl RuleTier {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Global => "global",
+            Self::Work => "work",
         }
     }
 }

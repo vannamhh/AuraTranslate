@@ -1175,6 +1175,9 @@ pub fn run() {
             crate::commands::cleanup::wire::cleanup_set_enabled,
             crate::commands::convention::wire::convention_list_rules,
             crate::commands::convention::wire::convention_add_rule,
+            crate::commands::convention::wire::convention_edit_rule,
+            crate::commands::convention::wire::convention_delete_rule,
+            crate::commands::convention::wire::convention_set_enabled,
             crate::commands::convention::wire::convention_scan_chapter,
             crate::commands::convention::wire::convention_scan_chapter_progress,
             // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
