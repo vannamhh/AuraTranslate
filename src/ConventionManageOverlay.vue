@@ -4,6 +4,7 @@ import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import SelectMenu from './SelectMenu.vue'
+import ConventionIgnoreCard from './ConventionIgnoreCard.vue'
 import type { ConventionRuleWire, ConventionTierFilter } from './config/convention'
 import {
   CONVENTION_TIER_ORDER,
@@ -18,10 +19,12 @@ import {
   conventionManageEditing,
   conventionManageError,
   conventionManageHasLoaded,
+  conventionManageIgnoreRows,
   conventionManageIsOpen,
   conventionManageRows,
   conventionManageSummary,
   conventionManageSearch,
+  conventionManageTab,
   conventionManageTierFilter,
   conventionManageWorkTierAvailable,
   conventionReplacementDraft,
@@ -142,6 +145,7 @@ function onEscape(): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (conventionManageTab.value !== 'rules') return
   if (event.ctrlKey || event.metaKey || event.altKey) return
   const target = event.target
   if (
@@ -222,6 +226,33 @@ function trapTab(event: KeyboardEvent): void {
         </button>
       </header>
 
+      <div class="cvm-tabs" role="tablist" :aria-label="t('convention.manage.tabs_label')">
+        <button
+          type="button"
+          role="tab"
+          class="ui-tab"
+          data-convention-tab="rules"
+          :aria-selected="conventionManageTab === 'rules'"
+          :disabled="conventionManageEditing"
+          @click="dispatch('convention.manage.tab_rules')"
+        >
+          {{ t('convention.manage.tab_rules') }}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="ui-tab"
+          data-convention-tab="ignored"
+          :aria-selected="conventionManageTab === 'ignored'"
+          :disabled="conventionManageEditing"
+          @click="dispatch('convention.manage.tab_ignored')"
+        >
+          {{ t('convention.manage.tab_ignored', { ignored_count: String(conventionManageIgnoreRows.length) }) }}
+        </button>
+      </div>
+
+      <ConventionIgnoreCard v-if="conventionManageTab === 'ignored'" />
+      <template v-else>
       <p v-if="conventionManageHasLoaded && !conventionManageWorkTierAvailable" class="cvm-note">
         {{ t('convention.manage.work_locked') }}
       </p>
@@ -469,6 +500,7 @@ function trapTab(event: KeyboardEvent): void {
         <p class="cvm-note">{{ t('convention.manage.shadowed_hint') }}</p>
         <p class="cvm-note">{{ t('convention.manage.hint') }}</p>
       </template>
+      </template>
     </section>
   </div>
 </template>
@@ -524,6 +556,11 @@ function trapTab(event: KeyboardEvent): void {
   line-height: var(--leading-read-title);
 }
 
+
+.cvm-tabs {
+  display: flex;
+  gap: calc(var(--space-unit) * 1);
+}
 
 .cvm-add {
   display: flex;

@@ -2,6 +2,7 @@ import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import {
   acceptConventionSpan,
+  addConventionIgnore,
   revertConventionSpan,
   scanConventionChapter,
   scanConventionSegments as scanConventionSegmentsCall,
@@ -600,4 +601,66 @@ export function stepMarks(direction: 1 | -1): void {
 export function skipConventionSpot(): void {
   if (conventionCurrent.value === null) return
   stepMarks(1)
+}
+
+function stepPast(segmentId: number, start: number): void {
+  const order = new Map(editorSegments.value.map((segment, at) => [segment.id, at] as const))
+  const here = order.get(segmentId) ?? 0
+  const target = markPositions().find((m) => {
+    const at = order.get(m.segmentId) ?? 0
+    return at > here || (at === here && m.start > start)
+  })
+  if (target === undefined) {
+    say(caretSentenceIsPending() ? 'convention.status.sentence_pending' : 'convention.status.no_next')
+    return
+  }
+  land(target)
+}
+
+/** "Không phải lỗi": remembers the viewed spot for the open Work, drops that one span and moves to the next mark. */
+export async function ignoreConventionSpot(): Promise<void> {
+  if (acting.value) return
+  const current = conventionCurrent.value
+  if (current === null) return
+  const mine = generation
+  const { segmentId, span, scannedText } = current
+  acting.value = true
+  actionFailure.value = null
+  try {
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed !== 'clean') {
+      actionFailure.value = { segmentId, error: flushFailure(flushed) }
+      return
+    }
+    if (mine !== generation || !(results.value.get(segmentId)?.spans.includes(span) ?? false)) return
+    const result = await addConventionIgnore({
+      segmentId,
+      expectedText: scannedText,
+      start: span.start,
+      end: span.end,
+      expectedPhrase: scannedText.slice(span.start, span.end),
+      ruleKey: span.rule_key,
+    })
+    if (!result.ok) {
+      if (result.error !== null) actionFailure.value = { segmentId, error: result.error }
+      return
+    }
+    if (mine !== generation) return
+    const entry = results.value.get(segmentId)
+    if (entry === undefined) return
+    const spans = entry.spans.filter((other) => other !== span)
+    const next = new Map(results.value)
+    if (spans.length === 0) next.delete(segmentId)
+    else next.set(segmentId, { scannedText: entry.scannedText, spans })
+    results.value = next
+    counts.value = { ...counts.value, ignored: counts.value.ignored + 1 }
+    const at = opened.value
+    if (at !== null && at.segmentId === segmentId) {
+      opened.value = spans.length === 0 ? null : { segmentId, index: Math.max(0, Math.min(at.index, spans.length - 1)) }
+    }
+    stepPast(segmentId, span.start)
+    say('convention.status.ignored')
+  } finally {
+    acting.value = false
+  }
 }

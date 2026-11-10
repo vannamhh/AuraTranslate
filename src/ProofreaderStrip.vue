@@ -286,6 +286,15 @@ const filteredText = computed<string | null>(() =>
           {{ t('convention.strip.skip') }}
         </button>
         <button
+          type="button"
+          class="pfs-btn ui-btn"
+          data-convention-ignore
+          :disabled="conventionBusy"
+          @click="dispatch('convention.ignore')"
+        >
+          {{ t('convention.strip.ignore') }}
+        </button>
+        <button
           v-if="conventionViewedRuleCount !== null"
           type="button"
           class="pfs-btn ui-btn"

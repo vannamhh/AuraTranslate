@@ -9,9 +9,11 @@ use std::sync::{Arc, Mutex};
 use crate::commands::project::{OpenWork, OpenWorkState};
 use crate::commands::segment::select_chapter_segments;
 use crate::core::convention::{
-    ConventionStoreError, Matcher, RuleRow, RuleStatus, RuleTier, add_rule, delete_rule,
-    disable_in_work, edit_rule, effective_row, enable_in_work, find_row_by_key, list_rules,
-    phrase_spans, resolve_two_tiers, row_status, transfer_case,
+    ConventionSignature, ConventionStoreError, Matcher, RuleRow, RuleStatus, RuleTier, add_ignore,
+    add_rule, clear_ignores, delete_rule, disable_in_work, edit_rule, effective_row,
+    enable_in_work, filter_ignored, find_row_by_key, list_ignore_rows, list_ignores, list_rules,
+    phrase_spans, remove_ignore, resolve_two_tiers, row_status, rule_key, signature_of,
+    transfer_case,
 };
 use crate::core::glossary::{GlossarySnapshot, match_lang_for_source_lang};
 use crate::core::i18n::IpcError;
@@ -235,8 +237,8 @@ pub struct ConventionSegmentWire {
     pub spans: Vec<ConventionSpanWire>,
 }
 
-/// Matches of one scan of the open Chapter. `ignored` stays 0 until the "not an error" memory
-/// exists; `not_scanned` counts omitted sentences.
+/// Matches of one scan of the open Chapter. `ignored` counts the matches the "not an error" memory
+/// silenced; `not_scanned` counts omitted sentences.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ConventionScanWire {
     pub generation: u64,
@@ -267,6 +269,7 @@ struct ScanInput {
     source_lang: String,
     sentences: Vec<SentenceInput>,
     not_scanned: u32,
+    ignored: Vec<ConventionSignature>,
 }
 
 /// One read of the open Chapter, copied out so the caller can drop the `OpenWorkState` lock before
@@ -301,6 +304,7 @@ fn read_scan_input(open: Option<&OpenWork>, only: Option<&[i64]>) -> Result<Scan
         source_lang: open.meta.source_lang.clone(),
         sentences,
         not_scanned,
+        ignored: list_ignores(&open.store)?,
     })
 }
 
@@ -348,7 +352,9 @@ fn load_glossary(
 }
 
 /// Turns the raw hits of one sentence into wire spans, dropping and counting the ones that lie
-/// inside a pinned Glossary translation of that sentence (AD-67 rule 5).
+/// inside a pinned Glossary translation of that sentence (AD-67 rule 5), then the ones the
+/// "not an error" memory silences (rule 9). Returns the spans, the Glossary count and the memory
+/// count. The one place all three scans filter.
 fn resolve_spans(
     matcher: &Matcher,
     lang: crate::core::matching::MatchLang,
@@ -356,7 +362,8 @@ fn resolve_spans(
     source_text: &str,
     text: &str,
     hits: Vec<crate::core::convention::Hit>,
-) -> (Vec<ConventionSpanWire>, u32) {
+    ignored: &[ConventionSignature],
+) -> (Vec<ConventionSpanWire>, u32, u32) {
     let pinned: Vec<(u32, u32)> = glossary
         .map(|glossary| glossary.confirmed_terms(source_text, lang).injected)
         .unwrap_or_default()
@@ -365,11 +372,18 @@ fn resolve_spans(
         .collect();
     let mut spans = Vec::new();
     let mut suppressed = 0u32;
+    let mut unpinned = Vec::with_capacity(hits.len());
     for hit in hits {
         if pinned.iter().any(|&(s, e)| s <= hit.start && hit.end <= e) {
             suppressed += 1;
             continue;
         }
+        unpinned.push(hit);
+    }
+    let (remaining, silenced) = filter_ignored(text, unpinned, ignored, |hit| {
+        (hit.start, hit.end, matcher.rule(hit.rule).key.as_str())
+    });
+    for hit in remaining {
         let rule = matcher.rule(hit.rule);
         let matched = utf16_to_byte(text, hit.start)
             .zip(utf16_to_byte(text, hit.end))
@@ -387,7 +401,7 @@ fn resolve_spans(
             tier: rule.tier.as_str().to_owned(),
         });
     }
-    (spans, suppressed)
+    (spans, suppressed, silenced)
 }
 
 /// Matches `input` against `matcher`. A match that lies inside a pinned Glossary translation found
@@ -395,7 +409,7 @@ fn resolve_spans(
 /// sentence has a match.
 fn match_sentences(
     generation: u64,
-    input: ScanInput,
+    mut input: ScanInput,
     matcher: &Matcher,
     mut snapshot: impl FnMut() -> Result<Option<GlossarySnapshot>, IpcError>,
     mut progress: impl FnMut(u32, u32),
@@ -404,7 +418,8 @@ fn match_sentences(
     let lang = match_lang_for_source_lang(&input.source_lang);
     let mut loaded: Option<Option<GlossarySnapshot>> = None;
     let mut segments = Vec::new();
-    let (mut overlapped, mut suppressed) = (0u32, 0u32);
+    let (mut overlapped, mut suppressed, mut ignored) = (0u32, 0u32, 0u32);
+    let remembered = std::mem::take(&mut input.ignored);
     for (index, sentence) in input.sentences.into_iter().enumerate() {
         let done = u32::try_from(index).unwrap_or(u32::MAX);
         if done > 0 && done % SCAN_PROGRESS_EVERY == 0 {
@@ -418,15 +433,17 @@ fn match_sentences(
         if loaded.is_none() {
             loaded = Some(snapshot()?);
         }
-        let (spans, dropped) = resolve_spans(
+        let (spans, dropped, silenced) = resolve_spans(
             matcher,
             lang,
             loaded.as_ref().and_then(Option::as_ref),
             &sentence.source_text,
             &sentence.target_text,
             scan.hits,
+            &remembered,
         );
         suppressed += dropped;
+        ignored += silenced;
         if !spans.is_empty() {
             segments.push(ConventionSegmentWire {
                 segment_id: sentence.segment_id,
@@ -440,7 +457,7 @@ fn match_sentences(
         generation,
         chapter_id: input.chapter_id,
         segments,
-        ignored: 0,
+        ignored,
         glossary_suppressed: suppressed,
         overlapped,
         not_scanned: input.not_scanned,
@@ -576,7 +593,7 @@ pub fn convention_scan_suggestions(
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
         })
     };
-    let (chapter_id, source_lang, matcher) = {
+    let (chapter_id, source_lang, matcher, remembered) = {
         let guard = lock();
         let open = guard.as_deref().and_then(Option::as_ref);
         let Some(open) = open else {
@@ -593,6 +610,7 @@ pub fn convention_scan_suggestions(
             open.chapter_id,
             open.meta.source_lang.clone(),
             cache.matcher(global, Some(open))?,
+            list_ignores(&open.store)?,
         )
     };
     let lang = match_lang_for_source_lang(&source_lang);
@@ -609,7 +627,7 @@ pub fn convention_scan_suggestions(
         }
     }
     let mut out = Vec::new();
-    let mut suppressed = 0u32;
+    let (mut suppressed, mut ignored) = (0u32, 0u32);
     if !matched.is_empty() {
         let ids: Vec<i64> = matched.iter().map(|(item, _)| item.segment_id).collect();
         let (sources, glossary) = {
@@ -630,15 +648,17 @@ pub fn convention_scan_suggestions(
             let Some(source_text) = sources.get(&item.segment_id) else {
                 continue;
             };
-            let (spans, dropped) = resolve_spans(
+            let (spans, dropped, silenced) = resolve_spans(
                 &matcher,
                 lang,
                 glossary.as_ref(),
                 source_text,
                 &item.text,
                 hits,
+                &remembered,
             );
             suppressed += dropped;
+            ignored += silenced;
             if !spans.is_empty() {
                 out.push(ConventionSegmentWire {
                     segment_id: item.segment_id,
@@ -652,10 +672,103 @@ pub fn convention_scan_suggestions(
         generation,
         chapter_id: Some(chapter_id),
         items: out,
-        ignored: 0,
+        ignored,
         glossary_suppressed: suppressed,
         overlapped,
     })
+}
+
+/// One remembered "not an error" place, as the management card draws it
+/// (`...{context_before}[{avoid_phrase}]{context_after}...`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConventionIgnoreWire {
+    pub id: i64,
+    pub rule_key: String,
+    pub avoid_phrase: String,
+    pub context_before: String,
+    pub context_after: String,
+    pub created_at: String,
+}
+
+fn work_store(open: Option<&OpenWork>) -> Result<&Store, IpcError> {
+    store_for_tier(RuleTier::Work, None, open)
+}
+
+/// Remembers the match `[start, end)` (UTF-16) of `segment_id` as "not an error" for the whole Work
+/// (AD-67 rule 9). The range goes through `check_proofread_range` (AD-53 rule 4), the signature
+/// comes from [`signature_of`], and remembering the same place twice is one row. Writes no text.
+pub fn convention_ignore_add(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    expected_text: &str,
+    start: u32,
+    end: u32,
+    expected_phrase: &str,
+    key: &str,
+) -> Result<(), IpcError> {
+    let store = work_store(open)?;
+    let open_chapter_id = open.map(|open| open.chapter_id).unwrap_or_default();
+    if rule_key(expected_phrase) != key {
+        return Err(crate::commands::segment::rule_unavailable());
+    }
+    let (expected_text, expected_phrase, key) = (
+        expected_text.to_owned(),
+        expected_phrase.to_owned(),
+        key.to_owned(),
+    );
+    store.write(move |tx| {
+        let checked = match crate::commands::segment::check_proofread_range(
+            tx,
+            open_chapter_id,
+            segment_id,
+            &expected_text,
+            start,
+            end,
+            &expected_phrase,
+        )? {
+            Ok(checked) => checked,
+            Err(err) => {
+                return Ok(Err(crate::commands::segment::as_convention_error(
+                    err, segment_id,
+                )));
+            }
+        };
+        let Some(signature) = signature_of(&checked.text, start, end, &key) else {
+            return Ok(Err(crate::commands::segment::as_convention_error(
+                crate::commands::segment::range_invalid(segment_id),
+                segment_id,
+            )));
+        };
+        add_ignore(tx, &signature)?;
+        Ok(Ok(()))
+    })?
+}
+
+/// Every remembered place of the open Work, newest first.
+pub fn convention_ignore_list(
+    open: Option<&OpenWork>,
+) -> Result<Vec<ConventionIgnoreWire>, IpcError> {
+    Ok(list_ignore_rows(work_store(open)?)?
+        .into_iter()
+        .map(|row| ConventionIgnoreWire {
+            id: row.id,
+            rule_key: row.rule_key,
+            avoid_phrase: row.avoid_phrase,
+            context_before: row.context_before,
+            context_after: row.context_after,
+            created_at: row.created_at,
+        })
+        .collect())
+}
+
+/// Forgets one remembered place; `false` when the row is already gone.
+pub fn convention_ignore_remove(open: Option<&OpenWork>, id: i64) -> Result<bool, IpcError> {
+    Ok(remove_ignore(work_store(open)?, id)?)
+}
+
+/// Forgets every remembered place of the open Work and returns how many rows went.
+pub fn convention_ignore_clear(open: Option<&OpenWork>) -> Result<u32, IpcError> {
+    Ok(clear_ignores(work_store(open)?)?)
 }
 
 fn state_missing() -> IpcError {
@@ -668,9 +781,9 @@ fn state_missing() -> IpcError {
 
 pub mod wire {
     use super::{
-        ConventionMatcherState, ConventionRuleWire, ConventionScanProgressWire, ConventionScanWire,
-        ConventionSuggestionItem, ConventionSuggestionScanWire, ConventionTierFilter,
-        state_missing,
+        ConventionIgnoreWire, ConventionMatcherState, ConventionRuleWire,
+        ConventionScanProgressWire, ConventionScanWire, ConventionSuggestionItem,
+        ConventionSuggestionScanWire, ConventionTierFilter, state_missing,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::convention::RuleTier;
@@ -896,5 +1009,65 @@ pub mod wire {
             generation,
             items,
         )
+    }
+
+    fn with_open<R: tauri::Runtime, T>(
+        app: &tauri::AppHandle<R>,
+        job: impl FnOnce(Option<&crate::commands::project::OpenWork>) -> Result<T, IpcError>,
+    ) -> Result<T, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return job(None);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        job(guard.as_ref())
+    }
+
+    #[tauri::command]
+    pub fn convention_ignore_add<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        segment_id: i64,
+        expected_text: String,
+        start: u32,
+        end: u32,
+        expected_phrase: String,
+        rule_key: String,
+    ) -> Result<(), IpcError> {
+        with_open(&app, |open| {
+            super::convention_ignore_add(
+                open,
+                segment_id,
+                &expected_text,
+                start,
+                end,
+                &expected_phrase,
+                &rule_key,
+            )
+        })
+    }
+
+    #[tauri::command]
+    pub fn convention_ignore_list<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<Vec<ConventionIgnoreWire>, IpcError> {
+        with_open(&app, super::convention_ignore_list)
+    }
+
+    #[tauri::command]
+    pub fn convention_ignore_remove<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        id: i64,
+    ) -> Result<bool, IpcError> {
+        with_open(&app, |open| super::convention_ignore_remove(open, id))
+    }
+
+    #[tauri::command]
+    pub fn convention_ignore_clear<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<u32, IpcError> {
+        with_open(&app, super::convention_ignore_clear)
     }
 }

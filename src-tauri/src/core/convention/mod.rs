@@ -2,6 +2,7 @@
 //! case transfer. Pure; it never imports `core::ai`, and `core::ai` never imports it.
 
 mod casing;
+mod ignore;
 mod matcher;
 mod normalize;
 mod resolve;
@@ -10,12 +11,16 @@ mod splice;
 mod store;
 
 pub use casing::transfer_case;
+pub use ignore::{
+    CONVENTION_CONTEXT_CHARS, ConventionSignature, filter_ignored, signature_matches, signature_of,
+};
 pub use matcher::{Hit, Matcher, Scan, phrase_spans};
 pub use normalize::rule_key;
 pub use resolve::{RuleStatus, effective_row, resolve_two_tiers, row_status};
 pub use rule::{Rule, RuleTier};
 pub use splice::apply_spans;
 pub use store::{
-    ConventionStoreError, RuleRow, add_rule, delete_rule, disable_in_work, edit_rule,
-    enable_in_work, find_active_rule, find_row_by_key, list_rules, list_rules_in,
+    ConventionStoreError, IgnoreRow, RuleRow, add_ignore, add_rule, clear_ignores, delete_rule,
+    disable_in_work, edit_rule, enable_in_work, find_active_rule, find_row_by_key,
+    list_ignore_rows, list_ignores, list_rules, list_rules_in, remove_ignore,
 };

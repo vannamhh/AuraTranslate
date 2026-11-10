@@ -1141,15 +1141,11 @@ fn a_version_21_project_database_migrates_to_22_with_all_origin_columns_null_and
 
     let migrated =
         Store::open(StoreSpec::project(db)).expect("mot project.db o phien ban 21 phai mo duoc");
-    // 🔵 CAP NHAT 2026-09-16 (Story 4.2): dich moi nhat la 23 — buoc 23 (ai_config, FR68)
-    // chay THEM sau buoc 22 (khong cham chapter), nen no khong anh huong menh de nay.
-    // 🔵 CAP NHAT 2026-09-17 (Story 4.4): dich moi nhat la 24 — buoc 24 (prompt_set, FR69)
-    // chay THEM sau buoc 23 (khong cham chapter), nen no khong anh huong menh de nay.
-    // Target is now 25: step 25 (occurrence_count + zero-width triggers) runs after step 24
-    // and never touches `chapter`, so this assertion still holds.
+    // Every step after 22 runs later and never touches `chapter`, so this number is only the
+    // latest target of `PROJECT_MIGRATIONS` and moves with it.
     assert_eq!(
         migrated.schema_version(),
-        44,
+        45,
         "di tru phai chay het toi dich moi nhat (qua ca buoc 22 chapter.origin_*)"
     );
 

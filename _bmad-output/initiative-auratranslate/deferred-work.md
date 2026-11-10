@@ -14046,3 +14046,23 @@ chính nó.
   Chủ: Ice
   → 🟡 2026-11-10 — ca `editorTypingZone` ĐÃ ĐÓNG: nó cầm đồng hồ bằng `vi.useFakeTimers()` sau `mountEditor()`, và `beforeEach` gọi `vi.useRealTimers()` nên không ca nào rò đồng hồ giả sang ca sau, kể cả khi đỏ. Đối chứng: `await vi.advanceTimersByTimeAsync(2100)` trước mệnh đề ⇒ đúng một lượt lưu nổ và nó đỏ, nên mệnh đề vẫn đỏ được chứ không bị vô hiệu. CÒN HỞ: `gridBlocks.ts:205` (trần 30 s khi mount 6.100 câu) và `settingsFrame.ts:77` (trần 5 s trong `freshFrame()`) vẫn đỏ khi máy tải nặng; nâng trần là nới ngưỡng nên không làm, và hai ca ấy cần một quyết định khác về cách đo.
   → 🟡 2026-11-10 — `settingsFrame.ts:77` ĐÃ ĐÓNG bằng một lượt `beforeAll` gọi `freshFrame()`: ca đầu từ **1.129 ms xuống 66 ms** trên trần 5.000 ms, vì `vi.resetModules()` ở `beforeEach` dọn thực thể module chứ KHÔNG dọn cache dịch của Vite, nên một lượt hâm là đủ và không ca nào đổi độ cô lập. `gridBlocks.ts` cũng nhận một lượt hâm: ca đầu **1.549 → 123 ms**. CÒN HỞ, và đo rồi mới biết: ca `block 30` **3.744 → 3.680 ms**, gần như KHÔNG đổi — 3,7 giây đó là công việc thật (mount 6.100 câu trong happy-dom), không phải chi phí dịch. Trần 30 s cho dư 8,1 lần, nên nó chỉ đỏ khi máy chậm hơn 8 lần mức rảnh (lượt đỏ đo được ở load 436). Không nâng trần và không thu nhỏ fixture: 6.100 câu là số tối thiểu để CÓ một block 30 với khối 200 hàng, nên thu nhỏ là làm ca đó khẳng định một điều khác.
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-khong-phai-loi-nho-theo-tac-pham-plan.md`
+  summary: nút *Không phải lỗi*, thẻ **Không phải lỗi** của lớp phủ và thanh thẻ (khối `<template v-else>` chưa chỉnh thụt dòng) chưa được chạy trong WKWebView thật: tiêu điểm sau khi bấm nút trong dải, hàng chọn bằng `@pointerdown`, và `onKeydown` đã tắt ở thẻ này mới chỉ có vitest.
+  evidence: `conventionStripIgnore.test.ts` và `conventionIgnoreCard.test.ts` chạy trên happy-dom; AGENTS.md ghi WebKit không trao tiêu điểm cho nút trong lưới nên Chromium/Vitest không lộ lỗi loại này.
+  Chủ: Story 16.7
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-khong-phai-loi-nho-theo-tac-pham-plan.md`
+  summary: lượt vitest ĐỦ thoát 1 với 7 ca đỏ trong 6 tệp, không ca nào thuộc quy ước, và tập tệp đỏ XÊ DỊCH giữa hai lượt (chỉ 3/6 trùng). Bốn tệp chưa có chủ: `gridSentenceMenu`, `importPreviewChapters`, `librarySearchScope`, `shortcutsSearchExchange`.
+  evidence: nguồn tải không phải test — một VM `Virtualization.framework` chạy 14 giờ ở 321% CPU, Claude Helper 141%, WindowServer 92%, Brave 77%, cộng một Chrome for Testing của Playwright; không còn `cargo`/`vitest` nào sót. Lượt chạy riêng sáu tệp ở tải 271 còn 3 ca đỏ, nên "do tải" là NHẤT QUÁN, CHƯA chứng minh: cần một lượt trên máy rảnh để tách tải khỏi lỗi thật.
+  Chủ: Ice
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-khong-phai-loi-nho-theo-tac-pham-plan.md`
+  summary: `filter_ignored` so mỗi chỗ khớp với TOÀN BỘ bộ nhớ "không phải lỗi" (493 × 2.000 phép so ở dân số AD-67 mục 11), dù `signature_matches` đòi khoá luật bằng nhau ngay điều kiện đầu. Chia theo khoá luật là phép sửa hiển nhiên, nhưng chỉ dựng lại khi đo được là nó đáng.
+  evidence: đã viết rồi gỡ trong Story 16.5 — cốt đo (`story_16_5_measure_convention_ignore.rs` :200) cho cả 2.000 hàng CÙNG một khoá nên phép chia không bỏ phép so nào, và mọi `remember_second` của `convention_contract` cũng một khoá nên `debug_assert!` thứ tự không đỏ được. Cần trước: một cốt có bộ nhớ RẢI qua nhiều luật, và một phép đo cho thấy ca đó vượt trần; ca xấu nhất hiện tại (dồn một luật) đã nằm trong trần.
+  Chủ: Story 16.7
+
+- source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-khong-phai-loi-nho-theo-tac-pham-plan.md`
+  summary: một lượt quét cả Chương đang bay có thể DỰNG LẠI chỗ người dùng vừa bấm *Không phải lỗi* hoặc vừa nhận thay: lệnh ghi nhớ không bump thế hệ quét và không thêm segment vào `mergedSinceScan`, nên kết quả của lượt quét cũ thay trọn `results` và chỗ đó hiện lại cho tới lượt quét kế.
+  evidence: `conventionState.ts` chỉ chặn ghi đè theo `mergedSinceScan`; `read_scan_input` đọc `list_ignores` một lần đầu lượt quét, nên một lượt bắt đầu TRƯỚC lúc hàng được ghi vẫn trả chỗ đã ghi nhớ. Đường `acceptConventionSpot` mang đúng hình dạng ấy từ Story 16.1, nên sửa một đường mà bỏ đường kia để lại hai hành vi lệch nhau. Phép sửa nhỏ nhất: bump thế hệ ở cả hai lệnh rời, hoặc mở rộng rào `mergedSinceScan` cho mọi lượt ghi rời.
+  Chủ: Story 16.7

@@ -2256,10 +2256,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     ("src/commands/shortcuts.rs", 0, 2, 2, ""),
     (
         "src/commands/convention.rs",
-        5,
+        9,
         4,
         4,
-        "`convention_scan_chapter`, its progress twin, `convention_scan_segments` and `convention_scan_suggestions` copy what they need under the lock and match after releasing it; the five rule shells list, add, edit, delete or switch one row and stay synchronous so they never interleave with `convention_accept`.",
+        "`convention_scan_chapter`, its progress twin, `convention_scan_segments` and `convention_scan_suggestions` copy what they need under the lock and match after releasing it; the five rule shells list, add, edit, delete or switch one row and the four `convention_ignore_*` shells run one INSERT, DELETE or SELECT on the Work's `convention_ignore` table, and all stay synchronous so they never interleave with `convention_accept`.",
     ),
     (
         "src/commands/cleanup.rs",
@@ -2494,9 +2494,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (120, 76),
+        (124, 76),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         120/76.\n\n\
+         124/76.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -41,6 +41,7 @@ vi.mock('../../src/config/convention', async (importOriginal) => {
       rules: tier === 'work' ? [] : [{ rule_id: 'r-1', avoid: 'đảm bảo', replacement_cased: 'bảo đảm' }],
       error: null,
     }),
+    listConventionIgnores: async () => ({ rows: [], error: null }),
   }
 })
 

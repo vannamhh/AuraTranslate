@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
+use super::ignore::ConventionSignature;
 use super::normalize::rule_key;
 use super::rule::{Rule, RuleTier};
 
@@ -293,4 +294,86 @@ pub fn enable_in_work(work: &Store, key: &str) -> Result<(), ConventionStoreErro
         return Err(ConventionStoreError::RuleMissing);
     }
     Ok(())
+}
+
+/// A remembered "not an error" place as the management card shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IgnoreRow {
+    pub id: i64,
+    pub rule_key: String,
+    pub avoid_phrase: String,
+    pub context_before: String,
+    pub context_after: String,
+    pub created_at: String,
+}
+
+/// Remembers `signature` inside the caller's write transaction; the same signature again is the
+/// same row. Returns whether a row was added.
+pub fn add_ignore(tx: &Transaction<'_>, signature: &ConventionSignature) -> SqlResult<bool> {
+    let added = tx.execute(
+        "INSERT OR IGNORE INTO convention_ignore \
+         (rule_key, avoid_phrase, context_before, context_after, created_at) \
+         VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+        (
+            &signature.rule_key,
+            &signature.phrase,
+            &signature.before,
+            &signature.after,
+        ),
+    )?;
+    Ok(added > 0)
+}
+
+/// Every remembered signature of the Work, for the scan to filter with.
+pub fn list_ignores(store: &Store) -> Result<Vec<ConventionSignature>, StoreError> {
+    store.read(|conn: ReadHandle<'_>| {
+        let mut stmt = conn.prepare(
+            "SELECT rule_key, avoid_phrase, context_before, context_after \
+             FROM convention_ignore ORDER BY id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(ConventionSignature {
+                rule_key: r.get(0)?,
+                phrase: r.get(1)?,
+                before: r.get(2)?,
+                after: r.get(3)?,
+            })
+        })?;
+        rows.collect::<SqlResult<Vec<ConventionSignature>>>()
+    })
+}
+
+/// Every remembered place of the Work, newest first.
+pub fn list_ignore_rows(store: &Store) -> Result<Vec<IgnoreRow>, StoreError> {
+    store.read(|conn: ReadHandle<'_>| {
+        let mut stmt = conn.prepare(
+            "SELECT id, rule_key, avoid_phrase, context_before, context_after, created_at \
+             FROM convention_ignore ORDER BY created_at DESC, id DESC",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(IgnoreRow {
+                id: r.get(0)?,
+                rule_key: r.get(1)?,
+                avoid_phrase: r.get(2)?,
+                context_before: r.get(3)?,
+                context_after: r.get(4)?,
+                created_at: r.get(5)?,
+            })
+        })?;
+        rows.collect::<SqlResult<Vec<IgnoreRow>>>()
+    })
+}
+
+/// Forgets one remembered place; `false` when the row is already gone.
+pub fn remove_ignore(store: &Store, id: i64) -> Result<bool, StoreError> {
+    store.write(move |tx: &Transaction<'_>| {
+        Ok(tx.execute("DELETE FROM convention_ignore WHERE id = ?1", [id])? > 0)
+    })
+}
+
+/// Forgets every remembered place and returns how many rows went.
+pub fn clear_ignores(store: &Store) -> Result<u32, StoreError> {
+    let removed =
+        store.write(|tx: &Transaction<'_>| tx.execute("DELETE FROM convention_ignore", []))?;
+    Ok(u32::try_from(removed).unwrap_or(u32::MAX))
 }

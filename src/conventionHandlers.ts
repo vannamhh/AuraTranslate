@@ -1,6 +1,7 @@
 import {
   acceptConventionSpot,
   hideConventionStrip,
+  ignoreConventionSpot,
   revertConventionSpot,
   skipConventionSpot,
   stepMarks,
@@ -17,13 +18,16 @@ import {
   beginConventionManageEdit,
   cancelConventionManageDeleteConfirm,
   cancelConventionManageEdit,
+  clearConventionManageIgnores,
   closeConventionManage,
   deleteConventionManageRule,
   disableConventionManageRule,
   enableConventionManageRule,
+  forgetConventionManageIgnore,
   nextConventionManageTier,
   openConventionManage,
   saveConventionManageEdit,
+  setConventionManageTab,
   stepConventionManageCursor,
   submitConventionRule,
 } from './conventionManageState'
@@ -43,6 +47,10 @@ export const conventionHandlers = {
 
   skipConvention: (): void => {
     skipConventionSpot()
+  },
+
+  ignoreConvention: (): void => {
+    void ignoreConventionSpot()
   },
 
   revertConvention: (): void => {
@@ -100,6 +108,22 @@ export const conventionHandlers = {
 
   nextConventionManageTier: (): void => {
     nextConventionManageTier()
+  },
+
+  showConventionManageRulesTab: (): void => {
+    setConventionManageTab('rules')
+  },
+
+  showConventionManageIgnoredTab: (): void => {
+    setConventionManageTab('ignored')
+  },
+
+  forgetConventionManageIgnore: (): void => {
+    void forgetConventionManageIgnore()
+  },
+
+  clearConventionManageIgnores: (): void => {
+    void clearConventionManageIgnores()
   },
 
   openConventionReplace: (): void => {

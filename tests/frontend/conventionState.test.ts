@@ -8,6 +8,7 @@ import type {
 const scanMock = vi.fn();
 const acceptMock = vi.fn();
 const revertMock = vi.fn();
+const ignoreMock = vi.fn();
 const flushMock = vi.fn();
 const moveMock = vi.fn();
 const replaceMock = vi.fn();
@@ -22,6 +23,7 @@ vi.mock("../../src/config/convention", () => ({
   scanConventionSegments: (...args: unknown[]) => scanSegmentsMock(...args),
   acceptConventionSpan: (...args: unknown[]) => acceptMock(...args),
   revertConventionSpan: (...args: unknown[]) => revertMock(...args),
+  addConventionIgnore: (...args: unknown[]) => ignoreMock(...args),
 }));
 vi.mock("../../src/panels/editorPanelState", () => ({
   editorCaretSegmentId: caret,
@@ -112,6 +114,7 @@ beforeEach(() => {
   pendingIds.clear();
   acceptMock.mockReset();
   revertMock.mockReset();
+  ignoreMock.mockReset().mockResolvedValue({ ok: true, error: null });
   flushMock.mockReset().mockResolvedValue("clean");
   moveMock.mockReset();
   replaceMock
@@ -697,5 +700,83 @@ describe("F8 while the caret sentence is still pending", () => {
     state.stepMarks(1);
     expect(state.conventionCurrent.value?.segmentId).toBe(3);
     expect(state.conventionNotice.value).toBeNull();
+  });
+});
+
+describe("Bỏ qua and Không phải lỗi", () => {
+  const TWO = {
+    1: ["Đảm bảo an toàn.", [span(0, 7)]],
+    3: ["Cần đảm bảo. Đảm bảo nữa.", [span(4, 11), span(13, 20)]],
+  } as Record<number, [string, ConventionSpanWire[]]>;
+
+  it("Bỏ qua calls no Rust command, keeps every span and moves to the next mark", async () => {
+    await loadScan(TWO);
+    caret.value = 1;
+    state.openConventionAt(1, 0);
+    state.skipConventionSpot();
+    expect(ignoreMock).not.toHaveBeenCalled();
+    expect(acceptMock).not.toHaveBeenCalled();
+    expect(revertMock).not.toHaveBeenCalled();
+    expect(state.conventionResults.value.get(1)?.spans).toHaveLength(1);
+    expect(state.conventionResults.value.get(3)?.spans).toHaveLength(2);
+    expect(state.conventionCounts.value.ignored).toBe(0);
+    expect(state.conventionCurrent.value?.segmentId).toBe(3);
+  });
+
+  it("Không phải lỗi calls the adapter exactly once with the viewed place, drops exactly one span and lands on the next", async () => {
+    await loadScan(TWO);
+    caret.value = 3;
+    state.openConventionAt(3, 4);
+    await state.ignoreConventionSpot();
+    expect(ignoreMock).toHaveBeenCalledTimes(1);
+    expect(ignoreMock).toHaveBeenCalledWith({
+      segmentId: 3,
+      expectedText: "Cần đảm bảo. Đảm bảo nữa.",
+      start: 4,
+      end: 11,
+      expectedPhrase: "đảm bảo",
+      ruleKey: "đảm bảo",
+    });
+    expect(
+      state.conventionResults.value.get(3)?.spans.map((x) => [x.start, x.end]),
+    ).toEqual([[13, 20]]);
+    expect(state.conventionResults.value.get(1)?.spans).toHaveLength(1);
+    expect(state.conventionCounts.value.ignored).toBe(1);
+    const here = state.conventionCurrent.value;
+    expect([here?.segmentId, here?.span.start]).toEqual([3, 13]);
+    expect(state.conventionNotice.value?.key).not.toBe("convention.status.no_next");
+  });
+
+  it("removing the last span of a sentence deletes its entry and ends on the remembered notice", async () => {
+    await loadScan({ 1: ["Đảm bảo an toàn.", [span(0, 7)]] });
+    caret.value = 1;
+    state.openConventionAt(1, 0);
+    await state.ignoreConventionSpot();
+    expect(state.conventionResults.value.has(1)).toBe(false);
+    expect(state.conventionNotice.value?.key).toBe("convention.status.ignored");
+  });
+
+  it("a refused write drops nothing and shows the error", async () => {
+    await loadScan(TWO);
+    caret.value = 1;
+    state.openConventionAt(1, 0);
+    ignoreMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "convention.text_changed",
+        message_key: "err.convention.text_changed",
+        params: {},
+        retryable: false,
+      },
+    });
+    await state.ignoreConventionSpot();
+    expect(state.conventionResults.value.get(1)?.spans).toHaveLength(1);
+    expect(state.conventionCounts.value.ignored).toBe(0);
+    expect(state.conventionActionError.value?.code).toBe("convention.text_changed");
+  });
+
+  it("sends nothing when no spot is viewed", async () => {
+    await state.ignoreConventionSpot();
+    expect(ignoreMock).not.toHaveBeenCalled();
   });
 });

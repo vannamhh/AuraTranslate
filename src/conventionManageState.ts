@@ -2,16 +2,27 @@ import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import {
   addConventionRule,
+  clearConventionIgnores,
   CONVENTION_WORK_TIER_UNAVAILABLE,
   deleteConventionRule,
   editConventionRule,
+  listConventionIgnores,
   listConventionRules,
+  removeConventionIgnore,
   setConventionRuleEnabled,
 } from './config/convention'
-import type { ConventionRuleWire, ConventionTier, ConventionTierFilter, ConventionWriteAck } from './config/convention'
+import type {
+  ConventionIgnoreRowWire,
+  ConventionRuleWire,
+  ConventionTier,
+  ConventionTierFilter,
+  ConventionWriteAck,
+} from './config/convention'
 import { scanConventionNow } from './conventionState'
 import type { IpcError } from './i18n'
 import { editorChapterId, flushEditorBeforeDiscreteWrite } from './panels/editorPanelState'
+
+export type ConventionManageTab = 'rules' | 'ignored'
 
 const open = ref(false)
 const globalRules = shallowRef<readonly ConventionRuleWire[]>([])
@@ -25,6 +36,11 @@ const search = ref('')
 const cursor = ref(0)
 const editing = ref(false)
 const deletePendingId = shallowRef<string | null>(null)
+const tab = ref<ConventionManageTab>('rules')
+const ignoreRows = shallowRef<readonly ConventionIgnoreRowWire[]>([])
+const ignoreSelectedId = ref<number | null>(null)
+const ignoreClearPending = ref(false)
+const ignoreDone = shallowRef<{ readonly kind: 'forgot' | 'cleared'; readonly count: number } | null>(null)
 
 export const conventionAvoidDraft = ref('')
 export const conventionReplacementDraft = ref('')
@@ -45,6 +61,12 @@ export const conventionManageTierFilter: DeepReadonly<Ref<ConventionTierFilter>>
 export const conventionManageSearch: DeepReadonly<Ref<string>> = readonly(search)
 export const conventionManageCursor: DeepReadonly<Ref<number>> = readonly(cursor)
 export const conventionManageEditing: DeepReadonly<Ref<boolean>> = readonly(editing)
+export const conventionManageTab: DeepReadonly<Ref<ConventionManageTab>> = readonly(tab)
+export const conventionManageIgnoreRows: Readonly<Ref<readonly ConventionIgnoreRowWire[]>> = ignoreRows
+export const conventionManageIgnoreSelectedId: DeepReadonly<Ref<number | null>> = readonly(ignoreSelectedId)
+export const conventionManageIgnoreClearPending: DeepReadonly<Ref<boolean>> = readonly(ignoreClearPending)
+export const conventionManageIgnoreDone: Readonly<Ref<{ readonly kind: 'forgot' | 'cleared'; readonly count: number } | null>> =
+  ignoreDone
 
 export function conventionRuleKey(rule: Pick<ConventionRuleWire, 'tier' | 'id'>): string {
   return `${rule.tier}:${rule.id}`
@@ -118,7 +140,11 @@ function cancelPending(): void {
 }
 
 async function load(mine: number): Promise<void> {
-  const [global, work] = await Promise.all([listConventionRules('global'), listConventionRules('work')])
+  const [global, work, ignores] = await Promise.all([
+    listConventionRules('global'),
+    listConventionRules('work'),
+    listConventionIgnores(),
+  ])
   if (mine !== session) return
   if (global.rules === null) {
     failure.value = global.error
@@ -135,6 +161,19 @@ async function load(mine: number): Promise<void> {
   } else {
     failure.value = work.error
     return
+  }
+  if (workTierAvailable.value) {
+    if (ignores.rows === null) {
+      failure.value = ignores.error
+      return
+    }
+    ignoreRows.value = ignores.rows
+    if (ignoreSelectedId.value !== null && !ignores.rows.some((row) => row.id === ignoreSelectedId.value)) {
+      ignoreSelectedId.value = null
+    }
+  } else {
+    ignoreRows.value = []
+    ignoreSelectedId.value = null
   }
   if (!workTierAvailable.value && tierFilter.value === 'work') tierFilter.value = 'both'
   if (!workTierAvailable.value) conventionAddTier.value = 'global'
@@ -155,6 +194,11 @@ function clearCells(): void {
   cursor.value = 0
   editing.value = false
   deletePendingId.value = null
+  tab.value = 'rules'
+  ignoreRows.value = []
+  ignoreSelectedId.value = null
+  ignoreClearPending.value = false
+  ignoreDone.value = null
   conventionAvoidDraft.value = ''
   conventionReplacementDraft.value = ''
   conventionAddTier.value = 'global'
@@ -330,5 +374,61 @@ export async function enableConventionManageRule(): Promise<void> {
   cancelPending()
   await guarded(async (mine) => {
     await afterWrite(mine, await setConventionRuleEnabled(rule.rule_key, true))
+  })
+}
+
+export function setConventionManageTab(value: ConventionManageTab): void {
+  if (editing.value) return
+  tab.value = value
+  cancelPending()
+  ignoreClearPending.value = false
+  ignoreDone.value = null
+}
+
+export function selectConventionManageIgnore(id: number): void {
+  ignoreSelectedId.value = id
+  ignoreClearPending.value = false
+}
+
+/** Forgets the selected row; the next scan marks that place again, so there is no confirmation. */
+export async function forgetConventionManageIgnore(): Promise<void> {
+  const id = ignoreSelectedId.value
+  if (id === null || busy.value || tab.value !== 'ignored') return
+  ignoreClearPending.value = false
+  ignoreDone.value = null
+  await guarded(async (mine) => {
+    const result = await removeConventionIgnore(id)
+    if (result.removed === null) {
+      if (mine === session) failure.value = result.error
+      return
+    }
+    ignoreSelectedId.value = null
+    if (await afterWrite(mine, { ok: true, error: null })) {
+      if (mine === session && result.removed) ignoreDone.value = { kind: 'forgot', count: 1 }
+    }
+  })
+}
+
+/** First call arms, second call clears every remembered place of the open Work. */
+export async function clearConventionManageIgnores(): Promise<void> {
+  if (busy.value || tab.value !== 'ignored' || ignoreRows.value.length === 0) return
+  if (!ignoreClearPending.value) {
+    ignoreClearPending.value = true
+    failure.value = null
+    ignoreDone.value = null
+    return
+  }
+  ignoreClearPending.value = false
+  ignoreDone.value = null
+  await guarded(async (mine) => {
+    const result = await clearConventionIgnores()
+    if (result.cleared === null) {
+      if (mine === session) failure.value = result.error
+      return
+    }
+    ignoreSelectedId.value = null
+    if (await afterWrite(mine, { ok: true, error: null })) {
+      if (mine === session) ignoreDone.value = { kind: 'cleared', count: result.cleared }
+    }
   })
 }

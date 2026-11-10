@@ -36,7 +36,7 @@ pub(crate) fn rule_unavailable() -> IpcError {
 
 /// The shared range check speaks the Proofreader's codes; the user of this write must not read a
 /// Proofreader message.
-fn as_convention_error(err: IpcError, segment_id: i64) -> IpcError {
+pub(crate) fn as_convention_error(err: IpcError, segment_id: i64) -> IpcError {
     match err.code() {
         "ai_proofread.text_changed" => convention_error(
             "convention.text_changed",

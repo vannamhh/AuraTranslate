@@ -1182,6 +1182,10 @@ pub fn run() {
             crate::commands::convention::wire::convention_scan_chapter_progress,
             crate::commands::convention::wire::convention_scan_segments,
             crate::commands::convention::wire::convention_scan_suggestions,
+            crate::commands::convention::wire::convention_ignore_add,
+            crate::commands::convention::wire::convention_ignore_list,
+            crate::commands::convention::wire::convention_ignore_remove,
+            crate::commands::convention::wire::convention_ignore_clear,
             // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
             // duong dan he tep -- `atproj_path` phan giai o Rust tu `library-index.db` qua
             // `Indexer::find_work`.

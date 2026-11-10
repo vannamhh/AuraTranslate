@@ -9,21 +9,26 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::convention::{
     ConventionMatcherState, ConventionScanWire, ConventionSuggestionItem, ConventionTierFilter,
     convention_active_rule, convention_add_rule, convention_delete_rule, convention_edit_rule,
-    convention_list_rules, convention_scan_chapter, convention_scan_chapter_with_progress,
-    convention_scan_segments, convention_scan_suggestions, convention_set_enabled,
+    convention_ignore_add, convention_ignore_clear, convention_ignore_list,
+    convention_ignore_remove, convention_list_rules, convention_scan_chapter,
+    convention_scan_chapter_with_progress, convention_scan_segments, convention_scan_suggestions,
+    convention_set_enabled,
 };
 use auratranslate_lib::commands::glossary::glossary_add_term;
-use auratranslate_lib::commands::project::{OpenWork, OpenWorkState, create_work_from_text};
+use auratranslate_lib::commands::project::{
+    OpenWork, OpenWorkState, create_work_from_text, open_work,
+};
 use auratranslate_lib::commands::segment::{
     ConventionReplaceGroup, ConventionReplaceOutcome, ConventionReplaceSpot,
     ConventionWriteOutcome, convention_accept_range, convention_replace_chapter,
-    convention_revert_range, read_open_chapter_segments,
+    convention_revert_range, merge_segments, read_open_chapter_segments,
 };
 use auratranslate_lib::core::convention::{
     Matcher, Rule, RuleRow, RuleTier, list_rules, resolve_two_tiers, rule_key, transfer_case,
 };
 use auratranslate_lib::core::glossary::{Category, GlossaryTier};
 use auratranslate_lib::core::i18n::IpcError;
+use auratranslate_lib::core::library::indexer::IndexedWork;
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 use unicode_normalization::UnicodeNormalization;
 
@@ -365,6 +370,55 @@ impl Fixture {
             phrase,
             original,
         )
+    }
+}
+
+impl Fixture {
+    fn ignore(
+        &self,
+        index: usize,
+        text: &str,
+        start: u32,
+        end: u32,
+        phrase: &str,
+    ) -> Result<(), IpcError> {
+        convention_ignore_add(
+            open_of(self).as_ref(),
+            self.segment_ids[index],
+            text,
+            start,
+            end,
+            phrase,
+            &rule_key(phrase),
+        )
+    }
+
+    fn remembered(&self) -> Vec<(i64, String, String, String)> {
+        convention_ignore_list(open_of(self).as_ref())
+            .expect("list ignores")
+            .into_iter()
+            .map(|r| (r.id, r.rule_key, r.context_before, r.context_after))
+            .collect()
+    }
+
+    fn reopen(&self) {
+        let mut guard = self.state.lock().expect("open work lock");
+        let open = guard.take().expect("open");
+        let indexed = IndexedWork {
+            work_id: open.meta.work_id.clone(),
+            atproj_path: open.dir.clone(),
+            name: open.meta.name.clone(),
+            source_lang: open.meta.source_lang.clone(),
+            genre: open.meta.genre.clone(),
+            created_at: open.meta.created_at.clone(),
+            updated_at: open.meta.updated_at.clone(),
+            chapter_count: open.meta.chapter_count,
+            status: open.meta.status.clone(),
+            status_is_override: open.meta.status_is_override,
+            chapter_done_count: open.meta.chapter_done_count,
+        };
+        drop(open);
+        *guard = Some(open_work(&indexed.work_id, Some(&indexed)).expect("reopen work"));
     }
 }
 
@@ -1459,4 +1513,251 @@ fn a_suggestion_with_no_work_open_or_no_rule_is_an_empty_answer_not_an_error() {
     .expect("no work");
     assert_eq!(scan.chapter_id, None);
     assert!(scan.items.is_empty());
+}
+
+const REMEMBERED: &str = "nhằm bảo đảm bảo vệ";
+const REMEMBERED_SPAN: (u32, u32) = (9, 16);
+
+fn remembered_fixture(tag: &str) -> Fixture {
+    let f = fixture(tag);
+    f.add_rule("đảm bảo", Some("bảo đảm"));
+    f.seed(0, "Câu trước.", "other", "other", "draft");
+    f.seed(1, REMEMBERED, "other", "other", "draft");
+    f
+}
+
+fn remember_second(f: &Fixture) {
+    f.ignore(
+        1,
+        REMEMBERED,
+        REMEMBERED_SPAN.0,
+        REMEMBERED_SPAN.1,
+        "đảm bảo",
+    )
+    .expect("remember");
+}
+
+#[test]
+fn remembering_a_spot_hides_it_from_the_next_scan_and_counts_it() {
+    let f = remembered_fixture("ignore-basic");
+    assert_eq!(f.scan().segments.len(), 1);
+    assert_eq!(f.scan().ignored, 0);
+    remember_second(&f);
+    assert_eq!(f.remembered().len(), 1);
+    let scan = f.scan();
+    assert!(scan.segments.is_empty());
+    assert_eq!(scan.ignored, 1);
+}
+
+#[test]
+fn a_remembered_spot_stays_hidden_after_the_work_is_closed_and_opened_again() {
+    let f = remembered_fixture("ignore-reopen");
+    remember_second(&f);
+    f.reopen();
+    assert_eq!(f.remembered().len(), 1);
+    let scan = f.scan();
+    assert!(scan.segments.is_empty());
+    assert_eq!(scan.ignored, 1);
+}
+
+#[test]
+fn the_same_phrase_in_another_context_is_still_marked() {
+    let f = remembered_fixture("ignore-other-context");
+    f.seed(2, "Hãy đảm bảo an toàn.", "other", "other", "draft");
+    remember_second(&f);
+    let scan = f.scan();
+    assert_eq!(scan.ignored, 1);
+    assert_eq!(scan.segments.len(), 1);
+    assert_eq!(scan.segments[0].segment_id, f.segment_ids[2]);
+}
+
+#[test]
+fn a_remembered_spot_belongs_to_its_work_only() {
+    let f = remembered_fixture("ignore-scope");
+    remember_second(&f);
+    let other = second_work("ignore-scope-b");
+    fill_all(&other, REMEMBERED);
+    let scan = scan_in(&f, &other);
+    assert_eq!(scan.ignored, 0);
+    assert_eq!(scan.segments.len(), 3);
+    assert_eq!(f.scan().ignored, 1);
+}
+
+#[test]
+fn merging_the_sentence_with_the_one_before_keeps_the_memory_when_both_sides_had_text() {
+    let f = remembered_fixture("ignore-merge");
+    remember_second(&f);
+    let merged = merge_segments(open_of(&f).as_ref(), f.segment_ids[1]).expect("merge");
+    let text = merged.new_segments[0].target_text.clone();
+    assert!(text.contains(REMEMBERED));
+    assert!(text.len() > REMEMBERED.len());
+    let scan = f.scan();
+    assert!(scan.segments.is_empty(), "merged text: {text}");
+    assert_eq!(scan.ignored, 1);
+}
+
+#[test]
+fn a_spot_at_the_edge_of_its_sentence_is_marked_again_once_the_sentence_grows() {
+    let f = remembered_fixture("ignore-edge");
+    f.seed(1, "Đảm bảo an toàn.", "other", "other", "draft");
+    f.ignore(1, "Đảm bảo an toàn.", 0, 7, "Đảm bảo")
+        .expect("remember");
+    assert_eq!(f.remembered()[0].2, "");
+    assert_eq!(f.scan().ignored, 1);
+    let merged = merge_segments(open_of(&f).as_ref(), f.segment_ids[1]).expect("merge");
+    assert!(merged.new_segments[0].target_text.len() > "Đảm bảo an toàn.".len());
+    let scan = f.scan();
+    assert_eq!(scan.ignored, 0);
+    assert_eq!(scan.segments.len(), 1);
+}
+
+#[test]
+fn the_three_scans_agree_on_a_remembered_spot() {
+    let f = remembered_fixture("ignore-parity");
+    f.seed(2, "Hãy đảm bảo an toàn.", "other", "other", "draft");
+    remember_second(&f);
+    let whole = f.scan();
+    let part = f.scan_ids(&f.segment_ids.clone());
+    let suggested = f.scan_suggestions(&[(1, REMEMBERED), (2, "Hãy đảm bảo an toàn.")]);
+    assert_eq!((whole.ignored, part.ignored, suggested.ignored), (1, 1, 1));
+    assert_eq!(whole.segments, part.segments);
+    assert_eq!(suggested.items.len(), 1);
+    assert_eq!(suggested.items[0].segment_id, f.segment_ids[2]);
+    assert_eq!(whole.glossary_suppressed, 0);
+}
+
+#[test]
+fn a_remembered_spot_inside_a_pinned_term_counts_as_glossary_only() {
+    let f = remembered_fixture("ignore-glossary-first");
+    f.seed(0, "Đội đảm bảo.", "other", "other", "draft");
+    f.ignore(0, "Đội đảm bảo.", 4, 11, "đảm bảo")
+        .expect("remember");
+    f.pin_term("đội đảm bảo");
+    let scan = f.scan();
+    assert_eq!((scan.glossary_suppressed, scan.ignored), (1, 0));
+}
+
+#[test]
+fn a_changed_text_is_refused_and_remembers_nothing() {
+    let f = remembered_fixture("ignore-text-changed");
+    let err = f
+        .ignore(
+            1,
+            "nhằm bảo đảm bảo vệ!",
+            REMEMBERED_SPAN.0,
+            REMEMBERED_SPAN.1,
+            "đảm bảo",
+        )
+        .expect_err("text changed");
+    assert_eq!(err.code(), "convention.text_changed");
+    assert!(f.remembered().is_empty());
+}
+
+#[test]
+fn a_bad_range_is_refused_and_remembers_nothing() {
+    let f = remembered_fixture("ignore-range");
+    f.seed(1, "😀 đảm bảo", "other", "other", "draft");
+    for (start, end) in [(0, 99), (3, 3), (5, 2), (1, 3), (0, 1)] {
+        let err = f
+            .ignore(1, "😀 đảm bảo", start, end, "đảm bảo")
+            .expect_err("range");
+        assert_eq!(err.code(), "convention.range_invalid", "{start}..{end}");
+    }
+    assert!(f.remembered().is_empty());
+}
+
+#[test]
+fn a_phrase_that_is_not_the_rules_key_is_refused() {
+    let f = remembered_fixture("ignore-key");
+    let err = convention_ignore_add(
+        open_of(&f).as_ref(),
+        f.segment_ids[1],
+        REMEMBERED,
+        REMEMBERED_SPAN.0,
+        REMEMBERED_SPAN.1,
+        "đảm bảo",
+        "kỷ",
+    )
+    .expect_err("key");
+    assert_eq!(err.code(), "convention.rule_unavailable");
+    assert!(f.remembered().is_empty());
+}
+
+#[test]
+fn with_no_work_open_every_ignore_command_says_a_work_is_needed_and_writes_nothing() {
+    let none: Option<&OpenWork> = None;
+    let code = |r: Result<(), IpcError>| r.expect_err("no work").code().to_owned();
+    assert_eq!(
+        code(convention_ignore_add(none, 1, "x", 0, 1, "x", "x")),
+        "convention.work_tier_unavailable"
+    );
+    assert_eq!(
+        code(convention_ignore_list(none).map(|_| ())),
+        "convention.work_tier_unavailable"
+    );
+    assert_eq!(
+        code(convention_ignore_remove(none, 1).map(|_| ())),
+        "convention.work_tier_unavailable"
+    );
+    assert_eq!(
+        code(convention_ignore_clear(none).map(|_| ())),
+        "convention.work_tier_unavailable"
+    );
+}
+
+#[test]
+fn remembering_the_same_place_twice_is_one_row_and_no_error() {
+    let f = remembered_fixture("ignore-twice");
+    remember_second(&f);
+    remember_second(&f);
+    assert_eq!(f.remembered().len(), 1);
+}
+
+#[test]
+fn forgetting_a_row_marks_the_spot_again_and_a_vanished_row_is_false() {
+    let f = remembered_fixture("ignore-forget");
+    remember_second(&f);
+    let id = f.remembered()[0].0;
+    assert!(convention_ignore_remove(open_of(&f).as_ref(), id).expect("remove"));
+    assert!(!convention_ignore_remove(open_of(&f).as_ref(), id).expect("remove again"));
+    let scan = f.scan();
+    assert_eq!((scan.segments.len(), scan.ignored), (1, 0));
+}
+
+#[test]
+fn clearing_forgets_every_row_of_the_work_and_returns_how_many() {
+    let f = remembered_fixture("ignore-clear");
+    f.seed(2, "Hãy đảm bảo an toàn.", "other", "other", "draft");
+    remember_second(&f);
+    f.ignore(2, "Hãy đảm bảo an toàn.", 4, 11, "đảm bảo")
+        .expect("remember");
+    assert_eq!(
+        convention_ignore_clear(open_of(&f).as_ref()).expect("clear"),
+        2
+    );
+    assert!(f.remembered().is_empty());
+    assert_eq!(f.scan().segments.len(), 2);
+    assert_eq!(
+        convention_ignore_clear(open_of(&f).as_ref()).expect("again"),
+        0
+    );
+}
+
+#[test]
+fn a_scan_never_changes_a_remembered_row() {
+    let f = remembered_fixture("ignore-scan-readonly");
+    f.seed(2, "Hãy đảm bảo an toàn.", "other", "other", "draft");
+    remember_second(&f);
+    let before = f.remembered();
+    let _ = f.scan();
+    let _ = f.scan_ids(&f.segment_ids.clone());
+    let _ = f.scan_suggestions(&[(1, REMEMBERED), (2, "Hãy đảm bảo an toàn.")]);
+    assert_eq!(f.remembered(), before);
+    assert_eq!(
+        f.count(
+            "SELECT COUNT(*) FROM convention_ignore WHERE ?1 = ?1",
+            "x".to_owned()
+        ),
+        1
+    );
 }

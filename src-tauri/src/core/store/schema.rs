@@ -903,6 +903,24 @@ CREATE TABLE convention_rule (
   CHECK (replacement_phrase IS NULL OR trim(replacement_phrase) <> '')
 );";
 
+/// Project step 45 (AD-67 rule 9): "not an error" memory of the convention scan, keyed by rule
+/// key and the text around the match, not by `segment.id`, so it survives merging and splitting.
+/// One `project.db` holds one Work, so the scope is the store itself.
+/// `avoid_phrase` is the matched text after `trim` and NFC, kept only so the management card can
+/// draw it; it is deliberately outside `UNIQUE`, so remembering `Đảm bảo` and `đảm bảo` in the same
+/// context is one row.
+pub const CONVENTION_IGNORE_DDL: &str = "\
+CREATE TABLE convention_ignore (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  rule_key       TEXT NOT NULL,
+  avoid_phrase   TEXT NOT NULL,
+  context_before TEXT NOT NULL,
+  context_after  TEXT NOT NULL,
+  created_at     TEXT NOT NULL,
+  UNIQUE (rule_key, context_before, context_after),
+  CHECK (avoid_phrase <> '')
+);";
+
 /// Project step 43 (AD-68 rule 1, 3, 7, 9): step 16 plus the Work-level proofread instruction
 /// columns and the `proof_scan` trace columns.
 pub const PROMPT_SET_KIND_PROJECT_DDL: &str = "\
@@ -2173,7 +2191,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Bốn mươi ba bước, và đích là phiên bản 44.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Bốn mươi bốn bước, và đích là phiên bản 45.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2578,6 +2596,11 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 44,
         sql: CONVENTION_RULE_DDL,
+    },
+    // AD-67 rule 9: the "not an error" memory of the convention scan.
+    Migration {
+        to_version: 45,
+        sql: CONVENTION_IGNORE_DDL,
     },
 ];
 

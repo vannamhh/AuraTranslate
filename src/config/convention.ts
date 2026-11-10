@@ -55,6 +55,16 @@ export type ConventionRuleWire = {
   status: ConventionRuleStatus
 }
 
+/** `avoid_phrase` is the matched text, not the rule's phrase; empty context means a segment edge. */
+export type ConventionIgnoreRowWire = {
+  id: number
+  rule_key: string
+  avoid_phrase: string
+  context_before: string
+  context_after: string
+  created_at: string
+}
+
 export type ConventionTierFilter = ConventionTier | 'both'
 
 export const CONVENTION_WORK_TIER_UNAVAILABLE = 'convention.work_tier_unavailable'
@@ -91,6 +101,10 @@ const CMD_ACCEPT = 'convention_accept'
 const CMD_REVERT = 'convention_revert'
 const CMD_SCAN_PROGRESS = 'convention_scan_chapter_progress'
 const CMD_REPLACE_CHAPTER = 'convention_replace_chapter'
+const CMD_IGNORE_ADD = 'convention_ignore_add'
+const CMD_IGNORE_LIST = 'convention_ignore_list'
+const CMD_IGNORE_REMOVE = 'convention_ignore_remove'
+const CMD_IGNORE_CLEAR = 'convention_ignore_clear'
 
 type Label =
   | 'scan_chapter'
@@ -103,6 +117,7 @@ type Label =
   | 'delete_rule'
   | 'set_enabled'
   | 'accept' | 'revert' | 'replace_chapter'
+  | 'ignore_add' | 'ignore_list' | 'ignore_remove' | 'ignore_clear'
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
@@ -454,5 +469,72 @@ export async function replaceConventionChapter(
     return { outcome: wire, error: null }
   } catch (err) {
     return { outcome: null, error: failure('replace_chapter', err) }
+  }
+}
+
+function isIgnoreRowWire(value: unknown): value is ConventionIgnoreRowWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ConventionIgnoreRowWire, unknown>>
+  return (
+    typeof v.id === 'number' &&
+    typeof v.rule_key === 'string' &&
+    typeof v.avoid_phrase === 'string' &&
+    typeof v.context_before === 'string' &&
+    typeof v.context_after === 'string' &&
+    typeof v.created_at === 'string'
+  )
+}
+
+/** Remembers the matched place as "not a mistake" for the open Work. Never throws. */
+export async function addConventionIgnore(
+  args: ConventionRangeWrite & { ruleKey: string },
+): Promise<ConventionWriteAck> {
+  try {
+    await invoke<unknown>(CMD_IGNORE_ADD, {
+      segmentId: args.segmentId,
+      expectedText: args.expectedText,
+      start: args.start,
+      end: args.end,
+      expectedPhrase: args.expectedPhrase,
+      ruleKey: args.ruleKey,
+    })
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: failure('ignore_add', err) }
+  }
+}
+
+/** Newest first. `rows` is null on failure. Never throws. */
+export async function listConventionIgnores(): Promise<{ rows: ConventionIgnoreRowWire[] | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_IGNORE_LIST)
+    if (!Array.isArray(wire) || !wire.every(isIgnoreRowWire)) {
+      return { rows: null, error: badShape('ignore_list', 'ConventionIgnoreRowWire[]') }
+    }
+    return { rows: wire, error: null }
+  } catch (err) {
+    return { rows: null, error: failure('ignore_list', err) }
+  }
+}
+
+/** `removed` is false when the row was already gone. Never throws. */
+export async function removeConventionIgnore(id: number): Promise<{ removed: boolean | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_IGNORE_REMOVE, { id })
+    if (typeof wire !== 'boolean') return { removed: null, error: badShape('ignore_remove', 'a boolean') }
+    return { removed: wire, error: null }
+  } catch (err) {
+    return { removed: null, error: failure('ignore_remove', err) }
+  }
+}
+
+/** Rust clears without asking; the two-click guard lives in the caller. Never throws. */
+export async function clearConventionIgnores(): Promise<{ cleared: number | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_IGNORE_CLEAR)
+    if (!isCount(wire)) return { cleared: null, error: badShape('ignore_clear', 'a row count') }
+    return { cleared: wire, error: null }
+  } catch (err) {
+    return { cleared: null, error: failure('ignore_clear', err) }
   }
 }

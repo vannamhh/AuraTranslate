@@ -1222,6 +1222,7 @@ export type CommandDeps = {
   prevMark?: () => void
   acceptConvention?: () => void
   skipConvention?: () => void
+  ignoreConvention?: () => void
   revertConvention?: () => void
   hideConvention?: () => void
   openConventionManage?: () => void
@@ -1236,6 +1237,10 @@ export type CommandDeps = {
   nextConventionManageRow?: () => void
   prevConventionManageRow?: () => void
   nextConventionManageTier?: () => void
+  showConventionManageRulesTab?: () => void
+  showConventionManageIgnoredTab?: () => void
+  forgetConventionManageIgnore?: () => void
+  clearConventionManageIgnores?: () => void
   openConventionReplace?: () => void
   openConventionReplaceForRule?: () => void
   selectAllConventionReplace?: () => void
@@ -5407,6 +5412,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     },
   })
   target.register({
+    id: 'convention.ignore',
+    labelKey: 'command.convention.ignore',
+    keys: undefined,
+    run: () => {
+      if (deps.ignoreConvention === undefined) {
+        return portMissing('convention.ignore', 'ignoreConvention')
+      }
+      deps.ignoreConvention()
+    },
+  })
+  target.register({
     id: 'convention.revert',
     labelKey: 'command.convention.revert',
     keys: undefined,
@@ -5561,6 +5577,50 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('convention.manage.tier_next', 'nextConventionManageTier')
       }
       deps.nextConventionManageTier()
+    },
+  })
+  target.register({
+    id: 'convention.manage.tab_rules',
+    labelKey: 'command.convention.manage.tab_rules',
+    keys: undefined,
+    run: () => {
+      if (deps.showConventionManageRulesTab === undefined) {
+        return portMissing('convention.manage.tab_rules', 'showConventionManageRulesTab')
+      }
+      deps.showConventionManageRulesTab()
+    },
+  })
+  target.register({
+    id: 'convention.manage.tab_ignored',
+    labelKey: 'command.convention.manage.tab_ignored',
+    keys: undefined,
+    run: () => {
+      if (deps.showConventionManageIgnoredTab === undefined) {
+        return portMissing('convention.manage.tab_ignored', 'showConventionManageIgnoredTab')
+      }
+      deps.showConventionManageIgnoredTab()
+    },
+  })
+  target.register({
+    id: 'convention.manage.ignored_forget',
+    labelKey: 'command.convention.manage.ignored_forget',
+    keys: undefined,
+    run: () => {
+      if (deps.forgetConventionManageIgnore === undefined) {
+        return portMissing('convention.manage.ignored_forget', 'forgetConventionManageIgnore')
+      }
+      deps.forgetConventionManageIgnore()
+    },
+  })
+  target.register({
+    id: 'convention.manage.ignored_clear',
+    labelKey: 'command.convention.manage.ignored_clear',
+    keys: undefined,
+    run: () => {
+      if (deps.clearConventionManageIgnores === undefined) {
+        return portMissing('convention.manage.ignored_clear', 'clearConventionManageIgnores')
+      }
+      deps.clearConventionManageIgnores()
     },
   })
   target.register({

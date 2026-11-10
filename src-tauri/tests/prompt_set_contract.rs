@@ -995,7 +995,7 @@ fn a_project_database_from_step_40_gains_the_chosen_name_column_as_null() {
                  ALTER TABLE proof_scan DROP COLUMN instruction_set_name; \
                  ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; \
                  ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
-                 DROP TABLE convention_rule; DELETE FROM schema_migration_log WHERE version IN (41, 42, 43, 44); \
+                 DROP TABLE convention_ignore; DROP TABLE convention_rule; DELETE FROM schema_migration_log WHERE version IN (41, 42, 43, 44, 45); \
                  PRAGMA user_version = 40;",
             )
         })
@@ -1003,7 +1003,7 @@ fn a_project_database_from_step_40_gains_the_chosen_name_column_as_null() {
 
     let open = reopen_work(open);
 
-    assert_eq!(open.store.schema_version(), 44);
+    assert_eq!(open.store.schema_version(), 45);
     assert_eq!(prompt_set_choice_get(Some(&open)).expect("doc"), None);
     drop(open);
     cleanup_dir(&root);

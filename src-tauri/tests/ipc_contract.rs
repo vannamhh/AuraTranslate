@@ -2757,6 +2757,51 @@ fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
 }
 
 #[test]
+fn the_convention_ignore_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+    let convention_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("convention.rs");
+    let convention_full = fs::read_to_string(&convention_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", convention_rs.display()));
+    let convention_src = convention_full
+        .split_once("pub mod wire")
+        .map(|(_, wire)| wire.to_owned())
+        .expect("`pub mod wire` trong commands/convention.rs");
+
+    for (name, params) in [
+        (
+            "convention_ignore_add",
+            "app: tauri::AppHandle<R>, segment_id: i64, expected_text: String, start: u32, end: u32, \
+             expected_phrase: String, rule_key: String,",
+        ),
+        ("convention_ignore_list", "app: tauri::AppHandle<R>,"),
+        (
+            "convention_ignore_remove",
+            "app: tauri::AppHandle<R>, id: i64,",
+        ),
+        ("convention_ignore_clear", "app: tauri::AppHandle<R>,"),
+    ] {
+        let registered = format!("crate::commands::convention::wire::{name}");
+        assert!(
+            lib_src.contains(&registered),
+            "`{registered}` phai co mat trong lib.rs"
+        );
+        assert_eq!(
+            normalize_param_list(&fn_param_list(&convention_src, name)),
+            normalize_param_list(params),
+            "vo `{name}` khong con dung danh sach tham so mong doi -- `src/config/convention.ts` la \
+             cho duy nhat go lai theo dung ten/thu tu do."
+        );
+    }
+}
+
+#[test]
 fn the_proofread_write_wires_are_registered_and_keep_their_parameter_names() {
     let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
