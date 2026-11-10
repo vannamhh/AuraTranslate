@@ -133,7 +133,7 @@ Tests: `src-tauri/tests/convention_contract.rs`; `tests/frontend/conventionState
 - 🔵 2026-11-10 — §Tasks nói đường quét lại "cộng dồn bốn số đếm"; điều đó bị **bỏ**. `counts` là tổng cấp Chương, một lượt quét vài câu không dựng lại được nó, nên đường quét lại không chạm vào nó nữa. Ca `leaves the Chapter-wide counts alone` canh điều này.
 - 🔵 2026-11-10 — §Boundaries chỉ nói bỏ thế hệ cũ khi đổi Chương, đổi Tác phẩm hay đổi danh sách luật, nên nó không phủ lượt quét đầy và lượt quét lại cùng bay. `conventionState.ts` nay giữ một tập `mergedSinceScan`: lượt quét đầy KHÔNG ghi đè những câu mà một lượt quét lại đã viết trong lúc nó bay, kể cả khi lượt quét lại đã xoá entry. Đọc đĩa của lượt quét lại muộn hơn nên nó thắng.
 
-- Người theo flush đăng ký ở lượt quét Chương đầu tiên (`followFlushOnce` trong `scanConventionNow`), không ở cấp module như Tasks viết: 34 tệp trong `tests/frontend` mock `editorPanelState`, và đăng ký cấp module làm các factory thiếu `onEditorFlushed` ném. `GridPanel` gọi `scanConventionNow` ở mọi lượt mở Chương nên người theo luôn có trước khi gõ được một chữ. Chờ Ice chọn giữa hai phương án.
+- 🔵 2026-11-10 — Ice chọn **cấp module**, đúng như §Tasks viết, nên bản đăng ký muộn (`followFlushOnce` trong `scanConventionNow`) đã bị gỡ cùng cờ `followsFlush` và miễn trừ cổng của nó: `check:panel-refs` nay còn 58 miễn trừ, ít hơn một. Giá đã trả, đo thật: **11 factory mock ở 10 tệp** phải khai thêm `onEditorFlushed`, và **6 factory** phải khai thêm `scanConventionSegments` — một lượt flush thật trong các tệp ấy làm người theo gọi adapter và `void` biến lỗi mock thành unhandled rejection, thoát 1 dù mọi ca xanh. Đối chứng: gỡ phép đăng ký ⇒ 10 ca đỏ.
 - Dấu gợi ý KHÔNG bị xoá khi đổi câu như Tasks viết; thay vào đó giữ theo `segmentId` và chỉ vẽ khi `scannedText` khớp đúng chữ đang hiển thị (`conventionSuggestionMarks.ts:112`, cùng hình với `proofreadHighlight.ts:152`). Phép so này đóng chính cái bẫy mà "đổi câu" nhắm, và đóng cả khi lượt xoá không chạy.
 - `conventionGeneration` bơm ở mọi `scanConventionNow`, nên lượt thay cả Chương và lượt nhận cũng xoá dấu gợi ý tới lượt sinh kế tiếp.
 - `scripts/check-panel-refs.mjs` nhận hai miễn trừ có tên (`editorPanelState.ts::flushedListeners`, `conventionState.ts::followsFlush`); tệp này không có trong Code Map. Câu lý do đầu khai sai "đăng ký lúc nạp module" và đã sửa thành "ở lượt quét Chương đầu tiên".
@@ -152,7 +152,7 @@ Tests: `src-tauri/tests/convention_contract.rs`; `tests/frontend/conventionState
 - `maybe-false` · rejected — Đường quét gợi ý không đọc `is_omitted` nên gợi ý của một câu đã cắt vẫn được đánh dấu. Cần bằng chứng rằng một câu `is_omitted` gửi được đi dịch AI mới kết luận; nếu đúng thì cũng chỉ `low`.
 - `false` — "Hai miễn trừ `check:panel-refs` là nới danh sách loại trừ": cổng này có sẵn cơ chế miễn trừ CÓ TÊN kèm lý do, và có tiền lệ cùng hình (`onChapterOpened`). Một câu lý do khai sai đã được sửa trong lượt này.
 - `false` — "Không có bằng chứng đối chứng đỏ cho các ca Rust": các phép gỡ thật đã chạy (bộ lọc id, Glossary đường gợi ý, `notifyFlushed`, bộ lọc `'received'`, `next.delete`, phép gộp). Bằng chứng thuộc tệp handoff và thông điệp commit, không thuộc mã.
-- Không phải khuyết tật, là một quyết định chờ Ice — chỗ đăng ký người theo flush (cấp module theo Tasks, hay ở lượt quét Chương đầu tiên như mã đang làm). AGENTS.md buộc đưa cả hai phương án kèm số đo cho Ice chứ không tự chọn.
+- ✅ đã chốt — chỗ đăng ký người theo flush: Ice chọn cấp module, mã đã chuyển, xem Plan Change Log. Không phải khuyết tật.
 
 ## Design Notes
 

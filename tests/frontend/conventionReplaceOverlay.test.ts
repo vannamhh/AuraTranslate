@@ -13,6 +13,7 @@ const segments = ref([
 vi.mock('../../src/commands', () => ({ dispatch: (...args: unknown[]) => dispatchMock(...args) }))
 vi.mock('../../src/commands/focus', () => ({ focusReturnTargetOnOpen: () => null }))
 vi.mock('../../src/config/convention', () => ({
+  scanConventionSegments: () => Promise.resolve({ scan: null, error: null }),
   scanConventionChapterWithProgress: (...args: unknown[]) => scanMock(...args),
   replaceConventionChapter: vi.fn(),
 }))

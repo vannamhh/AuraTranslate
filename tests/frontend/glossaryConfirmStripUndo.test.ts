@@ -47,6 +47,7 @@ async function fresh(chords: Chord[] = []) {
   const segments: Ref<GlossarySegmentSource[]> = ref([])
   const dispatchMock = vi.fn()
   vi.doMock('../../src/panels/editorPanelState', () => ({
+    onEditorFlushed: () => () => undefined,
     editorCaretSegmentId: caretSegmentId,
     editorSegments: segments,
   }))

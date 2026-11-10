@@ -10,6 +10,7 @@ const scanNowMock = vi.fn()
 const chapterId = ref<number | null>(7)
 
 vi.mock('../../src/config/convention', () => ({
+  scanConventionSegments: () => Promise.resolve({ scan: null, error: null }),
   CONVENTION_WORK_TIER_UNAVAILABLE: 'convention.work_tier_unavailable',
   addConventionRule: (...args: unknown[]) => addMock(...args),
   editConventionRule: (...args: unknown[]) => editMock(...args),

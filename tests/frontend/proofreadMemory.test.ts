@@ -34,6 +34,7 @@ async function fresh(handler: Handler = () => null) {
     },
   }))
   vi.doMock('../../src/panels/editorPanelState', () => ({
+    onEditorFlushed: () => () => undefined,
     editorCaretSegmentId: caret,
     editorLastCaretSegmentId: caret,
     editorSegments: segments,

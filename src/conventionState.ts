@@ -113,7 +113,6 @@ export function resetConvention(): void {
 
 /** Scans the stored text of the open Chapter. A result older than the newest request is dropped. */
 export async function scanConventionNow(): Promise<void> {
-  followFlushOnce()
   const mine = ++generation
   generationNow.value = mine
   mergedSinceScan.clear()
@@ -178,15 +177,11 @@ export async function scanConventionSegments(segmentIds: readonly number[]): Pro
   if (current !== null && wanted.includes(current.segmentId) && !next.has(current.segmentId)) opened.value = null
 }
 
-let followsFlush = false
-
-function followFlushOnce(): void {
-  if (followsFlush) return
-  followsFlush = true
-  onEditorFlushed((segmentIds) => {
-    void scanConventionSegments(segmentIds)
-  })
-}
+// Registered at module load, not inside a scan: a flush can land before the first Chapter scan,
+// and a follower attached later would miss it with no sign that it did.
+onEditorFlushed((segmentIds) => {
+  void scanConventionSegments(segmentIds)
+})
 
 /** A typed edit in a sentence kills its marks and its undo tray; other sentences are untouched. */
 export function clearConventionFor(segmentId: number): void {

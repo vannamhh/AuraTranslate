@@ -26,6 +26,7 @@ vi.mock('../../src/panels/editorPanelState', async () => {
   return {
     editorCaretSegmentId: vueRef<number | null>(null),
     editorLastCaretSegmentId: vueRef<number | null>(null),
+    onEditorFlushed: () => () => undefined,
     editorSegments: vueRef<{ id: number; target_text: string; is_omitted: boolean }[]>([]),
     flushEditorBeforeDiscreteWrite: () => Promise.resolve('clean'),
     moveEditorCaretTo: () => true,

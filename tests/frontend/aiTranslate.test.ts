@@ -62,6 +62,7 @@ vi.mock('../../src/config/aitranslate', () => ({
 
 vi.mock('../../src/config/convention', () => ({
   scanConventionSuggestions: () => Promise.resolve({ scan: null, error: null }),
+  scanConventionSegments: () => Promise.resolve({ scan: null, error: null }),
 }))
 
 type RunResult = { value: AiTranslateOutcomeWire | null; error: IpcError | null }
@@ -155,6 +156,7 @@ async function freshPanel() {
   const lastCaretSegmentId: Ref<number | null> = ref(caretSegmentId.value)
   watch(caretSegmentId, (id) => { if (id !== null) lastCaretSegmentId.value = id }, { flush: 'sync' })
   vi.doMock('../../src/panels/editorPanelState', () => ({
+    onEditorFlushed: () => () => undefined,
     editorCaretSegmentId: caretSegmentId,
     editorActiveSegmentId: computed(() => caretSegmentId.value ?? lastCaretSegmentId.value),
     promoteAiTranslationToEditor: (...args: unknown[]) => promoteMock(...args),

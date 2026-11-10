@@ -15,7 +15,10 @@ const progress = ref({ done: 0, total: 1 })
 vi.mock('../../src/tmFuzzyStripState', () => ({ tmFuzzyIsEligible: tmEligible, tmFuzzySegmentId: tmSegmentId }))
 vi.mock('../../src/glossaryConfirmStripState', () => ({ confirmStripIsOpen: confirmOpen, confirmStripNoticeShown: confirmNotice, confirmStripNoticeSegmentId: confirmNoticeSegment }))
 vi.mock('../../src/glossaryQuickAddState', () => ({ quickAddIsOpen: quickAddOpen }))
-vi.mock('../../src/panels/editorPanelState', () => ({ editorCaretSegmentId: caret }))
+vi.mock('../../src/panels/editorPanelState', () => ({
+  editorCaretSegmentId: caret,
+  onEditorFlushed: () => () => undefined,
+}))
 vi.mock('../../src/proofreadState', () => ({
   proofreadActionError: ref(null),
   proofreadCurrent: ref(null),

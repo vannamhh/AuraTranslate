@@ -9,6 +9,7 @@ const appliedMock = vi.fn()
 const segments = ref<{ id: number; ord: number; target_text: string; status: string }[]>([])
 
 vi.mock('../../src/config/convention', () => ({
+  scanConventionSegments: () => Promise.resolve({ scan: null, error: null }),
   scanConventionChapterWithProgress: (...args: unknown[]) => scanMock(...args),
   replaceConventionChapter: (...args: unknown[]) => replaceMock(...args),
 }))

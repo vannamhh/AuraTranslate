@@ -23,6 +23,7 @@ vi.mock('../../src/config/aitranslate', () => ({
 }))
 
 vi.mock('../../src/config/convention', () => ({
+  scanConventionSegments: () => Promise.resolve({ scan: null, error: null }),
   scanConventionSuggestions: () => Promise.resolve({ scan: null, error: null }),
 }))
 

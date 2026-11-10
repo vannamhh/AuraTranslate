@@ -30,6 +30,7 @@ vi.mock('../../src/panels/editorPanelState', async () => {
     editorCaretSegmentId: vueRef<number | null>(null),
     editorLastCaretSegmentId: vueRef<number | null>(null),
     editorSegments,
+    onEditorFlushed: () => () => undefined,
     flushEditorBeforeDiscreteWrite: () => flushMock(),
     moveEditorCaretTo: () => true,
     replaceEditorSegment: (id: number, patch: Record<string, unknown>) => {

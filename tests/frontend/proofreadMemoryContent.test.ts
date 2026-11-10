@@ -30,6 +30,7 @@ async function fresh() {
     },
   }))
   vi.doMock('../../src/panels/editorPanelState', () => ({
+    onEditorFlushed: () => () => undefined,
     editorCaretSegmentId: caret,
     editorLastCaretSegmentId: caret,
     editorSegments: segments,

@@ -13,6 +13,7 @@ const batchRows = ref<Row[]>([])
 const generation = ref(1)
 
 vi.mock('../../src/config/convention', () => ({
+  scanConventionSegments: () => Promise.resolve({ scan: null, error: null }),
   scanConventionSuggestions: (...args: unknown[]) => scanMock(...args),
 }))
 vi.mock('../../src/aiTranslateState', () => ({

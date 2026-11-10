@@ -178,6 +178,7 @@ async function freshOverlay() {
   // export này; thiếu một trong hai làm component mount trượt ở `undefined.value`, nên cả
   // hai factory của tệp này phải giữ cùng hình dạng.
   vi.doMock('../../src/panels/editorPanelState', () => ({
+    onEditorFlushed: () => () => undefined,
     editorCaretSegmentId: caretSegmentId,
     editorActiveSegmentId: computed(() => caretSegmentId.value ?? lastCaretSegmentId.value),
     editorPendingPromote: ref(null),
@@ -240,6 +241,7 @@ async function freshPanel() {
   // 🔴 `AiTranslationPanel.vue` mount THẬT ở hàm này đọc thêm hai export này (lỗi PROMOTE
   // qua `tError()`, câu hỏi chống mất bản nháp).
   vi.doMock('../../src/panels/editorPanelState', () => ({
+    onEditorFlushed: () => () => undefined,
     editorCaretSegmentId: caretSegmentId,
     editorActiveSegmentId: computed(() => caretSegmentId.value ?? lastCaretSegmentId.value),
     editorPendingPromote: ref(null),
