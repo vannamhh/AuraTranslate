@@ -36,6 +36,7 @@ import {
   setGlossaryQueueCursor,
 } from './glossaryQueueState'
 import { glossaryScanThresholdInUse } from './glossarySettingsState'
+import { aiUsageLine } from './aiUsageLine'
 import { aiConfigReadiness, refreshAiConfigReadiness } from './aiConfigState'
 
 /** Row selection is data (AD-34 §1): keyboard and the hidden per-row radio share this one
@@ -105,7 +106,12 @@ watch(queueCursor, () => {
 
 const contextReferenceText = computed<string>(() => {
   const reference = queueContextReference.value
-  return reference !== null && (reference.kind === 'chapter' || reference.kind === 'ai' || reference.kind === 'running')
+  return reference !== null &&
+    (reference.kind === 'chapter' ||
+      reference.kind === 'ai' ||
+      reference.kind === 'cached' ||
+      reference.kind === 'truncated' ||
+      reference.kind === 'running')
     ? reference.text
     : ''
 })
@@ -114,8 +120,55 @@ const contextReferenceSource = computed<string>(() => {
   const kind = queueContextReference.value?.kind
   if (kind === 'chapter') return t('glossary.queue.context_source_chapter')
   if (kind === 'running') return t('glossary.queue.context_translating')
+  if (kind === 'truncated') return t('glossary.queue.context_truncated')
   return t('glossary.queue.context_source_ai')
 })
+
+const contextReferenceModel = computed<string>(() => {
+  const reference = queueContextReference.value
+  if (reference === null) return ''
+  if (reference.kind === 'ai' || reference.kind === 'cached') return t('glossary.queue.context_model', { model: reference.model })
+  return ''
+})
+
+const contextReferenceUsage = computed<string>(() => {
+  const reference = queueContextReference.value
+  if (reference === null || (reference.kind !== 'ai' && reference.kind !== 'truncated')) return ''
+  const line = aiUsageLine(reference.usage)
+  return t(line.key, line.params)
+})
+
+const contextReferenceRetranslatable = computed<boolean>(() => {
+  const kind = queueContextReference.value?.kind
+  return kind === 'ai' || kind === 'cached' || kind === 'truncated'
+})
+
+watch(
+  () => queueContextReference.value?.kind,
+  (kind, previous) => {
+    void nextTick(() => {
+      if (kind === 'running') {
+        panel.value?.querySelector<HTMLElement>('[data-gq-context-cancel]')?.focus()
+        return
+      }
+      if (previous !== 'running') return
+      const active = document.activeElement
+      if (active !== null && active !== document.body && active.isConnected) return
+      const next = panel.value?.querySelector<HTMLElement>(
+        '[data-gq-context-retranslate], [data-gq-context-translate]:not([disabled])',
+      )
+      ;(next ?? panel.value)?.focus()
+    })
+  },
+)
+
+function onEscape(): void {
+  if (queueContextReference.value?.kind === 'running') {
+    dispatch('glossary.context.cancel')
+    return
+  }
+  dispatch('glossary.queue.close')
+}
 
 const contextReferenceUnconfigured = computed<boolean>(
   () => aiConfigReadiness.value === 'unconfigured' || queueContextReference.value?.kind === 'not_configured',
@@ -265,7 +318,7 @@ function onKeydown(event: KeyboardEvent): void {
   <div
     v-if="queueOverlayIsOpen"
     class="gq-scrim"
-    @keydown.esc="dispatch('glossary.queue.close')"
+    @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"
   >
@@ -439,13 +492,31 @@ function onKeydown(event: KeyboardEvent): void {
                     v-if="
                       queueContextReference.kind === 'chapter' ||
                       queueContextReference.kind === 'ai' ||
+                      queueContextReference.kind === 'cached' ||
+                      queueContextReference.kind === 'truncated' ||
                       queueContextReference.kind === 'running'
                     "
                   >
                     <!-- aura-allow-text: DỮ LIỆU (bản dịch của chính câu Ngữ cảnh). -->
                     <div class="gq-ref-text" data-gq-context-ref-text>{{ contextReferenceText }}</div>
-                    <!-- aura-allow-text: KẾT QUẢ của `t()` (nhãn nguồn dựng trong contextReferenceSource). -->
-                    <div class="gq-ref-source" data-gq-context-ref-source>{{ contextReferenceSource }}</div>
+                    <div class="gq-ref-line" role="status" data-gq-context-ref-line>
+                      <!-- aura-allow-text: KẾT QUẢ của `t()` (nhãn nguồn dựng trong contextReferenceSource). -->
+                      <span class="gq-ref-source" data-gq-context-ref-source>{{ contextReferenceSource }}</span>
+                      <!-- aura-allow-text: KẾT QUẢ của `t()` (tên mô hình do nhà cung cấp trả về). -->
+                      <span v-if="contextReferenceModel !== ''" class="gq-ref-source" data-gq-context-ref-model>{{ contextReferenceModel }}</span>
+                      <!-- aura-allow-text: KẾT QUẢ của `t()` (aiUsageLine). -->
+                      <span v-if="contextReferenceUsage !== ''" class="gq-ref-source" data-gq-context-ref-usage>{{ contextReferenceUsage }}</span>
+                    </div>
+                    <button
+                      v-if="contextReferenceRetranslatable"
+                      type="button"
+                      class="ui-btn ui-btn--quiet"
+                      data-gq-context-retranslate
+                      :disabled="contextReferenceUnconfigured"
+                      @click="dispatch('glossary.context.retranslate')"
+                    >
+                      {{ t('glossary.queue.context_retranslate') }}
+                    </button>
                     <button
                       v-if="queueContextReference.kind === 'running'"
                       type="button"
@@ -461,11 +532,18 @@ function onKeydown(event: KeyboardEvent): void {
                       <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
                       {{ tError(queueContextReference.error) }}
                     </p>
+                    <span
+                      v-if="queueContextReference.kind === 'store_unavailable'"
+                      class="gq-ref-source"
+                      role="status"
+                      data-gq-context-store-unavailable
+                      >{{ t('glossary.queue.context_store_unavailable') }}</span
+                    >
                     <button
                       type="button"
                       class="ui-btn"
                       data-gq-context-translate
-                      :disabled="contextReferenceUnconfigured"
+                      :disabled="contextReferenceUnconfigured || queueContextReference.kind === 'store_unavailable'"
                       @click="dispatch('glossary.context.translate')"
                     >
                       {{ t('glossary.queue.context_translate') }}
@@ -713,6 +791,13 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-read-sm);
   line-height: var(--leading-read-sm);
   color: var(--color-on-surface);
+}
+
+.gq-ref-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
 .gq-ref-source {

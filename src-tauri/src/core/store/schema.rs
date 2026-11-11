@@ -2903,6 +2903,28 @@ pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
     sql: LIBRARY_WORK_DDL,
 }];
 
+const QUICK_TRANSLATION_DDL: &str = "\
+CREATE TABLE schema_migration_log (
+  version     INTEGER PRIMARY KEY,
+  applied_at  TEXT NOT NULL,
+  app_version TEXT NOT NULL
+);
+CREATE TABLE quick_translation (
+  id              INTEGER PRIMARY KEY,
+  source_hash     BLOB NOT NULL UNIQUE,
+  source_text     TEXT NOT NULL,
+  translated_text TEXT NOT NULL,
+  model           TEXT NOT NULL,
+  created_at      TEXT NOT NULL
+);
+";
+
+/// Derived cache (AD-64): a differing version deletes and rebuilds the file, nothing migrates.
+pub const QUICK_TRANSLATION_MIGRATIONS: &[Migration] = &[Migration {
+    to_version: 1,
+    sql: QUICK_TRANSLATION_DDL,
+}];
+
 /// Phiên bản cao nhất mà một bộ di trú đạt tới. Bộ rỗng ⇒ 0.
 ///
 /// 🔴 Chỉ đáng tin **sau** [`validate_strictly_increasing`]: hàm này tin `.last()` là

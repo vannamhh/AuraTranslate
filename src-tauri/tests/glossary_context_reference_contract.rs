@@ -7,13 +7,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::aitranslate::{
-    AiTranslateGeneration, ContextReferenceGeneration, PrepareOutcome, PreparedTranslateCall,
-    SingleRun, prepare_context_reference_call, run_plain_call,
+    PrepareOutcome, QuickTranslateOutcomeWire, prepare_context_reference_call, quick_translate,
 };
 use auratranslate_lib::commands::glossary::glossary_context_translation;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::ai::rag::assemble_context_reference_prompt;
 use auratranslate_lib::core::aiconfig::{AiConfigField, write_field};
+use auratranslate_lib::core::quick_translation::QuickTranslationStore;
 use auratranslate_lib::core::store::{Store, StoreSpec};
 use auratranslate_lib::ports::translation_provider::{
     TranslateOutcome, TranslateRequest, TranslationProvider,
@@ -188,28 +188,31 @@ fn the_prepared_call_carries_the_fixed_prompt_and_touches_no_stored_row() {
     );
     assert!(prepared.system.is_none());
 
+    let qdir = temp_dir("prompt-q");
+    let store = QuickTranslationStore::open(qdir.join("quick-translation.db")).expect("quick");
     let provider = Fake {
         tokens: vec!["Mot ", "hai ba."],
     };
     let received = Arc::new(Mutex::new(Vec::<String>::new()));
     let sink = Arc::clone(&received);
-    let channel = tauri::ipc::Channel::new(move |body| {
-        if let tauri::ipc::InvokeResponseBody::Json(json) = body {
-            sink.lock()
-                .unwrap()
-                .push(serde_json::from_str(&json).unwrap_or_default());
-        }
-        Ok(())
-    });
-    let outcome =
-        tauri::async_runtime::block_on(run_plain_call(&provider, &prepared, &channel, &|| false))
-            .expect("chay");
-    assert!(matches!(outcome, SingleRun::Done { .. }));
+    let mut on_token = move |text: &str| sink.lock().unwrap().push(text.to_owned());
+    let outcome = tauri::async_runtime::block_on(quick_translate(
+        Some(&store),
+        &provider,
+        move || Ok(PrepareOutcome::Ready(prepared)),
+        "一二三。",
+        false,
+        &mut on_token,
+        Arc::new(|| false),
+    ))
+    .expect("chay");
+    assert!(matches!(outcome, QuickTranslateOutcomeWire::Done { .. }));
     assert_eq!(*received.lock().unwrap(), ["Mot ", "hai ba."]);
     assert_eq!(snapshot(&open), before, "lan goi khong duoc ghi hang nao");
-    drop((global, open));
+    drop((global, open, store));
     let _ = fs::remove_dir_all(root);
     let _ = fs::remove_dir_all(gdir);
+    let _ = fs::remove_dir_all(qdir);
 }
 
 struct Fake {
@@ -249,7 +252,9 @@ impl TranslationProvider for Fake {
 
 #[test]
 fn the_wire_reaches_the_send_on_its_own_generation_and_leaves_the_batch_and_rows_alone() {
-    use auratranslate_lib::commands::aitranslate::wire;
+    use auratranslate_lib::commands::aitranslate::{
+        AiTranslateGeneration, QuickTranslateGeneration, wire,
+    };
     use auratranslate_lib::commands::project::OpenWorkState;
     use tauri::Manager as _;
     use tauri::test::{mock_builder, mock_context, noop_assets};
@@ -257,22 +262,28 @@ fn the_wire_reaches_the_send_on_its_own_generation_and_leaves_the_batch_and_rows
     let (root, gdir, global, open) = configured_local();
     write_field(&global, AiConfigField::Endpoint, "http://127.0.0.1:1/v1").expect("endpoint");
     let before = snapshot(&open);
+    let qdir = temp_dir("wire-q");
+    let quick_store =
+        QuickTranslationStore::open(qdir.join("quick-translation.db")).expect("quick");
 
     let app = mock_builder()
         .build(mock_context(noop_assets()))
         .expect("app");
     app.manage(global);
+    app.manage(quick_store);
     app.manage::<OpenWorkState>(Mutex::new(Some(open)));
     app.manage(AiTranslateGeneration::default());
-    app.manage(ContextReferenceGeneration::default());
+    app.manage(QuickTranslateGeneration::default());
     let handle = app.handle().clone();
     let batch = app.state::<AiTranslateGeneration>();
-    let reference = app.state::<ContextReferenceGeneration>();
+    let reference = app.state::<QuickTranslateGeneration>();
 
     let channel = tauri::ipc::Channel::<String>::new(|_| Ok(()));
     let result = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
         handle.clone(),
         "一二三。".to_owned(),
+        5,
+        false,
         channel,
     ));
     let error = result.expect_err("a closed port is a connection error, which proves the send ran");
@@ -281,9 +292,9 @@ fn the_wire_reaches_the_send_on_its_own_generation_and_leaves_the_batch_and_rows
     assert!(batch.is_current(0), "the call bumped the batch generation");
     assert!(reference.is_current(1));
 
-    wire::ai_context_reference_cancel(handle);
+    wire::ai_context_reference_cancel(handle, 5);
     assert!(batch.is_current(0), "cancel bumped the batch generation");
-    assert!(reference.is_current(2));
+    assert!(!reference.is_current(1));
 
     let guard = app.state::<OpenWorkState>();
     let open_ref = guard.lock().unwrap();
@@ -295,36 +306,5 @@ fn the_wire_reaches_the_send_on_its_own_generation_and_leaves_the_batch_and_rows
     drop(open_ref);
     let _ = fs::remove_dir_all(root);
     let _ = fs::remove_dir_all(gdir);
-}
-
-#[test]
-fn a_cancelled_reference_call_sends_no_token() {
-    let reference = ContextReferenceGeneration::default();
-    let g = reference.next();
-    let provider = Fake {
-        tokens: vec!["a", "b"],
-    };
-    let seen = Arc::new(Mutex::new(0usize));
-    let sink = Arc::clone(&seen);
-    let channel = tauri::ipc::Channel::new(move |_| {
-        *sink.lock().unwrap() += 1;
-        Ok(())
-    });
-    let prepared = PreparedTranslateCall {
-        endpoint: "http://localhost/v1".to_owned(),
-        model: "m".to_owned(),
-        temperature: None,
-        max_tokens: None,
-        api_key: String::new(),
-        prompt: "p".to_owned(),
-        system: None,
-    };
-    reference.next();
-    let outcome =
-        tauri::async_runtime::block_on(run_plain_call(&provider, &prepared, &channel, &|| {
-            !reference.is_current(g)
-        }))
-        .expect("chay");
-    assert!(matches!(outcome, SingleRun::Cancelled));
-    assert_eq!(*seen.lock().unwrap(), 0);
+    let _ = fs::remove_dir_all(qdir);
 }

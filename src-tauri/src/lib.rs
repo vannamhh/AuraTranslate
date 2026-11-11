@@ -31,6 +31,7 @@ const GLOBAL_DB_FILE: &str = "global.db";
 
 /// Tên tệp chỉ mục Library dẫn xuất dưới `$APPDATA` — Story 5.2. Xem [`open_library_index`].
 const LIBRARY_INDEX_DB_FILE: &str = "library-index.db";
+const QUICK_TRANSLATION_DB_FILE: &str = "quick-translation.db";
 
 /// Tên biến môi trường chỉ `$APPDATA` của tiến trình này sang một thư mục khác — **chỉ e2e**.
 ///
@@ -1442,6 +1443,7 @@ pub fn run() {
             crate::commands::aitranslate::wire::ai_translate_resend_call,
             crate::commands::aitranslate::wire::ai_context_reference_translate,
             crate::commands::aitranslate::wire::ai_context_reference_cancel,
+            crate::commands::aitranslate::wire::quick_translation_lookup,
             crate::commands::glossary::wire::glossary_context_translation,
             crate::commands::proofread::wire::ai_proofread_segments,
             crate::commands::proofread::wire::ai_proofread_cancel,
@@ -1499,6 +1501,7 @@ pub fn run() {
             open_dict_layers(app);
             open_work_slot(app);
             open_library_index(app);
+            open_quick_translation(app);
             wire_drag_drop(app);
             // Story 2.3 — AD-35 vế (e). `manage` PHẢI chạy trước `wire_exit_flush`: hook đó
             // đọc state ra bằng `try_state`, và một state chưa quản lý làm nó bỏ qua lượt
@@ -1523,6 +1526,7 @@ pub fn run() {
             close_dict_layers(handle);
             close_open_work(handle);
             close_library_index(handle);
+            close_quick_translation(handle);
         }
     });
 }
@@ -1750,7 +1754,7 @@ fn open_work_slot(app: &tauri::App) {
     app.manage(crate::commands::aiprompt::AiCallRecordsState::default());
     app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());
     app.manage(crate::commands::aitranslate::ConnectionCheckGeneration::default());
-    app.manage(crate::commands::aitranslate::ContextReferenceGeneration::default());
+    app.manage(crate::commands::aitranslate::QuickTranslateGeneration::default());
     app.manage(crate::commands::proofread::ProofreadGeneration::default());
     app.manage(crate::commands::convention::ConventionMatcherState::default());
     // Plan of a convention import between preview and confirm; a Work-tier plan dies with the Work
@@ -1956,6 +1960,47 @@ fn close_open_work(handle: &tauri::AppHandle) {
             }
             open.store.close();
         }
+    }
+}
+
+fn open_quick_translation(app: &tauri::App) {
+    use tauri::Manager as _;
+
+    let dir = match data_dir_override() {
+        Some(dir) => dir,
+        None => match app.path().app_data_dir() {
+            Ok(dir) => dir,
+            Err(err) => {
+                eprintln!("store[quick-translation] cannot resolve the app data directory: {err}");
+                return;
+            }
+        },
+    };
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        eprintln!(
+            "store[quick-translation] cannot create {}: {err}",
+            dir.display()
+        );
+        return;
+    }
+    match crate::core::quick_translation::QuickTranslationStore::open(
+        dir.join(QUICK_TRANSLATION_DB_FILE),
+    ) {
+        Ok(store) => {
+            app.manage(store);
+        }
+        Err(err) => {
+            eprintln!("store[quick-translation] open failed, quick translation reports it: {err}");
+        }
+    }
+}
+
+fn close_quick_translation(handle: &tauri::AppHandle) {
+    use tauri::Manager as _;
+
+    if let Some(store) = handle.try_state::<crate::core::quick_translation::QuickTranslationStore>()
+    {
+        store.close();
     }
 }
 

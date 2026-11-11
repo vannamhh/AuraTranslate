@@ -1065,6 +1065,8 @@ export type CommandDeps = {
   translateGlossaryContextReference?: () => void
   /** Cancels that translation only. Handler of `glossary.context.cancel`. */
   cancelGlossaryContextReference?: () => void
+  /** Replaces the stored translation of the current row's Context sentence. Handler of `glossary.context.retranslate`. */
+  retranslateGlossaryContextReference?: () => void
 
   /** Opens the harvest review overlay. Handler of `glossary.harvest.open`. */
   openGlossaryHarvest?: () => void
@@ -4573,6 +4575,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.context.cancel', 'cancelGlossaryContextReference')
       }
       deps.cancelGlossaryContextReference()
+    },
+  })
+  target.register({
+    id: 'glossary.context.retranslate',
+    labelKey: 'command.glossary.context.retranslate',
+    keys: undefined,
+    run: () => {
+      if (deps.retranslateGlossaryContextReference === undefined) {
+        return portMissing('glossary.context.retranslate', 'retranslateGlossaryContextReference')
+      }
+      deps.retranslateGlossaryContextReference()
     },
   })
 

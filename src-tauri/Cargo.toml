@@ -66,6 +66,7 @@ aho-corasick = "=1.1.4"
 # (`~/.cargo/registry/src/…/unicode-normalization-0.1.25/Cargo.toml:50`, LICENSE-MIT và
 # LICENSE-APACHE khớp) — khai tường minh ở đây thêm 0 gói MỚI.
 unicode-normalization = "=0.1.25"
+sha2 = "=0.10.9"
 # TRỰC TIẾP, không qua `tauri-plugin-keyring` (AD-29). core::ai / Story 4.3.
 # Feature mặc định `v1` đã kéo sẵn backend gốc của cả ba nền tảng
 # (`apple-native-keyring-store/keychain` · `windows-native-keyring-store` ·

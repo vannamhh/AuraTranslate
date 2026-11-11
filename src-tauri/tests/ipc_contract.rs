@@ -3075,7 +3075,8 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
         "crate::commands::glossary::wire::glossary_context_translation,",
         "crate::commands::aitranslate::wire::ai_context_reference_translate,",
         "crate::commands::aitranslate::wire::ai_context_reference_cancel,",
-        "app.manage(crate::commands::aitranslate::ContextReferenceGeneration::default());",
+        "crate::commands::aitranslate::wire::quick_translation_lookup,",
+        "app.manage(crate::commands::aitranslate::QuickTranslateGeneration::default());",
     ] {
         assert!(lib_src.contains(wire), "`{wire}` phai co mat trong lib.rs");
     }
@@ -3093,12 +3094,16 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
             "ai_context_reference_translate"
         )),
         normalize_param_list(
-            "app: tauri::AppHandle<R>, context_example: String, channel: tauri::ipc::Channel<String>,"
+            "app: tauri::AppHandle<R>, context_example: String, run_id: u64, retranslate: bool, channel: tauri::ipc::Channel<String>,"
         ),
     );
     assert_eq!(
         normalize_param_list(&fn_param_list(&ai_src, "ai_context_reference_cancel")),
-        normalize_param_list("app: tauri::AppHandle<R>")
+        normalize_param_list("app: tauri::AppHandle<R>, run_id: u64")
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(&ai_src, "quick_translation_lookup")),
+        normalize_param_list("app: tauri::AppHandle<R>, text: String,")
     );
 }
 

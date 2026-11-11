@@ -8,6 +8,7 @@ const lookupMock = vi.fn()
 const contextLookupMock = vi.fn()
 const translateMock = vi.fn()
 const cancelMock = vi.fn()
+const storeLookupMock = vi.fn()
 const aiConfigGetMock = vi.fn()
 
 vi.mock('../../src/config/glossary', () => ({
@@ -20,9 +21,10 @@ vi.mock('../../src/config/glossary', () => ({
 
 vi.mock('../../src/config/glossaryContextReference', () => ({
   lookupContextTranslation: (context: string) => contextLookupMock(context),
-  translateContextReference: (context: string, onToken: (text: string) => void) =>
-    translateMock(context, onToken),
-  cancelContextReference: () => cancelMock(),
+  quickTranslationLookup: (text: string) => storeLookupMock(text),
+  translateContextReference: (context: string, runId: number, retranslate: boolean, onToken: (text: string) => void) =>
+    translateMock(context, onToken, runId, retranslate),
+  cancelContextReference: (runId: number) => cancelMock(runId),
 }))
 
 vi.mock('../../src/config/aiconfig', async (importOriginal) => ({
@@ -50,12 +52,18 @@ function candidate(id: number, over: Partial<GlossaryCandidate> = {}): GlossaryC
   }
 }
 
+function runIdOf(mock: ReturnType<typeof vi.fn>): number {
+  return (mock.mock.calls.at(-1) as unknown[])[2] as number
+}
+
 const notFound = { value: null, failed: false, error: null }
-const done = { value: { state: 'done', usage: null, maybe_truncated: false }, error: null }
+const miss = { value: { state: 'miss' }, error: null }
+const done = { value: { state: 'done', model: 'm-1', usage: null, maybe_truncated: false }, error: null }
 
 async function fresh(deps: Partial<CommandDeps> = {}) {
   vi.resetModules()
-  for (const m of [pendingMock, lookupMock, contextLookupMock, translateMock, cancelMock, aiConfigGetMock]) m.mockReset()
+  for (const m of [pendingMock, lookupMock, contextLookupMock, translateMock, cancelMock, storeLookupMock, aiConfigGetMock]) m.mockReset()
+  storeLookupMock.mockResolvedValue(miss)
   aiConfigGetMock.mockResolvedValue({
     fields: null,
     defaultSystemPrompt: '',
@@ -141,13 +149,13 @@ describe('Dịch thử', () => {
 
     release(done)
     await run
-    expect(state.queueContextReference.value).toEqual({ kind: 'ai', text: 'Xin chào' })
+    expect(state.queueContextReference.value).toEqual({ kind: 'ai', text: 'Xin chào', model: 'm-1', usage: null })
 
     state.nextGlossaryQueueCandidate()
     await flushPromises()
     state.prevGlossaryQueueCandidate()
     await flushPromises()
-    expect(state.queueContextReference.value).toEqual({ kind: 'ai', text: 'Xin chào' })
+    expect(state.queueContextReference.value).toEqual({ kind: 'ai', text: 'Xin chào', model: 'm-1', usage: null })
     expect(translateMock).toHaveBeenCalledTimes(1)
   })
 
@@ -170,6 +178,7 @@ describe('Dịch thử', () => {
     await flushPromises()
 
     expect(cancelMock).toHaveBeenCalledTimes(1)
+    expect(cancelMock).toHaveBeenCalledWith(runIdOf(translateMock))
     lateToken('muộn')
     release({ value: { state: 'cancelled' }, error: null })
     await run
@@ -262,6 +271,117 @@ describe('Dịch thử', () => {
     await openWith(state, candidate(1))
 
     expect(state.queueContextReference.value).toEqual({ kind: 'none' })
+    expect(storeLookupMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('kho dịch nhanh', () => {
+  it('trúng kho thì hiện câu đã lưu cùng mô hình và không gọi AI', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    storeLookupMock.mockResolvedValue({ value: { state: 'hit', text: 'Đã lưu.', model: 'm-0' }, error: null })
+
+    await openWith(state, candidate(1))
+
+    expect(storeLookupMock).toHaveBeenCalledWith('句1。')
+    expect(state.queueContextReference.value).toEqual({ kind: 'cached', text: 'Đã lưu.', model: 'm-0' })
+    expect(translateMock).not.toHaveBeenCalled()
+  })
+
+  it('bản dịch trong Tác phẩm đứng trước kho: không tra kho', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue({ value: 'Bản dịch.', failed: false, error: null })
+
+    await openWith(state, candidate(1))
+
+    expect(storeLookupMock).not.toHaveBeenCalled()
+  })
+
+  it('kho không mở được thì hiện kind riêng và nút Dịch thử không chạy', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    storeLookupMock.mockResolvedValue({ value: { state: 'store_unavailable' }, error: null })
+
+    await openWith(state, candidate(1))
+    await state.translateGlossaryContextReference()
+
+    expect(state.queueContextReference.value).toEqual({ kind: 'store_unavailable' })
+    expect(translateMock).not.toHaveBeenCalled()
+  })
+
+  it('lệnh dịch báo store_unavailable hoặc cached thì đổi sang kind tương ứng', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    await openWith(state, candidate(1))
+
+    translateMock.mockResolvedValueOnce({ value: { state: 'store_unavailable' }, error: null })
+    await state.translateGlossaryContextReference()
+    expect(state.queueContextReference.value).toEqual({ kind: 'store_unavailable' })
+
+    state.resetGlossaryQueue()
+    await openWith(state, candidate(1))
+    translateMock.mockResolvedValueOnce({ value: { state: 'cached', text: 'Kho.', model: 'm-2' }, error: null })
+    await state.translateGlossaryContextReference()
+    expect(state.queueContextReference.value).toEqual({ kind: 'cached', text: 'Kho.', model: 'm-2' })
+  })
+
+  it('maybe_truncated giữ phần đã nhận ở kind truncated', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    translateMock.mockImplementation((_c: string, onToken: (t: string) => void) => {
+      onToken('Nửa câu')
+      return Promise.resolve({ value: { state: 'done', model: 'm-1', usage: null, maybe_truncated: true }, error: null })
+    })
+    await openWith(state, candidate(1))
+
+    await state.translateGlossaryContextReference()
+
+    expect(state.queueContextReference.value).toEqual({ kind: 'truncated', text: 'Nửa câu', model: 'm-1', usage: null })
+  })
+
+  it('run_id tăng dần theo từng lượt và đi theo lệnh huỷ', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    translateMock.mockImplementation(() => new Promise(() => undefined))
+    await openWith(state, candidate(1))
+
+    void state.translateGlossaryContextReference()
+    await flushPromises()
+    const first = runIdOf(translateMock)
+    state.cancelGlossaryContextReference()
+    void state.translateGlossaryContextReference()
+    await flushPromises()
+    const second = runIdOf(translateMock)
+
+    expect(second).toBeGreaterThan(first)
+    expect(cancelMock).toHaveBeenCalledWith(first)
+    state.cancelGlossaryContextReference()
+    expect(cancelMock).toHaveBeenLastCalledWith(second)
+  })
+
+  it('Dịch lại gọi với retranslate và huỷ nó trả về câu cũ', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    storeLookupMock.mockResolvedValue({ value: { state: 'hit', text: 'Cũ.', model: 'm-0' }, error: null })
+    translateMock.mockImplementation(() => new Promise(() => undefined))
+    await openWith(state, candidate(1))
+
+    void state.retranslateGlossaryContextReference()
+    await flushPromises()
+    expect(translateMock.mock.calls.at(-1)?.[3]).toBe(true)
+    expect(state.queueContextReference.value?.kind).toBe('running')
+
+    state.cancelGlossaryContextReference()
+    expect(state.queueContextReference.value).toEqual({ kind: 'cached', text: 'Cũ.', model: 'm-0' })
+  })
+
+  it('Dịch thử không chạy khi hàng đã có câu AI, Dịch lại không chạy khi chưa có', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    await openWith(state, candidate(1))
+
+    await state.retranslateGlossaryContextReference()
+    expect(translateMock).not.toHaveBeenCalled()
   })
 })
 
@@ -323,6 +443,116 @@ describe('GlossaryQueueOverlay.vue — khối câu dịch', () => {
     expect(wrapper.find('[data-gq-context-unconfigured]').exists()).toBe(true)
     await wrapper.get('[data-gq-context-open-settings]').trigger('click')
     expect(openSettings).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('chưa cấu hình AI thì Dịch lại cũng tắt, câu trong kho vẫn hiện', async () => {
+    const retranslate = vi.fn()
+    const { state, Overlay } = await fresh({ retranslateGlossaryContextReference: retranslate })
+    aiConfigGetMock.mockResolvedValue({
+      fields: [],
+      defaultSystemPrompt: '',
+      workTierAvailable: false,
+      keyConfigured: false,
+      ready: false,
+      notReady: ['endpoint_missing'],
+      error: null,
+    })
+    contextLookupMock.mockResolvedValue(notFound)
+    storeLookupMock.mockResolvedValue({ value: { state: 'hit', text: 'Đã lưu.', model: 'm-0' }, error: null })
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await openWith(state, candidate(1))
+    await flushPromises()
+
+    expect(wrapper.get('[data-gq-context-ref-text]').text()).toBe('Đã lưu.')
+    expect(wrapper.get('[data-gq-context-retranslate]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-gq-context-retranslate]').trigger('click')
+    expect(retranslate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('câu trong kho hiện mô hình và nút Dịch lại đi qua dispatch', async () => {
+    const retranslate = vi.fn()
+    const { state, i18n, Overlay } = await fresh({ retranslateGlossaryContextReference: retranslate })
+    contextLookupMock.mockResolvedValue(notFound)
+    storeLookupMock.mockResolvedValue({ value: { state: 'hit', text: 'Đã lưu.', model: 'm-0' }, error: null })
+    await openWith(state, candidate(1))
+
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await flushPromises()
+
+    expect(wrapper.get('[data-gq-context-ref-line]').attributes('role')).toBe('status')
+    expect(wrapper.get('[data-gq-context-ref-model]').text()).toBe(i18n.t('glossary.queue.context_model', { model: 'm-0' }))
+    expect(wrapper.find('[data-gq-context-ref-usage]').exists()).toBe(false)
+    await wrapper.get('[data-gq-context-retranslate]').trigger('click')
+    expect(retranslate).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('lượt vừa chạy hiện dòng token, chuỗi bị cắt và kho hỏng có chữ riêng', async () => {
+    const { state, i18n, Overlay } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    const usage = { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3, cost_usd: null }
+    translateMock.mockImplementation((_c: string, onToken: (t: string) => void) => {
+      onToken('Câu')
+      return Promise.resolve({ value: { state: 'done', model: 'm-1', usage, maybe_truncated: false }, error: null })
+    })
+    await openWith(state, candidate(1))
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await flushPromises()
+
+    await state.translateGlossaryContextReference()
+    await flushPromises()
+    expect(wrapper.get('[data-gq-context-ref-usage]').text()).toBe(
+      i18n.t('ai.translate.usage_no_price', { token_count: '3' }),
+    )
+
+    state.resetGlossaryQueue()
+    translateMock.mockImplementation((_c: string, onToken: (t: string) => void) => {
+      onToken('Nửa')
+      return Promise.resolve({ value: { state: 'done', model: 'm-1', usage: null, maybe_truncated: true }, error: null })
+    })
+    await openWith(state, candidate(1))
+    await flushPromises()
+    await state.translateGlossaryContextReference()
+    await flushPromises()
+    expect(wrapper.get('[data-gq-context-ref-source]').text()).toBe(i18n.t('glossary.queue.context_truncated'))
+    expect(wrapper.find('[data-gq-context-retranslate]').exists()).toBe(true)
+
+    state.resetGlossaryQueue()
+    storeLookupMock.mockResolvedValue({ value: { state: 'store_unavailable' }, error: null })
+    await openWith(state, candidate(1))
+    await flushPromises()
+    expect(wrapper.get('[data-gq-context-store-unavailable]').text()).toBe(i18n.t('glossary.queue.context_store_unavailable'))
+    expect(wrapper.get('[data-gq-context-translate]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('Esc đầu huỷ lượt đang chạy và lớp phủ còn mở, Esc sau mới đóng; tiêu điểm đi theo nút', async () => {
+    const { state, Overlay } = await fresh({
+      cancelGlossaryContextReference: () => state.cancelGlossaryContextReference(),
+      translateGlossaryContextReference: () => void state.translateGlossaryContextReference(),
+      closeGlossaryQueue: () => state.closeGlossaryQueue(),
+    })
+    contextLookupMock.mockResolvedValue(notFound)
+    translateMock.mockImplementation(() => new Promise(() => undefined))
+    await openWith(state, candidate(1))
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await flushPromises()
+
+    await wrapper.get('[data-gq-context-translate]').trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(wrapper.get('[data-gq-context-cancel]').element)
+
+    await wrapper.get('[data-gq-context-cancel]').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(cancelMock).toHaveBeenCalledTimes(1)
+    expect(state.queueOverlayIsOpen.value).toBe(true)
+    expect(wrapper.find('[data-gq-context-cancel]').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('[data-gq-context-translate]').element)
+
+    await wrapper.get('[data-gq-context-translate]').trigger('keydown', { key: 'Escape' })
+    expect(state.queueOverlayIsOpen.value).toBe(false)
     wrapper.unmount()
   })
 })

@@ -2498,6 +2498,7 @@ const HANDLER_TABLE = {
     ids: ['glossary.manage.next', 'glossary.manage.prev', 'glossary.manage.edit', 'glossary.manage.delete'],
   },
   'src/GlossaryQueueOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/GlossaryQueueOverlay.vue::onEscape': { ids: ['glossary.context.cancel', 'glossary.queue.close'] },
   'src/GlossaryQueueOverlay.vue::onKeydown': {
     ids: [
       'glossary.queue.next',

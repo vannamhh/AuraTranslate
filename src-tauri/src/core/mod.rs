@@ -18,6 +18,7 @@ pub mod library;
 pub mod lifecycle;
 pub mod matching;
 pub mod promptset;
+pub mod quick_translation;
 pub mod scope;
 pub mod segment;
 pub mod store;

@@ -71,6 +71,7 @@ use crate::core::aiconfig::{
     resolve_two_tiers,
 };
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::quick_translation::QuickTranslationStore;
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{ReadHandle, Store, StoreError, StoreKind};
 use crate::ports::translation_provider::{
@@ -712,42 +713,6 @@ pub async fn run_translate_call<P: TranslationProvider>(
     }
 }
 
-/// Streams the reply as it arrives, for prompts that ask for bare text instead of blocks.
-pub async fn run_plain_call<P: TranslationProvider>(
-    provider: &P,
-    prepared: &PreparedTranslateCall,
-    channel: &tauri::ipc::Channel<String>,
-    should_cancel: &dyn Fn() -> bool,
-) -> Result<SingleRun, SingleRunError<P::Error>> {
-    let request = TranslateRequest {
-        endpoint: &prepared.endpoint,
-        model: &prepared.model,
-        temperature: prepared.temperature,
-        max_tokens: prepared.max_tokens,
-        api_key: &prepared.api_key,
-        prompt: &prepared.prompt,
-        system: prepared.system.as_deref(),
-    };
-    let mut on_token = |text: &str| {
-        let _ = channel.send(text.to_owned());
-    };
-    let outcome = provider
-        .translate(request, &mut on_token, should_cancel)
-        .await
-        .map_err(SingleRunError::Provider)?;
-    Ok(match outcome {
-        TranslateOutcome::Cancelled => SingleRun::Cancelled,
-        TranslateOutcome::Done {
-            usage,
-            finish_reason,
-        } => SingleRun::Done {
-            usage,
-            finish_reason,
-            block_open: false,
-        },
-    })
-}
-
 /// What the single-sentence reader made of a finished call.
 #[derive(Debug, PartialEq)]
 pub enum SingleRun {
@@ -802,20 +767,52 @@ impl ConnectionCheckGeneration {
     }
 }
 
-/// Generation counter of the Glossary context reference call, separate from
-/// [`AiTranslateGeneration`] so its cancel never stops a translate run or batch.
+/// The one quick-translation run of the app, separate from [`AiTranslateGeneration`] so its cancel
+/// never stops a translate run or batch. The webview issues `run_id`; a cancel only takes effect
+/// when it names the run that is active.
 #[derive(Debug, Clone, Default)]
-pub struct ContextReferenceGeneration(std::sync::Arc<std::sync::atomic::AtomicU64>);
+pub struct QuickTranslateGeneration(std::sync::Arc<QuickTranslateRuns>);
 
-impl ContextReferenceGeneration {
-    pub fn next(&self) -> u64 {
+#[derive(Debug, Default)]
+struct QuickTranslateRuns {
+    generation: std::sync::atomic::AtomicU64,
+    active_run: std::sync::Mutex<Option<u64>>,
+}
+
+impl QuickTranslateGeneration {
+    /// Starts `run_id`, superseding any run before it.
+    pub fn begin(&self, run_id: u64) -> u64 {
+        let mut active = self
+            .0
+            .active_run
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *active = Some(run_id);
         self.0
+            .generation
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
             .wrapping_add(1)
     }
 
+    /// Cancels the active run when `run_id` names it. Returns whether it did.
+    pub fn cancel(&self, run_id: u64) -> bool {
+        let mut active = self
+            .0
+            .active_run
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *active != Some(run_id) {
+            return false;
+        }
+        *active = None;
+        self.0
+            .generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        true
+    }
+
     pub fn is_current(&self, generation: u64) -> bool {
-        self.0.load(std::sync::atomic::Ordering::Acquire) == generation
+        self.0.generation.load(std::sync::atomic::Ordering::Acquire) == generation
     }
 }
 
@@ -850,6 +847,146 @@ pub fn prepare_context_reference_call(
         prompt: crate::commands::aiprompt::context_reference_prompt(context_example),
         system: None,
     }))
+}
+
+/// Result of one `Dịch thử`, shared by the lookup-first and send paths (AD-64 rules 5, 6).
+/// Not `AiTranslateOutcomeWire`: that type is shared with the real batch.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum QuickTranslateOutcomeWire {
+    NotConfigured,
+    StoreUnavailable,
+    Cached {
+        text: String,
+        model: String,
+    },
+    Done {
+        model: String,
+        usage: Option<AiTranslateUsageWire>,
+        maybe_truncated: bool,
+    },
+    Cancelled,
+}
+
+/// Result of `quick_translation_lookup`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum QuickLookupWire {
+    StoreUnavailable,
+    Miss,
+    Hit { text: String, model: String },
+}
+
+pub fn quick_lookup_wire(store: Option<&QuickTranslationStore>, text: &str) -> QuickLookupWire {
+    let Some(store) = store else {
+        return QuickLookupWire::StoreUnavailable;
+    };
+    match store.lookup(text) {
+        Ok(Some(hit)) => QuickLookupWire::Hit {
+            text: hit.translated_text,
+            model: hit.model,
+        },
+        Ok(None) => QuickLookupWire::Miss,
+        Err(err) => {
+            eprintln!("quick_translation[lookup] read failed: {err}");
+            QuickLookupWire::StoreUnavailable
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum QuickTranslateError<E> {
+    Provider(E),
+    Ipc(IpcError),
+}
+
+impl<E: Into<IpcError>> From<QuickTranslateError<E>> for IpcError {
+    fn from(err: QuickTranslateError<E>) -> Self {
+        match err {
+            QuickTranslateError::Provider(e) => e.into(),
+            QuickTranslateError::Ipc(e) => e,
+        }
+    }
+}
+
+/// One `Dịch thử` after the surface has resolved its inputs: a missing store, then the cache
+/// (skipped by `retranslate`), then the provider, then a save of a complete result. `prepare`
+/// runs only after a cache miss, so a cache hit reads no key.
+pub async fn quick_translate<P: TranslationProvider>(
+    store: Option<&QuickTranslationStore>,
+    provider: &P,
+    prepare: impl FnOnce() -> Result<PrepareOutcome, IpcError>,
+    text: &str,
+    retranslate: bool,
+    on_token: &mut dyn FnMut(&str),
+    should_cancel: std::sync::Arc<dyn Fn() -> bool + Send + Sync>,
+) -> Result<QuickTranslateOutcomeWire, QuickTranslateError<P::Error>> {
+    let Some(store) = store else {
+        return Ok(QuickTranslateOutcomeWire::StoreUnavailable);
+    };
+    if !retranslate {
+        match store.lookup(text) {
+            Ok(Some(hit)) => {
+                return Ok(QuickTranslateOutcomeWire::Cached {
+                    text: hit.translated_text,
+                    model: hit.model,
+                });
+            }
+            Ok(None) => {}
+            Err(err) => {
+                eprintln!("quick_translation[lookup] read failed: {err}");
+                return Ok(QuickTranslateOutcomeWire::StoreUnavailable);
+            }
+        }
+    }
+    let prepared = match prepare().map_err(QuickTranslateError::Ipc)? {
+        PrepareOutcome::NotConfigured => return Ok(QuickTranslateOutcomeWire::NotConfigured),
+        PrepareOutcome::Ready(prepared) => prepared,
+    };
+    if should_cancel() {
+        return Ok(QuickTranslateOutcomeWire::Cancelled);
+    }
+
+    let request = TranslateRequest {
+        endpoint: &prepared.endpoint,
+        model: &prepared.model,
+        temperature: prepared.temperature,
+        max_tokens: prepared.max_tokens,
+        api_key: &prepared.api_key,
+        prompt: &prepared.prompt,
+        system: prepared.system.as_deref(),
+    };
+    let mut received = String::new();
+    let mut forward = |token: &str| {
+        received.push_str(token);
+        on_token(token);
+    };
+    let outcome = provider
+        .translate(request, &mut forward, &*should_cancel)
+        .await
+        .map_err(QuickTranslateError::Provider)?;
+    let TranslateOutcome::Done {
+        usage,
+        finish_reason,
+    } = outcome
+    else {
+        return Ok(QuickTranslateOutcomeWire::Cancelled);
+    };
+
+    let maybe_truncated = finish_reason.as_deref() != Some("stop");
+    if !maybe_truncated {
+        let still_current = std::sync::Arc::clone(&should_cancel);
+        if let Err(err) = store.save(text, &received, &prepared.model, retranslate, move || {
+            !still_current()
+        }) {
+            eprintln!("quick_translation[save] write failed: {err}");
+        }
+    }
+    Ok(QuickTranslateOutcomeWire::Done {
+        model: prepared.model,
+        usage: usage.map(AiTranslateUsageWire::from),
+        maybe_truncated,
+    })
 }
 
 /// Keychain từ chối trả lời lúc dịch — tái dùng ĐÚNG khoá của Story 4.3 (§Code Map spec 4.8:
@@ -1359,22 +1496,15 @@ async fn send_prepared_translate_call(
     generation_state: AiTranslateGeneration,
     generation: u64,
 ) -> Result<SingleRun, IpcError> {
-    send_with_cancel(prepared, channel, ReplyShape::Blocks, move || {
+    send_with_cancel(prepared, channel, move || {
         !generation_state.is_current(generation)
     })
     .await
 }
 
-#[derive(Debug, Clone, Copy)]
-enum ReplyShape {
-    Blocks,
-    Plain,
-}
-
 async fn send_with_cancel(
     prepared: PreparedTranslateCall,
     channel: tauri::ipc::Channel<String>,
-    shape: ReplyShape,
     should_cancel: impl Fn() -> bool + Send + 'static,
 ) -> Result<SingleRun, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
@@ -1383,21 +1513,12 @@ async fn send_with_cancel(
             return Ok(SingleRun::Cancelled);
         }
 
-        let handle = tauri::async_runtime::handle();
-        match shape {
-            ReplyShape::Blocks => handle.block_on(run_translate_call(
-                &provider,
-                &prepared,
-                &channel,
-                &should_cancel,
-            )),
-            ReplyShape::Plain => handle.block_on(run_plain_call(
-                &provider,
-                &prepared,
-                &channel,
-                &should_cancel,
-            )),
-        }
+        tauri::async_runtime::handle().block_on(run_translate_call(
+            &provider,
+            &prepared,
+            &channel,
+            &should_cancel,
+        ))
     });
 
     match join.await {
@@ -1771,16 +1892,19 @@ pub mod wire {
         send_prepared_translate_call, single_run_outcome_wire,
     };
     use super::{
-        ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire,
-        ContextReferenceGeneration, prepare_connection_check, prepare_context_reference_call,
-        send_prepared_connection_check, send_with_cancel,
+        ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire, QuickLookupWire,
+        QuickTranslateGeneration, QuickTranslateOutcomeWire, internal_failure_error,
+        prepare_connection_check, prepare_context_reference_call, quick_lookup_wire,
+        quick_translate, send_prepared_connection_check,
     };
     use crate::commands::aiprompt::{
         AiCallRecordsState, LastAssembledPromptState, mark_prompt_as_sent,
     };
     use crate::commands::project::OpenWorkState;
+    use crate::core::ai::client::OpenAiChatClient;
     use crate::core::aiconfig::AiConfigTier;
     use crate::core::i18n::{IpcError, state_missing};
+    use crate::core::quick_translation::QuickTranslationStore;
     use crate::core::store::Store;
 
     /// Vỏ IPC của lượt dịch một segment — `async fn` LITERAL (xem doc-comment đầu tệp cho lý
@@ -2096,54 +2220,83 @@ pub mod wire {
         generation_state.next();
     }
 
-    /// Translates one Glossary context sentence for reference, streamed through `channel`.
-    /// Own `ContextReferenceGeneration`; records nothing and writes no store. The Work lock is
-    /// released before any `.await`.
+    /// Translates one Glossary context sentence for reference, streamed through `channel`, and
+    /// remembers a complete result in `quick-translation.db`. Own `QuickTranslateGeneration`;
+    /// writes no Work data and records nothing. The Work lock is never held across the network
+    /// call.
     #[tauri::command]
     pub async fn ai_context_reference_translate<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         context_example: String,
+        run_id: u64,
+        retranslate: bool,
         channel: tauri::ipc::Channel<String>,
-    ) -> Result<AiTranslateOutcomeWire, IpcError> {
+    ) -> Result<QuickTranslateOutcomeWire, IpcError> {
         use tauri::Manager as _;
 
-        let Some(generation_state) = app.try_state::<ContextReferenceGeneration>() else {
+        let Some(generation_state) = app.try_state::<QuickTranslateGeneration>() else {
             return Err(state_missing(
                 "context_reference",
-                "ContextReferenceGeneration",
+                "QuickTranslateGeneration",
                 "ai_translate.generation_state_missing",
             ));
         };
         let generation_state = generation_state.inner().clone();
-        let generation = generation_state.next();
+        let generation = generation_state.begin(run_id);
 
-        let prep = {
-            let global = app.try_state::<Store>();
-            let work_state = app.try_state::<OpenWorkState>();
-            let guard = work_state
-                .as_ref()
-                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-            let open = guard.as_ref().and_then(|g| g.as_ref());
-            prepare_context_reference_call(global.as_deref(), open, &context_example)?
-        };
-        let prepared = match prep {
-            PrepareOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
-            PrepareOutcome::Ready(p) => p,
-        };
-        let outcome = send_with_cancel(prepared, channel, super::ReplyShape::Plain, move || {
-            !generation_state.is_current(generation)
-        })
-        .await?;
-        Ok(single_run_outcome_wire(outcome))
+        let join = tauri::async_runtime::spawn_blocking(move || {
+            let provider = OpenAiChatClient::new();
+            let store = app.try_state::<QuickTranslationStore>();
+            let prepare = || {
+                let global = app.try_state::<Store>();
+                let work_state = app.try_state::<OpenWorkState>();
+                let guard = work_state
+                    .as_ref()
+                    .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+                let open = guard.as_ref().and_then(|g| g.as_ref());
+                prepare_context_reference_call(global.as_deref(), open, &context_example)
+            };
+            let should_cancel: std::sync::Arc<dyn Fn() -> bool + Send + Sync> =
+                std::sync::Arc::new(move || !generation_state.is_current(generation));
+            let mut on_token = |text: &str| {
+                let _ = channel.send(text.to_owned());
+            };
+            tauri::async_runtime::handle().block_on(quick_translate(
+                store.as_deref(),
+                &provider,
+                prepare,
+                &context_example,
+                retranslate,
+                &mut on_token,
+                should_cancel,
+            ))
+        });
+        match join.await {
+            Ok(outcome) => outcome.map_err(IpcError::from),
+            Err(_join_err) => Err(internal_failure_error()),
+        }
     }
 
+    /// Cancels the quick-translation run named `run_id`; any other `run_id` does nothing.
     #[tauri::command]
-    pub fn ai_context_reference_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+    pub fn ai_context_reference_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>, run_id: u64) {
         use tauri::Manager as _;
 
-        if let Some(generation_state) = app.try_state::<ContextReferenceGeneration>() {
-            generation_state.next();
+        if let Some(generation_state) = app.try_state::<QuickTranslateGeneration>() {
+            generation_state.cancel(run_id);
         }
+    }
+
+    /// The remembered quick translation of `text`, if any. Reads one row; writes nothing.
+    #[tauri::command]
+    pub fn quick_translation_lookup<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        text: String,
+    ) -> QuickLookupWire {
+        use tauri::Manager as _;
+
+        let store = app.try_state::<QuickTranslationStore>();
+        quick_lookup_wire(store.as_deref(), &text)
     }
 
     /// Checks the SAVED configuration of `tier` against the provider: `GET {endpoint}/models`

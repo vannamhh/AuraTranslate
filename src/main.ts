@@ -324,6 +324,7 @@ import { tmManageOverlayIsOpen } from './tmManageState'
 import {
   acceptGlossaryQueueCandidate,
   cancelGlossaryContextReference,
+  retranslateGlossaryContextReference,
   closeGlossaryQueue,
   leaveGlossaryQueueCandidate,
   nextGlossaryQueueCandidate,
@@ -1036,6 +1037,9 @@ async function boot(): Promise<void> {
       leaveGlossaryQueueCandidate,
       translateGlossaryContextReference: () => {
         void translateGlossaryContextReference()
+      },
+      retranslateGlossaryContextReference: () => {
+        void retranslateGlossaryContextReference()
       },
       cancelGlossaryContextReference,
       openGlossaryHarvest: () => {

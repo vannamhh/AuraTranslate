@@ -97,8 +97,9 @@ pub use schema::{
     CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, GLOSSARY_CANDIDATE_DDL, GLOSSARY_ENTRY_DDL,
     IMPORT_CLEANUP_RULE_DDL, LIBRARY_INDEX_MIGRATIONS, LIBRARY_WORK_DDL, Migration,
     PINNED_ENTRY_DDL, PINNED_ENTRY_SOURCE_VERSION_DDL, PROJECT_MIGRATIONS, PROMPT_SET_DDL,
-    SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL, SEGMENT_OMITTED_DDL, SEGMENT_STATUS_AND_VERSION_DDL,
-    SEGMENT_TARGET_TEXT_DDL, SEGMENT_TRANSLATION_ORIGIN_DDL, WORK_DDL,
+    QUICK_TRANSLATION_MIGRATIONS, SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL, SEGMENT_OMITTED_DDL,
+    SEGMENT_STATUS_AND_VERSION_DDL, SEGMENT_TARGET_TEXT_DDL, SEGMENT_TRANSLATION_ORIGIN_DDL,
+    WORK_DDL,
 };
 
 /// Lỗi thô của SQLite, cho chỗ gọi cần rẽ nhánh trên nó bên trong một job.
@@ -187,6 +188,7 @@ pub enum StoreKind {
     /// nhánh từ chối mở của [`Store::open`] bước 3 — thứ `project.db`/`global.db` dựa vào
     /// (AD-30) nhưng SAI cho một kho dẫn xuất.
     LibraryIndex,
+    QuickTranslation,
 
     /// Một tệp từ điển `.db` — **CHỈ ĐỌC, LUÔN LUÔN** (AD-7). Story 1.11.
     ///
@@ -212,6 +214,7 @@ impl StoreKind {
             StoreKind::Global => "global",
             StoreKind::Project => "project",
             StoreKind::LibraryIndex => "library-index",
+            StoreKind::QuickTranslation => "quick-translation",
             StoreKind::Dict => "dict",
         }
     }
@@ -346,6 +349,15 @@ impl StoreSpec {
             path,
             tuning: Tuning::default(),
             migrations: LIBRARY_INDEX_MIGRATIONS,
+        }
+    }
+
+    pub fn quick_translation(path: PathBuf) -> Self {
+        Self {
+            kind: StoreKind::QuickTranslation,
+            path,
+            tuning: Tuning::default(),
+            migrations: QUICK_TRANSLATION_MIGRATIONS,
         }
     }
 }

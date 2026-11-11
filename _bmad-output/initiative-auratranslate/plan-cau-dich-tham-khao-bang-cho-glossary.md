@@ -29,7 +29,7 @@ context: []
 
 **Never:** Không ghi `target_text`, Glossary, TM, không vào lịch sử gọi AI của panel dịch. Không tự gọi AI khi chuyển hàng. Không thêm phím tắt.
 
-**Decisions (Ice, 2026-11-01):** Prompt cố định ngắn, chỉ gồm yêu cầu dịch và câu cần dịch, không dùng Bộ prompt, Glossary hay TM. Câu AI đã dịch giữ trong bộ nhớ tới khi đóng Tác phẩm, không migration, không ghi đĩa.
+**Decisions (Ice, 2026-11-01):** Prompt cố định ngắn, chỉ gồm yêu cầu dịch và câu cần dịch, không dùng Bộ prompt, Glossary hay TM. Câu AI đã dịch giữ trong bộ nhớ tới khi đóng Tác phẩm, không migration, không ghi đĩa. 🔵 2026-11-11: lời hứa giữ trong bộ nhớ hết hiệu lực, kết quả nay nằm trong `quick-translation.db` (AD-64 mục 13).
 
 ## I/O & Edge-Case Matrix
 
