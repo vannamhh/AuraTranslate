@@ -2981,7 +2981,7 @@ const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
 ])
 
 /** `ceil(0.85 × live)` over commands with a mouse point, via `judgeFloor`. */
-const POINTER_FLOOR = 273
+const POINTER_FLOOR = 292
 
 /**
  * Self-check: the verdict must go red on each bad case and stay green on the good ones.

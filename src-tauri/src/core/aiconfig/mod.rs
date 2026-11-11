@@ -60,6 +60,69 @@ pub enum AiConfigField {
     SystemPrompt,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+pub enum QuickAiConfigField {
+    #[serde(rename = "quick_provider")]
+    Provider,
+    #[serde(rename = "quick_endpoint")]
+    Endpoint,
+    #[serde(rename = "quick_model")]
+    Model,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuickConfigSource {
+    Dedicated,
+    MainGlobal,
+    Incomplete,
+}
+
+pub fn quick_config_source(
+    resolved: &std::collections::BTreeMap<String, ResolvedField>,
+) -> QuickConfigSource {
+    let present = |field: QuickAiConfigField| {
+        resolved
+            .get(field.as_str())
+            .is_some_and(|value| !value.value.trim().is_empty())
+    };
+    match (
+        present(QuickAiConfigField::Endpoint),
+        present(QuickAiConfigField::Model),
+    ) {
+        (true, true) => QuickConfigSource::Dedicated,
+        (false, false) => QuickConfigSource::MainGlobal,
+        _ => QuickConfigSource::Incomplete,
+    }
+}
+
+impl QuickAiConfigField {
+    pub const ALL: &'static [Self] = &[Self::Provider, Self::Endpoint, Self::Model];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Provider => "quick_provider",
+            Self::Endpoint => "quick_endpoint",
+            Self::Model => "quick_model",
+        }
+    }
+}
+
+pub fn validate_quick_field(
+    field: QuickAiConfigField,
+    raw: &str,
+) -> Result<String, InvalidFieldValue> {
+    let main_field = match field {
+        QuickAiConfigField::Provider => AiConfigField::Provider,
+        QuickAiConfigField::Endpoint => AiConfigField::Endpoint,
+        QuickAiConfigField::Model => AiConfigField::Model,
+    };
+    if raw.trim().is_empty() {
+        return Ok(String::new());
+    }
+    validate_field(main_field, raw)
+}
+
 impl AiConfigField {
     /// Mọi trường — thứ tự này là thứ tự hiển thị của form (`mockups/settings.html`).
     pub const ALL: &'static [AiConfigField] = &[

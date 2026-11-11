@@ -1726,3 +1726,192 @@ fn default_system_prompt_forbids_markdown() {
         auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT.contains("Không dùng Markdown")
     );
 }
+
+fn quick_fields(global: &Store, endpoint: &str, model: &str) {
+    use auratranslate_lib::commands::aiconfig::{
+        QuickAiConfigFieldValue, quick_ai_config_save_fields,
+    };
+    use auratranslate_lib::core::aiconfig::QuickAiConfigField;
+    quick_ai_config_save_fields(
+        Some(global),
+        AiConfigTier::Global,
+        &[
+            QuickAiConfigFieldValue {
+                field: QuickAiConfigField::Provider,
+                value: "openai".into(),
+            },
+            QuickAiConfigFieldValue {
+                field: QuickAiConfigField::Endpoint,
+                value: endpoint.into(),
+            },
+            QuickAiConfigFieldValue {
+                field: QuickAiConfigField::Model,
+                value: model.into(),
+            },
+        ],
+    )
+    .unwrap();
+}
+
+fn quick_entry() -> keyring_core::Entry {
+    keyring_core::Entry::new(KEYCHAIN_SERVICE, "ai_quick_provider_api_key").unwrap()
+}
+
+fn deny_quick_key() {
+    let entry = quick_entry();
+    entry
+        .as_any()
+        .downcast_ref::<keyring_core::mock::Cred>()
+        .unwrap()
+        .set_error(keyring_core::Error::Invalid("mock".into(), "denied".into()));
+}
+
+#[test]
+fn quick_configuration_is_global_and_keys_are_isolated_with_unknown_denials() {
+    use auratranslate_lib::commands::aiconfig::{
+        quick_ai_config_delete_key, quick_ai_config_get, quick_ai_config_save_fields,
+        quick_ai_config_save_key,
+    };
+    use auratranslate_lib::commands::aitranslate::{
+        PrepareOutcome, prepare_context_reference_call,
+    };
+    let _lock = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let dir = temp_dir("quick-accounts");
+    let global = open_global(&dir);
+    reset_key_to_not_configured();
+    quick_ai_config_delete_key(AiConfigTier::Global).unwrap();
+    quick_fields(&global, "https://quick.example/v1", "quick-model");
+    assert!(matches!(
+        prepare_context_reference_call(Some(&global), None, "句").unwrap(),
+        PrepareOutcome::NotConfigured
+    ));
+    ai_config_save_key(AiConfigTier::Global, "main-secret").unwrap();
+    assert!(matches!(
+        prepare_context_reference_call(Some(&global), None, "句").unwrap(),
+        PrepareOutcome::NotConfigured
+    ));
+    quick_ai_config_save_key(AiConfigTier::Global, "quick-secret").unwrap();
+    let prepared = match prepare_context_reference_call(Some(&global), None, "句").unwrap() {
+        PrepareOutcome::Ready(call) => call,
+        _ => panic!("quick key must configure the call"),
+    };
+    assert_eq!(prepared.api_key, "quick-secret");
+    assert_eq!(prepared.model, "quick-model");
+    assert!(prepared.temperature.is_none() && prepared.max_tokens.is_none());
+    assert_eq!(read_raw_mock_key_value().unwrap(), "main-secret");
+    deny_quick_key();
+    let wire = quick_ai_config_get(Some(&global)).unwrap();
+    assert_eq!(wire.key_configured, None);
+    assert_eq!(wire.ready, None);
+    deny_quick_key();
+    let error = quick_ai_config_save_key(AiConfigTier::Global, "replacement-secret").unwrap_err();
+    assert_eq!(error.code(), "ai_config.keychain_unavailable");
+    assert!(!format!("{error:?}").contains("secret"));
+    deny_quick_key();
+    assert_eq!(
+        prepare_context_reference_call(Some(&global), None, "句")
+            .err()
+            .unwrap()
+            .code(),
+        "ai_config.keychain_unavailable"
+    );
+    deny_quick_key();
+    assert!(quick_ai_config_save_fields(None, AiConfigTier::Work, &[]).is_err());
+    assert!(quick_ai_config_save_key(AiConfigTier::Work, "x").is_err());
+    assert!(quick_ai_config_delete_key(AiConfigTier::Work).is_err());
+    assert!(
+        quick_ai_config_delete_key(AiConfigTier::Global).is_err(),
+        "Work calls must not consume the denial"
+    );
+    quick_ai_config_delete_key(AiConfigTier::Global).unwrap();
+    assert_eq!(read_raw_mock_key_value().unwrap(), "main-secret");
+    quick_fields(&global, "", "");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Endpoint,
+        "https://main.example/v1",
+    )
+    .unwrap();
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Model,
+        "main-model",
+    )
+    .unwrap();
+    let PrepareOutcome::Ready(fallback) =
+        prepare_context_reference_call(Some(&global), None, "句").unwrap()
+    else {
+        panic!("main fallback ready")
+    };
+    assert_eq!(fallback.api_key, "main-secret");
+    assert_eq!(fallback.model, "main-model");
+    drop(global);
+    cleanup_dir(&dir);
+}
+
+#[test]
+fn partial_quick_configuration_rejects_before_either_key_read_or_fallback() {
+    use auratranslate_lib::commands::aiconfig::quick_ai_config_get;
+    use auratranslate_lib::commands::aitranslate::{
+        PrepareOutcome, prepare_context_reference_call, prepare_quick_connection_check,
+    };
+    let _lock = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let dir = temp_dir("quick-partial");
+    let global = open_global(&dir);
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Endpoint,
+        "https://main.example/v1",
+    )
+    .unwrap();
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Model,
+        "main",
+    )
+    .unwrap();
+    for (endpoint, model) in [("https://quick.example/v1", ""), ("", "quick")] {
+        quick_fields(&global, endpoint, model);
+        inject_one_shot_keychain_error();
+        deny_quick_key();
+        assert!(matches!(
+            prepare_context_reference_call(Some(&global), None, "句").unwrap(),
+            PrepareOutcome::NotConfigured
+        ));
+        assert!(matches!(
+            prepare_quick_connection_check(Some(&global)).unwrap(),
+            auratranslate_lib::commands::aitranslate::ConnectionCheckPrep::NotConfigured
+        ));
+        let wire = quick_ai_config_get(Some(&global)).unwrap();
+        assert_eq!(wire.ready, Some(false));
+        assert_eq!(wire.key_configured, None);
+        assert!(
+            matches!(
+                read_raw_mock_key_value(),
+                Err(keyring_core::Error::Invalid(_, _))
+            ),
+            "main account was read"
+        );
+        assert!(
+            matches!(
+                quick_entry().get_password(),
+                Err(keyring_core::Error::Invalid(_, _))
+            ),
+            "quick account was read"
+        );
+    }
+    drop(global);
+    cleanup_dir(&dir);
+}

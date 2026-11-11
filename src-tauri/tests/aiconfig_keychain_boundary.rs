@@ -79,7 +79,8 @@ const SRC_RS_FLOOR: usize = 133;
 /// một chỗ VIẾT TÊN nó ra (vd. truyền như một giá trị hàm, `ApiKeySecret::expose_secret`)
 /// mà không cần biết cú pháp gọi cụ thể. `"keychain::read"` cũng không có dấu `(` — bắt
 /// cả câu `use` đặt tên `read` (xem §GIỚI HẠN THẬT đầu tệp) lẫn một lời gọi đủ điều kiện.
-const FORBIDDEN_RAW_VALUE_TOKENS: [&str; 2] = ["expose_secret", "keychain::read"];
+const FORBIDDEN_RAW_VALUE_TOKENS: [&str; 3] =
+    ["expose_secret", "keychain::read", "keychain::read_account"];
 
 /// Mọi tệp `.rs` dưới `src-tauri/src/**`, kèm đường dẫn tương đối kiểu POSIX và nội dung.
 fn all_rust_sources() -> Vec<(String, String)> {
@@ -142,10 +143,12 @@ fn line_use_pulls_in_read_via_brace_or_glob(code: &str) -> Option<&'static str> 
         // (`use …keychain::read as get_secret;`, không ngoặc) đã bị bắt từ trước — nó chứa
         // nguyên vẹn chuỗi con `"keychain::read"` trước khoảng trắng của `as`, nên
         // `FORBIDDEN_RAW_VALUE_TOKENS`'s neo biên ĐUÔI đã khớp nó — lỗ THẬT chỉ ở dạng NGOẶC.
-        if inside
-            .split(',')
-            .any(|item| item.split_whitespace().next() == Some("read"))
-        {
+        if inside.split(',').any(|item| {
+            matches!(
+                item.split_whitespace().next(),
+                Some("read" | "read_account")
+            )
+        }) {
             return Some("keychain::{read}");
         }
     }
@@ -596,4 +599,19 @@ fn the_two_predicates_anchor_on_boundaries_and_do_not_fire_on_prefix_neighbours(
              tru theo tien to chuoi se bo qua no khoi cong ranh gioi."
         );
     }
+}
+
+#[test]
+fn account_accessors_and_aliased_imports_stay_inside_the_existing_boundary() {
+    for line in [
+        "keychain::read_account(account)",
+        "use super::keychain::read_account as secret;",
+        "use super::keychain::{configured, read_account as secret};",
+    ] {
+        assert!(
+            line_names_a_forbidden_raw_value_access(line).is_some(),
+            "{line}"
+        );
+    }
+    assert!(line_names_a_forbidden_raw_value_access("keychain::read_account_status()").is_none());
 }

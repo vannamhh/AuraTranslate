@@ -1141,6 +1141,10 @@ export type CommandDeps = {
   confirmAiConfigPreset?: () => void
   /** Handler of `settings.ai_config.preset_cancel`. */
   cancelAiConfigPreset?: () => void
+  saveQuickAiConfigKey?: () => void
+  deleteQuickAiConfigKey?: () => void
+  runQuickAiConfigTest?: () => void
+  cancelQuickAiConfigTest?: () => void
   /** Closes Settings and switches to Library mode, where the rescan report is drawn. Handler of `settings.data.open_report`. */
   openLibraryRescanReport?: () => void
   /** Đóng lớp phủ — KHÔNG dọn nhật ký đã tải. Handler của `settings.close`. */
@@ -4898,6 +4902,10 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   for (const [id, port] of [
     ['settings.ai_config.preset_apply', 'confirmAiConfigPreset'],
     ['settings.ai_config.preset_cancel', 'cancelAiConfigPreset'],
+    ['settings.quick_ai.key_save', 'saveQuickAiConfigKey'],
+    ['settings.quick_ai.key_delete', 'deleteQuickAiConfigKey'],
+    ['settings.quick_ai.test', 'runQuickAiConfigTest'],
+    ['settings.quick_ai.test_cancel', 'cancelQuickAiConfigTest'],
   ] as const) {
     target.register({
       id,

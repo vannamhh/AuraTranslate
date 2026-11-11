@@ -9,7 +9,7 @@ const contextLookupMock = vi.fn()
 const translateMock = vi.fn()
 const cancelMock = vi.fn()
 const storeLookupMock = vi.fn()
-const aiConfigGetMock = vi.fn()
+const quickAiConfigGetMock = vi.fn()
 
 vi.mock('../../src/config/glossary', () => ({
   pendingGlossaryCandidates: () => pendingMock(),
@@ -27,9 +27,14 @@ vi.mock('../../src/config/glossaryContextReference', () => ({
   cancelContextReference: (runId: number) => cancelMock(runId),
 }))
 
+vi.mock('../../src/config/quickAiConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/config/quickAiConfig')>()),
+  quickAiConfigGet: () => quickAiConfigGetMock(),
+}))
+
 vi.mock('../../src/config/aiconfig', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/aiconfig')>()),
-  aiConfigGet: () => aiConfigGetMock(),
+  aiConfigGet: async () => ({ fields: [], defaultSystemPrompt: '', workTierAvailable: true, keyConfigured: false, ready: false, notReady: ['endpoint_missing'], error: null }),
 }))
 
 function candidate(id: number, over: Partial<GlossaryCandidate> = {}): GlossaryCandidate {
@@ -62,15 +67,10 @@ const done = { value: { state: 'done', model: 'm-1', usage: null, maybe_truncate
 
 async function fresh(deps: Partial<CommandDeps> = {}) {
   vi.resetModules()
-  for (const m of [pendingMock, lookupMock, contextLookupMock, translateMock, cancelMock, storeLookupMock, aiConfigGetMock]) m.mockReset()
+  for (const m of [pendingMock, lookupMock, contextLookupMock, translateMock, cancelMock, storeLookupMock, quickAiConfigGetMock]) m.mockReset()
   storeLookupMock.mockResolvedValue(miss)
-  aiConfigGetMock.mockResolvedValue({
-    fields: null,
-    defaultSystemPrompt: '',
-    workTierAvailable: false,
-    keyConfigured: null,
-    ready: null,
-    notReady: [],
+  quickAiConfigGetMock.mockResolvedValue({
+    config: { fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [] },
     error: null,
   })
   const commands = await import('../../src/commands')
@@ -422,16 +422,25 @@ describe('GlossaryQueueOverlay.vue — khối câu dịch', () => {
     wrapper.unmount()
   })
 
+  it('dedicated quick readiness enables translation while the main config is incomplete', async () => {
+    const { state, Overlay } = await fresh()
+    const main = await import('../../src/aiConfigState')
+    await main.refreshAiConfigReadiness()
+    expect(main.aiConfigReadiness.value).toBe('unconfigured')
+    quickAiConfigGetMock.mockResolvedValue({ config: { fields: [], source: 'dedicated', key_configured: true, ready: true, not_ready: [] }, error: null })
+    contextLookupMock.mockResolvedValue(notFound)
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await openWith(state, candidate(1))
+    await flushPromises()
+    expect(wrapper.get('[data-gq-context-translate]').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('chưa cấu hình AI thì nút tắt kèm lý do và lối sang Cài đặt', async () => {
     const openSettings = vi.fn()
     const { state, Overlay } = await fresh({ openSettingsToAiConfig: openSettings })
-    aiConfigGetMock.mockResolvedValue({
-      fields: [],
-      defaultSystemPrompt: '',
-      workTierAvailable: false,
-      keyConfigured: false,
-      ready: false,
-      notReady: ['endpoint_missing'],
+    quickAiConfigGetMock.mockResolvedValue({
+      config: { fields: [], source: 'incomplete', key_configured: null, ready: false, not_ready: ['endpoint_missing'] },
       error: null,
     })
     contextLookupMock.mockResolvedValue(notFound)
@@ -449,13 +458,8 @@ describe('GlossaryQueueOverlay.vue — khối câu dịch', () => {
   it('chưa cấu hình AI thì Dịch lại cũng tắt, câu trong kho vẫn hiện', async () => {
     const retranslate = vi.fn()
     const { state, Overlay } = await fresh({ retranslateGlossaryContextReference: retranslate })
-    aiConfigGetMock.mockResolvedValue({
-      fields: [],
-      defaultSystemPrompt: '',
-      workTierAvailable: false,
-      keyConfigured: false,
-      ready: false,
-      notReady: ['endpoint_missing'],
+    quickAiConfigGetMock.mockResolvedValue({
+      config: { fields: [], source: 'incomplete', key_configured: null, ready: false, not_ready: ['endpoint_missing'] },
       error: null,
     })
     contextLookupMock.mockResolvedValue(notFound)

@@ -37,7 +37,7 @@ import {
 } from './glossaryQueueState'
 import { glossaryScanThresholdInUse } from './glossarySettingsState'
 import { aiUsageLine } from './aiUsageLine'
-import { aiConfigReadiness, refreshAiConfigReadiness } from './aiConfigState'
+import { quickAiConfigReadiness, refreshQuickAiConfigReadiness } from './quickAiConfigState'
 
 /** Row selection is data (AD-34 §1): keyboard and the hidden per-row radio share this one
  *  get/set instead of two parallel selection mechanisms. */
@@ -171,12 +171,12 @@ function onEscape(): void {
 }
 
 const contextReferenceUnconfigured = computed<boolean>(
-  () => aiConfigReadiness.value === 'unconfigured' || queueContextReference.value?.kind === 'not_configured',
+  () => quickAiConfigReadiness.value === 'unconfigured' || queueContextReference.value?.kind === 'not_configured',
 )
 
 watch(queueOverlayIsOpen, (open) => {
   if (open) {
-    void refreshAiConfigReadiness()
+    void refreshQuickAiConfigReadiness()
     // 🔴 KHÔNG lưu `document.activeElement` trần — xem `focusReturnTargetOnOpen`.
     returnFocusTo = focusReturnTargetOnOpen('[data-glossary-queue-open]')
     void nextTick(() => panel.value?.focus())

@@ -308,3 +308,126 @@ fn the_wire_reaches_the_send_on_its_own_generation_and_leaves_the_batch_and_rows
     let _ = fs::remove_dir_all(gdir);
     let _ = fs::remove_dir_all(qdir);
 }
+
+#[test]
+fn quick_routing_uses_dedicated_or_whole_main_global_despite_work_overrides() {
+    use auratranslate_lib::commands::aiconfig::{
+        QuickAiConfigFieldValue, quick_ai_config_save_fields,
+    };
+    use auratranslate_lib::core::aiconfig::QuickAiConfigField;
+    let (root, gdir, global, open) = configured_local();
+    write_field(
+        &open.store,
+        AiConfigField::Endpoint,
+        "http://work.invalid/v1",
+    )
+    .unwrap();
+    write_field(&open.store, AiConfigField::Model, "work-model").unwrap();
+    write_field(&global, AiConfigField::Temperature, "0.25").unwrap();
+    write_field(&global, AiConfigField::MaxTokens, "321").unwrap();
+    for dedicated in [true, false] {
+        let fields = [
+            (QuickAiConfigField::Provider, "lmstudio"),
+            (
+                QuickAiConfigField::Endpoint,
+                if dedicated {
+                    "http://quick.invalid/v1"
+                } else {
+                    ""
+                },
+            ),
+            (
+                QuickAiConfigField::Model,
+                if dedicated { "quick-model" } else { "" },
+            ),
+        ]
+        .map(|(field, value)| QuickAiConfigFieldValue {
+            field,
+            value: value.into(),
+        });
+        quick_ai_config_save_fields(
+            Some(&global),
+            auratranslate_lib::core::aiconfig::AiConfigTier::Global,
+            &fields,
+        )
+        .unwrap();
+        let resolved =
+            auratranslate_lib::commands::aitranslate::resolve_quick_call_config(Some(&global))
+                .unwrap()
+                .unwrap();
+        assert_eq!(
+            resolved.provider,
+            if dedicated { "lmstudio" } else { "ollama" }
+        );
+        for work in [None, Some(&open)] {
+            let PrepareOutcome::Ready(call) =
+                prepare_context_reference_call(Some(&global), work, "句").unwrap()
+            else {
+                panic!("ready")
+            };
+            assert_eq!(
+                call.endpoint,
+                if dedicated {
+                    "http://quick.invalid/v1"
+                } else {
+                    "http://localhost:11434/v1"
+                }
+            );
+            assert_eq!(call.model, if dedicated { "quick-model" } else { "m" });
+            assert_eq!(call.temperature, if dedicated { None } else { Some(0.25) });
+            assert_eq!(call.max_tokens, if dedicated { None } else { Some(321) });
+        }
+    }
+    drop((global, open));
+    let _ = fs::remove_dir_all(root);
+    let _ = fs::remove_dir_all(gdir);
+}
+
+#[test]
+fn quick_wire_and_connection_test_work_without_any_work_state_and_cancel_independently() {
+    use auratranslate_lib::commands::aitranslate::{
+        AiTranslateGeneration, ConnectionCheckGeneration, QuickConnectionCheckGeneration,
+        QuickTranslateGeneration, wire,
+    };
+    use tauri::Manager as _;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+    let (root, gdir, global, open) = configured_local();
+    write_field(&global, AiConfigField::Endpoint, "http://127.0.0.1:1/v1").unwrap();
+    let qdir = temp_dir("no-work-wire");
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    app.manage(global);
+    app.manage(QuickTranslationStore::open(qdir.join("quick-translation.db")).unwrap());
+    app.manage(AiTranslateGeneration::default());
+    app.manage(QuickTranslateGeneration::default());
+    app.manage(ConnectionCheckGeneration::default());
+    app.manage(QuickConnectionCheckGeneration::default());
+    let handle = app.handle().clone();
+    let result = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
+        handle.clone(),
+        "句".into(),
+        77,
+        false,
+        tauri::ipc::Channel::new(|_| Ok(())),
+    ));
+    assert!(
+        result.is_err(),
+        "closed port must be reached without a Work"
+    );
+    assert_ne!(result.err().unwrap().code(), "work.none_open");
+    let result =
+        tauri::async_runtime::block_on(wire::quick_ai_config_test_connection(handle.clone()));
+    assert!(result.is_err(), "connection test must reach closed port");
+    wire::quick_ai_config_test_connection_cancel(handle);
+    assert!(app.state::<ConnectionCheckGeneration>().is_current(0));
+    assert!(app.state::<AiTranslateGeneration>().is_current(0));
+    assert!(app.state::<QuickTranslateGeneration>().is_current(1));
+    assert!(
+        !app.state::<QuickConnectionCheckGeneration>()
+            .0
+            .is_current(1)
+    );
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+    let _ = fs::remove_dir_all(gdir);
+    let _ = fs::remove_dir_all(qdir);
+}

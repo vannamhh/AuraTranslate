@@ -1177,10 +1177,18 @@ fn the_dummy_api_key_stub_is_cfg_gated_and_the_default_read_is_the_real_keychain
         !stub_body.contains("entry()"),
         "stub must never touch the OS keychain"
     );
-    let real_body: String = lines[defs[1]..].join("\n");
+    let real_source = lines[defs[1]..].join("\n");
+    let real_body = boundary_scan::code_lines(&real_source)
+        .map(|(_, line)| line)
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(
-        real_body.contains("entry()?"),
-        "default `read` must call the real keychain"
+        real_body.contains("read_account(KeyAccount::Main)"),
+        "default read must select the main account"
+    );
+    assert!(
+        real_body.contains("match entry(account)?.get_password()"),
+        "account accessor must read the real keychain"
     );
     assert!(
         !real_body.contains("dummy"),
@@ -1498,6 +1506,21 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
     // Moi vo CHAN phai mang `(async)` NGAY TREN chu ky cua no. Cot thu hai la chu ky, cot thu
     // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
     &[
+        (
+            "src/commands/aiconfig.rs",
+            "pub fn quick_ai_config_get(\n        app: tauri::AppHandle,",
+            "probes the OS keychain and may wait for permission",
+        ),
+        (
+            "src/commands/aiconfig.rs",
+            "pub fn quick_ai_config_save_key(tier: AiConfigTier, value: String)",
+            "writes the OS keychain and may wait for permission",
+        ),
+        (
+            "src/commands/aiconfig.rs",
+            "pub fn quick_ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {\n        super::quick_ai_config_delete_key(tier)",
+            "deletes from the OS keychain and may wait for permission",
+        ),
         (
             "src/commands/glossary.rs",
             "pub fn glossary_export_tier(\n        app: tauri::AppHandle,",
@@ -2281,10 +2304,10 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     (
         "src/commands/aiconfig.rs",
-        3,
-        3,
-        3,
-        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Ba vo (`ai_config_save_field`/`ai_config_save_fields`/`ai_config_clear_override`) ghi/xoa hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
+        4,
+        6,
+        6,
+        "Quick get/save/delete key share the existing blocking keychain classification; quick field saves write three fixed rows, matching main field saves. MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Ba vo (`ai_config_save_field`/`ai_config_save_fields`/`ai_config_clear_override`) ghi/xoa hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
     ),
     (
         "src/commands/aiprompt.rs",
@@ -2295,7 +2318,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        10,
+        12,
         0,
         0,
         "CHUA DO -- chu: Dev. Nam vo dich (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12, mot gui lai mot luot da ghi o Story 4-15): \
@@ -2311,7 +2334,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
          `ai_config_test_connection` cung la `async fn` literal (than tu spawn luong blocking, \
          khong giu `OpenWorkState` xuyen luot goi mang), nen roi vao cot `plain`; \
          `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi; \
-         `ai_context_reference_translate` la `async fn` literal cung co che, `ai_context_reference_cancel` chi bom `AtomicU64` khi `run_id` khop luot dang chay (mot `Mutex<Option<u64>>` ngan, khong doc/ghi Store); `quick_translation_lookup` doc mot hang theo chi muc UNIQUE `source_hash` (chua do).",
+         `ai_context_reference_translate` la `async fn` literal cung co che, `ai_context_reference_cancel` chi bom `AtomicU64` khi `run_id` khop luot dang chay (mot `Mutex<Option<u64>>` ngan, khong doc/ghi Store); `quick_ai_config_test_connection` uses the same blocking worker as the main connection test; quick cancellation only updates its independent generation. `quick_translation_lookup` doc mot hang theo chi muc UNIQUE `source_hash` (chua do).",
     ),
     (
         "src/commands/proofread.rs",
@@ -2562,9 +2585,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (125, 80),
+        (128, 83),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         125/80.\n\n\
+         128/83.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

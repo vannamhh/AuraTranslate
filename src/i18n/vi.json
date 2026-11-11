@@ -2445,5 +2445,15 @@
   "settings.privacy.reason_denied": "Không có trong danh sách link đã dán, và không phải ảnh được trang đã tải tham chiếu tới",
   "image.missing_alt": "Ảnh không tải được",
   "image.missing_file_label": "Tệp",
-  "image.missing_source_label": "Nguồn"
+  "image.missing_source_label": "Nguồn",
+  "settings.quick_ai.title": "Dịch nhanh",
+  "settings.quick_ai.shared": "Dùng chung mọi Tác phẩm",
+  "settings.quick_ai.locked": "Sửa ở tầng Toàn cục.",
+  "settings.quick_ai.fallback": "Để trống thì bấm tay dùng cấu hình chính ở tầng Toàn cục. Tự dịch cần cấu hình riêng.",
+  "settings.quick_ai.incomplete": "Cần cả endpoint và mô hình.",
+  "settings.quick_ai.dedicated": "Tự dịch chữ đang hiện ở Bảng chờ Glossary và màn xem trước nhập URL.",
+  "command.settings.quick_ai.key_save": "Lưu khoá API Dịch nhanh",
+  "command.settings.quick_ai.key_delete": "Xoá khoá API Dịch nhanh",
+  "command.settings.quick_ai.test": "Thử kết nối Dịch nhanh",
+  "command.settings.quick_ai.test_cancel": "Huỷ thử kết nối Dịch nhanh"
 }

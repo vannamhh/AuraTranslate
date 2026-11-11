@@ -1386,6 +1386,12 @@ pub fn run() {
             // TAI DAY, khong chi an di tren webview.
             crate::commands::aiconfig::wire::ai_config_save_key,
             crate::commands::aiconfig::wire::ai_config_delete_key,
+            crate::commands::aiconfig::wire::quick_ai_config_get,
+            crate::commands::aiconfig::wire::quick_ai_config_save_fields,
+            crate::commands::aiconfig::wire::quick_ai_config_save_key,
+            crate::commands::aiconfig::wire::quick_ai_config_delete_key,
+            crate::commands::aitranslate::wire::quick_ai_config_test_connection,
+            crate::commands::aitranslate::wire::quick_ai_config_test_connection_cancel,
             crate::commands::aitranslate::wire::ai_config_test_connection,
             crate::commands::aitranslate::wire::ai_config_test_connection_cancel,
             crate::commands::update::wire::update_check,
@@ -1754,6 +1760,7 @@ fn open_work_slot(app: &tauri::App) {
     app.manage(crate::commands::aiprompt::AiCallRecordsState::default());
     app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());
     app.manage(crate::commands::aitranslate::ConnectionCheckGeneration::default());
+    app.manage(crate::commands::aitranslate::QuickConnectionCheckGeneration::default());
     app.manage(crate::commands::aitranslate::QuickTranslateGeneration::default());
     app.manage(crate::commands::proofread::ProofreadGeneration::default());
     app.manage(crate::commands::convention::ConventionMatcherState::default());

@@ -121,6 +121,21 @@ pub fn write_fields(store: &Store, fields: &[(AiConfigField, String)]) -> Result
         .map(|(field, value)| (field.as_str().to_owned(), value.clone()))
         .collect();
 
+    write_rows(store, rows)
+}
+
+pub fn write_quick_fields(
+    store: &Store,
+    fields: &[(super::QuickAiConfigField, String)],
+) -> Result<(), StoreError> {
+    let rows = fields
+        .iter()
+        .map(|(field, value)| (field.as_str().to_owned(), value.clone()))
+        .collect();
+    write_rows(store, rows)
+}
+
+fn write_rows(store: &Store, rows: Vec<(String, String)>) -> Result<(), StoreError> {
     store.write(move |tx: &Transaction<'_>| {
         for (key, value) in &rows {
             tx.execute(

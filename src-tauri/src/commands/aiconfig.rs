@@ -392,16 +392,156 @@ pub(crate) fn provider_needs_key(provider: &str) -> bool {
     )
 }
 
-/// Sáu vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
-///
-/// ⚠️ Tên command trên dây LÀ tên hàm — năm vỏ dưới đây mang ĐÚNG tên năm hàm thuần ở
-/// `super::`, không hậu tố. Chỗ gọi xuống dùng `super::tên_hàm(...)` đủ điều kiện.
-///
-/// `ai_config_save_key`/`ai_config_delete_key` không cần `app: tauri::AppHandle` — khác ba
-/// vỏ kia, chúng không đọc `Store`/`OpenWorkState`: khoá API sống trong keychain hệ điều
-/// hành, không trong `global.db`/`project.db`, và tầng bị từ chối bằng tham số `tier` tới
-/// tay chứ không bằng việc dò `OpenWorkState` (xem doc-comment đầu tệp).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct QuickAiConfigFieldWire {
+    pub field: &'static str,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct QuickAiConfigGetWire {
+    pub fields: Vec<QuickAiConfigFieldWire>,
+    pub key_configured: Option<bool>,
+    pub source: crate::core::aiconfig::QuickConfigSource,
+    pub ready: Option<bool>,
+    pub not_ready: Vec<AiNotReadyReason>,
+}
+
+pub fn quick_ai_config_get(global: Option<&Store>) -> Result<QuickAiConfigGetWire, IpcError> {
+    use crate::core::aiconfig::{QuickAiConfigField, QuickConfigSource, quick_config_source};
+    let global = global.ok_or_else(store_is_missing)?;
+    let resolved = resolve_two_tiers(&ScopeResolver::global_only(), global, None)?;
+    let source = quick_config_source(&resolved);
+    let value = |key: &str| {
+        resolved
+            .get(key)
+            .map(|f| f.value.as_str())
+            .unwrap_or_default()
+    };
+    let fields = QuickAiConfigField::ALL
+        .iter()
+        .map(|field| QuickAiConfigFieldWire {
+            field: field.as_str(),
+            value: value(field.as_str()).to_owned(),
+        })
+        .collect();
+    let (key_configured, ready, not_ready) = if source == QuickConfigSource::Incomplete {
+        let (ready, reasons) = call_readiness(
+            value("quick_provider"),
+            value("quick_endpoint"),
+            value("quick_model"),
+            None,
+        );
+        (None, ready, reasons)
+    } else {
+        let key_configured = keychain::configured_account(keychain::KeyAccount::Quick).ok();
+        let (provider, endpoint, model, selected_key) = if source == QuickConfigSource::MainGlobal {
+            (
+                value("provider"),
+                value("endpoint"),
+                value("model"),
+                keychain::configured().ok(),
+            )
+        } else {
+            (
+                value("quick_provider"),
+                value("quick_endpoint"),
+                value("quick_model"),
+                key_configured,
+            )
+        };
+        let (ready, reasons) = call_readiness(provider, endpoint, model, selected_key);
+        (key_configured, ready, reasons)
+    };
+    Ok(QuickAiConfigGetWire {
+        fields,
+        key_configured,
+        source,
+        ready,
+        not_ready,
+    })
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct QuickAiConfigFieldValue {
+    pub field: crate::core::aiconfig::QuickAiConfigField,
+    pub value: String,
+}
+
+pub fn quick_ai_config_save_fields(
+    global: Option<&Store>,
+    tier: AiConfigTier,
+    fields: &[QuickAiConfigFieldValue],
+) -> Result<(), IpcError> {
+    if tier != AiConfigTier::Global {
+        return Err(AiConfigKeyError::TierNotGlobal.into());
+    }
+    if fields.is_empty() {
+        return Err(invalid_value_error("fields"));
+    }
+    let mut validated = Vec::with_capacity(fields.len());
+    for entry in fields {
+        if validated.iter().any(|(field, _)| *field == entry.field) {
+            return Err(invalid_value_error(entry.field.as_str()));
+        }
+        let value = crate::core::aiconfig::validate_quick_field(entry.field, &entry.value)
+            .map_err(|_| invalid_value_error(entry.field.as_str()))?;
+        validated.push((entry.field, value));
+    }
+    let store = global.ok_or_else(store_is_missing)?;
+    crate::core::aiconfig::store::write_quick_fields(store, &validated)?;
+    Ok(())
+}
+
+pub fn quick_ai_config_save_key(tier: AiConfigTier, value: &str) -> Result<(), IpcError> {
+    if tier != AiConfigTier::Global {
+        return Err(AiConfigKeyError::TierNotGlobal.into());
+    }
+    let validated = validate_key(value).map_err(AiConfigKeyError::from)?;
+    keychain::set_account(keychain::KeyAccount::Quick, &validated)
+        .map_err(AiConfigKeyError::from)?;
+    Ok(())
+}
+
+pub fn quick_ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
+    if tier != AiConfigTier::Global {
+        return Err(AiConfigKeyError::TierNotGlobal.into());
+    }
+    keychain::delete_account(keychain::KeyAccount::Quick).map_err(AiConfigKeyError::from)?;
+    Ok(())
+}
+
 pub mod wire {
+    #[tauri::command(async)]
+    pub fn quick_ai_config_get(
+        app: tauri::AppHandle,
+    ) -> Result<super::QuickAiConfigGetWire, IpcError> {
+        use tauri::Manager as _;
+        let global = app.try_state::<Store>();
+        super::quick_ai_config_get(global.as_deref())
+    }
+
+    #[tauri::command]
+    pub fn quick_ai_config_save_fields(
+        app: tauri::AppHandle,
+        tier: AiConfigTier,
+        fields: Vec<super::QuickAiConfigFieldValue>,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+        let global = app.try_state::<Store>();
+        super::quick_ai_config_save_fields(global.as_deref(), tier, &fields)
+    }
+
+    #[tauri::command(async)]
+    pub fn quick_ai_config_save_key(tier: AiConfigTier, value: String) -> Result<(), IpcError> {
+        super::quick_ai_config_save_key(tier, &value)
+    }
+
+    #[tauri::command(async)]
+    pub fn quick_ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
+        super::quick_ai_config_delete_key(tier)
+    }
+
     use super::{AiConfigField, AiConfigGetWire, AiConfigTier};
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;

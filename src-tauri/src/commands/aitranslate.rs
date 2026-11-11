@@ -816,33 +816,120 @@ impl QuickTranslateGeneration {
     }
 }
 
-/// Builds the call that translates one Glossary context sentence for reference. Not configured
-/// (empty endpoint/model, or no stored key) is reached before any network call. Reads and
-/// writes no Work data and records nothing.
-pub fn prepare_context_reference_call(
+#[derive(Debug, Clone, Default)]
+pub struct QuickConnectionCheckGeneration(pub ConnectionCheckGeneration);
+
+pub struct ResolvedQuickCallConfig {
+    pub provider: String,
+    pub endpoint: String,
+    pub model: String,
+    pub temperature: Option<f64>,
+    pub max_tokens: Option<u32>,
+    pub dedicated: bool,
+}
+
+pub fn resolve_quick_call_config(
     global: Option<&Store>,
-    open: Option<&OpenWork>,
-    context_example: &str,
-) -> Result<PrepareOutcome, IpcError> {
-    let Some(ResolvedCallConfig {
+) -> Result<Option<ResolvedQuickCallConfig>, IpcError> {
+    use crate::core::aiconfig::{QuickConfigSource, quick_config_source};
+    let global = global.ok_or_else(store_is_missing)?;
+    let resolved = resolve_two_tiers(&ScopeResolver::global_only(), global, None)?;
+    let source = quick_config_source(&resolved);
+    if source == QuickConfigSource::Incomplete {
+        return Ok(None);
+    }
+    let dedicated = source == QuickConfigSource::Dedicated;
+    let value = |key: &str| {
+        resolved
+            .get(key)
+            .map(|f| f.value.clone())
+            .unwrap_or_default()
+    };
+    let (provider, endpoint, model) = if dedicated {
+        (
+            value("quick_provider"),
+            value("quick_endpoint"),
+            value("quick_model"),
+        )
+    } else {
+        (value("provider"), value("endpoint"), value("model"))
+    };
+    if !endpoint_and_model_set(&endpoint, &model) {
+        return Ok(None);
+    }
+    let temperature = if dedicated {
+        None
+    } else {
+        value("temperature").trim().parse().ok()
+    };
+    let max_tokens = if dedicated {
+        None
+    } else {
+        value("max_tokens")
+            .trim()
+            .parse::<u32>()
+            .ok()
+            .filter(|v| *v > 0)
+    };
+    Ok(Some(ResolvedQuickCallConfig {
         provider,
         endpoint,
         model,
         temperature,
         max_tokens,
-        ..
-    }) = resolve_call_config(global, open)?
-    else {
+        dedicated,
+    }))
+}
+
+fn read_quick_api_key(config: &ResolvedQuickCallConfig) -> Result<Option<String>, IpcError> {
+    if !config.dedicated {
+        return read_api_key(&config.provider);
+    }
+    if !provider_needs_key(&config.provider) {
+        return Ok(Some(String::new()));
+    }
+    match keychain::read_account(keychain::KeyAccount::Quick) {
+        Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
+        Ok(None) => Ok(None),
+        Err(_) => Err(keychain_unavailable()),
+    }
+}
+
+pub fn prepare_quick_connection_check(
+    global: Option<&Store>,
+) -> Result<ConnectionCheckPrep, IpcError> {
+    let Some(config) = resolve_quick_call_config(global)? else {
+        return Ok(ConnectionCheckPrep::NotConfigured);
+    };
+    let Some(api_key) = read_quick_api_key(&config)? else {
+        return Ok(ConnectionCheckPrep::NotConfigured);
+    };
+    Ok(ConnectionCheckPrep::Ready(PreparedConnectionCheck {
+        endpoint: config.endpoint,
+        model: config.model,
+        api_key: provider_needs_key(&config.provider).then_some(api_key),
+    }))
+}
+
+/// Builds the call that translates one Glossary context sentence for reference. Not configured
+/// (empty endpoint/model, or no stored key) is reached before any network call. Reads and
+/// writes no Work data and records nothing.
+pub fn prepare_context_reference_call(
+    global: Option<&Store>,
+    _open: Option<&OpenWork>,
+    context_example: &str,
+) -> Result<PrepareOutcome, IpcError> {
+    let Some(config) = resolve_quick_call_config(global)? else {
         return Ok(PrepareOutcome::NotConfigured);
     };
-    let Some(api_key) = read_api_key(&provider)? else {
+    let Some(api_key) = read_quick_api_key(&config)? else {
         return Ok(PrepareOutcome::NotConfigured);
     };
     Ok(PrepareOutcome::Ready(PreparedTranslateCall {
-        endpoint,
-        model,
-        temperature,
-        max_tokens,
+        endpoint: config.endpoint,
+        model: config.model,
+        temperature: config.temperature,
+        max_tokens: config.max_tokens,
         api_key,
         prompt: crate::commands::aiprompt::context_reference_prompt(context_example),
         system: None,
@@ -2220,10 +2307,6 @@ pub mod wire {
         generation_state.next();
     }
 
-    /// Translates one Glossary context sentence for reference, streamed through `channel`, and
-    /// remembers a complete result in `quick-translation.db`. Own `QuickTranslateGeneration`;
-    /// writes no Work data and records nothing. The Work lock is never held across the network
-    /// call.
     #[tauri::command]
     pub async fn ai_context_reference_translate<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
@@ -2249,12 +2332,7 @@ pub mod wire {
             let store = app.try_state::<QuickTranslationStore>();
             let prepare = || {
                 let global = app.try_state::<Store>();
-                let work_state = app.try_state::<OpenWorkState>();
-                let guard = work_state
-                    .as_ref()
-                    .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-                let open = guard.as_ref().and_then(|g| g.as_ref());
-                prepare_context_reference_call(global.as_deref(), open, &context_example)
+                prepare_context_reference_call(global.as_deref(), None, &context_example)
             };
             let should_cancel: std::sync::Arc<dyn Fn() -> bool + Send + Sync> =
                 std::sync::Arc::new(move || !generation_state.is_current(generation));
@@ -2297,6 +2375,40 @@ pub mod wire {
 
         let store = app.try_state::<QuickTranslationStore>();
         quick_lookup_wire(store.as_deref(), &text)
+    }
+
+    #[tauri::command]
+    pub async fn quick_ai_config_test_connection<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<ConnectionCheckWire, IpcError> {
+        use tauri::Manager as _;
+        let state = app
+            .try_state::<super::QuickConnectionCheckGeneration>()
+            .ok_or_else(|| {
+                state_missing(
+                    "test_connection",
+                    "QuickConnectionCheckGeneration",
+                    "ai_config.generation_state_missing",
+                )
+            })?;
+        let generation_state = state.0.clone();
+        let generation = generation_state.next();
+        let prep = {
+            let global = app.try_state::<Store>();
+            super::prepare_quick_connection_check(global.as_deref())?
+        };
+        let ConnectionCheckPrep::Ready(prepared) = prep else {
+            return Ok(ConnectionCheckWire::NotConfigured);
+        };
+        send_prepared_connection_check(prepared, generation_state, generation).await
+    }
+
+    #[tauri::command]
+    pub fn quick_ai_config_test_connection_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+        use tauri::Manager as _;
+        if let Some(state) = app.try_state::<super::QuickConnectionCheckGeneration>() {
+            state.0.next();
+        }
     }
 
     /// Checks the SAVED configuration of `tier` against the provider: `GET {endpoint}/models`

@@ -377,6 +377,7 @@ import {
 // Cùng lý do và cùng cửa với mọi state module Vue thật khác ở trên: `settingsState.ts` dùng
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
 import { installUnhandledRejectionLog } from './unhandledRejectionLog'
+import { saveQuickAiConfigKey, deleteQuickAiConfigKey, runQuickAiConfigTest, cancelQuickAiConfigTest } from './quickAiConfigState'
 import { cancelAiConfigPreset, confirmAiConfigPreset } from './aiConfigState'
 import {
   clearAiOverridesFromSettings,
@@ -1101,6 +1102,10 @@ async function boot(): Promise<void> {
         void confirmAiConfigPreset()
       },
       cancelAiConfigPreset,
+      saveQuickAiConfigKey: () => { void saveQuickAiConfigKey() },
+      deleteQuickAiConfigKey: () => { void deleteQuickAiConfigKey() },
+      runQuickAiConfigTest: () => { void runQuickAiConfigTest() },
+      cancelQuickAiConfigTest: () => { void cancelQuickAiConfigTest() },
       openLibraryRescanReport: () => {
         closeSettings()
         setMode('library')

@@ -14076,3 +14076,10 @@ chính nó.
   summary: Xuất quy ước (và Glossary) ra TSV chỉ tới được bằng cách gõ đuôi `.tsv` trong hộp thoại lưu chỉ có bộ lọc CSV; chưa biết hộp thoại macOS/Windows có ép lại `.csv` không.
   evidence: chưa kiểm (maybe-false, medium nếu đúng: R9 hứa TSV mà giao diện không ra được). Muốn chốt: trong app thật, Xuất CSV/TSV, gõ `x.tsv`, xem tệp ghi ra có đuôi `.tsv` và dấu tab không, trên macOS và trên máy Windows.
   Chủ: Epic 16
+
+- `check:panel-refs` đỏ với `src/glossaryQueueState.ts::lastRunId` có sẵn ở baseline `e0e5b48dc8fddf1b81810fe0b6402747a4b08cac`; bộ đếm tăng xuyên lần reset để tránh huỷ nhầm lượt cũ, nên không đặt lại về 0 chỉ để qua cổng.
+  Cần giải quyết hình dạng bộ cấp run_id và guard mà vẫn giữ tính không tái dùng; hiện chặn pre-push dù test 15.2 xanh.
+  Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-khai-cau-hinh-dich-nhanh-rieng-o-cai-at-dich-thu-chay-tren-o-handoff.md` §Tests phase.
+- `check:clippy` đỏ ở `src-tauri/tests/convention_exchange_contract.rs:115` (`ptr_arg`, `&PathBuf`) với rustc cục bộ 1.99; dòng này đã có ở baseline `e0e5b48dc8fddf1b81810fe0b6402747a4b08cac`.
+  Cần sửa chữ ký helper sang kiểu mượn phù hợp và chạy lại target/clippy; hiện chặn pre-push, không phải lỗi mới của 15.2.
+  Chủ: Ice. Trỏ: `tickets/epic-dich-nhanh/tickets/story-khai-cau-hinh-dich-nhanh-rieng-o-cai-at-dich-thu-chay-tren-o-handoff.md` §Tests phase.

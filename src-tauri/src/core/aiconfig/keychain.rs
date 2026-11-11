@@ -136,11 +136,23 @@ fn log_keyring_error(context: &str, err: &keyring::Error) {
     );
 }
 
-/// Mở entry keychain của ứng dụng. Lỗi ở đây gồm cả `NoDefaultStore` — nền tảng không khởi
-/// tạo được kho nào (§Always spec 4.3: "a test that means to use the mock store must prove
-/// it got it" nói về đúng biến thể này, ở phía test).
-fn entry() -> Result<Entry, KeychainUnavailable> {
-    Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT).map_err(|e| {
+#[derive(Clone, Copy)]
+pub(crate) enum KeyAccount {
+    Main,
+    Quick,
+}
+
+impl KeyAccount {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Main => KEYCHAIN_ACCOUNT,
+            Self::Quick => "ai_quick_provider_api_key",
+        }
+    }
+}
+
+fn entry(account: KeyAccount) -> Result<Entry, KeychainUnavailable> {
+    Entry::new(KEYCHAIN_SERVICE, account.as_str()).map_err(|e| {
         log_keyring_error("entry_new", &e);
         KeychainUnavailable
     })
@@ -152,7 +164,11 @@ fn entry() -> Result<Entry, KeychainUnavailable> {
 /// chính `keyring`/nền tảng bên dưới (`set_password` trên một account đã tồn tại thay giá
 /// trị tại chỗ), I/O Matrix "Overwrite an existing key".
 pub(crate) fn set(value: &str) -> Result<(), KeychainUnavailable> {
-    entry()?.set_password(value).map_err(|e| {
+    set_account(KeyAccount::Main, value)
+}
+
+pub(crate) fn set_account(account: KeyAccount, value: &str) -> Result<(), KeychainUnavailable> {
+    entry(account)?.set_password(value).map_err(|e| {
         log_keyring_error("set_password", &e);
         KeychainUnavailable
     })
@@ -161,7 +177,11 @@ pub(crate) fn set(value: &str) -> Result<(), KeychainUnavailable> {
 /// Xoá entry — "xoá khi không có entry nào" là THÀNH CÔNG (I/O Matrix spec 4.3: "post-state
 /// is the requested one"), cùng luật `store::clear_field` của năm trường kia.
 pub(crate) fn delete() -> Result<(), KeychainUnavailable> {
-    match entry()?.delete_credential() {
+    delete_account(KeyAccount::Main)
+}
+
+pub(crate) fn delete_account(account: KeyAccount) -> Result<(), KeychainUnavailable> {
+    match entry(account)?.delete_credential() {
         Ok(()) => Ok(()),
         Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => {
@@ -176,7 +196,11 @@ pub(crate) fn delete() -> Result<(), KeychainUnavailable> {
 /// lỗi — nó là I/O Matrix hàng đầu tiên, "not configured" là một trạng thái, không phải một
 /// lỗi (đúng bất biến toàn epic, epic-4-context.md §UX).
 pub(crate) fn configured() -> Result<bool, KeychainUnavailable> {
-    match entry()?.get_password() {
+    configured_account(KeyAccount::Main)
+}
+
+pub(crate) fn configured_account(account: KeyAccount) -> Result<bool, KeychainUnavailable> {
+    match entry(account)?.get_password() {
         Ok(_) => Ok(true),
         Err(keyring::Error::NoEntry) => Ok(false),
         Err(e) => {
@@ -203,7 +227,13 @@ pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
 /// `None` khi chưa cấu hình (khác lỗi keychain từ chối trả lời), cùng phân biệt `configured`.
 #[cfg(not(feature = "nfr-bench"))]
 pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
-    match entry()?.get_password() {
+    read_account(KeyAccount::Main)
+}
+
+pub(crate) fn read_account(
+    account: KeyAccount,
+) -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
+    match entry(account)?.get_password() {
         Ok(value) => Ok(Some(ApiKeySecret::new(value))),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(e) => {
