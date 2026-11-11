@@ -8,7 +8,7 @@ const fields = [
   { field: 'quick_endpoint', value: 'http://localhost/v1' },
   { field: 'quick_model', value: 'small' },
 ]
-const wire = { fields, source: 'dedicated', key_configured: null, ready: true, not_ready: [] }
+const wire = { auto_enabled: false, auto_eligible: true, fields, source: 'dedicated', key_configured: null, ready: true, not_ready: [] }
 const denied = { code: 'ai_config.keychain_unavailable', message_key: 'err.ai_config.keychain_unavailable', params: {}, retryable: true }
 
 async function fresh() {
@@ -223,7 +223,7 @@ describe('quick configuration', () => {
 
   it('rejects malformed IPC and passes errors without exposing returned data', async () => {
     const { adapter } = await fresh()
-    for (const invalid of [null, { ...wire, fields: [fields[0], fields[0], fields[1]] }, { ...wire, ready: 0 }, { ...wire, source: 'work' }]) {
+    for (const invalid of [null, { ...wire, fields: [fields[0], fields[0], fields[1]] }, { ...wire, auto_enabled: undefined }, { ...wire, auto_eligible: 0 }, { ...wire, ready: 0 }, { ...wire, source: 'work' }]) {
       invokeMock.mockResolvedValueOnce(invalid)
       expect((await adapter.quickAiConfigGet()).error?.code).toBe('ipc.unknown')
     }
@@ -231,5 +231,45 @@ describe('quick configuration', () => {
     expect((await adapter.quickAiConfigTestConnection()).error?.code).toBe('ipc.unknown')
     invokeMock.mockRejectedValueOnce(denied)
     expect(await adapter.quickAiConfigDeleteKey()).toEqual(denied)
+  })
+})
+
+describe('saved automatic quick translation', () => {
+  it('publishes a successful switch before another read, retains it on error, and locks at Work tier', async () => {
+    const { state, main, component } = await fresh()
+    const wrapper = mount(component)
+    expect(wrapper.get('[data-quick-ai-auto]').attributes('aria-checked')).toBe('false')
+    invokeMock.mockResolvedValue(null)
+    await state.toggleQuickAiAuto()
+    await flushPromises()
+    expect(invokeMock).toHaveBeenCalledWith('quick_ai_config_set_auto', { tier: 'global', enabled: true })
+    expect(state.quickAiAutoEnabled.value).toBe(true)
+    expect(wrapper.get('[data-quick-ai-auto]').attributes('aria-checked')).toBe('true')
+    invokeMock.mockRejectedValueOnce(denied)
+    await state.toggleQuickAiAuto()
+    expect(state.quickAiAutoEnabled.value).toBe(true)
+    expect(state.quickAiAutoError.value).toEqual(denied)
+    main.selectAiConfigViewTier('work')
+    invokeMock.mockClear()
+    await state.toggleQuickAiAuto()
+    await flushPromises()
+    expect(invokeMock).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-quick-ai-auto]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('clears the saved opt-in immediately after field removal even while the refresh is pending', async () => {
+    const { state } = await fresh()
+    invokeMock.mockResolvedValue(null)
+    await state.toggleQuickAiAuto()
+    let resolveRead: (value: unknown) => void = () => undefined
+    invokeMock.mockImplementation((command: string) => command === 'quick_ai_config_get' ? new Promise(resolve => { resolveRead = resolve }) : Promise.resolve(null))
+    state.setQuickAiConfigDraft('quick_model', '')
+    const saving = state.commitQuickAiConfigDrafts()
+    await flushPromises()
+    expect(state.quickAiAutoEnabled.value).toBe(false)
+    expect(state.quickAiAutoEligible.value).toBe(false)
+    resolveRead({ ...wire, auto_eligible: false, source: 'incomplete' })
+    await saving
   })
 })

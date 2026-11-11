@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::scope::{ScopeError, ScopeResolver};
-use crate::core::store::{ReadHandle, Store, StoreError, Transaction};
+use crate::core::store::{ReadHandle, SqlError, Store, StoreError, Transaction};
 
 use super::{AiConfigField, AiConfigTier};
 
@@ -128,11 +128,46 @@ pub fn write_quick_fields(
     store: &Store,
     fields: &[(super::QuickAiConfigField, String)],
 ) -> Result<(), StoreError> {
-    let rows = fields
+    let rows: Vec<(String, String)> = fields
         .iter()
         .map(|(field, value)| (field.as_str().to_owned(), value.clone()))
         .collect();
-    write_rows(store, rows)
+    store.write(move |tx: &Transaction<'_>| {
+        for (key, value) in &rows {
+            tx.execute("INSERT INTO ai_config (key, value, updated_at)
+                VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at", (key, value))?;
+        }
+        if rows.iter().any(|(key, value)| matches!(key.as_str(), "quick_endpoint" | "quick_model") && value.trim().is_empty()) {
+            tx.execute("UPDATE config_value SET value='off', updated_at=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE kind='app_config' AND key='quick_translate_auto'", [])?;
+        }
+        Ok(())
+    })?;
+    Ok(())
+}
+
+pub fn write_quick_auto(store: &Store, enabled: bool) -> Result<(), StoreError> {
+    let saved = store.write(move |tx: &Transaction<'_>| {
+        if enabled {
+            for key in ["quick_endpoint", "quick_model"] {
+                let value: Option<String> = match tx.query_row("SELECT value FROM ai_config WHERE key=?1", [key], |row| row.get(0)) {
+                    Ok(value) => Some(value),
+                    Err(SqlError::QueryReturnedNoRows) => None,
+                    Err(error) => return Err(error),
+                };
+                if value.is_none_or(|value| value.trim().is_empty()) { return Ok(false); }
+            }
+        }
+        tx.execute("INSERT INTO config_value (kind,key,value,updated_at) VALUES ('app_config','quick_translate_auto',?1,strftime('%Y-%m-%dT%H:%M:%fZ','now')) ON CONFLICT(kind,key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at", [if enabled { "on" } else { "off" }])?;
+        Ok(true)
+    })?;
+    if !saved {
+        return Err(StoreError::WriteFailed {
+            store: store.kind(),
+            detail: "quick dedicated configuration required".to_owned(),
+        });
+    }
+    Ok(())
 }
 
 fn write_rows(store: &Store, rows: Vec<(String, String)>) -> Result<(), StoreError> {

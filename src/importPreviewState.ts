@@ -957,6 +957,10 @@ function settleRunningBlocks(keys: readonly string[], to: ImportPreviewBlockTran
 
 function settleQuickBatch(keys: readonly string[], outcome: QuickBatchOutcomeWire): void {
   switch (outcome.state) {
+    case 'auto_off':
+    case 'paused':
+      settleRunningBlocks(keys, null)
+      return
     case 'not_configured':
     case 'store_unavailable':
     case 'busy':

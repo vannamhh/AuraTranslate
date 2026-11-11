@@ -15,6 +15,8 @@ export type QuickTranslateOutcomeWire =
   | { state: 'done'; model: string; usage: AiTranslateUsageWire | null; maybe_truncated: boolean }
   | { state: 'cancelled' }
   | { state: 'busy' }
+  | { state: 'auto_off' }
+  | { state: 'paused' }
 
 export type QuickLookupWire =
   | { state: 'miss' }
@@ -28,6 +30,8 @@ export function isQuickTranslateOutcomeWire(value: unknown): value is QuickTrans
     case 'not_configured':
     case 'store_unavailable':
     case 'cancelled':
+    case 'auto_off':
+    case 'paused':
     case 'busy':
       return true
     case 'cached':
@@ -102,11 +106,12 @@ export async function translateContextReference(
   runId: number,
   retranslate: boolean,
   onToken: (text: string) => void,
+  trigger: 'auto' | 'manual' = 'manual',
 ): Promise<{ value: QuickTranslateOutcomeWire | null; error: IpcError | null }> {
   const channel = new Channel<string>()
   channel.onmessage = onToken
   try {
-    const wire: unknown = await invoke(CMD_TRANSLATE, { contextExample, runId, retranslate, channel })
+    const wire: unknown = await invoke(CMD_TRANSLATE, { contextExample, trigger, runId, retranslate, channel })
     if (!isQuickTranslateOutcomeWire(wire)) {
       console.error(`[glossary-context] \`${CMD_TRANSLATE}\` returned an unexpected shape`)
       return { value: null, error: UNKNOWN_IPC_ERROR }

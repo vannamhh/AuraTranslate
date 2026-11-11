@@ -3,6 +3,7 @@ import { watch } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
 import {
+  quickAiAutoEnabled, quickAiAutoEligible, quickAiAutoSaving, quickAiAutoError,
   QUICK_AI_FIELDS, quickAiConfig, quickAiConfigDrafts, quickAiConfigLocked,
   quickAiConfigLoadError, quickAiConfigSaveError, quickAiConfigSaving,
   quickAiConfigKeyDraft, quickAiConfigKeyBusy, quickAiConfigKeyError,
@@ -73,6 +74,8 @@ watch(quickAiConfigLocked, (locked) => {
     <p v-else-if="quickAiConfigTestStatus === 'not_configured'" role="status" data-quick-ai-test="not_configured">{{ t('settings.ai_config.test_not_configured') }}</p>
     <p v-else-if="quickAiConfigTestStatus === 'cancelled'" role="status" data-quick-ai-test="cancelled">{{ t('settings.ai_config.test_cancelled') }}</p>
     <p v-else-if="quickAiConfigTestError !== null" role="alert" data-quick-ai-test="error">{{ tError(quickAiConfigTestError) }}</p>
+    <button class="ui-switch" type="button" role="switch" :aria-checked="quickAiAutoEnabled" :disabled="quickAiConfigLocked || quickAiConfigSaving || quickAiAutoSaving || !quickAiAutoEligible" data-quick-ai-auto @click="dispatch('settings.quick_ai.auto_toggle')"><span class="ui-switch__track" aria-hidden="true"></span>{{ t('settings.quick_ai.auto') }} · {{ t(quickAiAutoEnabled ? 'settings.quick_ai.auto_on' : 'settings.quick_ai.auto_off') }}</button>
+    <p v-if="quickAiAutoError !== null" role="alert">{{ tError(quickAiAutoError) }}</p>
     <p v-if="quickAiConfig !== null" data-quick-ai-config-status>{{ t(configStatus()) }}</p>
   </section>
 </template>

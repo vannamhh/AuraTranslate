@@ -637,9 +637,104 @@ pub fn prepare_translate_operation(
 /// RIÊNG cho đường dịch AI (Quyết định 1, spec 4.8: cancel dựng ở CHÍNH story này). `Clone` chỉ
 /// nhân bản `Arc` — vòng lặp đọc khung SSE và lệnh huỷ đọc/ghi CÙNG một bộ đếm.
 #[derive(Debug, Clone, Default)]
-pub struct AiTranslateGeneration(std::sync::Arc<std::sync::atomic::AtomicU64>);
+pub struct AiTranslateGeneration(
+    std::sync::Arc<std::sync::atomic::AtomicU64>,
+    std::sync::Arc<std::sync::Mutex<AiTranslateActivityWire>>,
+);
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+pub struct AiTranslateActivityWire {
+    pub revision: u64,
+    pub active_count: u64,
+}
+
+pub struct AiTranslateActivityGuard {
+    state: AiTranslateGeneration,
+    notify: Box<dyn Fn(AiTranslateActivityWire) + Send + Sync>,
+}
+
+impl Drop for AiTranslateActivityGuard {
+    fn drop(&mut self) {
+        let snapshot = {
+            let mut state = self
+                .state
+                .1
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            state.active_count -= 1;
+            state.revision += 1;
+            state.clone()
+        };
+        (self.notify)(snapshot);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuickTranslateTrigger {
+    Auto,
+    Manual,
+}
+
+pub fn quick_auto_gate(
+    global: Option<&Store>,
+    activity: &AiTranslateActivityWire,
+    trigger: QuickTranslateTrigger,
+) -> Result<Option<QuickTranslateOutcomeWire>, IpcError> {
+    if trigger == QuickTranslateTrigger::Manual {
+        return Ok(None);
+    }
+    let Some(global) = global else {
+        return Ok(Some(QuickTranslateOutcomeWire::AutoOff));
+    };
+    let config = crate::core::aiconfig::store::resolve_two_tiers(
+        &crate::core::scope::ScopeResolver::global_only(),
+        global,
+        None,
+    )?;
+    let dedicated = ["quick_endpoint", "quick_model"].iter().all(|key| {
+        config
+            .get(*key)
+            .is_some_and(|field| !field.value.trim().is_empty())
+    });
+    if !crate::core::scope::store::load_global_config(global)?.quick_translate_auto() || !dedicated
+    {
+        return Ok(Some(QuickTranslateOutcomeWire::AutoOff));
+    }
+    if activity.active_count > 0 {
+        return Ok(Some(QuickTranslateOutcomeWire::Paused));
+    }
+    Ok(None)
+}
 
 impl AiTranslateGeneration {
+    pub fn activity(&self) -> AiTranslateActivityWire {
+        self.1
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    pub fn begin_activity(
+        &self,
+        notify: impl Fn(AiTranslateActivityWire) + Send + Sync + 'static,
+    ) -> AiTranslateActivityGuard {
+        let snapshot = {
+            let mut state = self
+                .1
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            state.active_count += 1;
+            state.revision += 1;
+            state.clone()
+        };
+        notify(snapshot);
+        AiTranslateActivityGuard {
+            state: self.clone(),
+            notify: Box::new(notify),
+        }
+    }
+
     pub(crate) fn next(&self) -> u64 {
         self.0
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
@@ -1012,6 +1107,8 @@ pub fn prepare_context_reference_call(
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum QuickTranslateOutcomeWire {
+    AutoOff,
+    Paused,
     NotConfigured,
     StoreUnavailable,
     Cached {
@@ -1316,6 +1413,8 @@ pub struct QuickMissingWire {
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum QuickBatchOutcomeWire {
+    AutoOff,
+    Paused,
     NotConfigured,
     StoreUnavailable,
     Busy,
@@ -2027,8 +2126,9 @@ async fn send_prepared_translate_call(
     channel: tauri::ipc::Channel<String>,
     generation_state: AiTranslateGeneration,
     generation: u64,
+    activity: AiTranslateActivityGuard,
 ) -> Result<SingleRun, IpcError> {
-    send_with_cancel(prepared, channel, move || {
+    send_with_cancel(prepared, channel, activity, move || {
         !generation_state.is_current(generation)
     })
     .await
@@ -2037,9 +2137,11 @@ async fn send_prepared_translate_call(
 async fn send_with_cancel(
     prepared: PreparedTranslateCall,
     channel: tauri::ipc::Channel<String>,
+    activity: AiTranslateActivityGuard,
     should_cancel: impl Fn() -> bool + Send + 'static,
 ) -> Result<SingleRun, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
+        let _activity = activity;
         let provider = OpenAiChatClient::new();
         if should_cancel() {
             return Ok(SingleRun::Cancelled);
@@ -2323,8 +2425,10 @@ async fn send_prepared_operation<S: CallSource + Send + 'static>(
     channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,
     generation_state: AiTranslateGeneration,
     generation: u64,
+    activity: AiTranslateActivityGuard,
 ) -> Result<AiTranslateOutcomeWire, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
+        let _activity = activity;
         let provider = OpenAiChatClient::new();
         let should_cancel = || !generation_state.is_current(generation);
         tauri::async_runtime::handle().block_on(run_translate_operation(
@@ -2473,6 +2577,11 @@ pub mod wire {
         };
         let generation_state = generation_state.inner().clone();
         let generation = generation_state.next();
+        let activity_app = app.clone();
+        let activity = generation_state.begin_activity(move |snapshot| {
+            use tauri::Emitter as _;
+            let _ = activity_app.emit("ai-translate-activity-v1", snapshot);
+        });
 
         let prepared = {
             let global = app.try_state::<Store>();
@@ -2508,7 +2617,8 @@ pub mod wire {
         let prompt_sent = prepared.prompt.clone();
         let system_sent = prepared.system.clone();
         let outcome =
-            send_prepared_translate_call(prepared, channel, generation_state, generation).await;
+            send_prepared_translate_call(prepared, channel, generation_state, generation, activity)
+                .await;
 
         match outcome {
             Ok(SingleRun::Cancelled) => Ok(single_run_outcome_wire(SingleRun::Cancelled)),
@@ -2567,6 +2677,11 @@ pub mod wire {
         };
         let generation_state = generation_state.inner().clone();
         let generation = generation_state.next();
+        let activity_app = app.clone();
+        let activity = generation_state.begin_activity(move |snapshot| {
+            use tauri::Emitter as _;
+            let _ = activity_app.emit("ai-translate-activity-v1", snapshot);
+        });
 
         let (segment_id, prepared) = {
             let global = app.try_state::<Store>();
@@ -2588,7 +2703,8 @@ pub mod wire {
         let prompt_sent = prepared.prompt.clone();
         let system_sent = prepared.system.clone();
         let outcome =
-            send_prepared_translate_call(prepared, channel, generation_state, generation).await;
+            send_prepared_translate_call(prepared, channel, generation_state, generation, activity)
+                .await;
 
         match outcome {
             Ok(SingleRun::Cancelled) => Ok(single_run_outcome_wire(SingleRun::Cancelled)),
@@ -2654,6 +2770,11 @@ pub mod wire {
         };
         let generation_state = generation_state.inner().clone();
         let generation = generation_state.next();
+        let activity_app = app.clone();
+        let activity = generation_state.begin_activity(move |snapshot| {
+            use tauri::Emitter as _;
+            let _ = activity_app.emit("ai-translate-activity-v1", snapshot);
+        });
 
         let prepared = AppStores(app.clone()).with_stores(|global, open| {
             prepare_translate_operation(global, open, prompt_set_name.as_deref(), &scope)
@@ -2681,7 +2802,15 @@ pub mod wire {
             snapshot: prepared.snapshot.into_iter().map(|r| (r.id, r)).collect(),
             chapter_id: prepared.chapter_id,
         };
-        send_prepared_operation(source, prepared.plan, channel, generation_state, generation).await
+        send_prepared_operation(
+            source,
+            prepared.plan,
+            channel,
+            generation_state,
+            generation,
+            activity,
+        )
+        .await
     }
 
     /// Sends one recorded call of an earlier operation again, unchanged (FR145), and reads the
@@ -2712,6 +2841,11 @@ pub mod wire {
         };
         let generation_state = generation_state.inner().clone();
         let generation = generation_state.next();
+        let activity_app = app.clone();
+        let activity = generation_state.begin_activity(move |snapshot| {
+            use tauri::Emitter as _;
+            let _ = activity_app.emit("ai-translate-activity-v1", snapshot);
+        });
 
         let record = records
             .lock()
@@ -2734,7 +2868,15 @@ pub mod wire {
             settings,
             record,
         };
-        send_prepared_operation(source, plan, channel, generation_state, generation).await
+        send_prepared_operation(
+            source,
+            plan,
+            channel,
+            generation_state,
+            generation,
+            activity,
+        )
+        .await
     }
 
     /// Vỏ IPC huỷ lượt dịch đang chạy — bơm thế hệ lên MỘT, làm thế hệ đang chạy (nếu có)
@@ -2755,14 +2897,40 @@ pub mod wire {
     }
 
     #[tauri::command]
+    pub fn ai_translate_activity<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<super::AiTranslateActivityWire, IpcError> {
+        use tauri::Manager as _;
+        let state = app.try_state::<AiTranslateGeneration>().ok_or_else(|| {
+            state_missing(
+                "activity",
+                "AiTranslateGeneration",
+                "ai_translate.generation_state_missing",
+            )
+        })?;
+        Ok(state.activity())
+    }
+
+    #[tauri::command]
     pub async fn ai_context_reference_translate<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         context_example: String,
+        trigger: super::QuickTranslateTrigger,
         run_id: u64,
         retranslate: bool,
         channel: tauri::ipc::Channel<String>,
     ) -> Result<QuickTranslateOutcomeWire, IpcError> {
         use tauri::Manager as _;
+
+        let real_activity = if trigger == super::QuickTranslateTrigger::Auto {
+            ai_translate_activity(app.clone())?
+        } else {
+            super::AiTranslateActivityWire::default()
+        };
+        let global = app.try_state::<Store>();
+        if let Some(outcome) = super::quick_auto_gate(global.as_deref(), &real_activity, trigger)? {
+            return Ok(outcome);
+        }
 
         let Some(generation_state) = app.try_state::<QuickTranslateGeneration>() else {
             return Err(state_missing(
@@ -2812,11 +2980,25 @@ pub mod wire {
     pub async fn quick_translate_blocks<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         texts: Vec<String>,
+        trigger: super::QuickTranslateTrigger,
         retranslate: bool,
         run_id: u64,
         channel: tauri::ipc::Channel<QuickBlockEventWire>,
     ) -> Result<QuickBatchOutcomeWire, IpcError> {
         use tauri::Manager as _;
+
+        let real_activity = if trigger == super::QuickTranslateTrigger::Auto {
+            ai_translate_activity(app.clone())?
+        } else {
+            super::AiTranslateActivityWire::default()
+        };
+        let global = app.try_state::<Store>();
+        if let Some(outcome) = super::quick_auto_gate(global.as_deref(), &real_activity, trigger)? {
+            return Ok(match outcome {
+                QuickTranslateOutcomeWire::AutoOff => QuickBatchOutcomeWire::AutoOff,
+                _ => QuickBatchOutcomeWire::Paused,
+            });
+        }
 
         let Some(generation_state) = app.try_state::<QuickTranslateGeneration>() else {
             return Err(state_missing(

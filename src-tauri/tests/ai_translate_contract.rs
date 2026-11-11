@@ -48,6 +48,13 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Once};
 
+#[path = "support/boundary_scan.rs"]
+#[allow(
+    dead_code,
+    reason = "shared source scanner: this contract uses code_lines only"
+)]
+mod boundary_scan;
+
 use auratranslate_lib::commands::aiconfig::{ai_config_delete_key, ai_config_save_key};
 use auratranslate_lib::commands::aiprompt::{
     LastAssembledPromptState, assemble_and_record_prompt, mark_prompt_as_sent,
@@ -1858,10 +1865,17 @@ fn single_run_outcome_wire_sets_maybe_truncated_for_an_open_block_or_a_non_stop_
     assert!(truncated(Some("length"), false), "finish_reason khac stop");
 }
 
-/// AC2's nửa "grep tìm 0 `emit`/`listen`" — canh bằng chính văn bản nguồn của tầng lệnh, đúng
-/// khuôn các gate quét-mã-nguồn khác của kho (`ai_boundary.rs`).
+fn translate_events_are_activity_only(source: &str) -> bool {
+    boundary_scan::code_lines(source).all(|(_, line)| {
+        !line.contains(".listen")
+            && (!line.contains(".emit")
+                || line.trim()
+                    == r#"let _ = activity_app.emit("ai-translate-activity-v1", snapshot);"#)
+    })
+}
+
 #[test]
-fn the_command_file_carries_zero_emit_or_listen_calls_on_the_translate_path() {
+fn the_translate_path_emits_only_typed_activity_status_and_never_stream_tokens() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("commands")
@@ -1869,14 +1883,24 @@ fn the_command_file_carries_zero_emit_or_listen_calls_on_the_translate_path() {
     let src = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", path.display()));
     assert!(
-        !src.contains(".emit("),
-        "AC2: `commands/aitranslate.rs` khong duoc goi `.emit(` -- AD-22 doi streaming di qua \
-         MOT Channel, khong su kien roi"
+        translate_events_are_activity_only(&src),
+        "AD-22: token streams require Channel; only the typed activity snapshot event may emit"
     );
-    assert!(
-        !src.contains(".listen("),
-        "AC2: `commands/aitranslate.rs` khong duoc goi `.listen(` -- cung ly do tren"
-    );
+    assert!(translate_events_are_activity_only(
+        r#"let _ = activity_app.emit("ai-translate-activity-v1", snapshot);"#
+    ));
+    assert!(!translate_events_are_activity_only(
+        r#"let _ = activity_app.emit("ai-translate-token-v1", snapshot);"#
+    ));
+    assert!(!translate_events_are_activity_only(
+        r#"let _ = activity_app.emit("ai-translate-activity-v1", token);"#
+    ));
+    assert!(!translate_events_are_activity_only(
+        "app.listen(topic, callback);"
+    ));
+    assert!(translate_events_are_activity_only(
+        "// app.emit(token);\n/* app.listen(token); */"
+    ));
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

@@ -1,3 +1,4 @@
+import { subscribeAiTranslateActivity } from './config/aiTranslateActivity'
 import { createApp, nextTick, watch } from 'vue'
 import App from './App.vue'
 import './tokens/reset.css'
@@ -381,7 +382,7 @@ import {
 // Cùng lý do và cùng cửa với mọi state module Vue thật khác ở trên: `settingsState.ts` dùng
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
 import { installUnhandledRejectionLog } from './unhandledRejectionLog'
-import { saveQuickAiConfigKey, deleteQuickAiConfigKey, runQuickAiConfigTest, cancelQuickAiConfigTest } from './quickAiConfigState'
+import { toggleQuickAiAuto, saveQuickAiConfigKey, deleteQuickAiConfigKey, runQuickAiConfigTest, cancelQuickAiConfigTest } from './quickAiConfigState'
 import { askPurgeQuickDataAll, cancelPurgeQuickDataAll, confirmPurgeQuickDataAll, purgeQuickDataOlder } from './settingsQuickDataState'
 import { cancelAiConfigPreset, confirmAiConfigPreset } from './aiConfigState'
 import {
@@ -1117,6 +1118,7 @@ async function boot(): Promise<void> {
         void confirmAiConfigPreset()
       },
       cancelAiConfigPreset,
+      toggleQuickAiAuto: () => { void toggleQuickAiAuto() },
       saveQuickAiConfigKey: () => { void saveQuickAiConfigKey() },
       deleteQuickAiConfigKey: () => { void deleteQuickAiConfigKey() },
       runQuickAiConfigTest: () => { void runQuickAiConfigTest() },
@@ -1321,6 +1323,7 @@ async function boot(): Promise<void> {
   // WebView2 lays out ruby annotations unlike WKWebView; `.hv-parallel` keys its leading on this.
   if (/\bChrome\//.test(navigator.userAgent)) document.documentElement.dataset.webEngine = 'chromium'
 
+  void subscribeAiTranslateActivity()
   createApp(App).mount('#app')
 
   // ═══════════════════════════════════════════════════════════════════════════════

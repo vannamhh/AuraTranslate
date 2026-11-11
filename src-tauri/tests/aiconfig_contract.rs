@@ -1915,3 +1915,46 @@ fn partial_quick_configuration_rejects_before_either_key_read_or_fallback() {
     drop(global);
     cleanup_dir(&dir);
 }
+
+#[test]
+fn quick_auto_requires_dedicated_fields_and_clearing_either_resets_saved_opt_in() {
+    use auratranslate_lib::commands::aiconfig::quick_ai_config_set_auto;
+    use auratranslate_lib::commands::aitranslate::{
+        AiTranslateActivityWire, QuickTranslateOutcomeWire, QuickTranslateTrigger, quick_auto_gate,
+    };
+    use auratranslate_lib::core::scope::store::load_global_config;
+    let dir = temp_dir("quick-auto");
+    let global = open_global(&dir);
+    let idle = AiTranslateActivityWire::default();
+    let gate = || quick_auto_gate(Some(&global), &idle, QuickTranslateTrigger::Auto).unwrap();
+    assert!(!load_global_config(&global).unwrap().quick_translate_auto());
+    assert_eq!(gate(), Some(QuickTranslateOutcomeWire::AutoOff));
+    assert!(quick_ai_config_set_auto(Some(&global), AiConfigTier::Global, true).is_err());
+    assert!(quick_ai_config_set_auto(Some(&global), AiConfigTier::Work, false).is_err());
+    quick_fields(&global, "https://quick.example/v1", "quick-model");
+    quick_ai_config_set_auto(Some(&global), AiConfigTier::Global, true).unwrap();
+    assert_eq!(gate(), None);
+    let active = AiTranslateActivityWire {
+        revision: 1,
+        active_count: 1,
+    };
+    assert_eq!(
+        quick_auto_gate(Some(&global), &active, QuickTranslateTrigger::Auto).unwrap(),
+        Some(QuickTranslateOutcomeWire::Paused)
+    );
+    assert_eq!(
+        quick_auto_gate(Some(&global), &active, QuickTranslateTrigger::Manual).unwrap(),
+        None
+    );
+    for (endpoint, model) in [("", "quick-model"), ("https://quick.example/v1", "")] {
+        quick_fields(&global, endpoint, model);
+        assert!(!load_global_config(&global).unwrap().quick_translate_auto());
+        assert_eq!(gate(), Some(QuickTranslateOutcomeWire::AutoOff));
+        assert!(quick_ai_config_set_auto(Some(&global), AiConfigTier::Global, true).is_err());
+        quick_fields(&global, "https://quick.example/v1", "quick-model");
+        assert_eq!(gate(), Some(QuickTranslateOutcomeWire::AutoOff));
+        quick_ai_config_set_auto(Some(&global), AiConfigTier::Global, true).unwrap();
+    }
+    drop(global);
+    cleanup_dir(&dir);
+}

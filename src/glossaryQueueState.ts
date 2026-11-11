@@ -46,6 +46,8 @@ import { UNKNOWN_IPC_ERROR } from './config/aitranslate'
 import { refreshWorkspaceCounts } from './workspaceCountsState'
 import { beginQuickRun, endQuickRun, quickPurgeCount, quickRunBusyFor } from './quickTranslateRun'
 import type { IpcError } from './i18n'
+import { quickAiAutoEnabled, quickAiConfigRevision, refreshQuickAiConfigReadiness } from './quickAiConfigState'
+import { aiTranslateActivity, aiTranslateActivityError } from './config/aiTranslateActivity'
 
 /** Một hàng của bảng chờ, cùng phân loại đang chọn (mặc định `'other'` — §Design Notes của
  * spec: máy KHÔNG đoán phân loại) và kết quả quyết (nếu đã xử lý trong PHIÊN NÀY). */
@@ -119,6 +121,7 @@ export type ContextReference =
   | { kind: 'store_unavailable' }
   | { kind: 'not_configured' }
   | { kind: 'busy' }
+  | { kind: 'paused' }
 
 /** Per candidate id, so a late result can only land on the row it was asked for. */
 const references = ref<Partial<Record<number, ContextReference>>>({})
@@ -127,6 +130,17 @@ let activeRunId: number | null = null
 let runningCandidateId: number | null = null
 /** What the running row showed before `Dịch lại`, restored when that run is cancelled. */
 let runningPrevious: ContextReference | undefined
+
+export const QUICK_AUTO_WAIT_MS = 800
+let autoTimer: ReturnType<typeof setTimeout> | null = null
+const autoWaiting = ref(false)
+const failedAutomaticRows = new Set<number>()
+
+function clearAutoTimer(): void {
+  if (autoTimer !== null) clearTimeout(autoTimer)
+  autoTimer = null
+  autoWaiting.value = false
+}
 
 function contextOf(row: GlossaryQueueRow | undefined): string | null {
   const context = row?.candidate.context_example
@@ -153,6 +167,7 @@ function abortContextReference(): void {
   void cancelContextReference(runId)
 }
 
+export const queueContextAutoWaiting = readonly(autoWaiting)
 export const queueContextBusyElsewhere = quickRunBusyFor('glossary_queue')
 
 export const queueContextReference = computed<ContextReference | null>(() => {
@@ -178,46 +193,92 @@ async function loadContextReference(): Promise<void> {
     return
   }
   if (found.failed && found.error !== null) {
+    failedAutomaticRows.add(id)
     references.value[id] = { kind: 'failed', error: found.error }
     return
   }
   const stored = await quickTranslationLookup(context)
   if (isStale()) return
-  if (stored.error !== null) references.value[id] = { kind: 'failed', error: stored.error }
+  if (stored.error !== null) {
+    failedAutomaticRows.add(id)
+    references.value[id] = { kind: 'failed', error: stored.error }
+  }
   else if (stored.value?.state === 'hit') {
     references.value[id] = { kind: 'cached', text: stored.value.text, model: stored.value.model }
   } else if (stored.value?.state === 'store_unavailable') references.value[id] = { kind: 'store_unavailable' }
   else references.value[id] = { kind: 'none' }
 }
 
+function scheduleAutomaticReference(): void {
+  clearAutoTimer()
+  const row = rows.value.at(cursor.value)
+  if (!overlayOpen.value || row === undefined || row.outcome !== null || contextOf(row) === null ||
+    !quickAiAutoEnabled.value || failedAutomaticRows.has(row.candidate.id) || activeRunId !== null) return
+  const reference = references.value[row.candidate.id]
+  if (reference?.kind !== 'none' && reference?.kind !== 'paused') return
+  if (queueContextBusyElsewhere.value) return
+  const activity = aiTranslateActivity.value
+  if (activity === null || aiTranslateActivityError.value !== null) return
+  if (activity.active_count > 0) {
+    references.value[row.candidate.id] = { kind: 'paused' }
+    return
+  }
+  references.value[row.candidate.id] = { kind: 'none' }
+  const id = row.candidate.id
+  const mySequence = sequence
+  autoWaiting.value = true
+  autoTimer = setTimeout(() => {
+    autoTimer = null
+    autoWaiting.value = false
+    if (sequence !== mySequence || rows.value.at(cursor.value)?.candidate.id !== id) return
+    void runContextReference(false, 'auto')
+  }, QUICK_AUTO_WAIT_MS)
+}
+
 watch(
   [overlayOpen, () => rows.value.at(cursor.value)?.candidate.id, () => rows.value.at(cursor.value)?.outcome],
   () => {
+    clearAutoTimer()
     abortContextReference()
-    void loadContextReference()
+    void loadContextReference().then(scheduleAutomaticReference)
   },
+  { flush: 'sync' },
 )
 
+watch([quickAiAutoEnabled, quickAiConfigRevision], () => {
+  clearAutoTimer()
+  abortContextReference()
+  const row = rows.value.at(cursor.value)
+  if (row !== undefined && references.value[row.candidate.id]?.kind === 'paused') references.value[row.candidate.id] = { kind: 'none' }
+  scheduleAutomaticReference()
+}, { flush: 'sync' })
+
+watch([() => aiTranslateActivity.value?.active_count, aiTranslateActivityError], scheduleAutomaticReference, { flush: 'sync' })
+
 watch(quickPurgeCount, () => {
+  clearAutoTimer()
   abortContextReference()
   for (const key of Object.keys(references.value)) {
     const id = Number(key)
     if (references.value[id]?.kind !== 'chapter') delete references.value[id]
   }
-  void loadContextReference()
+  void loadContextReference().then(scheduleAutomaticReference)
 })
 
-async function runContextReference(retranslate: boolean): Promise<void> {
+async function runContextReference(retranslate: boolean, trigger: 'auto' | 'manual' = 'manual'): Promise<void> {
+  clearAutoTimer()
   const row = rows.value.at(cursor.value)
   const context = contextOf(row)
   if (row === undefined || row.outcome !== null || context === null) return
   const id = row.candidate.id
+  if (trigger === 'auto' && (!quickAiAutoEnabled.value || failedAutomaticRows.has(id) ||
+    aiTranslateActivity.value === null || aiTranslateActivityError.value !== null || aiTranslateActivity.value.active_count > 0)) return
   if (runningCandidateId !== null || queueContextBusyElsewhere.value) return
   const current = references.value[id]
   if (!overlayOpen.value || current === undefined) return
   const allowed = retranslate
     ? current.kind === 'cached' || current.kind === 'ai' || current.kind === 'truncated'
-    : current.kind === 'none' || current.kind === 'failed' || current.kind === 'not_configured' || current.kind === 'busy'
+    : current.kind === 'none' || current.kind === 'failed' || current.kind === 'not_configured' || current.kind === 'busy' || current.kind === 'paused'
   if (!allowed) return
 
   const mine = beginQuickRun('glossary_queue')
@@ -230,7 +291,7 @@ async function runContextReference(retranslate: boolean): Promise<void> {
     if (activeRunId !== mine) return
     const entry = referenceOf(id)
     if (entry?.kind === 'running') references.value[id] = { kind: 'running', text: entry.text + token }
-  })
+  }, trigger)
   if (activeRunId !== mine) return
   endQuickRun(mine)
 
@@ -243,6 +304,8 @@ async function runContextReference(retranslate: boolean): Promise<void> {
   const outcome = result.value
   if (result.error !== null) references.value[id] = { kind: 'failed', error: result.error }
   else if (outcome === null || outcome.state === 'cancelled') references.value[id] = fallback
+  else if (outcome.state === 'auto_off') references.value[id] = { kind: 'none' }
+  else if (outcome.state === 'paused') references.value[id] = { kind: 'paused' }
   else if (outcome.state === 'busy') references.value[id] = retranslate ? fallback : { kind: 'busy' }
   else if (outcome.state === 'not_configured') references.value[id] = { kind: 'not_configured' }
   else if (outcome.state === 'store_unavailable') references.value[id] = { kind: 'store_unavailable' }
@@ -251,6 +314,9 @@ async function runContextReference(retranslate: boolean): Promise<void> {
   else if (outcome.maybe_truncated) {
     references.value[id] = { kind: 'truncated', text, model: outcome.model, usage: outcome.usage }
   } else references.value[id] = { kind: 'ai', text, model: outcome.model, usage: outcome.usage }
+  const final = references.value[id]
+  if (final.kind === 'failed' || final.kind === 'truncated') failedAutomaticRows.add(id)
+  if (final.kind === 'paused') scheduleAutomaticReference()
 }
 
 /**
@@ -267,6 +333,7 @@ export function retranslateGlossaryContextReference(): Promise<void> {
 }
 
 export function cancelGlossaryContextReference(): void {
+  clearAutoTimer()
   abortContextReference()
 }
 
@@ -383,7 +450,9 @@ export async function openGlossaryQueue(): Promise<void> {
   sequence += 1
   const mySequence = sequence
 
+  clearAutoTimer()
   abortContextReference()
+  failedAutomaticRows.clear()
   references.value = {}
   overlayOpen.value = true
   status.value = 'unknown'
@@ -394,6 +463,7 @@ export async function openGlossaryQueue(): Promise<void> {
   actionError.value = null
   decisionStamps.value = []
 
+  void refreshQuickAiConfigReadiness()
   const pending = await pendingGlossaryCandidates()
   if (mySequence !== sequence) return // bị một lượt mở SAU vượt mặt.
 
@@ -443,6 +513,8 @@ export async function openGlossaryQueue(): Promise<void> {
  */
 export function closeGlossaryQueue(): void {
   if (saving.value) return
+  clearAutoTimer()
+  failedAutomaticRows.clear()
   abortContextReference()
   const row = rows.value.at(cursor.value)
   rememberedCandidateId = row !== undefined && row.outcome === null ? row.candidate.id : null
@@ -586,7 +658,9 @@ export async function rejectGlossaryQueueCandidate(): Promise<void> {
  * store). Called wherever the open Work changes: `modes/libraryImport.ts` and `modes/libraryChapters.ts`.
  */
 export function resetGlossaryQueue(): void {
+  clearAutoTimer()
   abortContextReference()
+  failedAutomaticRows.clear()
   references.value = {}
   sequence += 1
   overlayOpen.value = false

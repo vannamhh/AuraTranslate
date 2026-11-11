@@ -20,6 +20,8 @@ export type QuickBatchOutcomeWire =
   | { state: 'not_configured' }
   | { state: 'store_unavailable' }
   | { state: 'busy' }
+  | { state: 'auto_off' }
+  | { state: 'paused' }
   | { state: 'cancelled' }
   | {
       state: 'done'
@@ -58,6 +60,8 @@ export function isQuickBatchOutcomeWire(value: unknown): value is QuickBatchOutc
   switch (v.state) {
     case 'not_configured':
     case 'store_unavailable':
+    case 'auto_off':
+    case 'paused':
     case 'busy':
     case 'cancelled':
       return true
@@ -117,7 +121,7 @@ export async function translateQuickBlocks(
     else console.error(`[quick-batch] \`${CMD_BLOCKS}\` sent an unexpected event`)
   }
   try {
-    const wire: unknown = await invoke(CMD_BLOCKS, { texts, retranslate, runId, channel })
+    const wire: unknown = await invoke(CMD_BLOCKS, { texts, trigger: 'manual', retranslate, runId, channel })
     if (!isQuickBatchOutcomeWire(wire)) {
       console.error(`[quick-batch] \`${CMD_BLOCKS}\` returned an unexpected shape`)
       return { value: null, error: UNKNOWN_IPC_ERROR }

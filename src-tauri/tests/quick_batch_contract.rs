@@ -743,6 +743,7 @@ fn the_wires_answer_busy_without_a_call_and_report_remembered_blocks_before_the_
     let busy = tauri::async_runtime::block_on(wire::quick_translate_blocks(
         handle.clone(),
         texts(&["da co", "moi"]),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         false,
         2,
         channel,
@@ -760,6 +761,7 @@ fn the_wires_answer_busy_without_a_call_and_report_remembered_blocks_before_the_
     let reverse = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
         handle.clone(),
         "cau".to_owned(),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         4,
         false,
         tauri::ipc::Channel::<String>::new(|_| Ok(())),
@@ -772,6 +774,7 @@ fn the_wires_answer_busy_without_a_call_and_report_remembered_blocks_before_the_
     let result = tauri::async_runtime::block_on(wire::quick_translate_blocks(
         handle.clone(),
         texts(&["da co", "moi"]),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         false,
         5,
         channel,

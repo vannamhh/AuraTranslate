@@ -642,6 +642,7 @@ fn the_wires_return_a_hit_without_a_network_call_and_a_miss_reaches_the_send() {
     let hit = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
         handle.clone(),
         "cached sentence".to_owned(),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         1,
         false,
         channel(),
@@ -658,6 +659,7 @@ fn the_wires_return_a_hit_without_a_network_call_and_a_miss_reaches_the_send() {
     let miss = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
         handle.clone(),
         "other sentence".to_owned(),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         2,
         false,
         channel(),
@@ -704,6 +706,7 @@ fn the_wire_reports_an_unmanaged_store_without_calling_out() {
     let outcome = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
         handle.clone(),
         "s".to_owned(),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         1,
         false,
         tauri::ipc::Channel::<String>::new(|_| Ok(())),
@@ -714,6 +717,193 @@ fn the_wire_reports_an_unmanaged_store_without_calling_out() {
         wire::quick_translation_lookup(handle, "s".to_owned()),
         QuickLookupWire::StoreUnavailable
     );
+}
+
+#[test]
+fn automatic_command_wires_reject_off_incomplete_and_real_activity_before_provider_calls() {
+    use auratranslate_lib::commands::aitranslate::{
+        QuickBatchOutcomeWire, QuickTranslateTrigger, wire,
+    };
+    use auratranslate_lib::commands::project::OpenWorkState;
+    use auratranslate_lib::core::aiconfig::store::{write_quick_auto, write_quick_fields};
+    use auratranslate_lib::core::aiconfig::{AiConfigField, QuickAiConfigField, write_field};
+    use auratranslate_lib::core::store::{Store, StoreSpec};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use tauri::Manager as _;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("fixture loopback");
+    listener.set_nonblocking(true).unwrap();
+    let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let stop = Arc::new(AtomicBool::new(false));
+    let (count, stopped) = (calls.clone(), stop.clone());
+    let server = std::thread::spawn(move || {
+        while !stopped.load(Ordering::SeqCst) {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    stream.set_nonblocking(false).unwrap();
+                    stream
+                        .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                        .unwrap();
+                    let mut body = Vec::new();
+                    let mut chunk = [0; 4096];
+                    loop {
+                        let n = stream.read(&mut chunk).unwrap_or(0);
+                        if n == 0 {
+                            break;
+                        }
+                        body.extend_from_slice(&chunk[..n]);
+                        if let Some(header_end) = body.windows(4).position(|w| w == b"\r\n\r\n") {
+                            let headers =
+                                String::from_utf8_lossy(&body[..header_end]).to_lowercase();
+                            let length = headers
+                                .lines()
+                                .find_map(|l| l.strip_prefix("content-length:"))
+                                .and_then(|v| v.trim().parse::<usize>().ok())
+                                .unwrap_or(0);
+                            if body.len() >= header_end + 4 + length {
+                                break;
+                            }
+                        }
+                    }
+                    count.fetch_add(1, Ordering::SeqCst);
+                    let frames = "data: {\"choices\":[{\"delta\":{\"content\":\"translated\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        frames.len(),
+                        frames
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(2))
+                }
+                Err(error) => panic!("fixture accept: {error}"),
+            }
+        }
+    });
+    let dir = temp_dir("auto-admission");
+    let global = Store::open(StoreSpec::global(dir.join("global.db"))).unwrap();
+    write_field(&global, AiConfigField::Provider, "ollama").unwrap();
+    write_field(&global, AiConfigField::Endpoint, &endpoint).unwrap();
+    write_field(&global, AiConfigField::Model, "main-fixture").unwrap();
+    let dedicated = |model: &str, url: &str| {
+        vec![
+            (QuickAiConfigField::Provider, "ollama".to_owned()),
+            (QuickAiConfigField::Endpoint, url.to_owned()),
+            (QuickAiConfigField::Model, model.to_owned()),
+        ]
+    };
+    write_quick_fields(&global, &dedicated("quick-fixture", &endpoint)).unwrap();
+    let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+    app.manage(global);
+    app.manage(open_store(&dir));
+    app.manage::<OpenWorkState>(Mutex::new(None));
+    app.manage(AiTranslateGeneration::default());
+    app.manage(QuickTranslateGeneration::default());
+    let handle = app.handle().clone();
+    for (model, url) in [
+        ("quick-fixture", endpoint.as_str()),
+        ("", ""),
+        ("quick-fixture", ""),
+        ("", endpoint.as_str()),
+    ] {
+        write_quick_fields(&app.state::<Store>(), &dedicated(model, url)).unwrap();
+        if model.is_empty() || url.is_empty() {
+            app.state::<Store>().write(|tx| {
+                tx.execute("INSERT INTO config_value (kind,key,value,updated_at) VALUES ('app_config','quick_translate_auto','on','fixture') ON CONFLICT(kind,key) DO UPDATE SET value='on'", [])?;
+                Ok(())
+            }).unwrap();
+        }
+        let before = calls.load(Ordering::SeqCst);
+        let queue = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
+            handle.clone(),
+            "queue automatic source".to_owned(),
+            QuickTranslateTrigger::Auto,
+            101,
+            false,
+            tauri::ipc::Channel::new(|_| Ok(())),
+        ));
+        assert_eq!(
+            calls.load(Ordering::SeqCst) - before,
+            0,
+            "queue auto gate called provider with switch off or incomplete config"
+        );
+        assert_eq!(queue.unwrap(), QuickTranslateOutcomeWire::AutoOff);
+        let batch = tauri::async_runtime::block_on(wire::quick_translate_blocks(
+            handle.clone(),
+            vec!["preview automatic source".to_owned()],
+            QuickTranslateTrigger::Auto,
+            false,
+            102,
+            tauri::ipc::Channel::new(|_| Ok(())),
+        ));
+        assert_eq!(
+            calls.load(Ordering::SeqCst) - before,
+            0,
+            "preview auto gate called provider with switch off or incomplete config"
+        );
+        assert_eq!(batch.unwrap(), QuickBatchOutcomeWire::AutoOff);
+    }
+    write_quick_fields(
+        &app.state::<Store>(),
+        &dedicated("quick-fixture", &endpoint),
+    )
+    .unwrap();
+    write_quick_auto(&app.state::<Store>(), true).unwrap();
+    let generation = app.state::<AiTranslateGeneration>();
+    let active = generation.begin_activity(|_| {});
+    let before = calls.load(Ordering::SeqCst);
+    let paused = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
+        handle.clone(),
+        "paused source".to_owned(),
+        QuickTranslateTrigger::Auto,
+        103,
+        false,
+        tauri::ipc::Channel::new(|_| Ok(())),
+    ))
+    .unwrap();
+    assert_eq!(paused, QuickTranslateOutcomeWire::Paused);
+    let paused_batch = tauri::async_runtime::block_on(wire::quick_translate_blocks(
+        handle.clone(),
+        vec!["paused block".to_owned()],
+        QuickTranslateTrigger::Auto,
+        false,
+        104,
+        tauri::ipc::Channel::new(|_| Ok(())),
+    ))
+    .unwrap();
+    assert_eq!(paused_batch, QuickBatchOutcomeWire::Paused);
+    assert_eq!(calls.load(Ordering::SeqCst) - before, 0);
+    let manual = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
+        handle.clone(),
+        "manual during real activity".to_owned(),
+        QuickTranslateTrigger::Manual,
+        105,
+        false,
+        tauri::ipc::Channel::new(|_| Ok(())),
+    ))
+    .unwrap_or_else(|error| {
+        panic!(
+            "manual error {error:?}; accepted {}",
+            calls.load(Ordering::SeqCst)
+        )
+    });
+    assert!(matches!(manual, QuickTranslateOutcomeWire::Done { .. }));
+    assert_eq!(calls.load(Ordering::SeqCst) - before, 1);
+    wire::ai_context_reference_cancel(handle, 105);
+    assert!(
+        generation.is_current(0),
+        "quick command/cancel changed real generation"
+    );
+    assert_eq!(generation.activity().active_count, 1);
+    drop(active);
+    stop.store(true, Ordering::SeqCst);
+    server.join().unwrap();
+    drop(app);
+    cleanup(&dir);
 }
 
 fn backdate(dir: &Path, source: &str, days: i64) {

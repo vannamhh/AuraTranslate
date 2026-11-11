@@ -1149,6 +1149,7 @@ export type CommandDeps = {
   confirmAiConfigPreset?: () => void
   /** Handler of `settings.ai_config.preset_cancel`. */
   cancelAiConfigPreset?: () => void
+  toggleQuickAiAuto?: () => void
   saveQuickAiConfigKey?: () => void
   deleteQuickAiConfigKey?: () => void
   runQuickAiConfigTest?: () => void
@@ -4962,6 +4963,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   for (const [id, port] of [
     ['settings.ai_config.preset_apply', 'confirmAiConfigPreset'],
     ['settings.ai_config.preset_cancel', 'cancelAiConfigPreset'],
+    ['settings.quick_ai.auto_toggle', 'toggleQuickAiAuto'],
     ['settings.quick_ai.key_save', 'saveQuickAiConfigKey'],
     ['settings.quick_ai.key_delete', 'deleteQuickAiConfigKey'],
     ['settings.quick_ai.test', 'runQuickAiConfigTest'],

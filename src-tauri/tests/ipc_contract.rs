@@ -3076,6 +3076,7 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
     for wire in [
         "crate::commands::glossary::wire::glossary_context_translation,",
         "crate::commands::aitranslate::wire::ai_context_reference_translate,",
+        "crate::commands::aitranslate::wire::ai_translate_activity,",
         "crate::commands::aitranslate::wire::ai_context_reference_cancel,",
         "crate::commands::aitranslate::wire::quick_translation_lookup,",
         "crate::commands::aitranslate::wire::quick_translate_blocks,",
@@ -3101,8 +3102,12 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
             "ai_context_reference_translate"
         )),
         normalize_param_list(
-            "app: tauri::AppHandle<R>, context_example: String, run_id: u64, retranslate: bool, channel: tauri::ipc::Channel<String>,"
+            "app: tauri::AppHandle<R>, context_example: String, trigger: super::QuickTranslateTrigger, run_id: u64, retranslate: bool, channel: tauri::ipc::Channel<String>,"
         ),
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(&ai_src, "ai_translate_activity")),
+        normalize_param_list("app: tauri::AppHandle<R>,")
     );
     assert_eq!(
         normalize_param_list(&fn_param_list(&ai_src, "ai_context_reference_cancel")),
@@ -3115,7 +3120,7 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&fn_param_list_async(&ai_src, "quick_translate_blocks")),
         normalize_param_list(
-            "app: tauri::AppHandle<R>, texts: Vec<String>, retranslate: bool, run_id: u64, channel: tauri::ipc::Channel<QuickBlockEventWire>,"
+            "app: tauri::AppHandle<R>, texts: Vec<String>, trigger: super::QuickTranslateTrigger, retranslate: bool, run_id: u64, channel: tauri::ipc::Channel<QuickBlockEventWire>,"
         )
     );
     assert_eq!(

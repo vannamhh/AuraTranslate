@@ -2309,10 +2309,10 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     (
         "src/commands/aiconfig.rs",
-        4,
+        5,
         6,
         6,
-        "Quick get/save/delete key share the existing blocking keychain classification; quick field saves write three fixed rows, matching main field saves. MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Ba vo (`ai_config_save_field`/`ai_config_save_fields`/`ai_config_clear_override`) ghi/xoa hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
+        "Quick auto opt-in validates dedicated fields and writes one fixed configuration row, matching plain field-save commands. Quick get/save/delete key share the existing blocking keychain classification; quick field saves write three fixed rows, matching main field saves. MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Ba vo (`ai_config_save_field`/`ai_config_save_fields`/`ai_config_clear_override`) ghi/xoa hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
     ),
     (
         "src/commands/aiprompt.rs",
@@ -2323,10 +2323,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        16,
+        17,
         1,
         1,
-        "CHUA DO -- chu: Dev. Nam vo dich (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12, mot gui lai mot luot da ghi o Story 4-15): \
+        "Activity snapshot reads only an app-lifetime Mutex, with no disk or network I/O. CHUA DO -- chu: Dev. Nam vo dich (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12, mot gui lai mot luot da ghi o Story 4-15): \
          `ai_translate_segment`, `ai_translate_batch`, `ai_translate_resend` va `ai_translate_resend_call` deu la `async fn` LITERAL -- than moi \
          ham tu spawn mot luong cua ho boi blocking roi `Handle::block_on` BEN TRONG luong do \
          (xem doc-comment dau `commands/aitranslate.rs`), nen khong ham nao giu `OpenWorkState` \
@@ -2590,9 +2590,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (132, 84),
+        (134, 84),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         132/84.\n\n\
+         134/84.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

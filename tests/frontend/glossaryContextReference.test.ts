@@ -22,8 +22,8 @@ vi.mock('../../src/config/glossary', () => ({
 vi.mock('../../src/config/glossaryContextReference', () => ({
   lookupContextTranslation: (context: string) => contextLookupMock(context),
   quickTranslationLookup: (text: string) => storeLookupMock(text),
-  translateContextReference: (context: string, runId: number, retranslate: boolean, onToken: (text: string) => void) =>
-    translateMock(context, onToken, runId, retranslate),
+  translateContextReference: (context: string, runId: number, retranslate: boolean, onToken: (text: string) => void, trigger: string) =>
+    translateMock(context, onToken, runId, retranslate, trigger),
   cancelContextReference: (runId: number) => cancelMock(runId),
 }))
 
@@ -31,6 +31,11 @@ vi.mock('../../src/config/quickAiConfig', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/quickAiConfig')>()),
   quickAiConfigGet: () => quickAiConfigGetMock(),
 }))
+
+vi.mock('../../src/config/aiTranslateActivity', async () => {
+  const { ref } = await import('vue')
+  return { aiTranslateActivity: ref({ revision: 0, active_count: 0 }), aiTranslateActivityError: ref(null) }
+})
 
 vi.mock('../../src/config/aiconfig', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/aiconfig')>()),
@@ -70,11 +75,13 @@ async function fresh(deps: Partial<CommandDeps> = {}) {
   for (const m of [pendingMock, lookupMock, contextLookupMock, translateMock, cancelMock, storeLookupMock, quickAiConfigGetMock]) m.mockReset()
   storeLookupMock.mockResolvedValue(miss)
   quickAiConfigGetMock.mockResolvedValue({
-    config: { fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [] },
+    config: { auto_enabled: false, auto_eligible: true, fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [] },
     error: null,
   })
   const commands = await import('../../src/commands')
   commands.installCommands(deps as CommandDeps)
+  const activity = await import('../../src/config/aiTranslateActivity')
+  ;(activity.aiTranslateActivity as unknown as { value: { revision: number; active_count: number } }).value = { revision: 0, active_count: 0 }
   const state = await import('../../src/glossaryQueueState')
   const i18n = await import('../../src/i18n')
   const Overlay = (await import('../../src/GlossaryQueueOverlay.vue')).default
@@ -92,6 +99,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -427,7 +435,7 @@ describe('GlossaryQueueOverlay.vue — khối câu dịch', () => {
     const main = await import('../../src/aiConfigState')
     await main.refreshAiConfigReadiness()
     expect(main.aiConfigReadiness.value).toBe('unconfigured')
-    quickAiConfigGetMock.mockResolvedValue({ config: { fields: [], source: 'dedicated', key_configured: true, ready: true, not_ready: [] }, error: null })
+    quickAiConfigGetMock.mockResolvedValue({ config: { auto_enabled: false, auto_eligible: true, fields: [], source: 'dedicated', key_configured: true, ready: true, not_ready: [] }, error: null })
     contextLookupMock.mockResolvedValue(notFound)
     const wrapper = mount(Overlay, { attachTo: document.body })
     await openWith(state, candidate(1))
@@ -440,7 +448,7 @@ describe('GlossaryQueueOverlay.vue — khối câu dịch', () => {
     const openSettings = vi.fn()
     const { state, Overlay } = await fresh({ openSettingsToAiConfig: openSettings })
     quickAiConfigGetMock.mockResolvedValue({
-      config: { fields: [], source: 'incomplete', key_configured: null, ready: false, not_ready: ['endpoint_missing'] },
+      config: { auto_enabled: false, auto_eligible: true, fields: [], source: 'incomplete', key_configured: null, ready: false, not_ready: ['endpoint_missing'] },
       error: null,
     })
     contextLookupMock.mockResolvedValue(notFound)
@@ -459,7 +467,7 @@ describe('GlossaryQueueOverlay.vue — khối câu dịch', () => {
     const retranslate = vi.fn()
     const { state, Overlay } = await fresh({ retranslateGlossaryContextReference: retranslate })
     quickAiConfigGetMock.mockResolvedValue({
-      config: { fields: [], source: 'incomplete', key_configured: null, ready: false, not_ready: ['endpoint_missing'] },
+      config: { auto_enabled: false, auto_eligible: true, fields: [], source: 'incomplete', key_configured: null, ready: false, not_ready: ['endpoint_missing'] },
       error: null,
     })
     contextLookupMock.mockResolvedValue(notFound)
@@ -682,5 +690,206 @@ describe('dọn kho dịch nhanh', () => {
     await flushPromises()
 
     expect(state.queueContextReference.value).toEqual({ kind: 'none' })
+  })
+})
+
+describe('automatic current-row reference scheduling', () => {
+  async function automaticRows() {
+    const result = await fresh()
+    quickAiConfigGetMock.mockResolvedValue({
+      config: { fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [], auto_enabled: true, auto_eligible: true },
+      error: null,
+    })
+    contextLookupMock.mockResolvedValue(notFound)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await openWith(result.state, ...Array.from({ length: 10 }, (_, index) => candidate(index + 1)))
+    return result
+  }
+
+  function finishSuccessfully(_context: string, token: (text: string) => void) {
+    token('reference')
+    return Promise.resolve(done)
+  }
+
+  it('restarts the wait during ten-row traversal and sends only the stopped row with auto trigger', async () => {
+    const { state } = await automaticRows()
+    translateMock.mockImplementation(finishSuccessfully)
+    for (let index = 1; index < 10; index += 1) {
+      await vi.advanceTimersByTimeAsync(20)
+      state.setGlossaryQueueCursor(index)
+      await flushPromises()
+    }
+    expect(translateMock).not.toHaveBeenCalled()
+    expect(state.queueContextAutoWaiting.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    await flushPromises()
+    expect(translateMock).toHaveBeenCalledTimes(1)
+    expect(translateMock.mock.calls[0]?.[0]).toBe('句10。')
+    expect(translateMock.mock.calls[0]?.[4]).toBe('auto')
+    expect(state.queueContextReference.value?.kind).toBe('ai')
+    state.resetGlossaryQueue()
+  })
+
+  it('clears a pending wait when disabled or closed and cancels only the owned active run', async () => {
+    const { state } = await automaticRows()
+    const config = await import('../../src/quickAiConfigState')
+    quickAiConfigGetMock.mockResolvedValue({ config: { fields: [], source: 'dedicated', ready: true, auto_enabled: false, auto_eligible: true }, error: null })
+    await config.refreshQuickAiConfigReadiness()
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(translateMock).not.toHaveBeenCalled()
+    expect(state.queueContextAutoWaiting.value).toBe(false)
+    quickAiConfigGetMock.mockResolvedValue({ config: { fields: [], source: 'dedicated', ready: true, auto_enabled: true, auto_eligible: true }, error: null })
+    await config.refreshQuickAiConfigReadiness()
+    state.closeGlossaryQueue()
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(translateMock).not.toHaveBeenCalled()
+    await state.openGlossaryQueue()
+    await flushPromises()
+    let finish: (value: typeof done) => void = () => undefined
+    translateMock.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    const ownedId = runIdOf(translateMock)
+    quickAiConfigGetMock.mockResolvedValue({ config: { fields: [], source: 'dedicated', ready: true, auto_enabled: false, auto_eligible: true }, error: null })
+    await config.refreshQuickAiConfigReadiness()
+    expect(cancelMock).toHaveBeenCalledWith(ownedId)
+    const token = translateMock.mock.calls[0]?.[1] as (text: string) => void
+    token('late')
+    finish(done)
+    await flushPromises()
+    expect(state.queueContextReference.value).toEqual({ kind: 'none' })
+    state.resetGlossaryQueue()
+  })
+
+  it.each(['error', 'empty', 'truncated'] as const)('keeps %s results across revisits and purge, permits manual retry and clears suppression on reopening', async (failure) => {
+    const { state } = await automaticRows()
+    translateMock.mockImplementation((_context: string, token: (text: string) => void) => {
+      if (failure === 'error') return Promise.resolve({ value: null, error: { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false } })
+      if (failure === 'truncated') {
+        token('partial')
+        return Promise.resolve({ value: { ...done.value, maybe_truncated: true }, error: null })
+      }
+      return Promise.resolve(done)
+    })
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    await flushPromises()
+    expect(state.queueContextReference.value?.kind).toBe(failure === 'truncated' ? 'truncated' : 'failed')
+    state.setGlossaryQueueCursor(1)
+    await flushPromises()
+    state.setGlossaryQueueCursor(0)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(translateMock).toHaveBeenCalledTimes(1)
+    if (failure === 'truncated') await state.retranslateGlossaryContextReference()
+    else await state.translateGlossaryContextReference()
+    expect(translateMock).toHaveBeenCalledTimes(2)
+    expect(translateMock.mock.calls[1]?.[3]).toBe(failure === 'truncated')
+    expect(translateMock.mock.calls[1]?.[4]).toBe('manual')
+    const runs = await import('../../src/quickTranslateRun')
+    runs.markQuickStorePurged()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(translateMock).toHaveBeenCalledTimes(2)
+    translateMock.mockImplementation(finishSuccessfully)
+    await state.translateGlossaryContextReference()
+    expect(translateMock).toHaveBeenCalledTimes(3)
+    expect(state.queueContextReference.value?.kind).toBe('ai')
+    state.closeGlossaryQueue()
+    await state.openGlossaryQueue()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(translateMock).toHaveBeenCalledTimes(4)
+    expect(translateMock.mock.calls[3]?.[4]).toBe('auto')
+    expect(state.queueContextReference.value?.kind).toBe('ai')
+    state.resetGlossaryQueue()
+  })
+
+  it('pauses on real activity, allows manual execution, and reschedules at the activity end without polling', async () => {
+    const { state } = await automaticRows()
+    const activity = await import('../../src/config/aiTranslateActivity')
+    const mutable = activity.aiTranslateActivity as unknown as { value: { revision: number; active_count: number } }
+    mutable.value = { revision: 1, active_count: 1 }
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS * 3)
+    expect(state.queueContextReference.value?.kind).toBe('paused')
+    expect(translateMock).not.toHaveBeenCalled()
+    translateMock.mockImplementation(finishSuccessfully)
+    await state.translateGlossaryContextReference()
+    expect(translateMock.mock.calls[0]?.[4]).toBe('manual')
+    state.setGlossaryQueueCursor(1)
+    await flushPromises()
+    expect(state.queueContextReference.value?.kind).toBe('paused')
+    mutable.value = { revision: 2, active_count: 0 }
+    expect(state.queueContextAutoWaiting.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    await flushPromises()
+    expect(translateMock).toHaveBeenCalledTimes(2)
+    expect(translateMock.mock.calls[1]?.[4]).toBe('auto')
+    state.resetGlossaryQueue()
+  })
+
+  it('reschedules when activity ends before the automatic paused response settles', async () => {
+    const { state } = await automaticRows()
+    let release: (result: { value: { state: 'paused' }; error: null }) => void = () => undefined
+    translateMock.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+      .mockImplementation(finishSuccessfully)
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(translateMock).toHaveBeenCalledTimes(1)
+    expect(state.queueContextReference.value?.kind).toBe('running')
+    const activity = await import('../../src/config/aiTranslateActivity')
+    const mutable = activity.aiTranslateActivity as unknown as { value: { revision: number; active_count: number } }
+    mutable.value = { revision: 1, active_count: 1 }
+    mutable.value = { revision: 2, active_count: 0 }
+    expect(state.queueContextAutoWaiting.value).toBe(false)
+    release({ value: { state: 'paused' }, error: null })
+    await flushPromises()
+    expect(state.queueContextAutoWaiting.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS - 1)
+    expect(translateMock).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    await flushPromises()
+    expect(translateMock).toHaveBeenCalledTimes(2)
+    expect(translateMock.mock.calls[1]?.[0]).toBe('句1。')
+    expect(translateMock.mock.calls[1]?.[4]).toBe('auto')
+    expect(state.queueContextReference.value?.kind).toBe('ai')
+    state.resetGlossaryQueue()
+  })
+
+  it('keeps manual fallback available until real activity is known', async () => {
+    const { state, Overlay } = await automaticRows()
+    const activity = await import('../../src/config/aiTranslateActivity')
+    const mutable = activity.aiTranslateActivity as unknown as { value: { revision: number; active_count: number } | null }
+    mutable.value = null
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS * 2)
+    expect(translateMock).not.toHaveBeenCalled()
+    expect(state.queueContextAutoWaiting.value).toBe(false)
+    const wrapper = mount(Overlay)
+    await flushPromises()
+    expect(wrapper.find('[data-gq-context-translate]').exists()).toBe(true)
+    translateMock.mockImplementation(finishSuccessfully)
+    await state.translateGlossaryContextReference()
+    expect(translateMock.mock.calls[0]?.[4]).toBe('manual')
+    wrapper.unmount()
+    state.resetGlossaryQueue()
+  })
+
+  it('never retries an automatic busy outcome and never sends chapter/cache hits', async () => {
+    const { state } = await automaticRows()
+    translateMock.mockResolvedValue({ value: { state: 'busy' }, error: null })
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS * 4)
+    await flushPromises()
+    expect(translateMock).toHaveBeenCalledTimes(1)
+    expect(state.queueContextReference.value?.kind).toBe('busy')
+    contextLookupMock.mockResolvedValue({ value: 'chapter', failed: false, error: null })
+    state.setGlossaryQueueCursor(1)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(state.queueContextReference.value?.kind).toBe('chapter')
+    contextLookupMock.mockResolvedValue(notFound)
+    storeLookupMock.mockResolvedValue({ value: { state: 'hit', text: 'cached', model: 'm-1' }, error: null })
+    state.setGlossaryQueueCursor(2)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(state.QUICK_AUTO_WAIT_MS)
+    expect(state.queueContextReference.value?.kind).toBe('cached')
+    expect(translateMock).toHaveBeenCalledTimes(1)
+    state.resetGlossaryQueue()
   })
 })

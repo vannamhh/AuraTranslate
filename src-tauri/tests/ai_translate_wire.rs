@@ -537,6 +537,235 @@ fn sink_channel() -> tauri::ipc::Channel<String> {
     tauri::ipc::Channel::<String>::new(|_| Ok(()))
 }
 
+#[test]
+fn all_four_real_command_wires_emit_start_and_end_even_on_early_exit() {
+    use tauri::Listener as _;
+    let app = bare_app();
+    app.manage(AiTranslateGeneration::default());
+    app.manage(LastAssembledPromptState::new(None));
+    app.manage(AiCallRecordsState::default());
+    app.manage(OpenWorkState::new(None));
+    let events = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
+    let sink = events.clone();
+    app.listen("ai-translate-activity-v1", move |event| {
+        sink.lock()
+            .unwrap()
+            .push(serde_json::from_str(event.payload()).unwrap());
+    });
+    let handle = app.handle().clone();
+    let _ = tauri::async_runtime::block_on(wire::ai_translate_segment(
+        handle.clone(),
+        1,
+        None,
+        sink_channel(),
+    ));
+    let _ =
+        tauri::async_runtime::block_on(wire::ai_translate_resend(handle.clone(), sink_channel()));
+    let _ = tauri::async_runtime::block_on(wire::ai_translate_batch(
+        handle.clone(),
+        AiTranslateScope::Selection {
+            segment_ids: vec![1],
+        },
+        None,
+        tauri::ipc::Channel::new(|_| Ok(())),
+    ));
+    let _ = tauri::async_runtime::block_on(wire::ai_translate_resend_call(
+        handle.clone(),
+        999,
+        0,
+        tauri::ipc::Channel::new(|_| Ok(())),
+    ));
+    let snapshot = wire::ai_translate_activity(handle).unwrap();
+    assert_eq!((snapshot.revision, snapshot.active_count), (8, 0));
+    let events = events.lock().unwrap();
+    assert_eq!(events.len(), 8);
+    for (index, event) in events.iter().enumerate() {
+        assert_eq!(event["revision"], (index + 1) as u64);
+        assert_eq!(event["active_count"], if index % 2 == 0 { 1 } else { 0 });
+    }
+}
+
+#[test]
+fn cancelled_stale_single_and_batch_executions_stay_active_until_provider_returns() {
+    let _key_guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-activity-fixture");
+    for batch in [false, true] {
+        let h = Harness::new(
+            if batch {
+                "activity-stale-batch"
+            } else {
+                "activity-stale-single"
+            },
+            "A dragon roared.",
+            0,
+        );
+        let segment_id = h.segment_ids()[0];
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let endpoint = format!(
+            "http://{}/v1/chat/completions",
+            listener.local_addr().unwrap()
+        );
+        write_field(&h.app.state::<Store>(), AiConfigField::Endpoint, &endpoint).unwrap();
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let provider = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .unwrap();
+            let mut request = [0; 8192];
+            let _ = stream.read(&mut request).unwrap();
+            stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n").unwrap();
+            stream.flush().unwrap();
+            entered_tx.send(()).unwrap();
+            release_rx
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap();
+            let body = format!(
+                "data: {{\"choices\":[{{\"delta\":{{\"content\":\"<<<SEGMENT {segment_id}\\nTranslated\\nSEGMENT>>>\"}},\"finish_reason\":\"stop\"}}]}}\n\ndata: [DONE]\n\n"
+            );
+            let _ = stream.write_all(body.as_bytes());
+        });
+        let handle = h.app.handle().clone();
+        let running = std::thread::spawn(move || {
+            if batch {
+                tauri::async_runtime::block_on(wire::ai_translate_batch(
+                    handle,
+                    AiTranslateScope::Selection {
+                        segment_ids: vec![segment_id],
+                    },
+                    Some("Plain".to_owned()),
+                    tauri::ipc::Channel::new(|_| Ok(())),
+                ))
+            } else {
+                tauri::async_runtime::block_on(wire::ai_translate_segment(
+                    handle,
+                    segment_id,
+                    Some("Plain".to_owned()),
+                    sink_channel(),
+                ))
+            }
+        });
+        entered_rx
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap();
+        let handle = h.app.handle().clone();
+        assert_eq!(
+            wire::ai_translate_activity(handle.clone())
+                .unwrap()
+                .active_count,
+            1
+        );
+        if !batch {
+            use auratranslate_lib::commands::aitranslate::{
+                QuickTranslateGeneration, QuickTranslateOutcomeWire, QuickTranslateTrigger,
+            };
+            use auratranslate_lib::core::aiconfig::QuickAiConfigField;
+            use auratranslate_lib::core::aiconfig::store::{write_quick_auto, write_quick_fields};
+            use auratranslate_lib::core::quick_translation::QuickTranslationStore;
+            let (quick_endpoint, quick_calls, _) = spawn_counted_sse_server(1, false, None);
+            write_quick_fields(
+                &h.app.state::<Store>(),
+                &[
+                    (QuickAiConfigField::Provider, "ollama".to_owned()),
+                    (QuickAiConfigField::Endpoint, quick_endpoint),
+                    (QuickAiConfigField::Model, "quick-while-real".to_owned()),
+                ],
+            )
+            .unwrap();
+            write_quick_auto(&h.app.state::<Store>(), true).unwrap();
+            h.app.manage(
+                QuickTranslationStore::open(h.dirs[0].join("quick-translation.db")).unwrap(),
+            );
+            h.app.manage(QuickTranslateGeneration::default());
+            let automatic = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
+                handle.clone(),
+                "quick source while real blocked".to_owned(),
+                QuickTranslateTrigger::Auto,
+                700,
+                false,
+                sink_channel(),
+            ))
+            .unwrap();
+            assert_eq!(automatic, QuickTranslateOutcomeWire::Paused);
+            assert_eq!(quick_calls.load(Ordering::SeqCst), 0);
+            let manual = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
+                handle.clone(),
+                "quick source while real blocked".to_owned(),
+                QuickTranslateTrigger::Manual,
+                701,
+                false,
+                sink_channel(),
+            ))
+            .unwrap();
+            assert!(matches!(manual, QuickTranslateOutcomeWire::Done { .. }));
+            assert_eq!(quick_calls.load(Ordering::SeqCst), 1);
+            wire::ai_context_reference_cancel(handle.clone(), 701);
+            assert!(
+                h.app.state::<AiTranslateGeneration>().is_current(1),
+                "quick work advanced the blocked real generation"
+            );
+        }
+        wire::ai_translate_cancel(handle.clone());
+        assert_eq!(
+            wire::ai_translate_activity(handle.clone())
+                .unwrap()
+                .active_count,
+            1,
+            "cancel ended activity before the blocking provider exited"
+        );
+        let _ = tauri::async_runtime::block_on(wire::ai_translate_segment(
+            handle.clone(),
+            i64::MAX,
+            Some("Plain".to_owned()),
+            sink_channel(),
+        ));
+        assert_eq!(
+            wire::ai_translate_activity(handle.clone())
+                .unwrap()
+                .active_count,
+            1,
+            "newer early completion hid stale real execution"
+        );
+        release_tx.send(()).unwrap();
+        let outcome = running.join().unwrap().unwrap();
+        assert!(matches!(outcome, AiTranslateOutcomeWire::Cancelled));
+        provider.join().unwrap();
+        let final_activity = wire::ai_translate_activity(handle).unwrap();
+        assert_eq!(
+            (final_activity.revision, final_activity.active_count),
+            (4, 0)
+        );
+    }
+}
+
+#[test]
+fn a_real_provider_error_releases_execution_activity() {
+    let _key_guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-activity-error");
+    let h = Harness::with_error_reply(
+        "activity-provider-error",
+        "A dragon roared.",
+        1,
+        "503 Service Unavailable",
+        "fixture unavailable",
+    );
+    let outcome = tauri::async_runtime::block_on(wire::ai_translate_segment(
+        h.app.handle().clone(),
+        h.segment_ids()[0],
+        Some("Plain".to_owned()),
+        sink_channel(),
+    ));
+    assert!(outcome.is_err());
+    assert_eq!(h.accepted.load(Ordering::SeqCst), 1);
+    let activity = wire::ai_translate_activity(h.app.handle().clone()).unwrap();
+    assert_eq!((activity.revision, activity.active_count), (2, 0));
+}
+
 fn target_texts(h: &Harness) -> Vec<String> {
     h.with_open(|open, _| {
         read_open_chapter_segments(Some(open))
@@ -1152,4 +1381,28 @@ mod provider_message_pure {
             Some(300)
         );
     }
+}
+
+#[test]
+fn overlapping_real_activity_ends_only_when_each_execution_guard_finishes() {
+    let state = AiTranslateGeneration::default();
+    let revisions = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let capture = revisions.clone();
+    let first = state.begin_activity(move |snapshot| capture.lock().unwrap().push(snapshot));
+    let capture = revisions.clone();
+    let second = state.begin_activity(move |snapshot| capture.lock().unwrap().push(snapshot));
+    assert_eq!(state.activity().active_count, 2);
+    drop(first);
+    assert_eq!(state.activity().active_count, 1);
+    assert!(state.is_current(0));
+    drop(second);
+    assert_eq!(state.activity().active_count, 0);
+    let snapshots = revisions.lock().unwrap();
+    assert_eq!(
+        snapshots
+            .iter()
+            .map(|s| (s.revision, s.active_count))
+            .collect::<Vec<_>>(),
+        vec![(1, 1), (2, 2), (3, 1), (4, 0)]
+    );
 }

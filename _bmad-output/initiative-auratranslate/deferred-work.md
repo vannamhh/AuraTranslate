@@ -13881,8 +13881,10 @@ chính nó.
 
 - Lượt dùng thật của Epic 15: khoá thật trên một Tác phẩm `zh`, một Tác phẩm `en` và một lần nhập URL, kể cả `Dọn` thu nhỏ tệp; test chỉ đo bằng nhà cung cấp giả.
   Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/epic-dich-nhanh.md` §Done when.
+  → 🟡 2026-11-11 (Story 15.5) — còn kiểm bằng tay Tab/Space/Enter ở công tắc Tự dịch và tiêu điểm/Esc khi hàng đang chờ hoặc đang dịch; WDIO không kích hoạt nút bằng bàn phím. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md`. Chủ: Epic 15.
 - Windows chưa đo: ô khoá thứ hai trong Credential Manager và `VACUUM` khi kho đang có kết nối ghi.
   Chủ: B7. Trỏ: `tickets/epic-dich-nhanh/epic-dich-nhanh.md` §Done when.
+  → 🟡 2026-11-11 (Story 15.5) — chưa chạy công tắc Tự dịch bằng Tab/Space/Enter và kiểm tiêu điểm/Esc trong WebView2 trên Windows. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md`. Chủ: B7.
 
 ## Deferred from: `plan-nightly-e2e-xanh` (2026-11-02)
 
@@ -14084,3 +14086,11 @@ chính nó.
 - `check:clippy` đỏ ở `src-tauri/tests/convention_exchange_contract.rs:115` (`ptr_arg`, `&PathBuf`) với rustc cục bộ 1.99; dòng này đã có ở baseline `e0e5b48dc8fddf1b81810fe0b6402747a4b08cac`.
   Cần sửa chữ ký helper sang kiểu mượn phù hợp và chạy lại target/clippy; hiện chặn pre-push, không phải lỗi mới của 15.2.
   Chủ: Ice. Trỏ: `tickets/epic-dich-nhanh/tickets/story-khai-cau-hinh-dich-nhanh-rieng-o-cai-at-dich-thu-chay-tren-o-handoff.md` §Tests phase.
+
+- `check:panel-refs` còn 16 lỗi kế thừa: `bootstrap::quickTranslationPurgeDays`, `quickTranslateRun::purges` và 14 ô trong `settingsQuickDataState`; chưa có đường reset được cổng nhận diện.
+  Đối chứng: chạy gate nguyên bản trong archive baseline `d63cdae436979abf385c1701ee5c52d5313ba8a9` cho đúng cùng 16 định danh; Story 15.5 không thêm lỗi sau tích hợp.
+  Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md` §Lead integration.
+
+- Story 15.5 chưa có CI Windows/UTC cho chính revision triển khai; CI/nightly đã đọc xanh ở `d2cf9d65d71004a0c084bec289757e6fef6a8e08`, trước thay đổi này.
+  Cần đọc run chứa revision 15.5 sau khi push; không suy kết quả từ macOS cục bộ hoặc nightly cũ.
+  Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md` §Parent CI inspection.

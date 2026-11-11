@@ -1,7 +1,7 @@
 import { computed, readonly, ref } from 'vue'
 import { aiConfigViewTier } from './aiConfigState'
 import type { IpcError } from './i18n'
-import { quickAiConfigGet, quickAiConfigSaveFields, quickAiConfigSaveKey, quickAiConfigDeleteKey, quickAiConfigTestConnection, quickAiConfigTestConnectionCancel } from './config/quickAiConfig'
+import { quickAiConfigGet, quickAiConfigSetAuto, quickAiConfigSaveFields, quickAiConfigSaveKey, quickAiConfigDeleteKey, quickAiConfigTestConnection, quickAiConfigTestConnectionCancel } from './config/quickAiConfig'
 import type { QuickAiConfigField, QuickAiConfigWire } from './config/quickAiConfig'
 
 export const QUICK_AI_FIELDS = ['quick_provider', 'quick_endpoint', 'quick_model'] as const
@@ -11,6 +11,11 @@ const stored = ref(emptyDrafts())
 const config = ref<QuickAiConfigWire | null>(null)
 const loadError = ref<IpcError | null>(null)
 const saveError = ref<IpcError | null>(null)
+const savedRevision = ref(0)
+const autoEnabled = ref(false)
+const autoEligible = ref(false)
+const autoSaving = ref(false)
+const autoError = ref<IpcError | null>(null)
 const keyDraft = ref('')
 const keyError = ref<IpcError | null>(null)
 const keyBusy = ref(false)
@@ -27,6 +32,12 @@ let inFlightSave: Promise<void> | null = null
 let cancelRequested = false
 let waitingForSave = false
 
+export const quickAiConfigRevision = readonly(savedRevision)
+export const quickAiAutoEnabled = readonly(autoEnabled)
+export const quickAiAutoEligible = readonly(autoEligible)
+export const quickAiAutoSaving = readonly(autoSaving)
+export const quickAiAutoError = readonly(autoError)
+
 export const quickAiConfigLocked = computed(() => aiConfigViewTier.value !== 'global')
 export const quickAiConfigDrafts = readonly(drafts)
 export const quickAiConfig = readonly(config)
@@ -42,6 +53,8 @@ export const quickAiConfigTestModelCount = readonly(testModelCount)
 export const quickAiConfigTestError = readonly(testError)
 
 function applyReadiness(value: QuickAiConfigWire | null): void {
+  autoEnabled.value = value?.auto_enabled === true
+  autoEligible.value = value?.auto_eligible === true
   readiness.value = value === null ? 'unknown' : value.ready === true ? 'ready' : value.ready === false ? 'unconfigured' : 'key_unchecked'
 }
 
@@ -94,7 +107,13 @@ export async function commitQuickAiConfigDrafts(): Promise<void> {
     saveError.value = error
     if (error === null) {
       invalidateQuickAiConfigTest()
+      savedRevision.value += 1
+      readinessSequence += 1
       for (const field of fields) stored.value[field.field] = field.value
+      if (fields.some(field => (field.field === 'quick_endpoint' || field.field === 'quick_model') && field.value.trim() === '')) {
+        autoEnabled.value = false
+        autoEligible.value = false
+      }
       await loadQuickAiConfigSection()
     }
     saving.value = false
@@ -114,7 +133,10 @@ export async function saveQuickAiConfigKey(): Promise<void> {
   const error = await quickAiConfigSaveKey(value)
   if (mine !== sequence) return
   keyError.value = error
-  if (error === null) invalidateQuickAiConfigTest()
+  if (error === null) {
+    invalidateQuickAiConfigTest()
+    savedRevision.value += 1
+  }
   keyBusy.value = false
   await loadQuickAiConfigSection()
 }
@@ -127,7 +149,10 @@ export async function deleteQuickAiConfigKey(): Promise<void> {
   const error = await quickAiConfigDeleteKey()
   if (mine !== sequence) return
   keyError.value = error
-  if (error === null) invalidateQuickAiConfigTest()
+  if (error === null) {
+    invalidateQuickAiConfigTest()
+    savedRevision.value += 1
+  }
   keyBusy.value = false
   await loadQuickAiConfigSection()
 }
@@ -187,6 +212,11 @@ export function resetQuickAiConfig(): void {
   drafts.value = emptyDrafts()
   stored.value = emptyDrafts()
   config.value = null
+  savedRevision.value = 0
+  autoEnabled.value = false
+  autoEligible.value = false
+  autoSaving.value = false
+  autoError.value = null
   loadError.value = null
   saveError.value = null
   keyDraft.value = ''
@@ -200,4 +230,21 @@ export function resetQuickAiConfig(): void {
   cancelRequested = false
   waitingForSave = false
   inFlightSave = null
+}
+
+export async function toggleQuickAiAuto(): Promise<void> {
+  if (quickAiConfigLocked.value || autoSaving.value || saving.value || !autoEligible.value) return
+  const mine = sequence
+  const enabled = !autoEnabled.value
+  autoSaving.value = true
+  const error = await quickAiConfigSetAuto(enabled)
+  if (mine !== sequence) return
+  autoError.value = error
+  if (error === null) {
+    readinessSequence += 1
+    readSequence += 1
+    autoEnabled.value = enabled
+    if (config.value !== null) config.value = { ...config.value, auto_enabled: enabled }
+  }
+  autoSaving.value = false
 }

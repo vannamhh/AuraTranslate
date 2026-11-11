@@ -398,6 +398,12 @@ impl GlobalConfig {
             .is_none_or(|r| r.value().as_str() != "off")
     }
 
+    pub fn quick_translate_auto(&self) -> bool {
+        self.app
+            .get("quick_translate_auto")
+            .is_some_and(|r| r.value() == "on")
+    }
+
     /// Panel-arrange mode is off unless the saved value is exactly `"on"`.
     pub fn panel_headers_shown(&self) -> bool {
         self.app

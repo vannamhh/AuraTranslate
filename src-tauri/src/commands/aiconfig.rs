@@ -400,6 +400,8 @@ pub struct QuickAiConfigFieldWire {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct QuickAiConfigGetWire {
+    pub auto_enabled: bool,
+    pub auto_eligible: bool,
     pub fields: Vec<QuickAiConfigFieldWire>,
     pub key_configured: Option<bool>,
     pub source: crate::core::aiconfig::QuickConfigSource,
@@ -453,7 +455,13 @@ pub fn quick_ai_config_get(global: Option<&Store>) -> Result<QuickAiConfigGetWir
         let (ready, reasons) = call_readiness(provider, endpoint, model, selected_key);
         (key_configured, ready, reasons)
     };
+    let auto_eligible = endpoint_and_model_set(value("quick_endpoint"), value("quick_model"));
+    let auto_enabled = crate::core::scope::store::load_global_config(global)?
+        .quick_translate_auto()
+        && auto_eligible;
     Ok(QuickAiConfigGetWire {
+        auto_enabled,
+        auto_eligible,
         fields,
         key_configured,
         source,
@@ -493,6 +501,34 @@ pub fn quick_ai_config_save_fields(
     Ok(())
 }
 
+pub fn quick_ai_config_set_auto(
+    global: Option<&Store>,
+    tier: AiConfigTier,
+    enabled: bool,
+) -> Result<(), IpcError> {
+    if tier != AiConfigTier::Global {
+        return Err(AiConfigKeyError::TierNotGlobal.into());
+    }
+    let store = global.ok_or_else(store_is_missing)?;
+    if enabled {
+        let resolved = resolve_two_tiers(&ScopeResolver::global_only(), store, None)?;
+        if !endpoint_and_model_set(
+            resolved
+                .get("quick_endpoint")
+                .map(|v| v.value.as_str())
+                .unwrap_or_default(),
+            resolved
+                .get("quick_model")
+                .map(|v| v.value.as_str())
+                .unwrap_or_default(),
+        ) {
+            return Err(invalid_value_error("quick_translate_auto"));
+        }
+    }
+    crate::core::aiconfig::store::write_quick_auto(store, enabled)?;
+    Ok(())
+}
+
 pub fn quick_ai_config_save_key(tier: AiConfigTier, value: &str) -> Result<(), IpcError> {
     if tier != AiConfigTier::Global {
         return Err(AiConfigKeyError::TierNotGlobal.into());
@@ -512,6 +548,17 @@ pub fn quick_ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
 }
 
 pub mod wire {
+    #[tauri::command]
+    pub fn quick_ai_config_set_auto(
+        app: tauri::AppHandle,
+        tier: AiConfigTier,
+        enabled: bool,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+        let global = app.try_state::<Store>();
+        super::quick_ai_config_set_auto(global.as_deref(), tier, enabled)
+    }
+
     #[tauri::command(async)]
     pub fn quick_ai_config_get(
         app: tauri::AppHandle,

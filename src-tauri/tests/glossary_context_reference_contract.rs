@@ -282,6 +282,7 @@ fn the_wire_reaches_the_send_on_its_own_generation_and_leaves_the_batch_and_rows
     let result = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
         handle.clone(),
         "一二三。".to_owned(),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         5,
         false,
         channel,
@@ -408,6 +409,7 @@ fn quick_wire_and_connection_test_work_without_any_work_state_and_cancel_indepen
     let result = tauri::async_runtime::block_on(wire::ai_context_reference_translate(
         handle.clone(),
         "句".into(),
+        auratranslate_lib::commands::aitranslate::QuickTranslateTrigger::Manual,
         77,
         false,
         tauri::ipc::Channel::new(|_| Ok(())),

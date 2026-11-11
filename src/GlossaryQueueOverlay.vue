@@ -22,6 +22,7 @@ import {
   queueActionError,
   queueContextBusyElsewhere,
   queueContextReference,
+  queueContextAutoWaiting,
   queueCurrentRow,
   queueCursor,
   queueEmptyReasonFor,
@@ -484,7 +485,7 @@ function onKeydown(event: KeyboardEvent): void {
                 <!-- aura-allow-text: DỮ LIỆU (`context_example` của chính hàng). -->
                 <div class="gq-ctx-quote">{{ row.candidate.context_example }}</div>
                 <div
-                  v-if="queueContextReference !== null && queueContextReference.kind !== 'looking'"
+                  v-if="queueContextReference !== null && queueContextReference.kind !== 'looking' && !queueContextAutoWaiting"
                   class="gq-ref"
                   data-gq-context-ref
                   :data-kind="queueContextReference.kind"
@@ -554,6 +555,7 @@ function onKeydown(event: KeyboardEvent): void {
                       data-gq-context-busy
                       >{{ t('glossary.queue.context_busy') }}</span
                     >
+                    <span v-if="queueContextReference.kind === 'paused'" class="gq-ref-source" role="status" data-gq-context-paused>{{ t('glossary.queue.context_paused') }}</span>
                     <button
                       type="button"
                       class="ui-btn"

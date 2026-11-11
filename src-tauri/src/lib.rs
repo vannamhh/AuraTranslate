@@ -1387,6 +1387,8 @@ pub fn run() {
             crate::commands::aiconfig::wire::ai_config_save_key,
             crate::commands::aiconfig::wire::ai_config_delete_key,
             crate::commands::aiconfig::wire::quick_ai_config_get,
+            crate::commands::aiconfig::wire::quick_ai_config_set_auto,
+            crate::commands::aitranslate::wire::ai_translate_activity,
             crate::commands::aiconfig::wire::quick_ai_config_save_fields,
             crate::commands::aiconfig::wire::quick_ai_config_save_key,
             crate::commands::aiconfig::wire::quick_ai_config_delete_key,

@@ -8,10 +8,13 @@ export type QuickAiConfigWire = {
   fields: { field: QuickAiConfigField; value: string }[]
   key_configured: boolean | null
   source: QuickAiConfigSource
+  auto_enabled: boolean
+  auto_eligible: boolean
   ready: boolean | null
   not_ready: AiNotReadyReason[]
 }
 
+const CMD_SET_AUTO = 'quick_ai_config_set_auto'
 const CMD_GET = 'quick_ai_config_get'
 const CMD_SAVE_FIELDS = 'quick_ai_config_save_fields'
 const CMD_SAVE_KEY = 'quick_ai_config_save_key'
@@ -36,6 +39,7 @@ function isWire(value: unknown): value is QuickAiConfigWire {
   return Array.isArray(fields) && fields.length === FIELDS.length &&
     FIELDS.every((field) => fields.filter((f: unknown) => typeof f === 'object' && f !== null && 'field' in f && f.field === field && 'value' in f && typeof f.value === 'string').length === 1) &&
     (v.key_configured === null || typeof v.key_configured === 'boolean') &&
+    typeof v.auto_enabled === 'boolean' && typeof v.auto_eligible === 'boolean' &&
     (v.ready === null || typeof v.ready === 'boolean') &&
     typeof v.source === 'string' && ['dedicated', 'main_global', 'incomplete'].includes(v.source) &&
     Array.isArray(v.not_ready) && v.not_ready.every((r: unknown) => typeof r === 'string' && ['endpoint_missing', 'model_missing', 'key_missing'].includes(r))
@@ -94,6 +98,15 @@ export async function quickAiConfigTestConnection(): Promise<{ outcome: AiConfig
 export async function quickAiConfigTestConnectionCancel(): Promise<IpcError | null> {
   try {
     await invoke(CMD_TEST_CANCEL)
+    return null
+  } catch (err) {
+    return ipcError(err)
+  }
+}
+
+export async function quickAiConfigSetAuto(enabled: boolean): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_SET_AUTO, { tier: 'global', enabled })
     return null
   } catch (err) {
     return ipcError(err)
