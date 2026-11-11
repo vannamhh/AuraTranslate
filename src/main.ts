@@ -98,6 +98,10 @@ import {
   confirmImportPreviewBlockRange,
   importPreviewIsOpen,
   jumpImportPreviewToCleanupRules,
+  translateImportPreviewVisibleBlocks,
+  translateImportPreviewFocusedBlock,
+  retranslateImportPreviewFocusedBlock,
+  cancelImportPreviewQuickBatch,
   markImportPreviewBlockRangeStart,
   nextImportPreviewBlock,
   nextImportPreviewChapter,
@@ -686,6 +690,16 @@ async function boot(): Promise<void> {
       markImportPreviewBlockRangeStart,
       confirmImportPreviewBlockRange,
       jumpImportPreviewToCleanupRules,
+      translateImportPreviewVisibleBlocks: () => {
+        void translateImportPreviewVisibleBlocks()
+      },
+      translateImportPreviewFocusedBlock: () => {
+        void translateImportPreviewFocusedBlock()
+      },
+      retranslateImportPreviewFocusedBlock: () => {
+        void retranslateImportPreviewFocusedBlock()
+      },
+      cancelImportPreviewQuickBatch,
       // Story 6.10a — con trỏ *Chương đang chọn* (`⌥←`/`⌥→`). Hai hàm THUẦN, cùng cửa và cùng
       // lý do sáu hàm Story 6.9 ngay trên.
       nextImportPreviewChapter,

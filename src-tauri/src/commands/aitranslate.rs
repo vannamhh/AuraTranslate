@@ -71,7 +71,9 @@ use crate::core::aiconfig::{
     resolve_two_tiers,
 };
 use crate::core::i18n::{IpcError, MessageKey};
-use crate::core::quick_translation::QuickTranslationStore;
+use crate::core::quick_translation::{
+    QuickTranslationStore, batch_prefix_len, group_by_key, quick_key,
+};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{ReadHandle, Store, StoreError, StoreKind};
 use crate::ports::translation_provider::{
@@ -767,6 +769,14 @@ impl ConnectionCheckGeneration {
     }
 }
 
+/// The surface a quick-translation run belongs to. Another surface cannot start while a run is
+/// active; the same surface replaces its own run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuickSurface {
+    GlossaryQueue,
+    ImportPreview,
+}
+
 /// The one quick-translation run of the app, separate from [`AiTranslateGeneration`] so its cancel
 /// never stops a translate run or batch. The webview issues `run_id`; a cancel only takes effect
 /// when it names the run that is active.
@@ -776,22 +786,56 @@ pub struct QuickTranslateGeneration(std::sync::Arc<QuickTranslateRuns>);
 #[derive(Debug, Default)]
 struct QuickTranslateRuns {
     generation: std::sync::atomic::AtomicU64,
-    active_run: std::sync::Mutex<Option<u64>>,
+    active_run: std::sync::Mutex<Option<(QuickSurface, u64)>>,
+}
+
+/// Proof that a run holds the app's one quick-translation slot; dropping it frees the slot.
+#[derive(Debug)]
+pub struct QuickRunTicket {
+    runs: QuickTranslateGeneration,
+    surface: QuickSurface,
+    run_id: u64,
+    pub generation: u64,
+}
+
+impl Drop for QuickRunTicket {
+    fn drop(&mut self) {
+        let mut active = self
+            .runs
+            .0
+            .active_run
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *active == Some((self.surface, self.run_id)) {
+            *active = None;
+        }
+    }
 }
 
 impl QuickTranslateGeneration {
-    /// Starts `run_id`, superseding any run before it.
-    pub fn begin(&self, run_id: u64) -> u64 {
+    /// Starts `run_id` on `surface`, superseding an earlier run of the same surface. `None` is
+    /// busy: a run of another surface is active.
+    pub fn begin(&self, surface: QuickSurface, run_id: u64) -> Option<QuickRunTicket> {
         let mut active = self
             .0
             .active_run
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *active = Some(run_id);
-        self.0
+        if active.is_some_and(|(running, _)| running != surface) {
+            return None;
+        }
+        *active = Some((surface, run_id));
+        let generation = self
+            .0
             .generation
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
-            .wrapping_add(1)
+            .wrapping_add(1);
+        Some(QuickRunTicket {
+            runs: self.clone(),
+            surface,
+            run_id,
+            generation,
+        })
     }
 
     /// Cancels the active run when `run_id` names it. Returns whether it did.
@@ -801,7 +845,7 @@ impl QuickTranslateGeneration {
             .active_run
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if *active != Some(run_id) {
+        if active.map(|(_, id)| id) != Some(run_id) {
             return false;
         }
         *active = None;
@@ -911,13 +955,13 @@ pub fn prepare_quick_connection_check(
     }))
 }
 
-/// Builds the call that translates one Glossary context sentence for reference. Not configured
-/// (empty endpoint/model, or no stored key) is reached before any network call. Reads and
-/// writes no Work data and records nothing.
-pub fn prepare_context_reference_call(
+/// Resolves the quick-translation configuration and key into a call carrying `prompt`. Not
+/// configured (empty endpoint/model, or no stored key) is reached before any network call.
+/// Reads and writes no Work data and records nothing.
+pub fn prepare_quick_call(
     global: Option<&Store>,
-    _open: Option<&OpenWork>,
-    context_example: &str,
+    prompt: String,
+    system: Option<String>,
 ) -> Result<PrepareOutcome, IpcError> {
     let Some(config) = resolve_quick_call_config(global)? else {
         return Ok(PrepareOutcome::NotConfigured);
@@ -931,9 +975,22 @@ pub fn prepare_context_reference_call(
         temperature: config.temperature,
         max_tokens: config.max_tokens,
         api_key,
-        prompt: crate::commands::aiprompt::context_reference_prompt(context_example),
-        system: None,
+        prompt,
+        system,
     }))
+}
+
+/// Builds the call that translates one Glossary context sentence for reference.
+pub fn prepare_context_reference_call(
+    global: Option<&Store>,
+    _open: Option<&OpenWork>,
+    context_example: &str,
+) -> Result<PrepareOutcome, IpcError> {
+    prepare_quick_call(
+        global,
+        crate::commands::aiprompt::context_reference_prompt(context_example),
+        None,
+    )
 }
 
 /// Result of one `Dịch thử`, shared by the lookup-first and send paths (AD-64 rules 5, 6).
@@ -953,6 +1010,7 @@ pub enum QuickTranslateOutcomeWire {
         maybe_truncated: bool,
     },
     Cancelled,
+    Busy,
 }
 
 /// Result of `quick_translation_lookup`.
@@ -977,6 +1035,33 @@ pub fn quick_lookup_wire(store: Option<&QuickTranslationStore>, text: &str) -> Q
         Err(err) => {
             eprintln!("quick_translation[lookup] read failed: {err}");
             QuickLookupWire::StoreUnavailable
+        }
+    }
+}
+
+pub fn quick_lookup_many_wire(
+    store: Option<&QuickTranslationStore>,
+    texts: &[String],
+) -> Vec<QuickLookupWire> {
+    let Some(store) = store else {
+        return vec![QuickLookupWire::StoreUnavailable; texts.len()];
+    };
+    let keys: Vec<String> = texts.iter().map(|t| quick_key(t)).collect();
+    match store.lookup_keys(&keys) {
+        Ok(hits) => keys
+            .iter()
+            .zip(hits)
+            .map(|(key, hit)| match hit {
+                Some(hit) if !key.is_empty() => QuickLookupWire::Hit {
+                    text: hit.translated_text,
+                    model: hit.model,
+                },
+                _ => QuickLookupWire::Miss,
+            })
+            .collect(),
+        Err(err) => {
+            eprintln!("quick_translation[lookup_many] read failed: {err}");
+            vec![QuickLookupWire::StoreUnavailable; texts.len()]
         }
     }
 }
@@ -1073,6 +1158,250 @@ pub async fn quick_translate<P: TranslationProvider>(
         model: prepared.model,
         usage: usage.map(AiTranslateUsageWire::from),
         maybe_truncated,
+    })
+}
+
+/// One event of a quick batch on its `Channel`. `index` is the position in the `texts` the
+/// webview sent; a text shared by several positions is answered at each of them.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum QuickBlockEventWire {
+    /// Already remembered: no call was made for it.
+    Cached {
+        index: u32,
+        text: String,
+        model: String,
+    },
+    /// The positions the one call carries.
+    Started {
+        indices: Vec<u32>,
+    },
+    Token {
+        index: u32,
+        text: String,
+    },
+    /// A block closed correctly. `saved` is false when the store refused the write.
+    Received {
+        index: u32,
+        text: String,
+        model: String,
+        saved: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct QuickMissingWire {
+    pub index: u32,
+    pub reason: &'static str,
+}
+
+/// Result of one quick batch. A provider error leaves through `Err`; the blocks received before
+/// it stay saved and were already reported as `Received`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum QuickBatchOutcomeWire {
+    NotConfigured,
+    StoreUnavailable,
+    Busy,
+    Cancelled,
+    Done {
+        /// `None` when nothing needed a call.
+        model: Option<String>,
+        usage: Option<AiTranslateUsageWire>,
+        missing: Vec<QuickMissingWire>,
+        /// Positions that did not fit this call; the next call takes them.
+        deferred: u32,
+    },
+}
+
+fn wire_index(index: usize) -> u32 {
+    u32::try_from(index).unwrap_or(u32::MAX)
+}
+
+/// One batch of page blocks (AD-64 rules 4 to 8): remembered texts answer from the store, the
+/// rest go in one call, and each block that closes correctly is saved at once, so a cancel keeps
+/// what was already paid for. `prepare` supplies the quick configuration; its prompt and system
+/// are replaced here. `retranslate` skips the store read and replaces the saved rows (`Dịch lại`).
+/// Never writes `target_text`, TM, Glossary, and creates no Work.
+pub async fn quick_translate_blocks<P: TranslationProvider>(
+    store: Option<&QuickTranslationStore>,
+    provider: &P,
+    prepare: impl FnOnce() -> Result<PrepareOutcome, IpcError>,
+    texts: &[String],
+    retranslate: bool,
+    on_event: &mut dyn FnMut(QuickBlockEventWire),
+    should_cancel: std::sync::Arc<dyn Fn() -> bool + Send + Sync>,
+) -> Result<QuickBatchOutcomeWire, QuickTranslateError<P::Error>> {
+    let Some(store) = store else {
+        return Ok(QuickBatchOutcomeWire::StoreUnavailable);
+    };
+    let groups = group_by_key(texts);
+    let keys: Vec<String> = groups.iter().map(|g| g.key.clone()).collect();
+    let hits = if retranslate {
+        vec![None; keys.len()]
+    } else {
+        match store.lookup_keys(&keys) {
+            Ok(hits) => hits,
+            Err(err) => {
+                eprintln!("quick_translation[batch lookup] read failed: {err}");
+                return Ok(QuickBatchOutcomeWire::StoreUnavailable);
+            }
+        }
+    };
+    let mut misses = Vec::new();
+    for (group, hit) in groups.into_iter().zip(hits) {
+        match hit {
+            Some(hit) => {
+                for &index in &group.indices {
+                    on_event(QuickBlockEventWire::Cached {
+                        index: wire_index(index),
+                        text: hit.translated_text.clone(),
+                        model: hit.model.clone(),
+                    });
+                }
+            }
+            None => misses.push(group),
+        }
+    }
+    let taken = batch_prefix_len(&misses);
+    let deferred: usize = misses[taken..].iter().map(|g| g.indices.len()).sum();
+    misses.truncate(taken);
+    let deferred = wire_index(deferred);
+    if misses.is_empty() {
+        return Ok(QuickBatchOutcomeWire::Done {
+            model: None,
+            usage: None,
+            missing: Vec::new(),
+            deferred,
+        });
+    }
+
+    let mut prepared = match prepare().map_err(QuickTranslateError::Ipc)? {
+        PrepareOutcome::NotConfigured => return Ok(QuickBatchOutcomeWire::NotConfigured),
+        PrepareOutcome::Ready(prepared) => prepared,
+    };
+    if should_cancel() {
+        return Ok(QuickBatchOutcomeWire::Cancelled);
+    }
+    let sources: Vec<&str> = misses.iter().map(|g| g.key.as_str()).collect();
+    prepared.prompt = crate::commands::aiprompt::quick_batch_prompt(&sources);
+    prepared.system = Some(system_with_block_format(None));
+    on_event(QuickBlockEventWire::Started {
+        indices: misses
+            .iter()
+            .flat_map(|g| g.indices.iter().map(|&i| wire_index(i)))
+            .collect(),
+    });
+
+    let request = TranslateRequest {
+        endpoint: &prepared.endpoint,
+        model: &prepared.model,
+        temperature: prepared.temperature,
+        max_tokens: prepared.max_tokens,
+        api_key: &prepared.api_key,
+        prompt: &prepared.prompt,
+        system: prepared.system.as_deref(),
+    };
+    let model = prepared.model.clone();
+    let saved_blocks: std::cell::RefCell<std::collections::BTreeSet<u32>> =
+        std::cell::RefCell::default();
+    let save_block = |block: u32, text: &str, on_event: &mut dyn FnMut(QuickBlockEventWire)| {
+        let Some(group) = usize::try_from(block)
+            .ok()
+            .and_then(|n| n.checked_sub(1))
+            .and_then(|i| misses.get(i))
+        else {
+            return;
+        };
+        if text.trim().is_empty() || should_cancel() || !saved_blocks.borrow_mut().insert(block) {
+            return;
+        }
+        let still_current = std::sync::Arc::clone(&should_cancel);
+        let saved = match store.save(&group.key, text, &model, retranslate, move || {
+            !still_current()
+        }) {
+            Ok(written) => written,
+            Err(err) => {
+                eprintln!("quick_translation[batch save] write failed: {err}");
+                false
+            }
+        };
+        for &index in &group.indices {
+            on_event(QuickBlockEventWire::Received {
+                index: wire_index(index),
+                text: text.to_owned(),
+                model: model.clone(),
+                saved,
+            });
+        }
+    };
+
+    let mut reader = BlockStream::new();
+    let result = {
+        let mut on_token = |chunk: &str| {
+            for piece in reader.push(chunk) {
+                let Some(group) = usize::try_from(piece.index)
+                    .ok()
+                    .and_then(|n| n.checked_sub(1))
+                    .and_then(|i| misses.get(i))
+                else {
+                    continue;
+                };
+                for &index in &group.indices {
+                    on_event(QuickBlockEventWire::Token {
+                        index: wire_index(index),
+                        text: piece.text.clone(),
+                    });
+                }
+            }
+            for block in reader.take_closed() {
+                save_block(block.index, &block.text, on_event);
+            }
+        };
+        provider
+            .translate(request, &mut on_token, &*should_cancel)
+            .await
+    };
+    let blocks = reader.finish();
+
+    let (end, usage) = match result {
+        Ok(TranslateOutcome::Done {
+            usage,
+            finish_reason,
+        }) => (Some(finish_reason), usage.map(AiTranslateUsageWire::from)),
+        Ok(TranslateOutcome::Cancelled) => return Ok(QuickBatchOutcomeWire::Cancelled),
+        Err(err) if P::is_empty_reply(&err) => (Some(None), None),
+        Err(err) => return Err(QuickTranslateError::Provider(err)),
+    };
+    let stream_end = match &end {
+        Some(reason) => StreamEnd::Finished {
+            finish_reason: reason.as_deref(),
+        },
+        None => StreamEnd::Interrupted,
+    };
+    let verdicts = reconcile(misses.len(), &blocks, &stream_end);
+    let mut missing = Vec::new();
+    for (i, (group, verdict)) in misses.iter().zip(&verdicts).enumerate() {
+        let block = wire_index(i + 1);
+        match verdict {
+            Verdict::Received { text } => save_block(block, text, on_event),
+            Verdict::Discarded { reason } if !saved_blocks.borrow().contains(&block) => {
+                missing.extend(group.indices.iter().map(|&index| QuickMissingWire {
+                    index: wire_index(index),
+                    reason: reason.as_str(),
+                }));
+            }
+            Verdict::Discarded { .. } => {}
+        }
+    }
+    if should_cancel() {
+        return Ok(QuickBatchOutcomeWire::Cancelled);
+    }
+    Ok(QuickBatchOutcomeWire::Done {
+        model: Some(model),
+        usage,
+        missing,
+        deferred,
     })
 }
 
@@ -1979,10 +2308,11 @@ pub mod wire {
         send_prepared_translate_call, single_run_outcome_wire,
     };
     use super::{
-        ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire, QuickLookupWire,
-        QuickTranslateGeneration, QuickTranslateOutcomeWire, internal_failure_error,
-        prepare_connection_check, prepare_context_reference_call, quick_lookup_wire,
-        quick_translate, send_prepared_connection_check,
+        ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire, QuickBatchOutcomeWire,
+        QuickBlockEventWire, QuickLookupWire, QuickSurface, QuickTranslateGeneration,
+        QuickTranslateOutcomeWire, internal_failure_error, prepare_connection_check,
+        prepare_context_reference_call, prepare_quick_call, quick_lookup_many_wire,
+        quick_lookup_wire, quick_translate, send_prepared_connection_check,
     };
     use crate::commands::aiprompt::{
         AiCallRecordsState, LastAssembledPromptState, mark_prompt_as_sent,
@@ -2325,9 +2655,13 @@ pub mod wire {
             ));
         };
         let generation_state = generation_state.inner().clone();
-        let generation = generation_state.begin(run_id);
+        let Some(ticket) = generation_state.begin(QuickSurface::GlossaryQueue, run_id) else {
+            return Ok(QuickTranslateOutcomeWire::Busy);
+        };
+        let generation = ticket.generation;
 
         let join = tauri::async_runtime::spawn_blocking(move || {
+            let _ticket = ticket;
             let provider = OpenAiChatClient::new();
             let store = app.try_state::<QuickTranslationStore>();
             let prepare = || {
@@ -2346,6 +2680,60 @@ pub mod wire {
                 &context_example,
                 retranslate,
                 &mut on_token,
+                should_cancel,
+            ))
+        });
+        match join.await {
+            Ok(outcome) => outcome.map_err(IpcError::from),
+            Err(_join_err) => Err(internal_failure_error()),
+        }
+    }
+
+    /// Translates the blocks the user sees on the import preview. Every text answered from the
+    /// store costs no call; the rest go in one call, up to the batch caps (AD-64 rule 7).
+    #[tauri::command]
+    pub async fn quick_translate_blocks<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        texts: Vec<String>,
+        retranslate: bool,
+        run_id: u64,
+        channel: tauri::ipc::Channel<QuickBlockEventWire>,
+    ) -> Result<QuickBatchOutcomeWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(generation_state) = app.try_state::<QuickTranslateGeneration>() else {
+            return Err(state_missing(
+                "quick_translate_blocks",
+                "QuickTranslateGeneration",
+                "ai_translate.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let Some(ticket) = generation_state.begin(QuickSurface::ImportPreview, run_id) else {
+            return Ok(QuickBatchOutcomeWire::Busy);
+        };
+        let generation = ticket.generation;
+
+        let join = tauri::async_runtime::spawn_blocking(move || {
+            let _ticket = ticket;
+            let provider = OpenAiChatClient::new();
+            let store = app.try_state::<QuickTranslationStore>();
+            let prepare = || {
+                let global = app.try_state::<Store>();
+                prepare_quick_call(global.as_deref(), String::new(), None)
+            };
+            let should_cancel: std::sync::Arc<dyn Fn() -> bool + Send + Sync> =
+                std::sync::Arc::new(move || !generation_state.is_current(generation));
+            let mut on_event = |event: QuickBlockEventWire| {
+                let _ = channel.send(event);
+            };
+            tauri::async_runtime::handle().block_on(super::quick_translate_blocks(
+                store.as_deref(),
+                &provider,
+                prepare,
+                &texts,
+                retranslate,
+                &mut on_event,
                 should_cancel,
             ))
         });
@@ -2375,6 +2763,18 @@ pub mod wire {
 
         let store = app.try_state::<QuickTranslationStore>();
         quick_lookup_wire(store.as_deref(), &text)
+    }
+
+    /// The remembered quick translation of each text, in the order sent. Reads, writes nothing.
+    #[tauri::command]
+    pub fn quick_translation_lookup_many<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        texts: Vec<String>,
+    ) -> Vec<QuickLookupWire> {
+        use tauri::Manager as _;
+
+        let store = app.try_state::<QuickTranslationStore>();
+        quick_lookup_many_wire(store.as_deref(), &texts)
     }
 
     #[tauri::command]

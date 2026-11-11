@@ -294,7 +294,10 @@ fn the_wire_reaches_the_send_on_its_own_generation_and_leaves_the_batch_and_rows
 
     wire::ai_context_reference_cancel(handle, 5);
     assert!(batch.is_current(0), "cancel bumped the batch generation");
-    assert!(!reference.is_current(1));
+    assert!(
+        reference.is_current(1),
+        "a cancel of a run that already ended moved the generation"
+    );
 
     let guard = app.state::<OpenWorkState>();
     let open_ref = guard.lock().unwrap();

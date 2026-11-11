@@ -560,3 +560,55 @@ describe('GlossaryQueueOverlay.vue — khối câu dịch', () => {
     wrapper.unmount()
   })
 })
+
+describe('bận giữa hai bề mặt dịch nhanh', () => {
+  it('lượt của Bảng chờ khai bề mặt của nó và nhả khi xong hoặc khi huỷ', async () => {
+    const { state } = await fresh()
+    const run = await import('../../src/quickTranslateRun')
+    contextLookupMock.mockResolvedValue(notFound)
+    translateMock.mockImplementation(() => new Promise(() => undefined))
+    await openWith(state, candidate(1))
+
+    void state.translateGlossaryContextReference()
+    expect(run.quickRunCurrent.value).toEqual({ surface: 'glossary_queue', runId: runIdOf(translateMock) })
+    expect(run.quickRunBusyFor('import_preview').value).toBe(true)
+    expect(state.queueContextBusyElsewhere.value).toBe(false)
+
+    state.cancelGlossaryContextReference()
+    expect(run.quickRunCurrent.value).toBeNull()
+  })
+
+  it('bề mặt kia đang chạy thì nút tắt kèm Đang dịch ở màn khác. và tự bật lại', async () => {
+    const { state, Overlay } = await fresh()
+    const run = await import('../../src/quickTranslateRun')
+    contextLookupMock.mockResolvedValue(notFound)
+    await openWith(state, candidate(1))
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await flushPromises()
+
+    const other = run.beginQuickRun('import_preview')
+    await flushPromises()
+    expect(wrapper.get('[data-gq-context-translate]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-gq-context-busy]').text()).toBe('Đang dịch ở màn khác.')
+
+    run.endQuickRun(other)
+    await flushPromises()
+    expect(wrapper.get('[data-gq-context-translate]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-gq-context-busy]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('Rust trả busy thì hàng về trạng thái bấm lại được kèm lời giải thích, không lưu chữ nào', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    translateMock.mockResolvedValue({ value: { state: 'busy' }, error: null })
+    await openWith(state, candidate(1))
+
+    await state.translateGlossaryContextReference()
+
+    expect(state.queueContextReference.value).toEqual({ kind: 'busy' })
+    translateMock.mockResolvedValue(done)
+    await state.translateGlossaryContextReference()
+    expect(translateMock).toHaveBeenCalledTimes(2)
+  })
+})

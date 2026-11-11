@@ -18,6 +18,52 @@ pub fn quick_key(text: &str) -> String {
     text.nfc().collect::<String>().trim().to_owned()
 }
 
+pub const QUICK_BATCH_MAX_BLOCKS: usize = 40;
+pub const QUICK_BATCH_MAX_CHARS: usize = 4000;
+
+/// All input positions whose text has the same [`quick_key`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyGroup {
+    pub key: String,
+    pub indices: Vec<usize>,
+}
+
+/// Groups `texts` by key in order of first appearance. A text whose key is empty has no group.
+pub fn group_by_key(texts: &[String]) -> Vec<KeyGroup> {
+    let mut groups: Vec<KeyGroup> = Vec::new();
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (index, text) in texts.iter().enumerate() {
+        let key = quick_key(text);
+        if key.is_empty() {
+            continue;
+        }
+        match seen.get(&key) {
+            Some(&at) => groups[at].indices.push(index),
+            None => {
+                seen.insert(key.clone(), groups.len());
+                groups.push(KeyGroup {
+                    key,
+                    indices: vec![index],
+                });
+            }
+        }
+    }
+    groups
+}
+
+/// Splits `groups` (page order) at the batch caps: how many lead the call. At least one is
+/// taken, so a block alone over [`QUICK_BATCH_MAX_CHARS`] still goes, in a call of its own.
+pub fn batch_prefix_len(groups: &[KeyGroup]) -> usize {
+    let mut chars = 0usize;
+    for (taken, group) in groups.iter().enumerate() {
+        chars += group.key.chars().count();
+        if taken >= QUICK_BATCH_MAX_BLOCKS || (taken > 0 && chars > QUICK_BATCH_MAX_CHARS) {
+            return taken;
+        }
+    }
+    groups.len()
+}
+
 fn source_hash(key: &str) -> Vec<u8> {
     Sha256::digest(key.as_bytes()).to_vec()
 }
@@ -65,6 +111,28 @@ impl QuickTranslationStore {
                 })),
                 None => Ok(None),
             }
+        })
+    }
+
+    /// One lookup per key, in one read. `keys` are already [`quick_key`] output.
+    pub fn lookup_keys(&self, keys: &[String]) -> Result<Vec<Option<QuickHit>>, StoreError> {
+        self.store.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT translated_text, model FROM quick_translation WHERE source_hash = ?1",
+            )?;
+            keys.iter()
+                .map(|key| {
+                    let hash = source_hash(key);
+                    let mut rows = stmt.query([&hash])?;
+                    match rows.next()? {
+                        Some(row) => Ok(Some(QuickHit {
+                            translated_text: row.get(0)?,
+                            model: row.get(1)?,
+                        })),
+                        None => Ok(None),
+                    }
+                })
+                .collect()
         })
     }
 

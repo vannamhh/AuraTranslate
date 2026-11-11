@@ -20,6 +20,7 @@ import type { GlossaryCategory } from './config/glossary'
 import {
   isInconsistentHarvest,
   queueActionError,
+  queueContextBusyElsewhere,
   queueContextReference,
   queueCurrentRow,
   queueCursor,
@@ -512,11 +513,18 @@ function onKeydown(event: KeyboardEvent): void {
                       type="button"
                       class="ui-btn ui-btn--quiet"
                       data-gq-context-retranslate
-                      :disabled="contextReferenceUnconfigured"
+                      :disabled="contextReferenceUnconfigured || queueContextBusyElsewhere"
                       @click="dispatch('glossary.context.retranslate')"
                     >
                       {{ t('glossary.queue.context_retranslate') }}
                     </button>
+                    <span
+                      v-if="contextReferenceRetranslatable && queueContextBusyElsewhere"
+                      class="gq-ref-source"
+                      role="status"
+                      data-gq-context-busy
+                      >{{ t('glossary.queue.context_busy') }}</span
+                    >
                     <button
                       v-if="queueContextReference.kind === 'running'"
                       type="button"
@@ -539,11 +547,18 @@ function onKeydown(event: KeyboardEvent): void {
                       data-gq-context-store-unavailable
                       >{{ t('glossary.queue.context_store_unavailable') }}</span
                     >
+                    <span
+                      v-if="queueContextBusyElsewhere || queueContextReference.kind === 'busy'"
+                      class="gq-ref-source"
+                      role="status"
+                      data-gq-context-busy
+                      >{{ t('glossary.queue.context_busy') }}</span
+                    >
                     <button
                       type="button"
                       class="ui-btn"
                       data-gq-context-translate
-                      :disabled="contextReferenceUnconfigured || queueContextReference.kind === 'store_unavailable'"
+                      :disabled="contextReferenceUnconfigured || queueContextReference.kind === 'store_unavailable' || queueContextBusyElsewhere"
                       @click="dispatch('glossary.context.translate')"
                     >
                       {{ t('glossary.queue.context_translate') }}

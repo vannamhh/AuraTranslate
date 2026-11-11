@@ -2318,7 +2318,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        12,
+        14,
         0,
         0,
         "CHUA DO -- chu: Dev. Nam vo dich (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12, mot gui lai mot luot da ghi o Story 4-15): \
@@ -2334,7 +2334,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
          `ai_config_test_connection` cung la `async fn` literal (than tu spawn luong blocking, \
          khong giu `OpenWorkState` xuyen luot goi mang), nen roi vao cot `plain`; \
          `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi; \
-         `ai_context_reference_translate` la `async fn` literal cung co che, `ai_context_reference_cancel` chi bom `AtomicU64` khi `run_id` khop luot dang chay (mot `Mutex<Option<u64>>` ngan, khong doc/ghi Store); `quick_ai_config_test_connection` uses the same blocking worker as the main connection test; quick cancellation only updates its independent generation. `quick_translation_lookup` doc mot hang theo chi muc UNIQUE `source_hash` (chua do).",
+         `ai_context_reference_translate` la `async fn` literal cung co che, `ai_context_reference_cancel` chi bom `AtomicU64` khi `run_id` khop luot dang chay (mot `Mutex<Option<u64>>` ngan, khong doc/ghi Store); `quick_ai_config_test_connection` uses the same blocking worker as the main connection test; quick cancellation only updates its independent generation. `quick_translation_lookup` doc mot hang theo chi muc UNIQUE `source_hash` (chua do). `quick_translate_blocks` la `async fn` literal cung co che voi `ai_context_reference_translate` (mot luot goi mang cho toi da `QUICK_BATCH_MAX_BLOCKS` khoi, chua do); `quick_translation_lookup_many` doc mot hang theo chi muc UNIQUE cho moi chu, trong mot lan doc (chua do).",
     ),
     (
         "src/commands/proofread.rs",
@@ -2585,9 +2585,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (128, 83),
+        (130, 83),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         128/83.\n\n\
+         130/83.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

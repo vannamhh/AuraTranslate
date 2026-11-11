@@ -1450,6 +1450,8 @@ pub fn run() {
             crate::commands::aitranslate::wire::ai_context_reference_translate,
             crate::commands::aitranslate::wire::ai_context_reference_cancel,
             crate::commands::aitranslate::wire::quick_translation_lookup,
+            crate::commands::aitranslate::wire::quick_translate_blocks,
+            crate::commands::aitranslate::wire::quick_translation_lookup_many,
             crate::commands::glossary::wire::glossary_context_translation,
             crate::commands::proofread::wire::ai_proofread_segments,
             crate::commands::proofread::wire::ai_proofread_cancel,

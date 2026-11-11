@@ -365,6 +365,7 @@ pub struct BlockStream {
     emitted: usize,
     state: ReadState,
     blocks: Vec<ParsedBlock>,
+    taken: usize,
 }
 
 impl Default for BlockStream {
@@ -380,7 +381,20 @@ impl BlockStream {
             emitted: 0,
             state: ReadState::Outside,
             blocks: Vec::new(),
+            taken: 0,
         }
+    }
+
+    /// Blocks that closed properly since the last call, in reading order. Does not alter what
+    /// [`BlockStream::finish`] returns, so [`reconcile`] still judges the whole reply.
+    pub fn take_closed(&mut self) -> Vec<ParsedBlock> {
+        let fresh = self.blocks[self.taken..]
+            .iter()
+            .filter(|b| b.end == BlockEnd::Closed)
+            .cloned()
+            .collect();
+        self.taken = self.blocks.len();
+        fresh
     }
 
     pub fn push(&mut self, chunk: &str) -> Vec<TextPiece> {

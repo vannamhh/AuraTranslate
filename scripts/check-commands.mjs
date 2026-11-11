@@ -2515,7 +2515,7 @@ const HANDLER_TABLE = {
   },
   'src/StatusBar.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
   'src/GlossaryQuickAdd.vue::onCategoryKeydown': { nonCommand: R_CATEGORY_NAV },
-  'src/ImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.cancel'] },
+  'src/ImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.cancel', 'import.preview.quick_translate_cancel'] },
   'src/ImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
   'src/ImportPreviewOverlay.vue::setImportPreviewBlockFocus': { nonCommand: R_CURSOR_LOCAL },
   'src/ImportPreviewOverlay.vue::setImportPreviewBandFocus': { nonCommand: R_CURSOR_LOCAL },

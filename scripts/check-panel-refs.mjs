@@ -133,6 +133,14 @@ const EXEMPT = new Map([
     'Bộ đếm đơn điệu để so thứ tự giữa lượt dịch đơn và lô; không mang danh tính Tác phẩm nên không cần reset.',
   ],
   [
+    'src/quickTranslateRun.ts::stamp',
+    'Bộ cấp run_id đơn điệu: Rust huỷ theo run_id nên một số đã dùng không được cấp lại sau reset, nếu không lệnh huỷ muộn giết nhầm lượt mới.',
+  ],
+  [
+    'src/quickTranslateRun.ts::current',
+    'Lượt dịch nhanh đang chạy của cả app, không mang dữ liệu Tác phẩm; mỗi bề mặt tự `endQuickRun` khi xong, huỷ, đóng hoặc reset, nên một hàm reset riêng chỉ xoá lượt của bề mặt khác.',
+  ],
+  [
     'src/panels/lookupTiming.ts::enabled',
     'Công tắc chẩn đoán do NGƯỜI ĐO bật, không một mẩu state của phiên. `resetLookupTiming()` ' +
       'cố ý không chạm nó: dọn nó là tự tắt bàn đo giữa một lượt đo.',

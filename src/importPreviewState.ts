@@ -73,6 +73,11 @@ import type {
   ChapterBlocksPreviewWire,
   UrlImportItemWire,
 } from './config/project'
+import { cancelContextReference } from './config/glossaryContextReference'
+import { quickTranslationLookupMany, translateQuickBlocks } from './config/quickBatch'
+import type { QuickBatchOutcomeWire, QuickBlockEventWire } from './config/quickBatch'
+import { beginQuickRun, endQuickRun, quickRunBusyFor } from './quickTranslateRun'
+import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
 
 /**
@@ -842,6 +847,246 @@ watch(importPreviewSelectedBlocks, (blocks) => {
     blockRangeStart.value = null
   }
 })
+
+/** A page block's reference translation, kept by its text, never by its position. */
+export type ImportPreviewBlockTranslation =
+  | { kind: 'running'; text: string }
+  | { kind: 'done'; text: string; model: string }
+  | { kind: 'missing' }
+  | { kind: 'failed'; error: IpcError | null }
+
+export type ImportPreviewQuickBatchNote = 'none' | 'not_configured' | 'store_unavailable' | 'busy'
+
+const blockTranslations = ref<Partial<Record<string, ImportPreviewBlockTranslation>>>({})
+const visibleBlockIndices = ref<number[]>([])
+const quickBatchRun = ref<{
+  runId: number
+  keys: string[]
+  previous: Record<string, ImportPreviewBlockTranslation>
+  sent: string[] | null
+} | null>(null)
+const quickBatchNote = ref<ImportPreviewQuickBatchNote>('none')
+const quickBatchUsage = ref<{ usage: AiTranslateUsageWire | null; model: string } | null>(null)
+let quickLookedUp = new Set<string>()
+let quickEpoch = 0
+
+export const importPreviewBlockTranslations: DeepReadonly<Ref<Partial<Record<string, ImportPreviewBlockTranslation>>>> =
+  readonly(blockTranslations)
+export const importPreviewQuickBatchRunning = computed<boolean>(() => quickBatchRun.value !== null)
+export const importPreviewQuickBatchNote: DeepReadonly<Ref<ImportPreviewQuickBatchNote>> = readonly(quickBatchNote)
+export const importPreviewQuickBatchUsage: DeepReadonly<
+  Ref<{ usage: AiTranslateUsageWire | null; model: string } | null>
+> = readonly(quickBatchUsage)
+export const importPreviewQuickBatchBusyElsewhere = quickRunBusyFor('import_preview')
+
+export const importPreviewQuickBatchPendingCount = computed<number>(() => {
+  const run = quickBatchRun.value
+  if (run === null) return 0
+  return (run.sent ?? run.keys).filter((key) => {
+    const entry = blockTranslations.value[key]
+    return entry === undefined || entry.kind === 'running'
+  }).length
+})
+
+export function quickBlockKey(text: string): string {
+  return text.normalize('NFC').trim()
+}
+
+function translatableKeyAt(index: number): string | null {
+  const block = importPreviewSelectedBlocks.value?.blocks[index]
+  if (block === undefined || block.body.kind === 'image') return null
+  const key = quickBlockKey(block.body.text)
+  return key === '' ? null : key
+}
+
+export function importPreviewBlockTranslationAt(index: number): ImportPreviewBlockTranslation | null {
+  const key = translatableKeyAt(index)
+  return key === null ? null : (blockTranslations.value[key] ?? null)
+}
+
+const visibleBlockKeys = computed<string[]>(() => {
+  const keys: string[] = []
+  for (const index of visibleBlockIndices.value) {
+    const key = translatableKeyAt(index)
+    if (key !== null && !keys.includes(key)) keys.push(key)
+  }
+  return keys
+})
+
+/** Reported by the overlay: the indices of the blocks on screen, any order. */
+export function setImportPreviewVisibleBlocks(indices: readonly number[]): void {
+  const next = [...new Set(indices)].sort((a, b) => a - b)
+  const current = visibleBlockIndices.value
+  if (next.length === current.length && next.every((value, i) => value === current[i])) return
+  visibleBlockIndices.value = next
+}
+
+async function lookupVisibleBlocks(): Promise<void> {
+  if (!overlayOpen.value) return
+  const keys = visibleBlockKeys.value.filter((key) => !quickLookedUp.has(key))
+  if (keys.length === 0) return
+  const epoch = quickEpoch
+  for (const key of keys) quickLookedUp.add(key)
+  const result = await quickTranslationLookupMany(keys)
+  if (epoch !== quickEpoch) return
+  const hits = result.value
+  if (hits === null) {
+    for (const key of keys) quickLookedUp.delete(key)
+    return
+  }
+  hits.forEach((hit, i) => {
+    const key = keys[i]
+    if (hit.state === 'store_unavailable') {
+      quickLookedUp.delete(key)
+      quickBatchNote.value = 'store_unavailable'
+    } else if (hit.state === 'hit' && blockTranslations.value[key]?.kind !== 'running') {
+      blockTranslations.value[key] = { kind: 'done', text: hit.text, model: hit.model }
+    }
+  })
+}
+
+watch(visibleBlockKeys, () => void lookupVisibleBlocks())
+
+function settleRunningBlocks(keys: readonly string[], to: ImportPreviewBlockTranslation | null): void {
+  for (const key of keys) {
+    if (blockTranslations.value[key]?.kind !== 'running') continue
+    if (to === null) delete blockTranslations.value[key]
+    else blockTranslations.value[key] = to
+  }
+}
+
+function settleQuickBatch(keys: readonly string[], outcome: QuickBatchOutcomeWire): void {
+  switch (outcome.state) {
+    case 'not_configured':
+    case 'store_unavailable':
+    case 'busy':
+      quickBatchNote.value = outcome.state
+      settleRunningBlocks(keys, null)
+      return
+    case 'cancelled':
+      settleRunningBlocks(keys, null)
+      return
+    case 'done':
+      for (const missing of outcome.missing) {
+        const key = keys.at(missing.index)
+        if (key !== undefined && blockTranslations.value[key]?.kind !== 'done') {
+          blockTranslations.value[key] = { kind: 'missing' }
+        }
+      }
+      settleRunningBlocks(keys, { kind: 'missing' })
+      if (outcome.model !== null) quickBatchUsage.value = { usage: outcome.usage, model: outcome.model }
+  }
+}
+
+function restorePreviousTranslations(previous: Record<string, ImportPreviewBlockTranslation>): void {
+  for (const [key, entry] of Object.entries(previous)) {
+    if (blockTranslations.value[key]?.kind !== 'done') blockTranslations.value[key] = entry
+  }
+}
+
+async function runQuickBatch(requested: readonly string[], retranslate = false): Promise<void> {
+  if (!overlayOpen.value || lastSubmittedFrom.value !== 'urls' || quickBatchRun.value !== null) return
+  if (importPreviewQuickBatchBusyElsewhere.value) return
+  const keys = requested.filter((key) => {
+    const entry = blockTranslations.value[key]
+    if (retranslate) return entry?.kind === 'done'
+    return entry === undefined || entry.kind === 'missing' || entry.kind === 'failed'
+  })
+  if (keys.length === 0) return
+
+  const previous: Record<string, ImportPreviewBlockTranslation> = {}
+  if (retranslate) for (const key of keys) previous[key] = blockTranslations.value[key]!
+  const epoch = quickEpoch
+  const runId = beginQuickRun('import_preview')
+  quickBatchRun.value = { runId, keys, previous, sent: null }
+  quickBatchNote.value = 'none'
+  quickBatchUsage.value = null
+  for (const key of keys) delete blockTranslations.value[key]
+
+  const isLive = (): boolean => epoch === quickEpoch && quickBatchRun.value?.runId === runId
+  const onEvent = (event: QuickBlockEventWire): void => {
+    if (!isLive()) return
+    if (event.kind === 'started') {
+      const sent = event.indices.map((index) => keys.at(index)).filter((key) => key !== undefined)
+      if (quickBatchRun.value !== null) quickBatchRun.value.sent = sent
+      for (const index of event.indices) {
+        const key = keys.at(index)
+        if (key !== undefined && blockTranslations.value[key] === undefined) {
+          blockTranslations.value[key] = { kind: 'running', text: '' }
+        }
+      }
+      return
+    }
+    const key = keys.at(event.index)
+    if (key === undefined) return
+    const entry = blockTranslations.value[key]
+    if (event.kind === 'token') {
+      if (entry === undefined || entry.kind === 'running') {
+        blockTranslations.value[key] = { kind: 'running', text: (entry?.kind === 'running' ? entry.text : '') + event.text }
+      }
+      return
+    }
+    if (entry?.kind === 'done') return
+    blockTranslations.value[key] = { kind: 'done', text: event.text, model: event.model }
+  }
+
+  const result = await translateQuickBlocks(keys, runId, onEvent, retranslate)
+  if (!isLive()) return
+  const sent = quickBatchRun.value.sent ?? []
+  quickBatchRun.value = null
+  endQuickRun(runId)
+  if (result.value === null) {
+    settleRunningBlocks(keys, { kind: 'failed', error: result.error })
+    for (const key of sent) if (blockTranslations.value[key] === undefined) blockTranslations.value[key] = { kind: 'failed', error: result.error }
+  } else {
+    settleQuickBatch(keys, result.value)
+  }
+  restorePreviousTranslations(previous)
+}
+
+/** Translates the blocks on screen that the store does not hold yet. Reference only. */
+export function translateImportPreviewVisibleBlocks(): Promise<void> {
+  return runQuickBatch(visibleBlockKeys.value)
+}
+
+/** Translates the focused block alone, for the `Dịch thử` of a block whose result is missing. */
+export function translateImportPreviewFocusedBlock(): Promise<void> {
+  const key = translatableKeyAt(blockFocusedIndex.value)
+  return key === null ? Promise.resolve() : runQuickBatch([key])
+}
+
+/** Replaces the stored translation of the focused block (`Dịch lại`); costs one call. */
+export function retranslateImportPreviewFocusedBlock(): Promise<void> {
+  const key = translatableKeyAt(blockFocusedIndex.value)
+  return key === null ? Promise.resolve() : runQuickBatch([key], true)
+}
+
+/** Stops the running batch; blocks already closed stay on screen and in the store. */
+export function cancelImportPreviewQuickBatch(): void {
+  const run = quickBatchRun.value
+  if (run === null) return
+  quickBatchRun.value = null
+  endQuickRun(run.runId)
+  settleRunningBlocks(run.keys, null)
+  restorePreviousTranslations(run.previous)
+  void cancelContextReference(run.runId)
+}
+
+watch(chapterCursor, () => {
+  cancelImportPreviewQuickBatch()
+  visibleBlockIndices.value = []
+})
+
+function resetImportPreviewQuickBatch(): void {
+  cancelImportPreviewQuickBatch()
+  quickBatchRun.value = null
+  quickEpoch += 1
+  quickLookedUp = new Set()
+  blockTranslations.value = {}
+  visibleBlockIndices.value = []
+  quickBatchNote.value = 'none'
+  quickBatchUsage.value = null
+}
 
 export type ImportPreviewBlockRow =
   | { kind: 'block'; index: number }
@@ -2466,6 +2711,7 @@ export async function setImportPreviewSourceLang(lang: 'zh' | 'en'): Promise<voi
  * khi cần).
  */
 export function resetImportPreview(): void {
+  resetImportPreviewQuickBatch()
   sequence += 1
   undetectableLangError = null
   glossaryEstimateToken += 1

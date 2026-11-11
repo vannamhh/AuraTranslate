@@ -6,6 +6,8 @@ import { commandTitle, shortcutDisplayFor } from './config/shortcutsState'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { takeRecordedImportOpener } from './importOpener'
 import { groupThousands } from './importFormat'
+import { aiUsageLine } from './aiUsageLine'
+import { quickAiConfigReadiness, refreshQuickAiConfigReadiness } from './quickAiConfigState'
 import { useSelectionSurface } from './panels/selectionContract'
 import ChapterOrigin from './ChapterOrigin.vue'
 import SelectMenu from './SelectMenu.vue'
@@ -19,6 +21,14 @@ import {
   importPreview,
   importPreviewBlockActionError,
   importPreviewBlockFocusedIndex,
+  importPreviewBlockTranslationAt,
+  importPreviewBlockTranslations,
+  importPreviewQuickBatchBusyElsewhere,
+  importPreviewQuickBatchNote,
+  importPreviewQuickBatchPendingCount,
+  importPreviewQuickBatchRunning,
+  importPreviewQuickBatchUsage,
+  setImportPreviewVisibleBlocks,
   importPreviewBlockRows,
   importPreviewFocusedBand,
   setImportPreviewBandFocus,
@@ -85,6 +95,7 @@ import {
   setImportPreviewChapterPattern,
   toggleImportPreviewCleanupRule,
 } from './importPreviewState'
+import type { IpcError } from './i18n'
 import type {
   BlockWire,
   ChapterPatternKindWire,
@@ -594,6 +605,10 @@ function onRemoveFileItem(index: number): void {
  */
 function onEscapeCancel(): void {
   if (importPreviewConfirming.value) return
+  if (importPreviewQuickBatchRunning.value) {
+    dispatch('import.preview.quick_translate_cancel')
+    return
+  }
   dispatch('import.preview.cancel')
 }
 
@@ -964,6 +979,111 @@ watch([nameInput, importPreviewPendingName], () => void nextTick(growNameInput),
 function onPreviewSourceLangChange(value: string): void {
   if (value === 'zh' || value === 'en') void setImportPreviewSourceLang(value)
 }
+
+function blockTranslationText(index: number): string {
+  const entry = importPreviewBlockTranslationAt(index)
+  return entry !== null && (entry.kind === 'done' || entry.kind === 'running') ? entry.text : ''
+}
+
+function blockTranslationModel(index: number): string {
+  const entry = importPreviewBlockTranslationAt(index)
+  return entry !== null && entry.kind === 'done' ? entry.model : ''
+}
+
+function blockTranslationError(index: number): IpcError | null {
+  const entry = importPreviewBlockTranslationAt(index)
+  return entry !== null && entry.kind === 'failed' ? entry.error : null
+}
+
+const quickUnconfigured = computed<boolean>(
+  () => quickAiConfigReadiness.value === 'unconfigured' || importPreviewQuickBatchNote.value === 'not_configured',
+)
+const quickStoreUnavailable = computed<boolean>(() => importPreviewQuickBatchNote.value === 'store_unavailable')
+const quickBusyMessage = computed<boolean>(
+  () => importPreviewQuickBatchBusyElsewhere.value || importPreviewQuickBatchNote.value === 'busy',
+)
+const quickTranslateDisabled = computed<boolean>(
+  () =>
+    quickAiConfigReadiness.value === 'unconfigured' ||
+    quickStoreUnavailable.value ||
+    importPreviewQuickBatchBusyElsewhere.value,
+)
+const quickUsageText = computed<string>(() => {
+  const last = importPreviewQuickBatchUsage.value
+  if (last === null) return ''
+  const line = aiUsageLine(last.usage)
+  return `${last.model} · ${t(line.key, line.params)}`
+})
+
+watch(
+  importPreviewIsOpen,
+  (open) => {
+    if (open) void refreshQuickAiConfigReadiness()
+  },
+  { immediate: true },
+)
+
+watch(importPreviewQuickBatchRunning, (running) => {
+  void nextTick(() => {
+    const active = document.activeElement
+    const lost = active === null || active === document.body || !active.isConnected
+    if (running) {
+      if (lost) panel.value?.querySelector<HTMLElement>('[data-ip-quick-cancel]')?.focus()
+      return
+    }
+    if (!lost) return
+    const next = panel.value?.querySelector<HTMLButtonElement>('[data-ip-quick-translate]')
+    if (next !== null && next !== undefined && !next.disabled) next.focus({ preventScroll: true })
+    else (blocksList.value ?? panel.value)?.focus({ preventScroll: true })
+  })
+})
+
+let blockObserver: IntersectionObserver | null = null
+const blocksOnScreen = new Set<number>()
+
+function observeBlocks(): void {
+  blockObserver?.disconnect()
+  blockObserver = null
+  blocksOnScreen.clear()
+  const list = blocksList.value
+  if (list === null) {
+    setImportPreviewVisibleBlocks([])
+    return
+  }
+  if (typeof IntersectionObserver === 'undefined') return
+  blockObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const index = Number((entry.target as HTMLElement).dataset.ipBlockIndex)
+      if (!Number.isInteger(index)) continue
+      if (entry.isIntersecting) blocksOnScreen.add(index)
+      else blocksOnScreen.delete(index)
+    }
+    setImportPreviewVisibleBlocks([...blocksOnScreen])
+  })
+  for (const el of list.querySelectorAll<HTMLElement>('li.ip-block')) blockObserver.observe(el)
+}
+
+watch([blocksList, importPreviewBlockRows], () => observeBlocks(), { flush: 'post' })
+onBeforeUnmount(() => blockObserver?.disconnect())
+
+// A translation growing above the cursor block must not move it under the pointer.
+watch(
+  importPreviewBlockTranslations,
+  () => {
+    const el = document.getElementById(blockDomId(importPreviewBlockFocusedIndex.value))
+    const scroller = el === null ? null : findScroller(el)
+    if (el === null || scroller === null) return
+    const view = scroller.getBoundingClientRect()
+    const before = el.getBoundingClientRect().top
+    if (before < view.top || before > view.bottom) return
+    void nextTick(() => {
+      if (!el.isConnected) return
+      const delta = el.getBoundingClientRect().top - before
+      if (Math.abs(delta) >= 0.5) scroller.scrollTop += delta
+    })
+  },
+  { flush: 'pre', deep: true },
+)
 
 const glossaryEstimateText = computed<string>(() => {
   const estimate = importPreviewGlossaryEstimate.value
@@ -1672,6 +1792,61 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 {{ t('mode.library.preview.tier2_jump_to_cleanup') }}
               </button>
             </div>
+            <div
+              v-if="importPreviewLastSubmittedFrom === 'urls' && importPreviewSelectedBlocks !== null"
+              class="ip-quick"
+              data-ip-quick
+            >
+              <p class="ip-quick-note">{{ t('mode.library.preview.tier2_quick_note') }}</p>
+              <template v-if="importPreviewQuickBatchRunning">
+                <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số khối đang chờ). -->
+                <span class="ip-quick-status" role="status" data-ip-quick-running>{{
+                  t('mode.library.preview.tier2_quick_running', { count: String(importPreviewQuickBatchPendingCount) })
+                }}</span>
+                <button
+                  type="button"
+                  class="ui-btn"
+                  data-ip-quick-cancel
+                  :title="commandTitle('import.preview.quick_translate_cancel')"
+                  @mousedown.prevent
+                  @click="dispatch('import.preview.quick_translate_cancel')"
+                >
+                  {{ t('mode.library.preview.tier2_quick_cancel') }}
+                </button>
+              </template>
+              <button
+                v-else
+                type="button"
+                class="ui-btn"
+                data-ip-quick-translate
+                :title="commandTitle('import.preview.quick_translate_visible')"
+                :disabled="quickTranslateDisabled"
+                @mousedown.prevent
+                @click="dispatch('import.preview.quick_translate_visible')"
+              >
+                {{ t('mode.library.preview.tier2_quick_translate') }}
+              </button>
+              <!-- aura-allow-text: KẾT QUẢ của `t()` (aiUsageLine) và tên mô hình do nhà cung cấp trả về. -->
+              <span v-if="quickUsageText !== ''" class="ip-quick-status" data-ip-quick-usage>{{ quickUsageText }}</span>
+              <span v-if="quickBusyMessage" class="ip-quick-status" role="status" data-ip-quick-busy>{{
+                t('mode.library.preview.tier2_quick_busy')
+              }}</span>
+              <span v-if="quickStoreUnavailable" class="ip-quick-status" role="status" data-ip-quick-store>{{
+                t('mode.library.preview.tier2_quick_store_unavailable')
+              }}</span>
+              <template v-if="quickUnconfigured">
+                <span class="ip-quick-status" data-ip-quick-unconfigured>{{ t('mode.library.preview.tier2_quick_unconfigured') }}</span>
+                <button
+                  type="button"
+                  class="ui-btn ui-btn--quiet"
+                  data-ip-quick-open-settings
+                  @mousedown.prevent
+                  @click="dispatch('settings.ai_config.open')"
+                >
+                  {{ t('mode.library.preview.tier2_quick_open_settings') }}
+                </button>
+              </template>
+            </div>
             <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
             <p v-if="tier2Counts !== null" class="ip-tier2-counts">
               {{ t('mode.library.preview.tier2_counts', { kept: String(tier2Counts.kept), excluded: String(tier2Counts.excluded) }) }}
@@ -1736,6 +1911,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   </li>
                   <li
                     :id="blockDomId(row.index)"
+                    :data-ip-block-index="row.index"
                     class="ip-block"
                     :class="blockStateClass(blockAt(row.index), row.index)"
                     role="option"
@@ -1792,6 +1968,63 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                           ></span
                         ></p
                       >
+                      <div
+                        v-if="importPreviewBlockTranslationAt(row.index) !== null"
+                        class="ip-block-tr"
+                        data-ip-block-translation
+                        :data-kind="importPreviewBlockTranslationAt(row.index)?.kind"
+                      >
+                        <!-- aura-allow-text: DỮ LIỆU (câu dịch tham khảo của khối, không markup — AD-16). -->
+                        <p
+                          v-if="blockTranslationText(row.index) !== ''"
+                          class="ip-block-tr-text"
+                          data-ip-block-translation-text
+                          >{{ blockTranslationText(row.index) }}</p
+                        >
+                        <div class="ip-block-tr-line" role="status" data-ip-block-translation-line>
+                          <span v-if="importPreviewBlockTranslationAt(row.index)?.kind === 'running'" class="ip-block-tr-source">{{
+                            t('mode.library.preview.tier2_quick_block_running')
+                          }}</span>
+                          <!-- aura-allow-text: DỮ LIỆU (tên mô hình do nhà cung cấp trả về). -->
+                          <span v-else-if="importPreviewBlockTranslationAt(row.index)?.kind === 'done'" class="ip-block-tr-source">{{
+                            blockTranslationModel(row.index)
+                          }}</span>
+                          <span v-else-if="importPreviewBlockTranslationAt(row.index)?.kind === 'missing'" class="ip-block-tr-source">{{
+                            t('mode.library.preview.tier2_quick_block_missing')
+                          }}</span>
+                          <span v-else-if="blockTranslationError(row.index) !== null" class="ip-block-tr-source">
+                            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                            {{ tError(blockTranslationError(row.index)!) }}
+                          </span>
+                          <button
+                            v-if="importPreviewBlockTranslationAt(row.index)?.kind === 'done'"
+                            type="button"
+                            class="ui-btn ui-btn--quiet"
+                            data-ip-block-translation-retranslate
+                            :tabindex="blockRowFocused(row.index) ? undefined : -1"
+                            :disabled="quickTranslateDisabled || importPreviewQuickBatchRunning"
+                            @mousedown.prevent
+                            @click="dispatch('import.preview.quick_retranslate_block')"
+                          >
+                            {{ t('mode.library.preview.tier2_quick_block_retranslate') }}
+                          </button>
+                          <button
+                            v-if="
+                              importPreviewBlockTranslationAt(row.index)?.kind === 'missing' ||
+                              importPreviewBlockTranslationAt(row.index)?.kind === 'failed'
+                            "
+                            type="button"
+                            class="ui-btn ui-btn--quiet"
+                            data-ip-block-translation-retry
+                            :tabindex="blockRowFocused(row.index) ? undefined : -1"
+                            :disabled="quickTranslateDisabled || importPreviewQuickBatchRunning"
+                            @mousedown.prevent
+                            @click="dispatch('import.preview.quick_translate_block')"
+                          >
+                            {{ t('mode.library.preview.tier2_quick_block_retry') }}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </li>
                 </template>
@@ -2389,6 +2622,45 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-chapter-cursor-row .ip-chapter-cursor-note {
   margin: 0;
+}
+
+.ip-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
+}
+
+.ip-quick-note,
+.ip-quick-status,
+.ip-block-tr-source {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-block-tr {
+  margin-top: calc(var(--space-unit) * 1);
+}
+
+.ip-block-tr-text {
+  margin: 0;
+  font-family: var(--face-read-md);
+  font-size: var(--font-read-md);
+  line-height: var(--leading-read-md);
+  color: var(--color-on-surface);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.ip-block-tr-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
 .ip-block-head {

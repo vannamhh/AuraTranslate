@@ -14080,6 +14080,7 @@ chính nó.
 - `check:panel-refs` đỏ với `src/glossaryQueueState.ts::lastRunId` có sẵn ở baseline `e0e5b48dc8fddf1b81810fe0b6402747a4b08cac`; bộ đếm tăng xuyên lần reset để tránh huỷ nhầm lượt cũ, nên không đặt lại về 0 chỉ để qua cổng.
   Cần giải quyết hình dạng bộ cấp run_id và guard mà vẫn giữ tính không tái dùng; hiện chặn pre-push dù test 15.2 xanh.
   Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-khai-cau-hinh-dich-nhanh-rieng-o-cai-at-dich-thu-chay-tren-o-handoff.md` §Tests phase.
+  → ✅ ĐÃ ĐÓNG 2026-11-11 (Story 15.3) — bộ cấp `run_id` chuyển sang `src/quickTranslateRun.ts::stamp`, miễn trừ có tên trong `check-panel-refs.mjs` kèm lý do; `check:panel-refs` xanh.
 - `check:clippy` đỏ ở `src-tauri/tests/convention_exchange_contract.rs:115` (`ptr_arg`, `&PathBuf`) với rustc cục bộ 1.99; dòng này đã có ở baseline `e0e5b48dc8fddf1b81810fe0b6402747a4b08cac`.
   Cần sửa chữ ký helper sang kiểu mượn phù hợp và chạy lại target/clippy; hiện chặn pre-push, không phải lỗi mới của 15.2.
   Chủ: Ice. Trỏ: `tickets/epic-dich-nhanh/tickets/story-khai-cau-hinh-dich-nhanh-rieng-o-cai-at-dich-thu-chay-tren-o-handoff.md` §Tests phase.

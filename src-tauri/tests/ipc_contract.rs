@@ -3076,6 +3076,8 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
         "crate::commands::aitranslate::wire::ai_context_reference_translate,",
         "crate::commands::aitranslate::wire::ai_context_reference_cancel,",
         "crate::commands::aitranslate::wire::quick_translation_lookup,",
+        "crate::commands::aitranslate::wire::quick_translate_blocks,",
+        "crate::commands::aitranslate::wire::quick_translation_lookup_many,",
         "app.manage(crate::commands::aitranslate::QuickTranslateGeneration::default());",
     ] {
         assert!(lib_src.contains(wire), "`{wire}` phai co mat trong lib.rs");
@@ -3104,6 +3106,72 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&fn_param_list(&ai_src, "quick_translation_lookup")),
         normalize_param_list("app: tauri::AppHandle<R>, text: String,")
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list_async(&ai_src, "quick_translate_blocks")),
+        normalize_param_list(
+            "app: tauri::AppHandle<R>, texts: Vec<String>, retranslate: bool, run_id: u64, channel: tauri::ipc::Channel<QuickBlockEventWire>,"
+        )
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(&ai_src, "quick_translation_lookup_many")),
+        normalize_param_list("app: tauri::AppHandle<R>, texts: Vec<String>,")
+    );
+}
+
+#[test]
+fn the_quick_batch_wire_keeps_its_json_keys() {
+    use auratranslate_lib::commands::aitranslate::{
+        QuickBatchOutcomeWire, QuickBlockEventWire, QuickMissingWire,
+    };
+    let event = |e: QuickBlockEventWire| serde_json::to_value(e).expect("json");
+    assert_eq!(
+        event(QuickBlockEventWire::Cached {
+            index: 1,
+            text: "t".into(),
+            model: "m".into()
+        }),
+        serde_json::json!({"kind": "cached", "index": 1, "text": "t", "model": "m"})
+    );
+    assert_eq!(
+        event(QuickBlockEventWire::Started {
+            indices: vec![0, 2]
+        }),
+        serde_json::json!({"kind": "started", "indices": [0, 2]})
+    );
+    assert_eq!(
+        event(QuickBlockEventWire::Token {
+            index: 0,
+            text: "t".into()
+        }),
+        serde_json::json!({"kind": "token", "index": 0, "text": "t"})
+    );
+    assert_eq!(
+        event(QuickBlockEventWire::Received {
+            index: 0,
+            text: "t".into(),
+            model: "m".into(),
+            saved: true
+        }),
+        serde_json::json!({"kind": "received", "index": 0, "text": "t", "model": "m", "saved": true})
+    );
+    assert_eq!(
+        serde_json::to_value(QuickBatchOutcomeWire::Done {
+            model: None,
+            usage: None,
+            missing: vec![QuickMissingWire {
+                index: 3,
+                reason: "missing"
+            }],
+            deferred: 2
+        })
+        .unwrap(),
+        serde_json::json!({"state": "done", "model": null, "usage": null,
+            "missing": [{"index": 3, "reason": "missing"}], "deferred": 2})
+    );
+    assert_eq!(
+        serde_json::to_value(QuickBatchOutcomeWire::Busy).unwrap(),
+        serde_json::json!({"state": "busy"})
     );
 }
 

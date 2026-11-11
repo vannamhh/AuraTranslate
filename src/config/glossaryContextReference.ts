@@ -14,6 +14,7 @@ export type QuickTranslateOutcomeWire =
   | { state: 'cached'; text: string; model: string }
   | { state: 'done'; model: string; usage: AiTranslateUsageWire | null; maybe_truncated: boolean }
   | { state: 'cancelled' }
+  | { state: 'busy' }
 
 export type QuickLookupWire =
   | { state: 'miss' }
@@ -27,6 +28,7 @@ export function isQuickTranslateOutcomeWire(value: unknown): value is QuickTrans
     case 'not_configured':
     case 'store_unavailable':
     case 'cancelled':
+    case 'busy':
       return true
     case 'cached':
       return typeof v.text === 'string' && typeof v.model === 'string'

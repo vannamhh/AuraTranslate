@@ -44,6 +44,7 @@ import {
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import { UNKNOWN_IPC_ERROR } from './config/aitranslate'
 import { refreshWorkspaceCounts } from './workspaceCountsState'
+import { beginQuickRun, endQuickRun, quickRunBusyFor } from './quickTranslateRun'
 import type { IpcError } from './i18n'
 
 /** Một hàng của bảng chờ, cùng phân loại đang chọn (mặc định `'other'` — §Design Notes của
@@ -117,10 +118,10 @@ export type ContextReference =
   | { kind: 'truncated'; text: string; model: string; usage: AiTranslateUsageWire | null }
   | { kind: 'store_unavailable' }
   | { kind: 'not_configured' }
+  | { kind: 'busy' }
 
 /** Per candidate id, so a late result can only land on the row it was asked for. */
 const references = ref<Partial<Record<number, ContextReference>>>({})
-let lastRunId = 0
 /** The run whose tokens and result may still land; `null` once aborted or finished. */
 let activeRunId: number | null = null
 let runningCandidateId: number | null = null
@@ -145,11 +146,14 @@ function abortContextReference(): void {
   const id = runningCandidateId
   const runId = activeRunId
   references.value[id] = settled()
+  endQuickRun(runId)
   runningCandidateId = null
   activeRunId = null
   runningPrevious = undefined
   void cancelContextReference(runId)
 }
+
+export const queueContextBusyElsewhere = quickRunBusyFor('glossary_queue')
 
 export const queueContextReference = computed<ContextReference | null>(() => {
   const row = rows.value.at(cursor.value)
@@ -197,16 +201,15 @@ async function runContextReference(retranslate: boolean): Promise<void> {
   const context = contextOf(row)
   if (row === undefined || row.outcome !== null || context === null) return
   const id = row.candidate.id
-  if (runningCandidateId !== null) return
+  if (runningCandidateId !== null || queueContextBusyElsewhere.value) return
   const current = references.value[id]
   if (!overlayOpen.value || current === undefined) return
   const allowed = retranslate
     ? current.kind === 'cached' || current.kind === 'ai' || current.kind === 'truncated'
-    : current.kind === 'none' || current.kind === 'failed' || current.kind === 'not_configured'
+    : current.kind === 'none' || current.kind === 'failed' || current.kind === 'not_configured' || current.kind === 'busy'
   if (!allowed) return
 
-  lastRunId += 1
-  const mine = lastRunId
+  const mine = beginQuickRun('glossary_queue')
   activeRunId = mine
   runningCandidateId = id
   runningPrevious = retranslate ? current : undefined
@@ -218,6 +221,7 @@ async function runContextReference(retranslate: boolean): Promise<void> {
     if (entry?.kind === 'running') references.value[id] = { kind: 'running', text: entry.text + token }
   })
   if (activeRunId !== mine) return
+  endQuickRun(mine)
 
   const entry = referenceOf(id)
   const text = entry?.kind === 'running' ? entry.text : ''
@@ -228,6 +232,7 @@ async function runContextReference(retranslate: boolean): Promise<void> {
   const outcome = result.value
   if (result.error !== null) references.value[id] = { kind: 'failed', error: result.error }
   else if (outcome === null || outcome.state === 'cancelled') references.value[id] = fallback
+  else if (outcome.state === 'busy') references.value[id] = retranslate ? fallback : { kind: 'busy' }
   else if (outcome.state === 'not_configured') references.value[id] = { kind: 'not_configured' }
   else if (outcome.state === 'store_unavailable') references.value[id] = { kind: 'store_unavailable' }
   else if (outcome.state === 'cached') references.value[id] = { kind: 'cached', text: outcome.text, model: outcome.model }

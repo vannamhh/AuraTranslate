@@ -331,6 +331,14 @@ export type CommandDeps = {
   /** Nhảy sang tầng 3 — luật làm sạch (`R`, §Spec Change Log spec 6.9). Handler của
    * `import.preview.jump_to_cleanup_rules`. */
   jumpImportPreviewToCleanupRules?: () => void
+  /** Translates the blocks on screen for reference. Handler of `import.preview.quick_translate_visible`. */
+  translateImportPreviewVisibleBlocks?: () => void
+  /** Translates the focused block alone. Handler of `import.preview.quick_translate_block`. */
+  translateImportPreviewFocusedBlock?: () => void
+  /** Replaces the focused block's stored translation. Handler of `import.preview.quick_retranslate_block`. */
+  retranslateImportPreviewFocusedBlock?: () => void
+  /** Stops the running block translation. Handler of `import.preview.quick_translate_cancel`. */
+  cancelImportPreviewQuickBatch?: () => void
 
   // ── Story 6.10a — con trỏ *Chương đang chọn* (`⌥←`/`⌥→`) ────────────────────────
   //
@@ -1978,6 +1986,50 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.jump_to_cleanup_rules', 'jumpImportPreviewToCleanupRules')
       }
       deps.jumpImportPreviewToCleanupRules()
+    },
+  })
+  target.register({
+    id: 'import.preview.quick_translate_visible',
+    labelKey: 'command.import.preview.quick_translate_visible',
+    keys: undefined,
+    run: () => {
+      if (deps.translateImportPreviewVisibleBlocks === undefined) {
+        return portMissing('import.preview.quick_translate_visible', 'translateImportPreviewVisibleBlocks')
+      }
+      deps.translateImportPreviewVisibleBlocks()
+    },
+  })
+  target.register({
+    id: 'import.preview.quick_translate_block',
+    labelKey: 'command.import.preview.quick_translate_block',
+    keys: undefined,
+    run: () => {
+      if (deps.translateImportPreviewFocusedBlock === undefined) {
+        return portMissing('import.preview.quick_translate_block', 'translateImportPreviewFocusedBlock')
+      }
+      deps.translateImportPreviewFocusedBlock()
+    },
+  })
+  target.register({
+    id: 'import.preview.quick_retranslate_block',
+    labelKey: 'command.import.preview.quick_retranslate_block',
+    keys: undefined,
+    run: () => {
+      if (deps.retranslateImportPreviewFocusedBlock === undefined) {
+        return portMissing('import.preview.quick_retranslate_block', 'retranslateImportPreviewFocusedBlock')
+      }
+      deps.retranslateImportPreviewFocusedBlock()
+    },
+  })
+  target.register({
+    id: 'import.preview.quick_translate_cancel',
+    labelKey: 'command.import.preview.quick_translate_cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelImportPreviewQuickBatch === undefined) {
+        return portMissing('import.preview.quick_translate_cancel', 'cancelImportPreviewQuickBatch')
+      }
+      deps.cancelImportPreviewQuickBatch()
     },
   })
 

@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::aitranslate::{
-    AiTranslateGeneration, PrepareOutcome, PreparedTranslateCall, QuickLookupWire,
+    AiTranslateGeneration, PrepareOutcome, PreparedTranslateCall, QuickLookupWire, QuickSurface,
     QuickTranslateError, QuickTranslateGeneration, QuickTranslateOutcomeWire, quick_lookup_wire,
     quick_translate,
 };
@@ -521,13 +521,19 @@ fn snapshot(open: &OpenWork) -> Vec<String> {
 fn a_cancel_names_its_run_and_a_stale_cancel_does_not_stop_a_newer_run() {
     let quick = QuickTranslateGeneration::default();
     let batch = AiTranslateGeneration::default();
-    let first = quick.begin(7);
+    let first_ticket = quick
+        .begin(QuickSurface::GlossaryQueue, 7)
+        .expect("free slot");
+    let first = first_ticket.generation;
     assert!(
         !quick.cancel(8),
         "a cancel for another run_id did something"
     );
     assert!(quick.is_current(first));
-    let second = quick.begin(9);
+    let second_ticket = quick
+        .begin(QuickSurface::GlossaryQueue, 9)
+        .expect("same surface replaces");
+    let second = second_ticket.generation;
     assert!(!quick.is_current(first), "a new run supersedes the old one");
     assert!(
         !quick.cancel(7),
@@ -548,7 +554,10 @@ fn a_stale_cancel_lets_the_running_sentence_finish_and_be_stored_and_its_own_can
     let store = open_store(&dir);
     let runs = QuickTranslateGeneration::default();
 
-    let generation = runs.begin(5);
+    let ticket = runs
+        .begin(QuickSurface::GlossaryQueue, 5)
+        .expect("free slot");
+    let generation = ticket.generation;
     assert!(!runs.cancel(4));
     let watched = runs.clone();
     let should_cancel: Arc<dyn Fn() -> bool + Send + Sync> =
@@ -561,7 +570,11 @@ fn a_stale_cancel_lets_the_running_sentence_finish_and_be_stored_and_its_own_can
     ));
     assert_eq!(store.count().unwrap(), 1, "a stale cancel stopped the save");
 
-    let generation = runs.begin(6);
+    drop(ticket);
+    let ticket = runs
+        .begin(QuickSurface::GlossaryQueue, 6)
+        .expect("free slot");
+    let generation = ticket.generation;
     assert!(runs.cancel(6));
     let watched = runs.clone();
     let should_cancel: Arc<dyn Fn() -> bool + Send + Sync> =
@@ -638,17 +651,15 @@ fn the_wires_return_a_hit_without_a_network_call_and_a_miss_reaches_the_send() {
 
     assert!(quick.is_current(2));
     wire::ai_context_reference_cancel(handle.clone(), 1);
+    wire::ai_context_reference_cancel(handle.clone(), 2);
     assert!(
         quick.is_current(2),
-        "a cancel for a stale run_id moved the generation"
+        "a cancel of a run that already ended moved the generation"
     );
     assert!(
         batch.is_current(0),
         "the quick translation moved the batch generation"
     );
-    wire::ai_context_reference_cancel(handle.clone(), 2);
-    assert!(!quick.is_current(2));
-    assert!(batch.is_current(0));
 
     assert_eq!(
         wire::quick_translation_lookup(handle, "cached sentence".to_owned()),
