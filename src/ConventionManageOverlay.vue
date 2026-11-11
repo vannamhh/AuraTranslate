@@ -276,253 +276,253 @@ function trapTab(event: KeyboardEvent): void {
 
       <ConventionIgnoreCard v-if="conventionManageTab === 'ignored'" />
       <template v-else>
-      <p v-if="conventionManageHasLoaded && !conventionManageWorkTierAvailable" class="cvm-note">
-        {{ t('convention.manage.work_locked') }}
-      </p>
+        <p v-if="conventionManageHasLoaded && !conventionManageWorkTierAvailable" class="cvm-note">
+          {{ t('convention.manage.work_locked') }}
+        </p>
 
-      <div class="cvm-toolbar">
-        <fieldset class="cvm-seg ui-seg" role="radiogroup" :aria-label="t('convention.manage.tier_label')">
-          <label
-            v-for="opt in CONVENTION_TIER_ORDER"
-            :key="opt"
-            class="cvm-seg-opt ui-seg__item"
-            :class="{ 'cvm-seg-on': conventionManageTierFilter === opt }"
-          >
-            <input
-              type="radio"
-              name="cvm-tier"
-              class="cvm-sr-only"
-              :data-convention-tier="opt"
-              :checked="conventionManageTierFilter === opt"
-              :disabled="conventionManageEditing || (opt === 'work' && !conventionManageWorkTierAvailable)"
-              @change="onTierChange(opt)"
-            />
-            <span class="ui-row">
-              <!-- aura-allow-text: result of t() with a count from Rust. -->
-              {{ t(TIER_LABEL_KEY[opt], { rule_count: String(conventionManageCounts[opt]) }) }}
-            </span>
-          </label>
-        </fieldset>
-        <label class="cvm-field cvm-field-search">
-          <span class="cvm-sr-only">{{ t('convention.manage.search_placeholder') }}</span>
-          <input
-            type="text"
-            class="cvm-input ui-field"
-            autocomplete="off"
-            data-convention-search
-            :placeholder="t('convention.manage.search_placeholder')"
-            :value="conventionManageSearch"
-            :disabled="conventionManageEditing"
-            @input="onSearchInput"
-          />
-        </label>
-      </div>
-
-      <p v-if="conventionManageHasLoaded" class="cvm-note">
-        <!-- aura-allow-text: result of t() with counts from Rust. -->
-        {{ t('convention.manage.counts', conventionManageSummary) }}
-      </p>
-
-      <div class="cvm-add" role="group" :aria-label="t('convention.manage.add')">
-        <label class="cvm-field">
-          <span class="cvm-label">{{ t('convention.manage.add_avoid') }}</span>
-          <input
-            ref="avoidInput"
-            v-model="conventionAvoidDraft"
-            type="text"
-            class="cvm-input ui-field"
-            autocomplete="off"
-            data-convention-add-avoid
-            @keydown.enter.prevent="dispatch('convention.manage.add')"
-          />
-        </label>
-        <label class="cvm-field">
-          <span class="cvm-label">{{ t('convention.manage.add_replacement') }}</span>
-          <input
-            v-model="conventionReplacementDraft"
-            type="text"
-            class="cvm-input ui-field"
-            autocomplete="off"
-            data-convention-add-replacement
-            @keydown.enter.prevent="dispatch('convention.manage.add')"
-          />
-        </label>
-        <label class="cvm-field cvm-field-tier">
-          <span class="cvm-label">{{ t('convention.manage.add_tier') }}</span>
-          <div data-convention-add-tier>
-            <SelectMenu
-              v-model="conventionAddTier"
-              variant="field"
-              name="cvm-add-tier"
-              option-attr="data-convention-add-tier-option"
-              :options="addTierOptions"
-              :label="t('convention.manage.add_tier')"
-              @change="onAddTierChange"
-            />
-          </div>
-        </label>
-        <button
-          type="button"
-          class="cvm-add-btn ui-btn"
-          data-convention-add
-          :disabled="conventionManageBusy"
-          @click="dispatch('convention.manage.add')"
-        >
-          {{ t('convention.manage.add') }}
-        </button>
-      </div>
-
-      <p v-if="errorText !== null" class="cvm-note cvm-error" role="alert">
-        <!-- aura-allow-text: result of tError(). -->
-        {{ errorText }}
-      </p>
-      <p v-if="!conventionManageHasLoaded && conventionManageError === null" class="cvm-note" role="status">
-        {{ t('convention.manage.loading') }}
-      </p>
-      <p v-else-if="conventionManageHasLoaded && conventionManageRows.length === 0" class="cvm-note" role="status">
-        <!-- aura-allow-text: result of t() with the user's query. -->
-        {{
-          conventionManageSearch.trim() === ''
-            ? t('convention.manage.empty_rules')
-            : t('convention.manage.no_match', { query: conventionManageSearch.trim() })
-        }}
-      </p>
-      <template v-else-if="conventionManageRows.length > 0">
-        <table
-          ref="list"
-          class="cvm-table"
-          role="grid"
-          tabindex="0"
-          :aria-label="t('convention.manage.list_label')"
-          :aria-activedescendant="currentRule === null ? undefined : `cvm-row-${conventionRuleKey(currentRule)}`"
-        >
-          <thead>
-            <tr>
-              <th scope="col">{{ t('convention.manage.col_avoid') }}</th>
-              <th scope="col">{{ t('convention.manage.col_tier') }}</th>
-              <th scope="col">{{ t('convention.manage.col_state') }}</th>
-              <th scope="col">{{ t('convention.manage.col_actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(rule, i) in conventionManageRows"
-              :id="`cvm-row-${conventionRuleKey(rule)}`"
-              :key="conventionRuleKey(rule)"
-              data-convention-rule-row
-              :data-convention-rule-tier="rule.tier"
-              :data-convention-rule-status="rule.status"
-              class="cvm-row"
-              tabindex="-1"
-              :aria-selected="i === conventionManageCursor"
-              :class="[
-                barClass(rule),
-                {
-                  'cvm-row-current': i === conventionManageCursor,
-                  'cvm-row-shadowed': rule.status === 'shadowed',
-                  'cvm-row-delete-pending': i === conventionManageCursor && conventionManageDeletePending,
-                },
-              ]"
-              @mousedown="aimRow(i, $event)"
-              @dblclick="dispatch('convention.manage.edit')"
+        <div class="cvm-toolbar">
+          <fieldset class="cvm-seg ui-seg" role="radiogroup" :aria-label="t('convention.manage.tier_label')">
+            <label
+              v-for="opt in CONVENTION_TIER_ORDER"
+              :key="opt"
+              class="cvm-seg-opt ui-seg__item"
+              :class="{ 'cvm-seg-on': conventionManageTierFilter === opt }"
             >
-              <td class="cvm-avoid">
-                <template v-if="i === conventionManageCursor && conventionManageEditing">
-                  <input
-                    v-model="conventionEditAvoid"
-                    type="text"
-                    class="cvm-input ui-field"
-                    autocomplete="off"
-                    data-convention-edit-avoid
-                    :aria-label="t('convention.manage.edit_avoid_label')"
-                    @keydown.enter.prevent="dispatch('convention.manage.save')"
-                  />
-                  <input
-                    v-model="conventionEditReplacement"
-                    type="text"
-                    class="cvm-input ui-field"
-                    autocomplete="off"
-                    data-convention-edit-replacement
-                    :aria-label="t('convention.manage.edit_replacement_label')"
-                    @keydown.enter.prevent="dispatch('convention.manage.save')"
-                  />
-                </template>
-                <template v-else>
-                  <!-- aura-allow-text: text the user typed, shown as text only. -->
-                  <span>{{ rule.avoid_phrase }}</span>
-                  <span class="cvm-arrow" aria-hidden="true">→</span>
-                  <!-- aura-allow-text: text the user typed, shown as text only. -->
-                  <span v-if="rule.replacement_phrase !== null">{{ rule.replacement_phrase }}</span>
-                  <span v-else class="cvm-none">{{ t('convention.manage.replacement_none') }}</span>
-                </template>
-              </td>
-              <td class="cvm-cell-meta">
-                {{ t(rule.tier === 'work' ? 'convention.manage.cell_tier_work' : 'convention.manage.cell_tier_global') }}
-              </td>
-              <td class="cvm-cell-meta">
-                <span class="cvm-badge" :class="{ 'cvm-badge-shadowed': rule.status === 'shadowed' }">{{ t(stateKey(rule)) }}</span>
-                <span v-if="i === conventionManageCursor && conventionManageDeletePending" class="cvm-note cvm-error">
-                  <!-- aura-allow-text: result of t(). -->
-                  {{ deleteHint(rule) }}
-                </span>
-              </td>
-              <td class="cvm-cell-actions">
-                <template v-if="i === conventionManageCursor && conventionManageEditing">
-                  <button type="button" class="cvm-act ui-btn" data-convention-save :disabled="conventionManageBusy" @click="dispatch('convention.manage.save')">
-                    {{ t('convention.manage.save') }}
-                  </button>
-                  <button type="button" class="cvm-act ui-btn ui-btn--quiet" data-convention-cancel @click="dispatch('convention.manage.cancel')">
-                    {{ t('convention.manage.cancel') }}
-                  </button>
-                </template>
-                <template v-else>
-                  <button
-                    type="button"
-                    class="cvm-act ui-btn ui-btn--quiet"
-                    data-convention-edit
-                    :tabindex="i === conventionManageCursor ? 0 : -1"
-                    @click="dispatch('convention.manage.edit')"
-                  >
-                    {{ t('convention.manage.edit') }}
-                  </button>
-                  <button
-                    v-if="conventionRuleCanDisable(rule)"
-                    type="button"
-                    class="cvm-act ui-btn ui-btn--quiet"
-                    data-convention-disable
-                    :tabindex="i === conventionManageCursor ? 0 : -1"
-                    @click="dispatch('convention.manage.disable')"
-                  >
-                    {{ t('convention.manage.disable_in_work') }}
-                  </button>
-                  <button
-                    v-if="conventionRuleCanEnable(rule)"
-                    type="button"
-                    class="cvm-act ui-btn ui-btn--quiet"
-                    data-convention-enable
-                    :tabindex="i === conventionManageCursor ? 0 : -1"
-                    @click="dispatch('convention.manage.enable')"
-                  >
-                    {{ t('convention.manage.enable_in_work') }}
-                  </button>
-                  <button
-                    type="button"
-                    class="cvm-act ui-btn"
-                    :class="{ 'ui-btn--danger': i === conventionManageCursor && conventionManageDeletePending }"
-                    data-convention-delete
-                    :tabindex="i === conventionManageCursor ? 0 : -1"
-                    @click="dispatch('convention.manage.delete')"
-                  >
-                    {{ t(i === conventionManageCursor && conventionManageDeletePending ? 'convention.manage.delete_confirm' : 'convention.manage.delete') }}
-                  </button>
-                </template>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p class="cvm-note">{{ t('convention.manage.shadowed_hint') }}</p>
-        <p class="cvm-note">{{ t('convention.manage.hint') }}</p>
-      </template>
+              <input
+                type="radio"
+                name="cvm-tier"
+                class="cvm-sr-only"
+                :data-convention-tier="opt"
+                :checked="conventionManageTierFilter === opt"
+                :disabled="conventionManageEditing || (opt === 'work' && !conventionManageWorkTierAvailable)"
+                @change="onTierChange(opt)"
+              />
+              <span class="ui-row">
+                <!-- aura-allow-text: result of t() with a count from Rust. -->
+                {{ t(TIER_LABEL_KEY[opt], { rule_count: String(conventionManageCounts[opt]) }) }}
+              </span>
+            </label>
+          </fieldset>
+          <label class="cvm-field cvm-field-search">
+            <span class="cvm-sr-only">{{ t('convention.manage.search_placeholder') }}</span>
+            <input
+              type="text"
+              class="cvm-input ui-field"
+              autocomplete="off"
+              data-convention-search
+              :placeholder="t('convention.manage.search_placeholder')"
+              :value="conventionManageSearch"
+              :disabled="conventionManageEditing"
+              @input="onSearchInput"
+            />
+          </label>
+        </div>
+
+        <p v-if="conventionManageHasLoaded" class="cvm-note">
+          <!-- aura-allow-text: result of t() with counts from Rust. -->
+          {{ t('convention.manage.counts', conventionManageSummary) }}
+        </p>
+
+        <div class="cvm-add" role="group" :aria-label="t('convention.manage.add')">
+          <label class="cvm-field">
+            <span class="cvm-label">{{ t('convention.manage.add_avoid') }}</span>
+            <input
+              ref="avoidInput"
+              v-model="conventionAvoidDraft"
+              type="text"
+              class="cvm-input ui-field"
+              autocomplete="off"
+              data-convention-add-avoid
+              @keydown.enter.prevent="dispatch('convention.manage.add')"
+            />
+          </label>
+          <label class="cvm-field">
+            <span class="cvm-label">{{ t('convention.manage.add_replacement') }}</span>
+            <input
+              v-model="conventionReplacementDraft"
+              type="text"
+              class="cvm-input ui-field"
+              autocomplete="off"
+              data-convention-add-replacement
+              @keydown.enter.prevent="dispatch('convention.manage.add')"
+            />
+          </label>
+          <label class="cvm-field cvm-field-tier">
+            <span class="cvm-label">{{ t('convention.manage.add_tier') }}</span>
+            <div data-convention-add-tier>
+              <SelectMenu
+                v-model="conventionAddTier"
+                variant="field"
+                name="cvm-add-tier"
+                option-attr="data-convention-add-tier-option"
+                :options="addTierOptions"
+                :label="t('convention.manage.add_tier')"
+                @change="onAddTierChange"
+              />
+            </div>
+          </label>
+          <button
+            type="button"
+            class="cvm-add-btn ui-btn"
+            data-convention-add
+            :disabled="conventionManageBusy"
+            @click="dispatch('convention.manage.add')"
+          >
+            {{ t('convention.manage.add') }}
+          </button>
+        </div>
+
+        <p v-if="errorText !== null" class="cvm-note cvm-error" role="alert">
+          <!-- aura-allow-text: result of tError(). -->
+          {{ errorText }}
+        </p>
+        <p v-if="!conventionManageHasLoaded && conventionManageError === null" class="cvm-note" role="status">
+          {{ t('convention.manage.loading') }}
+        </p>
+        <p v-else-if="conventionManageHasLoaded && conventionManageRows.length === 0" class="cvm-note" role="status">
+          <!-- aura-allow-text: result of t() with the user's query. -->
+          {{
+            conventionManageSearch.trim() === ''
+              ? t('convention.manage.empty_rules')
+              : t('convention.manage.no_match', { query: conventionManageSearch.trim() })
+          }}
+        </p>
+        <template v-else-if="conventionManageRows.length > 0">
+          <table
+            ref="list"
+            class="cvm-table"
+            role="grid"
+            tabindex="0"
+            :aria-label="t('convention.manage.list_label')"
+            :aria-activedescendant="currentRule === null ? undefined : `cvm-row-${conventionRuleKey(currentRule)}`"
+          >
+            <thead>
+              <tr>
+                <th scope="col">{{ t('convention.manage.col_avoid') }}</th>
+                <th scope="col">{{ t('convention.manage.col_tier') }}</th>
+                <th scope="col">{{ t('convention.manage.col_state') }}</th>
+                <th scope="col">{{ t('convention.manage.col_actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(rule, i) in conventionManageRows"
+                :id="`cvm-row-${conventionRuleKey(rule)}`"
+                :key="conventionRuleKey(rule)"
+                data-convention-rule-row
+                :data-convention-rule-tier="rule.tier"
+                :data-convention-rule-status="rule.status"
+                class="cvm-row"
+                tabindex="-1"
+                :aria-selected="i === conventionManageCursor"
+                :class="[
+                  barClass(rule),
+                  {
+                    'cvm-row-current': i === conventionManageCursor,
+                    'cvm-row-shadowed': rule.status === 'shadowed',
+                    'cvm-row-delete-pending': i === conventionManageCursor && conventionManageDeletePending,
+                  },
+                ]"
+                @mousedown="aimRow(i, $event)"
+                @dblclick="dispatch('convention.manage.edit')"
+              >
+                <td class="cvm-avoid">
+                  <template v-if="i === conventionManageCursor && conventionManageEditing">
+                    <input
+                      v-model="conventionEditAvoid"
+                      type="text"
+                      class="cvm-input ui-field"
+                      autocomplete="off"
+                      data-convention-edit-avoid
+                      :aria-label="t('convention.manage.edit_avoid_label')"
+                      @keydown.enter.prevent="dispatch('convention.manage.save')"
+                    />
+                    <input
+                      v-model="conventionEditReplacement"
+                      type="text"
+                      class="cvm-input ui-field"
+                      autocomplete="off"
+                      data-convention-edit-replacement
+                      :aria-label="t('convention.manage.edit_replacement_label')"
+                      @keydown.enter.prevent="dispatch('convention.manage.save')"
+                    />
+                  </template>
+                  <template v-else>
+                    <!-- aura-allow-text: text the user typed, shown as text only. -->
+                    <span>{{ rule.avoid_phrase }}</span>
+                    <span class="cvm-arrow" aria-hidden="true">→</span>
+                    <!-- aura-allow-text: text the user typed, shown as text only. -->
+                    <span v-if="rule.replacement_phrase !== null">{{ rule.replacement_phrase }}</span>
+                    <span v-else class="cvm-none">{{ t('convention.manage.replacement_none') }}</span>
+                  </template>
+                </td>
+                <td class="cvm-cell-meta">
+                  {{ t(rule.tier === 'work' ? 'convention.manage.cell_tier_work' : 'convention.manage.cell_tier_global') }}
+                </td>
+                <td class="cvm-cell-meta">
+                  <span class="cvm-badge" :class="{ 'cvm-badge-shadowed': rule.status === 'shadowed' }">{{ t(stateKey(rule)) }}</span>
+                  <span v-if="i === conventionManageCursor && conventionManageDeletePending" class="cvm-note cvm-error">
+                    <!-- aura-allow-text: result of t(). -->
+                    {{ deleteHint(rule) }}
+                  </span>
+                </td>
+                <td class="cvm-cell-actions">
+                  <template v-if="i === conventionManageCursor && conventionManageEditing">
+                    <button type="button" class="cvm-act ui-btn" data-convention-save :disabled="conventionManageBusy" @click="dispatch('convention.manage.save')">
+                      {{ t('convention.manage.save') }}
+                    </button>
+                    <button type="button" class="cvm-act ui-btn ui-btn--quiet" data-convention-cancel @click="dispatch('convention.manage.cancel')">
+                      {{ t('convention.manage.cancel') }}
+                    </button>
+                  </template>
+                  <template v-else>
+                    <button
+                      type="button"
+                      class="cvm-act ui-btn ui-btn--quiet"
+                      data-convention-edit
+                      :tabindex="i === conventionManageCursor ? 0 : -1"
+                      @click="dispatch('convention.manage.edit')"
+                    >
+                      {{ t('convention.manage.edit') }}
+                    </button>
+                    <button
+                      v-if="conventionRuleCanDisable(rule)"
+                      type="button"
+                      class="cvm-act ui-btn ui-btn--quiet"
+                      data-convention-disable
+                      :tabindex="i === conventionManageCursor ? 0 : -1"
+                      @click="dispatch('convention.manage.disable')"
+                    >
+                      {{ t('convention.manage.disable_in_work') }}
+                    </button>
+                    <button
+                      v-if="conventionRuleCanEnable(rule)"
+                      type="button"
+                      class="cvm-act ui-btn ui-btn--quiet"
+                      data-convention-enable
+                      :tabindex="i === conventionManageCursor ? 0 : -1"
+                      @click="dispatch('convention.manage.enable')"
+                    >
+                      {{ t('convention.manage.enable_in_work') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="cvm-act ui-btn"
+                      :class="{ 'ui-btn--danger': i === conventionManageCursor && conventionManageDeletePending }"
+                      data-convention-delete
+                      :tabindex="i === conventionManageCursor ? 0 : -1"
+                      @click="dispatch('convention.manage.delete')"
+                    >
+                      {{ t(i === conventionManageCursor && conventionManageDeletePending ? 'convention.manage.delete_confirm' : 'convention.manage.delete') }}
+                    </button>
+                  </template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="cvm-note">{{ t('convention.manage.shadowed_hint') }}</p>
+          <p class="cvm-note">{{ t('convention.manage.hint') }}</p>
+        </template>
       </template>
 
       <footer class="cvm-foot">

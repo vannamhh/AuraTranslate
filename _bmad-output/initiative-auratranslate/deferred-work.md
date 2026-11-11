@@ -14052,6 +14052,7 @@ chính nó.
   evidence: `conventionStripIgnore.test.ts` và `conventionIgnoreCard.test.ts` chạy trên happy-dom; AGENTS.md ghi WebKit không trao tiêu điểm cho nút trong lưới nên Chromium/Vitest không lộ lỗi loại này.
   Chủ: Story 16.7
   → 🟡 2026-11-11 (Story 16.5) — vế CHUỘT đã đóng bằng `e2e/specs/story-16-5-convention-not-an-error.e2e.mjs`, 3 ca xanh trên WKWebView thật: dấu hiện cho hai câu, nút trong dải ghi nhớ đúng một chỗ và KHÔNG giành tiêu điểm, thẻ liệt kê hàng rồi *Bỏ ghi nhớ* trả dấu về. Lượt đó bắt một lỗi THẬT: hàng của thẻ chỉ chọn theo `@pointerdown` nên không môi trường nào khác chọn được — đã thêm `@mousedown`. CÒN HỞ vế BÀN PHÍM: `e2e/AGENTS.md` ghi rằng bàn đo này không kích hoạt được một `<button>` bằng bàn phím; tôi đã thử cả Tab vào dải (12 lượt, không tới) và `focus()` rồi Space (tiêu điểm vào được, Space không kích hoạt). Vế này thuộc lượt dùng thật của mục `Chủ: Epic 16` đã có, không mở mục song song.
+  → 🟡 2026-11-11 (Story 16.7) — khối `<template v-else>` đã thụt lại (chỉ khoảng trắng). Vế bàn phím còn hở thuộc lượt dùng thật của mục Chủ: Epic 16 (tiêu điểm sau khi bấm nút trong dải bằng bàn phím, Space/Enter trên thẻ). Chủ: Epic 16
 
 - source_plan: `tickets/epic-quy-uoc-chu-viet/tickets/story-khong-phai-loi-nho-theo-tac-pham-plan.md`
   summary: lượt vitest ĐỦ thoát 1 với 7 ca đỏ trong 6 tệp, không ca nào thuộc quy ước, và tập tệp đỏ XÊ DỊCH giữa hai lượt (chỉ 3/6 trùng). Bốn tệp chưa có chủ: `gridSentenceMenu`, `importPreviewChapters`, `librarySearchScope`, `shortcutsSearchExchange`.
