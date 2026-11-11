@@ -741,10 +741,102 @@ describe("Bỏ qua and Không phải lỗi", () => {
       state.conventionResults.value.get(3)?.spans.map((x) => [x.start, x.end]),
     ).toEqual([[13, 20]]);
     expect(state.conventionResults.value.get(1)?.spans).toHaveLength(1);
-    expect(state.conventionCounts.value.ignored).toBe(1);
+    // `counts` is a whole-Chapter total that only a whole-Chapter scan may restate — the same rule
+    // the per-sentence rescan obeys — so the click itself must NOT move it.
+    expect(state.conventionCounts.value.ignored).toBe(0);
     const here = state.conventionCurrent.value;
     expect([here?.segmentId, here?.span.start]).toEqual([3, 13]);
     expect(state.conventionNotice.value?.key).not.toBe("convention.status.no_next");
+  });
+
+  it("only a whole-Chapter scan restates `ignored`, and it does", async () => {
+    await loadScan(TWO);
+    caret.value = 3;
+    state.openConventionAt(3, 4);
+    await state.ignoreConventionSpot();
+    expect(state.conventionCounts.value.ignored).toBe(0);
+    scanMock.mockImplementation((generation: number) =>
+      Promise.resolve({
+        scan: { ...scanOf(generation, TWO), ignored: 1 },
+        error: null,
+      }),
+    );
+    await state.scanConventionNow();
+    expect(state.conventionCounts.value.ignored).toBe(1);
+  });
+
+  it("a whole-Chapter scan still in flight does NOT bring back the place just remembered", async () => {
+    await loadScan(TWO);
+    caret.value = 3;
+    state.openConventionAt(3, 4);
+    // This scan read the disk BEFORE the write, so its entry for sentence 3 is the older one.
+    let land: () => void = () => undefined;
+    scanMock.mockImplementation(
+      (generation: number) =>
+        new Promise((resolve) => {
+          land = () =>
+            resolve({ scan: scanOf(generation, TWO), error: null });
+        }),
+    );
+    const inFlight = state.scanConventionNow();
+    await state.ignoreConventionSpot();
+    land();
+    await inFlight;
+    expect(
+      state.conventionResults.value.get(3)?.spans.map((x) => [x.start, x.end]),
+    ).toEqual([[13, 20]]);
+  });
+
+  it("a whole-Chapter scan still in flight does NOT undo the replacement just accepted", async () => {
+    await loadScan(TWO);
+    caret.value = 3;
+    state.openConventionAt(3, 4);
+    acceptMock.mockResolvedValue({
+      outcome: {
+        segment_id: 3,
+        target_text: "Cần bảo đảm. Đảm bảo nữa.",
+        translation_origin: "other",
+        status: "confirmed",
+        chapter_started: false,
+        start: 4,
+        end: 11,
+        phrase: "bảo đảm",
+        version_created: true,
+      },
+      error: null,
+    });
+    let land: () => void = () => undefined;
+    scanMock.mockImplementation(
+      (generation: number) =>
+        new Promise((resolve) => {
+          land = () =>
+            resolve({ scan: scanOf(generation, TWO), error: null });
+        }),
+    );
+    const inFlight = state.scanConventionNow();
+    await state.acceptConventionSpot();
+    land();
+    await inFlight;
+    expect(state.conventionResults.value.get(3)?.scannedText).toBe(
+      "Cần bảo đảm. Đảm bảo nữa.",
+    );
+  });
+
+  it("after a forget and a fresh whole-Chapter scan the strip opens again", async () => {
+    await loadScan(TWO);
+    caret.value = 3;
+    state.openConventionAt(3, 4);
+    await state.ignoreConventionSpot();
+    state.hideConventionStrip();
+    expect(state.conventionCurrent.value).toBeNull();
+    // What the card's Bỏ ghi nhớ does: the row goes in Rust and the Chapter is rescanned.
+    await loadScan(TWO);
+    state.openConventionAt(3, 4);
+    expect(state.conventionCurrent.value?.span.start).toBe(4);
+    state.hideConventionStrip();
+    caret.value = 1;
+    state.stepMarks(1);
+    expect(state.conventionCurrent.value?.segmentId).toBe(1);
   });
 
   it("removing the last span of a sentence deletes its entry and ends on the remembered notice", async () => {

@@ -2460,6 +2460,7 @@ const HANDLER_TABLE = {
   'src/ProofreadScopeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ProofreadMemoryOverlay.vue::onEscape': { ids: ['ai.proofread.memory.close'] },
   'src/ProofreadMemoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ConventionIgnoreCard.vue::selectConventionManageIgnore': { nonCommand: R_CURSOR_LOCAL },
   'src/ConventionManageOverlay.vue::onEscape': { ids: ['convention.manage.cancel', 'convention.manage.close'] },
   'src/ConventionManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ConventionManageOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },

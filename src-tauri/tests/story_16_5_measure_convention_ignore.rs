@@ -212,7 +212,7 @@ fn measure_convention_scan_with_remembered_places() {
     let (full_times, full_ignored, full_marked) = run(1_000);
     let full_p95 = ms(percentile(&full_times, 0.95));
     println!(
-        "convention_scan_chapter, {REMEMBERED} remembered places: median {:.1} ms, p95 {full_p95:.1} ms, ignored {full_ignored}, marked sentences {full_marked}",
+        "convention_scan_chapter, {REMEMBERED} remembered places on ONE rule key (dense): median {:.1} ms, p95 {full_p95:.1} ms, ignored {full_ignored}, marked sentences {full_marked}",
         ms(full_times[full_times.len() / 2]),
     );
     assert_eq!(
@@ -221,6 +221,56 @@ fn measure_convention_scan_with_remembered_places() {
         "the filter must drop every remembered match"
     );
     assert_eq!(full_marked, 0);
+
+    // Same number of remembered places, now spread over the other rules' keys. `signature_matches`
+    // rejects a foreign key before it ever compares context, so this is the CHEAPER distribution —
+    // it is here to show that the dense one above is the worst case, and that grouping the memory
+    // by rule key would therefore buy nothing at this population.
+    let spread_keys: Vec<String> = rules()
+        .into_iter()
+        .skip(1)
+        .map(|r| r.key)
+        .take(synthetic)
+        .collect();
+    state
+        .lock()
+        .expect("lock")
+        .as_ref()
+        .expect("open")
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "DELETE FROM convention_ignore WHERE avoid_phrase = 'đảm bảo' AND context_after = ' sau'",
+                [],
+            )?;
+            let mut stmt = tx.prepare(
+                "INSERT INTO convention_ignore (rule_key, avoid_phrase, context_before, context_after, created_at) \
+                 VALUES (?1, ?2, ?3, ?4, 't')",
+            )?;
+            for (n, key) in spread_keys.iter().enumerate() {
+                let before = format!("một câu khác hẳn số {n} trước ");
+                stmt.execute((key, "đảm bảo", &before, " sau"))?;
+            }
+            Ok(())
+        })
+        .expect("respread remembered places");
+
+    let (spread_times, spread_ignored, spread_marked) = run(2_000);
+    let spread_p95 = ms(percentile(&spread_times, 0.95));
+    println!(
+        "convention_scan_chapter, {REMEMBERED} remembered places SPREAD over many rule keys: median {:.1} ms, p95 {spread_p95:.1} ms, ignored {spread_ignored}, marked sentences {spread_marked}",
+        ms(spread_times[spread_times.len() / 2]),
+    );
+    assert_eq!(
+        usize::try_from(spread_ignored).expect("fits"),
+        hits.len(),
+        "spreading the memory must silence exactly the same places"
+    );
+    assert_eq!(spread_marked, 0);
+    assert!(
+        spread_p95 <= CHAPTER_P95_BUDGET_MS,
+        "chapter budget, spread memory"
+    );
     assert!(full_p95 <= CHAPTER_P95_BUDGET_MS, "chapter budget");
 
     drop(state);

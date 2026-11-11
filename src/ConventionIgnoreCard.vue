@@ -70,6 +70,7 @@ const needsWork = computed(() => conventionManageHasLoaded.value && !conventionM
         data-convention-ignore-row
         :aria-current="conventionManageIgnoreSelectedId === line.id"
         @pointerdown="selectConventionManageIgnore(line.id)"
+        @mousedown="selectConventionManageIgnore(line.id)"
         @focusin="selectConventionManageIgnore(line.id)"
       >
         <!-- aura-allow-text: text from the user's own document, shown as text only. -->

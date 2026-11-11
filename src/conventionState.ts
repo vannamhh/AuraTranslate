@@ -192,10 +192,7 @@ export function clearConventionFor(segmentId: number): void {
     reverts.value = nextReverts
   }
   if (opened.value?.segmentId === segmentId) opened.value = null
-  if (!results.value.has(segmentId)) return
-  const next = new Map(results.value)
-  next.delete(segmentId)
-  results.value = next
+  dropEntry(segmentId)
 }
 
 function editorTextOf(segmentId: number): string | null {
@@ -322,9 +319,24 @@ function shiftSpan(span: Span, replaced: Span, delta: number): Span | null {
   return null
 }
 
+// The newest whole-Chapter scan read the disk before this write, so its entry for this id is older
+// than what the write just produced; `scanConventionNow` must keep ours instead of replacing it.
+function markFresh(segmentId: number): void {
+  mergedSinceScan.add(segmentId)
+}
+
 function setEntry(segmentId: number, entry: ConventionSegmentResult): void {
+  markFresh(segmentId)
   const next = new Map(results.value)
   next.set(segmentId, entry)
+  results.value = next
+}
+
+function dropEntry(segmentId: number): void {
+  markFresh(segmentId)
+  if (!results.value.has(segmentId)) return
+  const next = new Map(results.value)
+  next.delete(segmentId)
   results.value = next
 }
 
@@ -649,11 +661,10 @@ export async function ignoreConventionSpot(): Promise<void> {
     const entry = results.value.get(segmentId)
     if (entry === undefined) return
     const spans = entry.spans.filter((other) => other !== span)
-    const next = new Map(results.value)
-    if (spans.length === 0) next.delete(segmentId)
-    else next.set(segmentId, { scannedText: entry.scannedText, spans })
-    results.value = next
-    counts.value = { ...counts.value, ignored: counts.value.ignored + 1 }
+    // `counts` is a whole-Chapter total and only a whole-Chapter scan may restate it, so the
+    // remembered place is not counted here; the next scan reports it.
+    if (spans.length === 0) dropEntry(segmentId)
+    else setEntry(segmentId, { scannedText: entry.scannedText, spans })
     const at = opened.value
     if (at !== null && at.segmentId === segmentId) {
       opened.value = spans.length === 0 ? null : { segmentId, index: Math.max(0, Math.min(at.index, spans.length - 1)) }
