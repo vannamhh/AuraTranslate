@@ -3,7 +3,7 @@ title: '`Dịch thử` ở Bảng chờ Glossary nhớ kết quả qua kho riên
 type: 'feature'
 ticket: '1'
 created: '2026-11-11'
-status: 'built'
+status: 'done'
 baseline_revision: 'a9019def8aa1e5781ccc188c0c43a208677904a3'
 route: 'full'
 route_source: 'auto'
