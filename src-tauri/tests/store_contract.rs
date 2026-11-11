@@ -1745,3 +1745,48 @@ fn the_write_connection_fsyncs_the_wal_on_every_commit() {
     drop(store);
     cleanup(&dir);
 }
+
+#[test]
+fn compact_runs_outside_a_transaction_and_shrinks_db_and_wal() {
+    let dir = temp_dir("compact");
+    let store = Store::open(spec_with(&dir, quiet_tuning())).expect("mở kho");
+    store
+        .write(|tx| {
+            tx.execute_batch("CREATE TABLE bulk (id INTEGER PRIMARY KEY, payload BLOB NOT NULL);")
+        })
+        .expect("tạo bảng");
+
+    let vacuum_in_job = store.write(|tx| tx.execute_batch("VACUUM"));
+    assert!(
+        vacuum_in_job.is_err(),
+        "VACUUM trong một job của Writer phải bị SQLite từ chối: đó là lý do `compact` tồn tại"
+    );
+
+    write_blobs(&store, 40, 64 * 1024);
+    store
+        .write(|tx| tx.execute("DELETE FROM bulk", []).map(|_| ()))
+        .expect("xoá hết");
+    let db = db_path(&dir);
+    let before = file_len(&db) + file_len(&sidecar(&db, "-wal"));
+
+    store.compact().expect("compact");
+
+    let after = file_len(&db) + file_len(&sidecar(&db, "-wal"));
+    assert!(after < before, "db+wal phải nhỏ đi: {before} -> {after}");
+    write_blob(&store, 16);
+    drop(store);
+    cleanup(&dir);
+}
+
+#[test]
+fn compact_after_close_reports_the_writer_gone_instead_of_hanging() {
+    let dir = temp_dir("compact-closed");
+    let store = Store::open(spec_with(&dir, quiet_tuning())).expect("mở kho");
+    store.close();
+    assert!(matches!(
+        store.compact(),
+        Err(StoreError::WriterGone { .. })
+    ));
+    drop(store);
+    cleanup(&dir);
+}

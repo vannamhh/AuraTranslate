@@ -129,6 +129,10 @@ pub fn parse_disabled_sources(raw: &str) -> BTreeSet<String> {
 /// *"Không vẽ thanh chuyển phạm vi… ngưỡng là `AppConfig` ⇒ `GlobalOnly`"*).
 const KEY_GLOSSARY_SCAN_THRESHOLD: &str = "glossary_scan_threshold";
 
+const KEY_QUICK_TRANSLATION_PURGE_DAYS: &str = "quick_translation_purge_days";
+
+pub const DEFAULT_QUICK_TRANSLATION_PURGE_DAYS: u32 = 30;
+
 /// Ngưỡng mặc định khi chưa ai cấu hình gì, hoặc khi giá trị trên đĩa hỏng — FR47, đo và
 /// chốt ở §Boundaries/§Design Notes của story (Chương mẫu thật cho ra một quần thể ứng
 /// viên hợp lý ở ngưỡng này; xem §Verification của story cho số đo).
@@ -247,6 +251,15 @@ pub fn parse_glossary_scan_threshold(raw: Option<&str>) -> u32 {
     }
 }
 
+/// Days remembered by the `Dọn` row of Settings. Empty, missing, `0` or not an integer fall
+/// back to [`DEFAULT_QUICK_TRANSLATION_PURGE_DAYS`].
+pub fn parse_quick_translation_purge_days(raw: Option<&str>) -> u32 {
+    match raw.map(str::trim).map(str::parse::<u32>) {
+        Some(Ok(days)) if days >= 1 => days,
+        _ => DEFAULT_QUICK_TRANSLATION_PURGE_DAYS,
+    }
+}
+
 /// Ba loại `GlobalOnly` đã phân giải, sẵn sàng cho tầng adapter.
 ///
 /// ⚠️ Giữ nguyên [`Resolved`] thay vì làm phẳng ngay, vì đó là **bằng chứng** rằng đường
@@ -326,6 +339,14 @@ impl GlobalConfig {
         parse_glossary_scan_threshold(
             self.app
                 .get(KEY_GLOSSARY_SCAN_THRESHOLD)
+                .map(|r| r.value().as_str()),
+        )
+    }
+
+    pub fn quick_translation_purge_days(&self) -> u32 {
+        parse_quick_translation_purge_days(
+            self.app
+                .get(KEY_QUICK_TRANSLATION_PURGE_DAYS)
                 .map(|r| r.value().as_str()),
         )
     }

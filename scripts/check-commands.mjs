@@ -239,7 +239,7 @@ const TS_FLOOR = 140
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
  * không kiểm gì. `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const COMMAND_FLOOR = 309
+const COMMAND_FLOOR = 329
 
 /**
  * SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy. Sàn tệp ở trên đóng được "cây rỗng
@@ -248,7 +248,7 @@ const COMMAND_FLOOR = 309
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 312
+const CLICK_FLOOR = 335
 const DISPATCH_FLOOR = 445
 
 {

@@ -44,7 +44,7 @@ import {
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import { UNKNOWN_IPC_ERROR } from './config/aitranslate'
 import { refreshWorkspaceCounts } from './workspaceCountsState'
-import { beginQuickRun, endQuickRun, quickRunBusyFor } from './quickTranslateRun'
+import { beginQuickRun, endQuickRun, quickPurgeCount, quickRunBusyFor } from './quickTranslateRun'
 import type { IpcError } from './i18n'
 
 /** Một hàng của bảng chờ, cùng phân loại đang chọn (mặc định `'other'` — §Design Notes của
@@ -168,9 +168,11 @@ async function loadContextReference(): Promise<void> {
   if (references.value[id] !== undefined) return
 
   const mySequence = sequence
+  const myPurge = quickPurgeCount.value
+  const isStale = (): boolean => mySequence !== sequence || myPurge !== quickPurgeCount.value
   references.value[id] = { kind: 'looking' }
   const found = await lookupContextTranslation(context)
-  if (mySequence !== sequence) return
+  if (isStale()) return
   if (found.value !== null) {
     references.value[id] = { kind: 'chapter', text: found.value }
     return
@@ -180,7 +182,7 @@ async function loadContextReference(): Promise<void> {
     return
   }
   const stored = await quickTranslationLookup(context)
-  if (mySequence !== sequence) return
+  if (isStale()) return
   if (stored.error !== null) references.value[id] = { kind: 'failed', error: stored.error }
   else if (stored.value?.state === 'hit') {
     references.value[id] = { kind: 'cached', text: stored.value.text, model: stored.value.model }
@@ -195,6 +197,15 @@ watch(
     void loadContextReference()
   },
 )
+
+watch(quickPurgeCount, () => {
+  abortContextReference()
+  for (const key of Object.keys(references.value)) {
+    const id = Number(key)
+    if (references.value[id]?.kind !== 'chapter') delete references.value[id]
+  }
+  void loadContextReference()
+})
 
 async function runContextReference(retranslate: boolean): Promise<void> {
   const row = rows.value.at(cursor.value)

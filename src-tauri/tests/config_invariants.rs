@@ -1507,6 +1507,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
     // ba noi vi sao vo do dat tieu chi -- de mot luot doc sau khong phai suy lai.
     &[
         (
+            "src/commands/aitranslate.rs",
+            "pub fn quick_translation_purge<R: tauri::Runtime>(",
+            "waits on the writer for a DELETE and then a VACUUM that rewrites the whole file",
+        ),
+        (
             "src/commands/aiconfig.rs",
             "pub fn quick_ai_config_get(\n        app: tauri::AppHandle,",
             "probes the OS keychain and may wait for permission",
@@ -2318,9 +2323,9 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        14,
-        0,
-        0,
+        16,
+        1,
+        1,
         "CHUA DO -- chu: Dev. Nam vo dich (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12, mot gui lai mot luot da ghi o Story 4-15): \
          `ai_translate_segment`, `ai_translate_batch`, `ai_translate_resend` va `ai_translate_resend_call` deu la `async fn` LITERAL -- than moi \
          ham tu spawn mot luong cua ho boi blocking roi `Handle::block_on` BEN TRONG luong do \
@@ -2334,7 +2339,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
          `ai_config_test_connection` cung la `async fn` literal (than tu spawn luong blocking, \
          khong giu `OpenWorkState` xuyen luot goi mang), nen roi vao cot `plain`; \
          `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi; \
-         `ai_context_reference_translate` la `async fn` literal cung co che, `ai_context_reference_cancel` chi bom `AtomicU64` khi `run_id` khop luot dang chay (mot `Mutex<Option<u64>>` ngan, khong doc/ghi Store); `quick_ai_config_test_connection` uses the same blocking worker as the main connection test; quick cancellation only updates its independent generation. `quick_translation_lookup` doc mot hang theo chi muc UNIQUE `source_hash` (chua do). `quick_translate_blocks` la `async fn` literal cung co che voi `ai_context_reference_translate` (mot luot goi mang cho toi da `QUICK_BATCH_MAX_BLOCKS` khoi, chua do); `quick_translation_lookup_many` doc mot hang theo chi muc UNIQUE cho moi chu, trong mot lan doc (chua do).",
+         `ai_context_reference_translate` la `async fn` literal cung co che, `ai_context_reference_cancel` chi bom `AtomicU64` khi `run_id` khop luot dang chay (mot `Mutex<Option<u64>>` ngan, khong doc/ghi Store); `quick_ai_config_test_connection` uses the same blocking worker as the main connection test; quick cancellation only updates its independent generation. `quick_translation_lookup` doc mot hang theo chi muc UNIQUE `source_hash` (chua do). `quick_translate_blocks` la `async fn` literal cung co che voi `ai_context_reference_translate` (mot luot goi mang cho toi da `QUICK_BATCH_MAX_BLOCKS` khoi, chua do); `quick_translation_lookup_many` doc mot hang theo chi muc UNIQUE cho moi chu, trong mot lan doc (chua do). `quick_translation_stats` va `quick_translation_count_older` la mot truy van COUNT/GROUP BY tren bang nho cung `metadata` hai tep (chua do); `quick_translation_purge` la `(async)` vi chan tren `WriteTicket::wait` qua DELETE roi VACUUM.",
     ),
     (
         "src/commands/proofread.rs",
@@ -2585,9 +2590,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (130, 83),
+        (132, 84),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         130/83.\n\n\
+         132/84.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
@@ -3364,4 +3369,25 @@ fn data_removal_guide_keeps_the_files_and_gate_commands_it_relies_on() {
             "DATA-REMOVAL.md dựa vào `{file}` nhưng tệp không còn"
         );
     }
+}
+
+#[test]
+fn the_quick_translation_purge_days_fall_back_to_thirty_unless_a_positive_integer() {
+    use auratranslate_lib::core::scope::store::{
+        DEFAULT_QUICK_TRANSLATION_PURGE_DAYS, parse_quick_translation_purge_days,
+    };
+    assert_eq!(DEFAULT_QUICK_TRANSLATION_PURGE_DAYS, 30);
+    for raw in [
+        None,
+        Some(""),
+        Some("  "),
+        Some("0"),
+        Some("-3"),
+        Some("2.5"),
+        Some("abc"),
+    ] {
+        assert_eq!(parse_quick_translation_purge_days(raw), 30, "{raw:?}");
+    }
+    assert_eq!(parse_quick_translation_purge_days(Some("7")), 7);
+    assert_eq!(parse_quick_translation_purge_days(Some(" 7 ")), 7);
 }

@@ -382,6 +382,7 @@ import {
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
 import { installUnhandledRejectionLog } from './unhandledRejectionLog'
 import { saveQuickAiConfigKey, deleteQuickAiConfigKey, runQuickAiConfigTest, cancelQuickAiConfigTest } from './quickAiConfigState'
+import { askPurgeQuickDataAll, cancelPurgeQuickDataAll, confirmPurgeQuickDataAll, purgeQuickDataOlder } from './settingsQuickDataState'
 import { cancelAiConfigPreset, confirmAiConfigPreset } from './aiConfigState'
 import {
   clearAiOverridesFromSettings,
@@ -1120,6 +1121,10 @@ async function boot(): Promise<void> {
       deleteQuickAiConfigKey: () => { void deleteQuickAiConfigKey() },
       runQuickAiConfigTest: () => { void runQuickAiConfigTest() },
       cancelQuickAiConfigTest: () => { void cancelQuickAiConfigTest() },
+      purgeQuickDataOlder: () => { void purgeQuickDataOlder() },
+      askPurgeQuickDataAll,
+      confirmPurgeQuickDataAll: () => { void confirmPurgeQuickDataAll() },
+      cancelPurgeQuickDataAll,
       openLibraryRescanReport: () => {
         closeSettings()
         setMode('library')

@@ -932,6 +932,8 @@ message_keys! {
     /// itself; the user retries.
     AiTranslateResultMissing => "err.ai_translate.result_missing" [],
     AiTranslateInternalFailure => "err.ai_translate.internal_failure" [],
+    /// `quick_translation_*` was given a number of days below 1.
+    QuickTranslationInvalidDays => "err.quick_translation.invalid_days" [],
     /// The scan reply was not the JSON array the prompt asked for. Retryable: a second sample
     /// from the same model usually parses.
     AiProofreadReplyMalformed => "err.ai_proofread.reply_malformed" [],

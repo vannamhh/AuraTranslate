@@ -101,6 +101,8 @@ pub struct BootstrapConfig {
     /// lượt `parseInt` phía TS mà `src/AGENTS.md` cấm ("không quy tắc nghiệp vụ nào ở
     /// TypeScript"): phân tích số nguyên tự nó là một quy tắc, dù nhỏ.
     pub glossary_scan_threshold: u32,
+    /// Days kept by the Settings `Dọn` row; already parsed, never below 1.
+    pub quick_translation_purge_days: u32,
     /// Tuỳ chọn đọc đã lưu (mức đọc, song ngữ, cỡ chữ/dãn dòng ghi đè), chuỗi JSON của
     /// frontend — chuỗi rỗng khi chưa ai lưu gì, cùng luật `workspace_layout`.
     ///
@@ -163,6 +165,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         workspace_layout: config.workspace_layout().to_owned(),
         dict_sources_disabled: config.dict_sources_disabled().to_owned(),
         glossary_scan_threshold: config.glossary_scan_threshold(),
+        quick_translation_purge_days: config.quick_translation_purge_days(),
         reading_preferences: config.reading_preferences().to_owned(),
         tm_fuzzy_threshold: config.tm_fuzzy_threshold(),
         ai_usage_visible: config.ai_usage_visible().to_owned(),

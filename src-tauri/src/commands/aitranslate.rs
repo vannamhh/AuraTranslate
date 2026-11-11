@@ -72,7 +72,7 @@ use crate::core::aiconfig::{
 };
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::quick_translation::{
-    QuickTranslationStore, batch_prefix_len, group_by_key, quick_key,
+    PurgeScope, QuickTranslationStore, batch_prefix_len, group_by_key, quick_key,
 };
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{ReadHandle, Store, StoreError, StoreKind};
@@ -855,6 +855,20 @@ impl QuickTranslateGeneration {
         true
     }
 
+    /// Cancels whatever run is active, whoever started it: bumps `generation` so every pending
+    /// `save` fails `is_current`, and frees the slot.
+    pub fn cancel_all(&self) {
+        let mut active = self
+            .0
+            .active_run
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *active = None;
+        self.0
+            .generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+    }
+
     pub fn is_current(&self, generation: u64) -> bool {
         self.0.generation.load(std::sync::atomic::Ordering::Acquire) == generation
     }
@@ -1020,6 +1034,108 @@ pub enum QuickLookupWire {
     StoreUnavailable,
     Miss,
     Hit { text: String, model: String },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct QuickModelCountWire {
+    pub model: String,
+    pub count: u64,
+}
+
+/// Result of `quick_translation_stats`. `bytes` is the `.db` plus its `-wal`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct QuickStatsWire {
+    pub count: u64,
+    pub bytes: u64,
+    pub by_model: Vec<QuickModelCountWire>,
+}
+
+/// `scope` argument of `quick_translation_purge`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum QuickPurgeScopeWire {
+    All,
+    OlderThan { days: i64 },
+}
+
+/// Result of `quick_translation_purge`. `compact_error` set means the rows are deleted but the
+/// file was not shrunk.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct QuickPurgeWire {
+    pub deleted: u64,
+    pub bytes_before: u64,
+    pub bytes_after: u64,
+    pub compact_error: Option<String>,
+}
+
+fn quick_store_missing() -> IpcError {
+    crate::core::quick_translation::store_not_managed().into()
+}
+
+fn invalid_days_error() -> IpcError {
+    IpcError::new(
+        "quick_translation.invalid_days",
+        MessageKey::QuickTranslationInvalidDays,
+        std::collections::BTreeMap::new(),
+        false,
+    )
+}
+
+fn checked_days(days: i64) -> Result<u32, IpcError> {
+    u32::try_from(days)
+        .ok()
+        .filter(|d| *d >= 1)
+        .ok_or_else(invalid_days_error)
+}
+
+pub fn quick_stats_wire(store: Option<&QuickTranslationStore>) -> Result<QuickStatsWire, IpcError> {
+    let stats = store.ok_or_else(quick_store_missing)?.stats()?;
+    Ok(QuickStatsWire {
+        count: stats.count,
+        bytes: stats.bytes,
+        by_model: stats
+            .by_model
+            .into_iter()
+            .map(|m| QuickModelCountWire {
+                model: m.model,
+                count: m.count,
+            })
+            .collect(),
+    })
+}
+
+pub fn quick_count_older_wire(
+    store: Option<&QuickTranslationStore>,
+    days: i64,
+) -> Result<u64, IpcError> {
+    let days = checked_days(days)?;
+    Ok(store
+        .ok_or_else(quick_store_missing)?
+        .count_older_than(days)?)
+}
+
+/// Cancels every quick-translation run BEFORE the delete job is queued, so a `save` queued
+/// after it fails `is_current` and one queued before it is deleted by the purge.
+pub fn quick_purge_wire(
+    store: Option<&QuickTranslationStore>,
+    runs: Option<&QuickTranslateGeneration>,
+    scope: QuickPurgeScopeWire,
+) -> Result<QuickPurgeWire, IpcError> {
+    let scope = match scope {
+        QuickPurgeScopeWire::All => PurgeScope::All,
+        QuickPurgeScopeWire::OlderThan { days } => PurgeScope::OlderThanDays(checked_days(days)?),
+    };
+    let store = store.ok_or_else(quick_store_missing)?;
+    if let Some(runs) = runs {
+        runs.cancel_all();
+    }
+    let outcome = store.purge(scope)?;
+    Ok(QuickPurgeWire {
+        deleted: outcome.deleted,
+        bytes_before: outcome.bytes_before,
+        bytes_after: outcome.bytes_after,
+        compact_error: outcome.compact_error,
+    })
 }
 
 pub fn quick_lookup_wire(store: Option<&QuickTranslationStore>, text: &str) -> QuickLookupWire {
@@ -2309,10 +2425,11 @@ pub mod wire {
     };
     use super::{
         ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire, QuickBatchOutcomeWire,
-        QuickBlockEventWire, QuickLookupWire, QuickSurface, QuickTranslateGeneration,
-        QuickTranslateOutcomeWire, internal_failure_error, prepare_connection_check,
-        prepare_context_reference_call, prepare_quick_call, quick_lookup_many_wire,
-        quick_lookup_wire, quick_translate, send_prepared_connection_check,
+        QuickBlockEventWire, QuickLookupWire, QuickPurgeScopeWire, QuickPurgeWire, QuickStatsWire,
+        QuickSurface, QuickTranslateGeneration, QuickTranslateOutcomeWire, internal_failure_error,
+        prepare_connection_check, prepare_context_reference_call, prepare_quick_call,
+        quick_count_older_wire, quick_lookup_many_wire, quick_lookup_wire, quick_purge_wire,
+        quick_stats_wire, quick_translate, send_prepared_connection_check,
     };
     use crate::commands::aiprompt::{
         AiCallRecordsState, LastAssembledPromptState, mark_prompt_as_sent,
@@ -2775,6 +2892,42 @@ pub mod wire {
 
         let store = app.try_state::<QuickTranslationStore>();
         quick_lookup_many_wire(store.as_deref(), &texts)
+    }
+
+    /// Row count, size on disk and rows per model. Reads only.
+    #[tauri::command]
+    pub fn quick_translation_stats<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<QuickStatsWire, IpcError> {
+        use tauri::Manager as _;
+
+        let store = app.try_state::<QuickTranslationStore>();
+        quick_stats_wire(store.as_deref())
+    }
+
+    /// Rows older than `days` days by `created_at`. `days < 1` is an error.
+    #[tauri::command]
+    pub fn quick_translation_count_older<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        days: i64,
+    ) -> Result<u64, IpcError> {
+        use tauri::Manager as _;
+
+        let store = app.try_state::<QuickTranslationStore>();
+        quick_count_older_wire(store.as_deref(), days)
+    }
+
+    /// Cancels every quick-translation run, deletes the rows in `scope`, then shrinks the file.
+    #[tauri::command(async)]
+    pub fn quick_translation_purge<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        scope: QuickPurgeScopeWire,
+    ) -> Result<QuickPurgeWire, IpcError> {
+        use tauri::Manager as _;
+
+        let store = app.try_state::<QuickTranslationStore>();
+        let runs = app.try_state::<QuickTranslateGeneration>();
+        quick_purge_wire(store.as_deref(), runs.as_deref(), scope)
     }
 
     #[tauri::command]

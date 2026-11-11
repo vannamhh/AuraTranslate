@@ -176,6 +176,7 @@ fn ipc_error_wire_shape() {
         // ⚠️ Story 3.5 — trường thứ **bảy**. Cùng lời dừng như hai trường trên: một trường
         // mới đi qua IPC phải làm ai đó dừng lại và đối chiếu danh sách khoá đóng băng.
         glossary_scan_threshold: 5,
+        quick_translation_purge_days: 30,
         // ⚠️ Trường thứ **tám**. Cùng lời dừng như các trường trên.
         reading_preferences: String::new(),
         tm_fuzzy_threshold: 65,
@@ -206,6 +207,7 @@ fn ipc_error_wire_shape() {
             "layout_presets",
             "mode",
             "panel_headers_shown",
+            "quick_translation_purge_days",
             "reading_preferences",
             "shortcuts",
             "theme",
@@ -3078,6 +3080,9 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
         "crate::commands::aitranslate::wire::quick_translation_lookup,",
         "crate::commands::aitranslate::wire::quick_translate_blocks,",
         "crate::commands::aitranslate::wire::quick_translation_lookup_many,",
+        "crate::commands::aitranslate::wire::quick_translation_stats,",
+        "crate::commands::aitranslate::wire::quick_translation_count_older,",
+        "crate::commands::aitranslate::wire::quick_translation_purge,",
         "app.manage(crate::commands::aitranslate::QuickTranslateGeneration::default());",
     ] {
         assert!(lib_src.contains(wire), "`{wire}` phai co mat trong lib.rs");
@@ -3116,6 +3121,58 @@ fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&fn_param_list(&ai_src, "quick_translation_lookup_many")),
         normalize_param_list("app: tauri::AppHandle<R>, texts: Vec<String>,")
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(&ai_src, "quick_translation_stats")),
+        normalize_param_list("app: tauri::AppHandle<R>,")
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(&ai_src, "quick_translation_count_older")),
+        normalize_param_list("app: tauri::AppHandle<R>, days: i64,")
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(&ai_src, "quick_translation_purge")),
+        normalize_param_list("app: tauri::AppHandle<R>, scope: QuickPurgeScopeWire,")
+    );
+}
+
+#[test]
+fn the_quick_purge_wire_keeps_its_json_keys() {
+    use auratranslate_lib::commands::aitranslate::{
+        QuickModelCountWire, QuickPurgeScopeWire, QuickPurgeWire, QuickStatsWire,
+    };
+    assert_eq!(
+        serde_json::to_value(QuickStatsWire {
+            count: 1,
+            bytes: 2,
+            by_model: vec![QuickModelCountWire {
+                model: "m".to_owned(),
+                count: 1
+            }],
+        })
+        .unwrap(),
+        serde_json::json!({"count": 1, "bytes": 2, "by_model": [{"model": "m", "count": 1}]})
+    );
+    assert_eq!(
+        serde_json::to_value(QuickPurgeWire {
+            deleted: 3,
+            bytes_before: 10,
+            bytes_after: 4,
+            compact_error: None,
+        })
+        .unwrap(),
+        serde_json::json!({"deleted": 3, "bytes_before": 10, "bytes_after": 4, "compact_error": null})
+    );
+    assert_eq!(
+        serde_json::from_value::<QuickPurgeScopeWire>(serde_json::json!({"kind": "all"})).unwrap(),
+        QuickPurgeScopeWire::All
+    );
+    assert_eq!(
+        serde_json::from_value::<QuickPurgeScopeWire>(
+            serde_json::json!({"kind": "older_than", "days": 7})
+        )
+        .unwrap(),
+        QuickPurgeScopeWire::OlderThan { days: 7 }
     );
 }
 

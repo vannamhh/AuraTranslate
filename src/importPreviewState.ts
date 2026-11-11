@@ -76,7 +76,7 @@ import type {
 import { cancelContextReference } from './config/glossaryContextReference'
 import { quickTranslationLookupMany, translateQuickBlocks } from './config/quickBatch'
 import type { QuickBatchOutcomeWire, QuickBlockEventWire } from './config/quickBatch'
-import { beginQuickRun, endQuickRun, quickRunBusyFor } from './quickTranslateRun'
+import { beginQuickRun, endQuickRun, quickPurgeCount, quickRunBusyFor } from './quickTranslateRun'
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
 
@@ -1075,6 +1075,16 @@ export function cancelImportPreviewQuickBatch(): void {
 watch(chapterCursor, () => {
   cancelImportPreviewQuickBatch()
   visibleBlockIndices.value = []
+})
+
+watch(quickPurgeCount, () => {
+  cancelImportPreviewQuickBatch()
+  quickEpoch += 1
+  quickLookedUp = new Set()
+  blockTranslations.value = {}
+  quickBatchNote.value = 'none'
+  quickBatchUsage.value = null
+  void lookupVisibleBlocks()
 })
 
 function resetImportPreviewQuickBatch(): void {

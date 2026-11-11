@@ -22,3 +22,11 @@ export function endQuickRun(runId: number): void {
 export function quickRunBusyFor(surface: QuickSurface) {
   return computed<boolean>(() => current.value !== null && current.value.surface !== surface)
 }
+
+const purges = ref(0)
+
+export const quickPurgeCount = readonly(purges)
+
+export function markQuickStorePurged(): void {
+  purges.value += 1
+}

@@ -1153,6 +1153,14 @@ export type CommandDeps = {
   deleteQuickAiConfigKey?: () => void
   runQuickAiConfigTest?: () => void
   cancelQuickAiConfigTest?: () => void
+  /** Handler of `settings.quick_data.purge_older`. */
+  purgeQuickDataOlder?: () => void
+  /** Handler of `settings.quick_data.purge_all`: first click, asks for confirmation in place. */
+  askPurgeQuickDataAll?: () => void
+  /** Handler of `settings.quick_data.purge_all_confirm`. */
+  confirmPurgeQuickDataAll?: () => void
+  /** Handler of `settings.quick_data.purge_all_cancel`. */
+  cancelPurgeQuickDataAll?: () => void
   /** Closes Settings and switches to Library mode, where the rescan report is drawn. Handler of `settings.data.open_report`. */
   openLibraryRescanReport?: () => void
   /** Đóng lớp phủ — KHÔNG dọn nhật ký đã tải. Handler của `settings.close`. */
@@ -4958,6 +4966,10 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     ['settings.quick_ai.key_delete', 'deleteQuickAiConfigKey'],
     ['settings.quick_ai.test', 'runQuickAiConfigTest'],
     ['settings.quick_ai.test_cancel', 'cancelQuickAiConfigTest'],
+    ['settings.quick_data.purge_older', 'purgeQuickDataOlder'],
+    ['settings.quick_data.purge_all', 'askPurgeQuickDataAll'],
+    ['settings.quick_data.purge_all_confirm', 'confirmPurgeQuickDataAll'],
+    ['settings.quick_data.purge_all_cancel', 'cancelPurgeQuickDataAll'],
   ] as const) {
     target.register({
       id,

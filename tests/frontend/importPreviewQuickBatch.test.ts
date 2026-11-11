@@ -630,3 +630,40 @@ describe('ImportPreviewOverlay.vue — tầng khối', () => {
     wrapper.unmount()
   })
 })
+
+describe('dọn kho dịch nhanh', () => {
+  it('câu đã hiện về Chưa có và khối đang thấy được tra lại trên kho đã dọn', async () => {
+    const { state, run } = await fresh()
+    lookupManyMock.mockResolvedValue({ value: [{ state: 'hit', text: 'Giáp', model: 'm-1' }], error: null })
+    await open(state)
+    await see(state, 0)
+    expect(state.importPreviewBlockTranslationAt(0)?.kind).toBe('done')
+
+    lookupManyMock.mockImplementation(async (texts: string[]) => ({ value: texts.map(() => miss), error: null }))
+    run.markQuickStorePurged()
+    await flushPromises()
+
+    expect(lookupManyMock).toHaveBeenCalledTimes(2)
+    expect(state.importPreviewBlockTranslationAt(0)).toBeNull()
+  })
+
+  it('lô đang chạy bị bỏ: sự kiện và kết quả muộn không ghi lại, lượt chạy hết bận', async () => {
+    const { state, run } = await fresh()
+    await open(state)
+    await see(state, 0, 1, 2)
+    const call = pendingBatch()
+    const running = state.translateImportPreviewVisibleBlocks()
+    call.emit({ kind: 'started', indices: [0, 1, 2] })
+    call.emit({ kind: 'received', index: 0, text: 'Giáp', model: 'm-1', saved: true })
+
+    run.markQuickStorePurged()
+    await flushPromises()
+    call.emit({ kind: 'received', index: 1, text: 'Ất', model: 'm-1', saved: true })
+    call.finish({ value: { state: 'cancelled' }, error: null })
+    await running
+
+    expect(state.importPreviewQuickBatchRunning.value).toBe(false)
+    expect(run.quickRunCurrent.value).toBeNull()
+    for (const index of [0, 1, 2]) expect(state.importPreviewBlockTranslationAt(index)).toBeNull()
+  })
+})

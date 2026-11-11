@@ -314,6 +314,49 @@ impl Writer {
         Ok(WriteTicket { reply_rx, kind })
     }
 
+    /// Runs outside the job transaction because VACUUM cannot run inside one.
+    /// A busy checkpoint is an error, not success.
+    pub(crate) fn compact(&self) -> Result<(), StoreError> {
+        let kind = self.kind;
+        if ON_WRITER_THREAD.with(Cell::get) {
+            return Err(StoreError::WriteFailed {
+                store: kind,
+                detail: "reentrant Store::compact() called from within a write job \
+                         on the writer thread"
+                    .to_owned(),
+            });
+        }
+
+        let (reply_tx, reply_rx) = mpsc::channel::<SqlResult<()>>();
+        let task: Task = Box::new(move |conn: &mut Connection| {
+            let outcome = (|| {
+                conn.execute_batch("VACUUM")?;
+                let busy: i64 =
+                    conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| row.get(0))?;
+                if busy != 0 {
+                    return Err(rusqlite::Error::SqliteFailure(
+                        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+                        Some("wal_checkpoint(TRUNCATE) was blocked by a reader".to_owned()),
+                    ));
+                }
+                Ok(())
+            })();
+            let _ = reply_tx.send(outcome);
+            false
+        });
+
+        {
+            let guard = lock(&self.jobs);
+            match guard.as_ref() {
+                Some(tx) => tx
+                    .send(task)
+                    .map_err(|_| StoreError::WriterGone { store: kind })?,
+                None => return Err(StoreError::WriterGone { store: kind }),
+            }
+        }
+        WriteTicket { reply_rx, kind }.wait()
+    }
+
     /// Đóng hàng đợi và **chờ** luồng writer xử lý hết việc đã xếp.
     ///
     /// Idempotent. Sau lời gọi này mọi [`Writer::write`] trả [`StoreError::WriterGone`].

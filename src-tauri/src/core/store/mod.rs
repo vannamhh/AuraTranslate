@@ -795,6 +795,12 @@ impl Store {
         self.writer.write(job)
     }
 
+    /// VACUUM cannot run inside the writer's transaction, so this is its own path.
+    /// A busy checkpoint is an error, not success.
+    pub fn compact(&self) -> Result<(), StoreError> {
+        self.writer.compact()
+    }
+
     /// Xếp một job ghi và trả vé package-private để chỗ gọi có thể nhả state mutex trước
     /// khi chờ writer. Đây là bề mặt bất đồng bộ DUY NHẤT của `Store`; sender/kết nối vẫn
     /// ở kín trong [`writer`], và mọi đường công khai tiếp tục dùng [`Store::write`].

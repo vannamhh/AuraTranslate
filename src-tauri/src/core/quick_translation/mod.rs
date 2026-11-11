@@ -4,7 +4,7 @@
 //! (`tests/quick_translation_boundary.rs`). Rows are a derived cache: a schema mismatch or an
 //! unreadable file deletes the file and rebuilds it empty.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
@@ -16,6 +16,14 @@ use crate::core::store::{
 /// The one place a cache key is made: NFC, then trimmed.
 pub fn quick_key(text: &str) -> String {
     text.nfc().collect::<String>().trim().to_owned()
+}
+
+/// The error of a command that finds no managed `QuickTranslationStore`.
+pub fn store_not_managed() -> StoreError {
+    StoreError::OpenFailed {
+        store: StoreKind::QuickTranslation,
+        detail: "quick-translation.db was never managed".to_owned(),
+    }
 }
 
 pub const QUICK_BATCH_MAX_BLOCKS: usize = 40;
@@ -73,6 +81,44 @@ pub struct QuickHit {
     pub translated_text: String,
     pub model: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelCount {
+    pub model: String,
+    pub count: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuickStats {
+    pub count: u64,
+    pub bytes: u64,
+    pub by_model: Vec<ModelCount>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PurgeScope {
+    All,
+    OlderThanDays(u32),
+}
+
+/// `compact_error` is set when the rows were deleted but the file could not be shrunk.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PurgeOutcome {
+    pub deleted: u64,
+    pub bytes_before: u64,
+    pub bytes_after: u64,
+    pub compact_error: Option<String>,
+}
+
+fn file_bytes(path: &Path) -> u64 {
+    let len = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
+    let mut wal = path.as_os_str().to_owned();
+    wal.push("-wal");
+    len(path) + len(Path::new(&wal))
+}
+
+const OLDER_THAN_SQL: &str =
+    "created_at < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-' || ?1 || ' days')";
 
 pub struct QuickTranslationStore {
     store: Store,
@@ -179,6 +225,66 @@ impl QuickTranslationStore {
                 row.get::<_, i64>(0)
             })
             .map(|n| n as u64)
+        })
+    }
+
+    pub fn stats(&self) -> Result<QuickStats, StoreError> {
+        let (count, by_model) = self.store.read(|conn| {
+            let count = conn.query_row("SELECT COUNT(*) FROM quick_translation", [], |row| {
+                row.get::<_, i64>(0)
+            })? as u64;
+            let mut stmt = conn.prepare(
+                "SELECT model, COUNT(*) FROM quick_translation \
+                 GROUP BY model ORDER BY COUNT(*) DESC, model",
+            )?;
+            let by_model = stmt
+                .query_map([], |row| {
+                    Ok(ModelCount {
+                        model: row.get(0)?,
+                        count: row.get::<_, i64>(1)? as u64,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok((count, by_model))
+        })?;
+        Ok(QuickStats {
+            count,
+            bytes: file_bytes(self.store.path()),
+            by_model,
+        })
+    }
+
+    pub fn count_older_than(&self, days: u32) -> Result<u64, StoreError> {
+        self.store.read(|conn| {
+            conn.query_row(
+                &format!("SELECT COUNT(*) FROM quick_translation WHERE {OLDER_THAN_SQL}"),
+                [days],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|n| n as u64)
+        })
+    }
+
+    /// Deletes rows, then shrinks the file. A failed shrink keeps the deletion and is reported
+    /// in the outcome. The caller cancels any running quick translation BEFORE calling.
+    pub fn purge(&self, scope: PurgeScope) -> Result<PurgeOutcome, StoreError> {
+        let bytes_before = file_bytes(self.store.path());
+        let deleted = self.store.write(move |tx: &Transaction<'_>| {
+            let n = match scope {
+                PurgeScope::All => tx.execute("DELETE FROM quick_translation", [])?,
+                PurgeScope::OlderThanDays(days) => tx.execute(
+                    &format!("DELETE FROM quick_translation WHERE {OLDER_THAN_SQL}"),
+                    [days],
+                )?,
+            };
+            Ok(n as u64)
+        })?;
+        let compact_error = self.store.compact().err().map(|e| e.to_string());
+        Ok(PurgeOutcome {
+            deleted,
+            bytes_before,
+            bytes_after: file_bytes(self.store.path()),
+            compact_error,
         })
     }
 }

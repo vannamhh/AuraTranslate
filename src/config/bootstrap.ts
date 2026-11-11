@@ -84,6 +84,8 @@ export type BootstrapConfig = {
    * `src/AGENTS.md` cấm quy tắc nghiệp vụ ở tầng này.
    */
   glossary_scan_threshold: number
+  /** Days remembered by the `Dịch nhanh` purge row of Settings; Rust never sends a value below 1. */
+  quick_translation_purge_days: number
   /**
    * Ba tuỳ chọn typography của Chế độ đọc + `bilingual`, đã `JSON.stringify` — trường thứ
    * **tám**. Cùng quy ước `workspace_layout`: chuỗi RỖNG =
@@ -219,6 +221,10 @@ export const KEY_GLOSSARY_SCAN_THRESHOLD = 'glossary_scan_threshold'
  * `core::scope::store::KEY_READING_PREFERENCES` phía Rust.
  */
 export const KEY_READING_PREFERENCES = 'reading_preferences'
+/** Matches `core::scope::store::KEY_QUICK_TRANSLATION_PURGE_DAYS`. */
+export const KEY_QUICK_TRANSLATION_PURGE_DAYS = 'quick_translation_purge_days'
+/** Matches `DEFAULT_QUICK_TRANSLATION_PURGE_DAYS` on the Rust side. */
+export const DEFAULT_QUICK_TRANSLATION_PURGE_DAYS = 30
 /** Matches `core::scope::store::KEY_TM_FUZZY_THRESHOLD`. */
 export const KEY_TM_FUZZY_THRESHOLD = 'tm_fuzzy_threshold'
 /** Matches `core::scope::store::KEY_AI_USAGE_VISIBLE`. */
@@ -237,6 +243,7 @@ export const DEFAULT_TM_FUZZY_THRESHOLD = 65
 const lastError = ref<IpcError | null>(null)
 const layout = ref('')
 const glossaryScanThreshold = ref(DEFAULT_GLOSSARY_SCAN_THRESHOLD)
+const quickTranslationPurgeDays = ref(DEFAULT_QUICK_TRANSLATION_PURGE_DAYS)
 const readingPreferences = ref('')
 const tmFuzzyThreshold = ref(DEFAULT_TM_FUZZY_THRESHOLD)
 const aiUsageVisible = ref('')
@@ -274,6 +281,9 @@ export const configError: DeepReadonly<Ref<IpcError | null>> = readonly(lastErro
  * đường khác (`putConfig`), không quay ngược về đây.
  */
 export const bootstrapGlossaryScanThreshold: DeepReadonly<Ref<number>> = readonly(glossaryScanThreshold)
+
+/** Purge-days setting read once at startup; `settingsQuickDataState.ts` remembers later saves itself. */
+export const bootstrapQuickTranslationPurgeDays: DeepReadonly<Ref<number>> = readonly(quickTranslationPurgeDays)
 
 /**
  * Chuỗi JSON của ba tuỳ chọn typography + `bilingual`, đọc **một lần** lúc khởi động. Cùng
@@ -324,6 +334,12 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
       typeof rawThreshold === 'number' && Number.isInteger(rawThreshold) && rawThreshold > 0
         ? rawThreshold
         : DEFAULT_GLOSSARY_SCAN_THRESHOLD
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
+    const rawPurgeDays: unknown = config?.quick_translation_purge_days
+    quickTranslationPurgeDays.value =
+      typeof rawPurgeDays === 'number' && Number.isInteger(rawPurgeDays) && rawPurgeDays >= 1
+        ? rawPurgeDays
+        : DEFAULT_QUICK_TRANSLATION_PURGE_DAYS
     // ⚠️ Cùng canh gác `workspace_layout` ngay trên — một bản Rust trước story này không có
     // trường thứ tám, và giá trị vừa vượt ranh giới IPC nên kiểu TypeScript không nói được
     // gì về nó.

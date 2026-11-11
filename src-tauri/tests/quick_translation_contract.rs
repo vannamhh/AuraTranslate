@@ -6,9 +6,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::aitranslate::{
-    AiTranslateGeneration, PrepareOutcome, PreparedTranslateCall, QuickLookupWire, QuickSurface,
-    QuickTranslateError, QuickTranslateGeneration, QuickTranslateOutcomeWire, quick_lookup_wire,
-    quick_translate,
+    AiTranslateGeneration, PrepareOutcome, PreparedTranslateCall, QuickLookupWire,
+    QuickPurgeScopeWire, QuickSurface, QuickTranslateError, QuickTranslateGeneration,
+    QuickTranslateOutcomeWire, quick_count_older_wire, quick_lookup_wire, quick_purge_wire,
+    quick_stats_wire, quick_translate,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::quick_translation::{QuickTranslationStore, quick_key};
@@ -58,6 +59,12 @@ struct Fake {
     finish_reason: Option<&'static str>,
     fail: bool,
     cancel_flag_after_stream: Option<Arc<AtomicBool>>,
+    gate: Option<Gate>,
+}
+
+struct Gate {
+    entered: std::sync::mpsc::Sender<()>,
+    release: Mutex<std::sync::mpsc::Receiver<()>>,
 }
 
 impl Fake {
@@ -70,6 +77,7 @@ impl Fake {
                 finish_reason: Some("stop"),
                 fail: false,
                 cancel_flag_after_stream: None,
+                gate: None,
             },
             calls,
         )
@@ -88,6 +96,14 @@ impl TranslationProvider for Fake {
         self.calls.fetch_add(1, Ordering::SeqCst);
         if self.fail {
             return Err(FakeError);
+        }
+        if let Some(gate) = &self.gate {
+            let _ = gate.entered.send(());
+            let _ = gate
+                .release
+                .lock()
+                .unwrap()
+                .recv_timeout(std::time::Duration::from_secs(20));
         }
         for token in &self.tokens {
             if should_cancel() {
@@ -698,4 +714,225 @@ fn the_wire_reports_an_unmanaged_store_without_calling_out() {
         wire::quick_translation_lookup(handle, "s".to_owned()),
         QuickLookupWire::StoreUnavailable
     );
+}
+
+fn backdate(dir: &Path, source: &str, days: i64) {
+    let conn = rusqlite::Connection::open(dir.join("quick-translation.db")).expect("open raw");
+    conn.execute(
+        "UPDATE quick_translation SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?1) \
+         WHERE source_text = ?2",
+        rusqlite::params![format!("-{days} days"), source],
+    )
+    .expect("backdate");
+}
+
+fn size_on_disk(dir: &Path) -> u64 {
+    ["quick-translation.db", "quick-translation.db-wal"]
+        .iter()
+        .map(|name| fs::metadata(dir.join(name)).map(|m| m.len()).unwrap_or(0))
+        .sum()
+}
+
+#[test]
+fn stats_count_rows_per_model_and_report_the_file_size() {
+    let dir = temp_dir("stats");
+    let store = open_store(&dir);
+    for (text, model) in [("a", "m1"), ("b", "m1"), ("c", "m2")] {
+        store.save(text, "x", model, false, always()).unwrap();
+    }
+    let stats = quick_stats_wire(Some(&store)).expect("stats");
+    assert_eq!(stats.count, 3);
+    assert!(stats.bytes > 0 && stats.bytes == size_on_disk(&dir));
+    let by_model: Vec<(String, u64)> = stats
+        .by_model
+        .iter()
+        .map(|m| (m.model.clone(), m.count))
+        .collect();
+    assert_eq!(by_model, vec![("m1".to_owned(), 2), ("m2".to_owned(), 1)]);
+
+    let empty_dir = temp_dir("stats-empty");
+    let empty = open_store(&empty_dir);
+    let stats = quick_stats_wire(Some(&empty)).expect("stats");
+    assert_eq!((stats.count, stats.by_model.len()), (0, 0));
+
+    assert!(
+        quick_stats_wire(None).is_err(),
+        "no store is an error, not a panic"
+    );
+    drop((store, empty));
+    cleanup(&dir);
+    cleanup(&empty_dir);
+}
+
+#[test]
+fn counting_and_purging_older_than_n_days_touch_only_the_old_rows() {
+    let dir = temp_dir("older");
+    let store = open_store(&dir);
+    for text in ["old1", "old2", "fresh"] {
+        store.save(text, "x", "m", false, always()).unwrap();
+    }
+    backdate(&dir, "old1", 40);
+    backdate(&dir, "old2", 31);
+
+    assert_eq!(quick_count_older_wire(Some(&store), 30).unwrap(), 2);
+    assert_eq!(quick_count_older_wire(Some(&store), 35).unwrap(), 1);
+    for bad in [0, -1] {
+        assert!(quick_count_older_wire(Some(&store), bad).is_err());
+        assert!(
+            quick_purge_wire(
+                Some(&store),
+                None,
+                QuickPurgeScopeWire::OlderThan { days: bad }
+            )
+            .is_err()
+        );
+    }
+    assert_eq!(
+        store.count().unwrap(),
+        3,
+        "a rejected days value deleted rows"
+    );
+
+    let outcome = quick_purge_wire(
+        Some(&store),
+        None,
+        QuickPurgeScopeWire::OlderThan { days: 30 },
+    )
+    .expect("purge");
+    assert_eq!(outcome.deleted, 2);
+    assert_eq!(outcome.compact_error, None);
+    assert_eq!(store.count().unwrap(), 1);
+    assert!(store.lookup("fresh").unwrap().is_some());
+    assert!(store.lookup("old1").unwrap().is_none());
+    drop(store);
+    cleanup(&dir);
+}
+
+#[test]
+fn purging_all_rows_shrinks_db_plus_wal_on_disk() {
+    let dir = temp_dir("purge-size");
+    let store = open_store(&dir);
+    let big = "y".repeat(8 * 1024);
+    for i in 0..400 {
+        store
+            .save(&format!("src {i}"), &big, "m", false, always())
+            .unwrap();
+    }
+    let before = size_on_disk(&dir);
+    let outcome = quick_purge_wire(Some(&store), None, QuickPurgeScopeWire::All).expect("purge");
+    let after = size_on_disk(&dir);
+    assert_eq!(outcome.deleted, 400);
+    assert_eq!(outcome.compact_error, None);
+    assert_eq!(store.count().unwrap(), 0);
+    assert!(after < before, "db+wal did not shrink: {before} -> {after}");
+    assert_eq!(outcome.bytes_after, after);
+    assert!(outcome.bytes_before >= before);
+    drop(store);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_run_blocked_mid_stream_writes_no_row_after_a_purge_cancels_it() {
+    let dir = temp_dir("purge-inflight");
+    let store = Arc::new(open_store(&dir));
+    let runs = QuickTranslateGeneration::default();
+    store.save("existing", "x", "m", false, always()).unwrap();
+
+    let ticket = runs
+        .begin(QuickSurface::GlossaryQueue, 1)
+        .expect("free slot");
+    let generation = ticket.generation;
+    let watched = runs.clone();
+    let should_cancel: Arc<dyn Fn() -> bool + Send + Sync> =
+        Arc::new(move || !watched.is_current(generation));
+
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let (mut provider, _) = Fake::ok(vec!["moi"]);
+    provider.gate = Some(Gate {
+        entered: entered_tx,
+        release: Mutex::new(release_rx),
+    });
+
+    let worker_store = Arc::clone(&store);
+    let worker = std::thread::spawn(move || {
+        let (outcome, _) = run(
+            Some(&worker_store),
+            &provider,
+            "in flight",
+            false,
+            should_cancel,
+        );
+        outcome.is_ok()
+    });
+    entered_rx
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .expect("the run reached the provider");
+
+    let outcome =
+        quick_purge_wire(Some(&store), Some(&runs), QuickPurgeScopeWire::All).expect("purge");
+    assert_eq!(outcome.deleted, 1);
+    release_tx.send(()).unwrap();
+    assert!(
+        worker.join().expect("worker"),
+        "the run ended with an error"
+    );
+
+    assert_eq!(
+        store.count().unwrap(),
+        0,
+        "a cancelled run wrote after the purge"
+    );
+    assert!(
+        runs.begin(QuickSurface::ImportPreview, 2).is_some(),
+        "the slot was not freed"
+    );
+    drop(ticket);
+    drop(store);
+    cleanup(&dir);
+}
+
+#[test]
+fn the_purge_wire_reports_a_missing_store_without_cancelling_or_panicking() {
+    let runs = QuickTranslateGeneration::default();
+    let ticket = runs.begin(QuickSurface::GlossaryQueue, 1).expect("slot");
+    assert!(quick_purge_wire(None, Some(&runs), QuickPurgeScopeWire::All).is_err());
+    assert!(
+        runs.is_current(ticket.generation),
+        "a failed purge cancelled the run"
+    );
+}
+
+#[test]
+fn a_shrink_blocked_by_a_reader_keeps_the_deletion_and_reports_the_error() {
+    let dir = temp_dir("purge-blocked");
+    let store = open_store(&dir);
+    for text in ["a", "b"] {
+        store.save(text, "x", "m", false, always()).unwrap();
+    }
+    let reader = rusqlite::Connection::open(dir.join("quick-translation.db")).expect("open raw");
+    reader.execute_batch("BEGIN").expect("begin");
+    let held: i64 = reader
+        .query_row("SELECT COUNT(*) FROM quick_translation", [], |row| {
+            row.get(0)
+        })
+        .expect("snapshot");
+    assert_eq!(held, 2);
+
+    let outcome = quick_purge_wire(Some(&store), None, QuickPurgeScopeWire::All).expect("purge");
+    assert_eq!(outcome.deleted, 2);
+    assert!(
+        outcome.compact_error.is_some(),
+        "an open reader snapshot must leave the file unshrunk and say so"
+    );
+    assert_eq!(
+        store.count().unwrap(),
+        0,
+        "a failed shrink rolled the deletion back"
+    );
+
+    reader.execute_batch("COMMIT").expect("commit");
+    drop(reader);
+    drop(store);
+    cleanup(&dir);
 }

@@ -612,3 +612,75 @@ describe('bận giữa hai bề mặt dịch nhanh', () => {
     expect(translateMock).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('dọn kho dịch nhanh', () => {
+  it('câu lấy từ kho về Chưa có, câu lấy từ Tác phẩm giữ nguyên', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockImplementation(async (context: string) =>
+      context === '句2。' ? { value: 'Của Chương.', failed: false, error: null } : notFound,
+    )
+    storeLookupMock.mockResolvedValue({ value: { state: 'hit', text: 'Đã lưu.', model: 'm-0' }, error: null })
+    await openWith(state, candidate(1), candidate(2))
+    expect(state.queueContextReference.value?.kind).toBe('cached')
+    state.nextGlossaryQueueCandidate()
+    await flushPromises()
+    expect(state.queueContextReference.value).toEqual({ kind: 'chapter', text: 'Của Chương.' })
+
+    storeLookupMock.mockResolvedValue(miss)
+    const run = await import('../../src/quickTranslateRun')
+    run.markQuickStorePurged()
+    await flushPromises()
+    expect(state.queueContextReference.value).toEqual({ kind: 'chapter', text: 'Của Chương.' })
+    state.prevGlossaryQueueCandidate()
+    await flushPromises()
+    expect(state.queueContextReference.value).toEqual({ kind: 'none' })
+  })
+
+  it('lượt đang chạy bị bỏ: chữ muộn và kết quả muộn không ghi lại, bề mặt về Chưa có', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    let lateToken: (t: string) => void = () => undefined
+    let release: (v: unknown) => void = () => undefined
+    translateMock.mockImplementation((_c: string, onToken: (t: string) => void) => {
+      lateToken = onToken
+      onToken('Xin ')
+      return new Promise((resolve) => {
+        release = resolve
+      })
+    })
+    await openWith(state, candidate(1))
+    const running = state.translateGlossaryContextReference()
+    await flushPromises()
+    expect(state.queueContextReference.value).toEqual({ kind: 'running', text: 'Xin ' })
+
+    const run = await import('../../src/quickTranslateRun')
+    run.markQuickStorePurged()
+    await flushPromises()
+    lateToken('chào')
+    release(done)
+    await running
+    await flushPromises()
+
+    expect(state.queueContextReference.value).toEqual({ kind: 'none' })
+    expect(run.quickRunCurrent.value).toBeNull()
+  })
+
+  it('tra kho đang bay lúc dọn không đưa câu cũ trở lại', async () => {
+    const { state } = await fresh()
+    contextLookupMock.mockResolvedValue(notFound)
+    let answer: (v: unknown) => void = () => undefined
+    storeLookupMock.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        answer = resolve
+      }),
+    )
+    await openWith(state, candidate(1))
+
+    const run = await import('../../src/quickTranslateRun')
+    run.markQuickStorePurged()
+    answer({ value: { state: 'hit', text: 'Cũ.', model: 'm-0' }, error: null })
+    await flushPromises()
+
+    expect(state.queueContextReference.value).toEqual({ kind: 'none' })
+  })
+})

@@ -1291,3 +1291,34 @@ fn the_dict_source_order_survives_a_write_and_a_reopen() {
     drop(store);
     cleanup(&dir);
 }
+
+#[test]
+fn the_quick_translation_purge_days_survive_a_write_and_a_reopen() {
+    let dir = temp_dir("quick-purge-days-roundtrip");
+    {
+        let store = open_store(&dir);
+        assert_eq!(
+            bootstrap_config(Some(&store))
+                .expect("bootstrap")
+                .quick_translation_purge_days,
+            30
+        );
+        put_config(
+            Some(&store),
+            "app_config",
+            "quick_translation_purge_days",
+            "7",
+        )
+        .expect("ghi số ngày");
+        drop(store);
+    }
+    let store = open_store(&dir);
+    assert_eq!(
+        bootstrap_config(Some(&store))
+            .expect("bootstrap sau khi mở lại")
+            .quick_translation_purge_days,
+        7
+    );
+    drop(store);
+    cleanup(&dir);
+}
