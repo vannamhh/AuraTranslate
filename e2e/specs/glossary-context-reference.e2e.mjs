@@ -84,8 +84,8 @@ describe('Glossary queue -- context sentence reference', () => {
     await moveCursorBy(candidates.indexOf(bare) - candidates.indexOf(translated))
     const button = await $('[data-gq-context-translate]')
     await button.waitForExist({ timeout: 10_000 })
+    await $('[data-gq-context-unconfigured]').waitForExist({ timeout: 10_000 })
     await expect(await button.getAttribute('disabled')).not.toBe(null)
-    await expect(await $('[data-gq-context-unconfigured]').isExisting()).toBe(true)
 
     await realClick(await $('[data-gq-context-open-settings]'))
     await $('.set-panel').waitForDisplayed({ timeout: 10_000 })

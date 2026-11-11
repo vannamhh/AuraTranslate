@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -112,7 +112,7 @@ impl Fixture {
     fn preview(
         &self,
         tier: RuleTier,
-        path: &PathBuf,
+        path: &Path,
     ) -> Result<ConventionImportPreviewWire, IpcError> {
         convention_open_import_preview(
             Some(&self.global),

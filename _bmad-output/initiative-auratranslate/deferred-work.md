@@ -14086,11 +14086,14 @@ chính nó.
 - `check:clippy` đỏ ở `src-tauri/tests/convention_exchange_contract.rs:115` (`ptr_arg`, `&PathBuf`) với rustc cục bộ 1.99; dòng này đã có ở baseline `e0e5b48dc8fddf1b81810fe0b6402747a4b08cac`.
   Cần sửa chữ ký helper sang kiểu mượn phù hợp và chạy lại target/clippy; hiện chặn pre-push, không phải lỗi mới của 15.2.
   Chủ: Ice. Trỏ: `tickets/epic-dich-nhanh/tickets/story-khai-cau-hinh-dich-nhanh-rieng-o-cai-at-dich-thu-chay-tren-o-handoff.md` §Tests phase.
+  → ✅ ĐÃ ĐÓNG 2026-11-11 (Story 15.7) — Ice gộp vào 15.7: tham số `path` của helper `preview` nay là `&Path`; `npm run check:clippy` thoát 0 với rustc cục bộ 1.99.1.
 
 - `check:panel-refs` còn 16 lỗi kế thừa: `bootstrap::quickTranslationPurgeDays`, `quickTranslateRun::purges` và 14 ô trong `settingsQuickDataState`; chưa có đường reset được cổng nhận diện.
   Đối chứng: chạy gate nguyên bản trong archive baseline `d63cdae436979abf385c1701ee5c52d5313ba8a9` cho đúng cùng 16 định danh; Story 15.5 không thêm lỗi sau tích hợp.
   Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md` §Lead integration.
+  → ✅ ĐÃ ĐÓNG 2026-11-11 (Story 15.7) — `3dfcf11babe41caf91ab8bede984a3fef66ec21e` cho cả 16 ô miễn trừ có tên kèm lý do trong `scripts/check-panel-refs.mjs`; `npm run check:panel-refs` thoát 0 ở revision đó.
 
 - Story 15.5 chưa có CI Windows/UTC cho chính revision triển khai; CI/nightly đã đọc xanh ở `d2cf9d65d71004a0c084bec289757e6fef6a8e08`, trước thay đổi này.
   Cần đọc run chứa revision 15.5 sau khi push; không suy kết quả từ macOS cục bộ hoặc nightly cũ.
   Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md` §Parent CI inspection.
+  → 🟡 2026-11-11 (Story 15.7) — mục này nhận cả revision 15.6 `c292f35c4311d80343e78438bde3f7d48af335bd` và các commit sau nó tới 15.7: chưa revision nào của 15.5–15.7 lên CI, cần đọc push CI (nửa Windows, UTC) và nightly e2e đầu tiên chứa chúng. Trỏ: `tickets/epic-dich-nhanh/tickets/story-refactor-sweep-plan.md` §Implementation Notes. Chủ: Epic 15.
