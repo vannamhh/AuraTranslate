@@ -1363,6 +1363,54 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
     }
 }
 
+/// Sibling for the two convention dialog wires: `OpenWorkState` is read only through `with_open`,
+/// which must come after the blocking dialog call, and no `.lock()` may precede that call.
+#[test]
+fn the_open_work_state_in_the_convention_dialog_wires_is_read_after_the_blocking_call_not_before() {
+    let path = manifest_dir().join("src/commands/convention.rs");
+    let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+
+    let cases: [(&str, &str, &str); 2] = [
+        (
+            "convention_export_tier",
+            "pub fn convention_export_tier<R: tauri::Runtime>(",
+            ".blocking_save_file()",
+        ),
+        (
+            "convention_open_import_preview",
+            "pub fn convention_open_import_preview<R: tauri::Runtime>(",
+            ".blocking_pick_file()",
+        ),
+    ];
+
+    for (name, fn_start_marker, dialog_call) in cases {
+        let fn_start = text
+            .find(fn_start_marker)
+            .unwrap_or_else(|| panic!("`{name}` signature (`{fn_start_marker}`) not found"));
+        let after_start = &text[fn_start + fn_start_marker.len()..];
+        let body = &after_start[..after_start
+            .find("#[tauri::command")
+            .unwrap_or(after_start.len())];
+
+        let dialog_idx = body
+            .find(dialog_call)
+            .unwrap_or_else(|| panic!("`{dialog_call}` not found in `{name}`"));
+        let with_open_idx = body
+            .find("with_open(")
+            .unwrap_or_else(|| panic!("`with_open(` not found in `{name}`"));
+        assert!(
+            with_open_idx > dialog_idx,
+            "`{name}`: `with_open` (offset {with_open_idx}) precedes `{dialog_call}` (offset {dialog_idx})"
+        );
+        if let Some(lock_idx) = body.find(".lock()") {
+            assert!(
+                lock_idx > dialog_idx,
+                "`{name}`: `.lock()` (offset {lock_idx}) precedes `{dialog_call}` (offset {dialog_idx})"
+            );
+        }
+    }
+}
+
 /// 🔴 **SIBLING của [`the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_call_not_before`]
 /// ngay trên, cho hai vỏ hộp thoại của Story 4.5 — spec 4.5 §Always đòi đúng câu này ("the
 /// new shells need a sibling case there, not an exemption"), không mở rộng mảng `cases` của
@@ -1514,6 +1562,26 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "src/commands/convention.rs",
             "pub fn convention_scan_suggestions<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "matches a whole batch of suggestions and loads a Glossary snapshot, cost scales with the batch",
+        ),
+        (
+            "src/commands/convention.rs",
+            "pub fn convention_export_tier<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "opens the save dialog, `blocking_save_file()` blocks the event loop the dialog waits on",
+        ),
+        (
+            "src/commands/convention.rs",
+            "pub fn convention_open_import_preview<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "opens the pick dialog, `blocking_pick_file()` blocks the event loop the dialog waits on",
+        ),
+        (
+            "src/commands/convention.rs",
+            "pub fn convention_confirm_import<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "one transaction over every row of the plan, holding the pending slot for the whole write",
+        ),
+        (
+            "src/commands/convention.rs",
+            "pub fn convention_cancel_import<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "locks the pending slot `convention_confirm_import` holds for its whole write",
         ),
         (
             "src/commands/segment/wire.rs",
@@ -2257,9 +2325,9 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 22] = [
     (
         "src/commands/convention.rs",
         9,
-        4,
-        4,
-        "`convention_scan_chapter`, its progress twin, `convention_scan_segments` and `convention_scan_suggestions` copy what they need under the lock and match after releasing it; the five rule shells list, add, edit, delete or switch one row and the four `convention_ignore_*` shells run one INSERT, DELETE or SELECT on the Work's `convention_ignore` table, and all stay synchronous so they never interleave with `convention_accept`.",
+        8,
+        8,
+        "`convention_scan_chapter`, its progress twin, `convention_scan_segments` and `convention_scan_suggestions` copy what they need under the lock and match after releasing it; `convention_export_tier` and `convention_open_import_preview` open a blocking file dialog, `convention_confirm_import` writes the whole import plan in one transaction and `convention_cancel_import` locks the slot that write holds, so all four are `(async)`; the five rule shells list, add, edit, delete or switch one row and the four `convention_ignore_*` shells run one INSERT, DELETE or SELECT on the Work's `convention_ignore` table, and all stay synchronous so they never interleave with `convention_accept`.",
     ),
     (
         "src/commands/cleanup.rs",
@@ -2494,9 +2562,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (124, 76),
+        (124, 80),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         124/76.\n\n\
+         124/80.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

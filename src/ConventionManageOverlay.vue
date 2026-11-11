@@ -18,6 +18,9 @@ import {
   conventionManageDeletePending,
   conventionManageEditing,
   conventionManageError,
+  conventionManageExchangeBusy,
+  conventionManageExchangeTier,
+  conventionManageExportedPath,
   conventionManageHasLoaded,
   conventionManageIgnoreRows,
   conventionManageIsOpen,
@@ -221,9 +224,29 @@ function trapTab(event: KeyboardEvent): void {
     <section ref="panel" class="cvm-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cvm-title">
       <header class="cvm-head">
         <h2 id="cvm-title" class="cvm-title">{{ t('convention.manage.title') }}</h2>
-        <button type="button" class="cvm-close ui-btn ui-btn--quiet" data-convention-manage-close @click="dispatch('convention.manage.close')">
-          {{ t('convention.manage.close') }}
-        </button>
+        <div class="cvm-head-actions">
+          <button
+            type="button"
+            class="ui-btn"
+            data-convention-export
+            :disabled="conventionManageBusy || conventionManageEditing || conventionManageExchangeBusy"
+            @click="dispatch('convention.manage.export')"
+          >
+            {{ t('convention.manage.export') }}
+          </button>
+          <button
+            type="button"
+            class="ui-btn"
+            data-convention-import-open
+            :disabled="conventionManageBusy || conventionManageEditing || conventionManageExchangeBusy"
+            @click="dispatch('convention.manage.import')"
+          >
+            {{ t('convention.manage.import') }}
+          </button>
+          <button type="button" class="cvm-close ui-btn ui-btn--quiet" data-convention-manage-close @click="dispatch('convention.manage.close')">
+            {{ t('convention.manage.close') }}
+          </button>
+        </div>
       </header>
 
       <div class="cvm-tabs" role="tablist" :aria-label="t('convention.manage.tabs_label')">
@@ -501,6 +524,17 @@ function trapTab(event: KeyboardEvent): void {
         <p class="cvm-note">{{ t('convention.manage.hint') }}</p>
       </template>
       </template>
+
+      <footer class="cvm-foot">
+        <p class="cvm-note" data-convention-exchange-tier>
+          {{ t('convention.manage.exchange_tier_label') }}:
+          {{ t(conventionManageExchangeTier === 'work' ? 'convention.manage.cell_tier_work' : 'convention.manage.cell_tier_global') }}
+        </p>
+        <p v-if="conventionManageExportedPath !== null" class="cvm-note" role="status" data-convention-export-done>
+          <!-- aura-allow-text: result of t() with the path Rust wrote. -->
+          {{ t('convention.manage.export_done', { path: conventionManageExportedPath }) }}
+        </p>
+      </footer>
     </section>
   </div>
 </template>
@@ -545,6 +579,18 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: var(--space-panel-inline);
+}
+
+.cvm-head-actions {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 1);
+}
+
+.cvm-foot {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-panel-inline);
 }
 

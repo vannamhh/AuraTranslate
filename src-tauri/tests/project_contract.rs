@@ -6673,6 +6673,10 @@ fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_sibl
         "phep cat than ham co the sai vi tri -- hai nguoi lang gieng da co (Story 3.10b/4.5) \
          phai nam trong CUNG than nay:\n{body}"
     );
+    assert!(
+        body.contains("clear_pending_convention_import_for_work"),
+        "than `replace_open_work` phai don ke hoach nhap quy uoc tang Work dang cho:\n{body}"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

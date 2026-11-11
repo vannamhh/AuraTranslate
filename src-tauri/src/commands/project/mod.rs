@@ -3810,6 +3810,11 @@ fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: Ope
             crate::core::glossary::GlossaryTier::Work,
         );
     }
+    if let Some(pending) =
+        app.try_state::<crate::commands::convention::ConventionPendingImportState>()
+    {
+        crate::commands::convention::clear_pending_convention_import_for_work(&pending);
+    }
     if let Some(pending) = app.try_state::<crate::commands::tm::PendingTmxImportState>() {
         crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
     }

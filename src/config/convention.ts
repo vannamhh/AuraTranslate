@@ -105,6 +105,10 @@ const CMD_IGNORE_ADD = 'convention_ignore_add'
 const CMD_IGNORE_LIST = 'convention_ignore_list'
 const CMD_IGNORE_REMOVE = 'convention_ignore_remove'
 const CMD_IGNORE_CLEAR = 'convention_ignore_clear'
+const CMD_EXPORT_TIER = 'convention_export_tier'
+const CMD_OPEN_IMPORT_PREVIEW = 'convention_open_import_preview'
+const CMD_CONFIRM_IMPORT = 'convention_confirm_import'
+const CMD_CANCEL_IMPORT = 'convention_cancel_import'
 
 type Label =
   | 'scan_chapter'
@@ -118,6 +122,7 @@ type Label =
   | 'set_enabled'
   | 'accept' | 'revert' | 'replace_chapter'
   | 'ignore_add' | 'ignore_list' | 'ignore_remove' | 'ignore_clear'
+  | 'export_tier' | 'open_import_preview' | 'confirm_import' | 'cancel_import'
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
@@ -536,5 +541,122 @@ export async function clearConventionIgnores(): Promise<{ cleared: number | null
     return { cleared: wire, error: null }
   } catch (err) {
     return { cleared: null, error: failure('ignore_clear', err) }
+  }
+}
+
+export type ConventionExportResult =
+  | { outcome: 'done'; path: string }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+/** Rust opens the save dialog and writes; `cancelled` is a closed dialog and stays silent. Never throws. */
+export async function exportConventionTier(tier: ConventionTier): Promise<ConventionExportResult> {
+  try {
+    const path = await invoke<unknown>(CMD_EXPORT_TIER, { tier })
+    if (path === null) return { outcome: 'cancelled' }
+    if (typeof path !== 'string' || path === '') return { outcome: 'error', error: badShape('export_tier', 'a file path') }
+    return { outcome: 'done', path }
+  } catch (err) {
+    const error = failure('export_tier', err)
+    return error === null ? { outcome: 'ipc_unavailable' } : { outcome: 'error', error }
+  }
+}
+
+export type ConventionImportDecision = 'keep_mine' | 'take_file'
+
+export type ConventionImportConflictWire = {
+  rule_key: string
+  existing_avoid_phrase: string
+  existing_replacement_phrase: string | null
+  file_avoid_phrase: string
+  file_replacement_phrase: string | null
+}
+
+export type ConventionImportPreviewWire = {
+  file_name: string
+  tier: ConventionTier
+  row_count: number
+  new_count: number
+  identical_count: number
+  conflicts: ConventionImportConflictWire[]
+}
+
+export type ConventionImportAppliedWire = { added: number; replaced: number; kept: number }
+
+function isNullableText(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function isImportConflictWire(value: unknown): value is ConventionImportConflictWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ConventionImportConflictWire, unknown>>
+  return (
+    typeof v.rule_key === 'string' &&
+    typeof v.existing_avoid_phrase === 'string' &&
+    isNullableText(v.existing_replacement_phrase) &&
+    typeof v.file_avoid_phrase === 'string' &&
+    isNullableText(v.file_replacement_phrase)
+  )
+}
+
+function isImportPreviewWire(value: unknown): value is ConventionImportPreviewWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ConventionImportPreviewWire, unknown>>
+  return (
+    typeof v.file_name === 'string' &&
+    (v.tier === 'global' || v.tier === 'work') &&
+    isCount(v.row_count) &&
+    isCount(v.new_count) &&
+    isCount(v.identical_count) &&
+    Array.isArray(v.conflicts) &&
+    v.conflicts.every(isImportConflictWire)
+  )
+}
+
+export type ConventionImportPreviewResult =
+  | { outcome: 'loaded'; preview: ConventionImportPreviewWire }
+  | { outcome: 'cancelled' }
+  | { outcome: 'ipc_unavailable' }
+  | { outcome: 'error'; error: IpcError }
+
+/** Rust opens the pick dialog, parses and keeps the plan; only counts and conflicts cross the wire. Never throws. */
+export async function openConventionImportPreview(tier: ConventionTier): Promise<ConventionImportPreviewResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_OPEN_IMPORT_PREVIEW, { tier })
+    if (wire === null) return { outcome: 'cancelled' }
+    if (!isImportPreviewWire(wire)) {
+      return { outcome: 'error', error: badShape('open_import_preview', 'ConventionImportPreviewWire') }
+    }
+    return { outcome: 'loaded', preview: wire }
+  } catch (err) {
+    const error = failure('open_import_preview', err)
+    return error === null ? { outcome: 'ipc_unavailable' } : { outcome: 'error', error }
+  }
+}
+
+/** Only `take_file` entries go out; a missing key means keep mine. Never throws. */
+export async function confirmConventionImport(
+  decisions: Readonly<Record<string, ConventionImportDecision>>,
+): Promise<{ applied: ConventionImportAppliedWire | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_CONFIRM_IMPORT, { decisions: { ...decisions } })
+    const v = wire as Partial<Record<keyof ConventionImportAppliedWire, unknown>> | null
+    if (typeof v !== 'object' || v === null || !isCount(v.added) || !isCount(v.replaced) || !isCount(v.kept)) {
+      return { applied: null, error: badShape('confirm_import', 'an import outcome') }
+    }
+    return { applied: { added: v.added, replaced: v.replaced, kept: v.kept }, error: null }
+  } catch (err) {
+    return { applied: null, error: failure('confirm_import', err) ?? UNKNOWN_IPC_ERROR }
+  }
+}
+
+/** Drops the pending plan in Rust. Never throws. */
+export async function cancelConventionImport(): Promise<{ error: IpcError | null }> {
+  try {
+    await invoke<unknown>(CMD_CANCEL_IMPORT)
+    return { error: null }
+  } catch (err) {
+    return { error: failure('cancel_import', err) }
   }
 }

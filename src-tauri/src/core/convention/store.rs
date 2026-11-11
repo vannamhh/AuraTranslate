@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use crate::core::delimited_text::{ReadError, WriteError};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
@@ -35,6 +36,46 @@ pub enum ConventionStoreError {
     DuplicateAvoidPhrase,
     RuleMissing,
     WorkTierUnavailable,
+    ImportDelimiterUnresolved,
+    ImportMissingColumn {
+        column: &'static str,
+    },
+    ImportDuplicateColumn {
+        column: &'static str,
+    },
+    ImportCellCountMismatch {
+        line: usize,
+        expected: usize,
+        found: usize,
+    },
+    ImportBlankAvoidPhrase {
+        line: usize,
+    },
+    ImportDuplicateAvoidPhrase {
+        first_line: usize,
+        second_line: usize,
+    },
+    ImportUnterminatedQuotedField {
+        line: usize,
+    },
+    ImportFileTooLarge {
+        limit: u64,
+    },
+    ImportNotUtf8 {
+        path: String,
+    },
+    ImportReadFailed {
+        path: String,
+    },
+    ImportDecisionUnknownRule {
+        rule_key: String,
+    },
+    ImportStale,
+    NoPendingImport,
+    ExportWriteFailed {
+        path: String,
+    },
+    DialogPathInvalid,
 }
 
 impl std::fmt::Display for ConventionStoreError {
@@ -45,6 +86,56 @@ impl std::fmt::Display for ConventionStoreError {
             Self::DuplicateAvoidPhrase => write!(f, "convention[duplicate_avoid_phrase]"),
             Self::RuleMissing => write!(f, "convention[rule_missing]"),
             Self::WorkTierUnavailable => write!(f, "convention[work_tier_unavailable]"),
+            Self::ImportDelimiterUnresolved => write!(f, "convention[import_delimiter_unresolved]"),
+            Self::ImportMissingColumn { column } => {
+                write!(f, "convention[import_missing_column] column={column}")
+            }
+            Self::ImportDuplicateColumn { column } => {
+                write!(f, "convention[import_duplicate_column] column={column}")
+            }
+            Self::ImportCellCountMismatch {
+                line,
+                expected,
+                found,
+            } => write!(
+                f,
+                "convention[import_cell_count_mismatch] line={line} expected={expected} found={found}"
+            ),
+            Self::ImportBlankAvoidPhrase { line } => {
+                write!(f, "convention[import_blank_avoid_phrase] line={line}")
+            }
+            Self::ImportDuplicateAvoidPhrase {
+                first_line,
+                second_line,
+            } => write!(
+                f,
+                "convention[import_duplicate_avoid_phrase] first_line={first_line} second_line={second_line}"
+            ),
+            Self::ImportUnterminatedQuotedField { line } => {
+                write!(
+                    f,
+                    "convention[import_unterminated_quoted_field] line={line}"
+                )
+            }
+            Self::ImportFileTooLarge { limit } => {
+                write!(f, "convention[import_file_too_large] limit={limit}")
+            }
+            Self::ImportNotUtf8 { path } => write!(f, "convention[import_not_utf8] path={path}"),
+            Self::ImportReadFailed { path } => {
+                write!(f, "convention[import_read_failed] path={path}")
+            }
+            Self::ImportDecisionUnknownRule { rule_key } => {
+                write!(
+                    f,
+                    "convention[import_decision_unknown_rule] rule_key={rule_key}"
+                )
+            }
+            Self::ImportStale => write!(f, "convention[import_stale]"),
+            Self::NoPendingImport => write!(f, "convention[no_pending_import]"),
+            Self::ExportWriteFailed { path } => {
+                write!(f, "convention[export_write_failed] path={path}")
+            }
+            Self::DialogPathInvalid => write!(f, "convention[dialog_path_invalid]"),
         }
     }
 }
@@ -55,6 +146,29 @@ impl From<StoreError> for ConventionStoreError {
     fn from(e: StoreError) -> Self {
         Self::Store(e)
     }
+}
+
+impl From<ReadError> for ConventionStoreError {
+    fn from(e: ReadError) -> Self {
+        match e {
+            ReadError::ReadFailed { path, .. } => Self::ImportReadFailed { path },
+            ReadError::TooLarge { limit, .. } => Self::ImportFileTooLarge { limit },
+            ReadError::NotUtf8 { path } => Self::ImportNotUtf8 { path },
+        }
+    }
+}
+
+impl From<WriteError> for ConventionStoreError {
+    fn from(e: WriteError) -> Self {
+        Self::ExportWriteFailed { path: e.path }
+    }
+}
+
+fn params(pairs: &[(&str, String)]) -> BTreeMap<String, String> {
+    pairs
+        .iter()
+        .map(|(key, value)| ((*key).to_owned(), value.clone()))
+        .collect()
 }
 
 impl From<ConventionStoreError> for IpcError {
@@ -82,6 +196,110 @@ impl From<ConventionStoreError> for IpcError {
             ConventionStoreError::WorkTierUnavailable => IpcError::new(
                 "convention.work_tier_unavailable",
                 MessageKey::ConventionWorkTierUnavailable,
+                BTreeMap::new(),
+                false,
+            ),
+            ConventionStoreError::ImportDelimiterUnresolved => IpcError::new(
+                "convention.import_delimiter_unresolved",
+                MessageKey::ConventionImportDelimiterUnresolved,
+                BTreeMap::new(),
+                false,
+            ),
+            ConventionStoreError::ImportMissingColumn { column } => IpcError::new(
+                "convention.import_missing_column",
+                MessageKey::ConventionImportMissingColumn,
+                params(&[("column", column.to_owned())]),
+                false,
+            ),
+            ConventionStoreError::ImportDuplicateColumn { column } => IpcError::new(
+                "convention.import_duplicate_column",
+                MessageKey::ConventionImportDuplicateColumn,
+                params(&[("column", column.to_owned())]),
+                false,
+            ),
+            ConventionStoreError::ImportCellCountMismatch {
+                line,
+                expected,
+                found,
+            } => IpcError::new(
+                "convention.import_cell_count_mismatch",
+                MessageKey::ConventionImportCellCountMismatch,
+                params(&[
+                    ("line", line.to_string()),
+                    ("expected", expected.to_string()),
+                    ("found", found.to_string()),
+                ]),
+                false,
+            ),
+            ConventionStoreError::ImportBlankAvoidPhrase { line } => IpcError::new(
+                "convention.import_blank_avoid_phrase",
+                MessageKey::ConventionImportBlankAvoidPhrase,
+                params(&[("line", line.to_string())]),
+                false,
+            ),
+            ConventionStoreError::ImportDuplicateAvoidPhrase {
+                first_line,
+                second_line,
+            } => IpcError::new(
+                "convention.import_duplicate_avoid",
+                MessageKey::ConventionImportDuplicateAvoid,
+                params(&[
+                    ("first_line", first_line.to_string()),
+                    ("second_line", second_line.to_string()),
+                ]),
+                false,
+            ),
+            ConventionStoreError::ImportUnterminatedQuotedField { line } => IpcError::new(
+                "convention.import_unterminated_quoted_field",
+                MessageKey::ConventionImportUnterminatedQuotedField,
+                params(&[("line", line.to_string())]),
+                false,
+            ),
+            ConventionStoreError::ImportFileTooLarge { limit } => IpcError::new(
+                "convention.import_file_too_large",
+                MessageKey::ImportTooLarge,
+                params(&[("limit", limit.to_string())]),
+                false,
+            ),
+            ConventionStoreError::ImportNotUtf8 { path } => IpcError::new(
+                "convention.import_not_utf8",
+                MessageKey::ImportNotUtf8,
+                params(&[("path", path)]),
+                false,
+            ),
+            ConventionStoreError::ImportReadFailed { path } => IpcError::new(
+                "convention.import_read_failed",
+                MessageKey::IoReadFailed,
+                params(&[("path", path)]),
+                false,
+            ),
+            ConventionStoreError::ImportDecisionUnknownRule { rule_key } => IpcError::new(
+                "convention.import_decision_unknown_rule",
+                MessageKey::ConventionImportDecisionUnknownRule,
+                params(&[("value", rule_key)]),
+                false,
+            ),
+            ConventionStoreError::ImportStale => IpcError::new(
+                "convention.import_stale",
+                MessageKey::ConventionImportStale,
+                BTreeMap::new(),
+                false,
+            ),
+            ConventionStoreError::NoPendingImport => IpcError::new(
+                "convention.no_pending_import",
+                MessageKey::ConventionNoPendingImport,
+                BTreeMap::new(),
+                false,
+            ),
+            ConventionStoreError::ExportWriteFailed { path } => IpcError::new(
+                "convention.export_write_failed",
+                MessageKey::ConventionExportWriteFailed,
+                params(&[("path", path)]),
+                false,
+            ),
+            ConventionStoreError::DialogPathInvalid => IpcError::new(
+                "convention.dialog_path_invalid",
+                MessageKey::ConventionDialogPathInvalid,
                 BTreeMap::new(),
                 false,
             ),

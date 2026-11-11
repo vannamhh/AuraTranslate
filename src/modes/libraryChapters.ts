@@ -113,6 +113,7 @@ import { resetReviewMode } from '../reviewModeState'
 import { resetGlossaryQueue } from '../glossaryQueueState'
 import { resetAlignment } from '../alignmentState'
 import { resetConventionManage } from '../conventionManageState'
+import { resetConventionImport } from '../conventionImportState'
 import { resetReviewerImport } from '../reviewerImportState'
 import type { IpcError } from '../i18n'
 import { setOpenWork } from '../openWorkIdentity'
@@ -388,6 +389,7 @@ export async function openWorkById(workId: string): Promise<boolean> {
   resetEditorPanel()
   resetSegmentHistory()
   resetConventionManage()
+  resetConventionImport()
   // 🔵 THÊM Story 5.11 — Chế độ đọc mang cùng lớp cache module-level; Tác phẩm cũ bị thay
   // thì Chương đang đọc của nó cũng phải bị vứt, cùng lượt với bốn dòng trên.
   resetReading()

@@ -2,6 +2,7 @@
 //! case transfer. Pure; it never imports `core::ai`, and `core::ai` never imports it.
 
 mod casing;
+mod exchange;
 mod ignore;
 mod matcher;
 mod normalize;
@@ -11,6 +12,10 @@ mod splice;
 mod store;
 
 pub use casing::transfer_case;
+pub use exchange::{
+    ConflictDecision, ImportRow, ImportSummary, MAX_CONVENTION_IMPORT_BYTES, RowPlan, RowPlanKind,
+    apply_import, classify as classify_import, parse as parse_import, render_tier, visible_rows,
+};
 pub use ignore::{
     CONVENTION_CONTEXT_CHARS, ConventionSignature, filter_ignored, signature_matches, signature_of,
 };

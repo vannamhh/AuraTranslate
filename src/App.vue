@@ -51,6 +51,7 @@ import ProofreaderStrip from './ProofreaderStrip.vue'
 import ProofreadScopeOverlay from './ProofreadScopeOverlay.vue'
 import ProofreadMemoryOverlay from './ProofreadMemoryOverlay.vue'
 import ConventionManageOverlay from './ConventionManageOverlay.vue'
+import ConventionImportOverlay from './ConventionImportOverlay.vue'
 import ConventionReplaceOverlay from './ConventionReplaceOverlay.vue'
 import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 // Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55), lớp phủ THỨ NĂM. Cùng tầng,
@@ -393,6 +394,7 @@ onMounted(async () => {
     <ProofreadScopeOverlay />
     <ProofreadMemoryOverlay />
     <ConventionManageOverlay />
+    <ConventionImportOverlay />
     <ConventionReplaceOverlay />
 
     <!-- Story 4.12, Phase 3a · Decision 2 — tự quản `v-if` qua `lookupDrawerIsOpen`, mở từ

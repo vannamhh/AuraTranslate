@@ -1186,6 +1186,10 @@ pub fn run() {
             crate::commands::convention::wire::convention_ignore_list,
             crate::commands::convention::wire::convention_ignore_remove,
             crate::commands::convention::wire::convention_ignore_clear,
+            crate::commands::convention::wire::convention_export_tier,
+            crate::commands::convention::wire::convention_open_import_preview,
+            crate::commands::convention::wire::convention_confirm_import,
+            crate::commands::convention::wire::convention_cancel_import,
             // Story 5.7 -- mo lai mot `.atproj` DA CO tren dia (FR12). `work_id`, KHONG mot
             // duong dan he tep -- `atproj_path` phan giai o Rust tu `library-index.db` qua
             // `Indexer::find_work`.
@@ -1749,6 +1753,9 @@ fn open_work_slot(app: &tauri::App) {
     app.manage(crate::commands::aitranslate::ContextReferenceGeneration::default());
     app.manage(crate::commands::proofread::ProofreadGeneration::default());
     app.manage(crate::commands::convention::ConventionMatcherState::default());
+    // Plan of a convention import between preview and confirm; a Work-tier plan dies with the Work
+    // it was classified against (close_open_work, replace_open_work).
+    app.manage(crate::commands::convention::ConventionPendingImportState::new(None));
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).
@@ -1888,6 +1895,11 @@ fn close_open_work(handle: &tauri::AppHandle) {
             &pending,
             crate::core::glossary::GlossaryTier::Work,
         );
+    }
+    if let Some(pending) =
+        handle.try_state::<crate::commands::convention::ConventionPendingImportState>()
+    {
+        crate::commands::convention::clear_pending_convention_import_for_work(&pending);
     }
     if let Some(pending) = handle.try_state::<crate::commands::tm::PendingTmxImportState>() {
         crate::commands::tm::clear_pending_tmx_import_for_work(&pending);

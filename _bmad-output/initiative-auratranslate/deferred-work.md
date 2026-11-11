@@ -14070,3 +14070,8 @@ chính nó.
   evidence: `conventionState.ts` chỉ chặn ghi đè theo `mergedSinceScan`; `read_scan_input` đọc `list_ignores` một lần đầu lượt quét, nên một lượt bắt đầu TRƯỚC lúc hàng được ghi vẫn trả chỗ đã ghi nhớ. Đường `acceptConventionSpot` mang đúng hình dạng ấy từ Story 16.1, nên sửa một đường mà bỏ đường kia để lại hai hành vi lệch nhau. Phép sửa nhỏ nhất: bump thế hệ ở cả hai lệnh rời, hoặc mở rộng rào `mergedSinceScan` cho mọi lượt ghi rời.
   Chủ: Story 16.7
   → ✅ ĐÃ ĐÓNG 2026-11-11 (Story 16.5) — mọi lượt ghi rời nay đi qua `setEntry`/`dropEntry`, hai hàm cùng gọi `markFresh(segmentId)` để tự khai vào `mergedSinceScan`. Đối chứng: làm rỗng thân `markFresh` ⇒ đúng hai ca đua đỏ (`conventionState.test.ts`), 31 ca còn lại xanh. Đường `acceptConventionSpot` của 16.1 được sửa cùng, nên hai đường không lệch nhau.
+
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-quy-uoc-chu-viet/tickets/story-xuat-va-nhap-danh-sach-quy-uoc-plan.md`
+  summary: Xuất quy ước (và Glossary) ra TSV chỉ tới được bằng cách gõ đuôi `.tsv` trong hộp thoại lưu chỉ có bộ lọc CSV; chưa biết hộp thoại macOS/Windows có ép lại `.csv` không.
+  evidence: chưa kiểm (maybe-false, medium nếu đúng: R9 hứa TSV mà giao diện không ra được). Muốn chốt: trong app thật, Xuất CSV/TSV, gõ `x.tsv`, xem tệp ghi ra có đuôi `.tsv` và dấu tab không, trên macOS và trên máy Windows.
+  Chủ: Epic 16

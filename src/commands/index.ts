@@ -1241,6 +1241,12 @@ export type CommandDeps = {
   showConventionManageIgnoredTab?: () => void
   forgetConventionManageIgnore?: () => void
   clearConventionManageIgnores?: () => void
+  exportConventionManageTier?: () => void
+  openConventionImportPreview?: () => void
+  confirmConventionImportPreview?: () => void
+  cancelConventionImportPreview?: () => void
+  keepMineConventionImport?: () => void
+  takeFileConventionImport?: () => void
   openConventionReplace?: () => void
   openConventionReplaceForRule?: () => void
   selectAllConventionReplace?: () => void
@@ -5621,6 +5627,72 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('convention.manage.ignored_clear', 'clearConventionManageIgnores')
       }
       deps.clearConventionManageIgnores()
+    },
+  })
+  target.register({
+    id: 'convention.manage.export',
+    labelKey: 'command.convention.manage.export',
+    keys: undefined,
+    run: () => {
+      if (deps.exportConventionManageTier === undefined) {
+        return portMissing('convention.manage.export', 'exportConventionManageTier')
+      }
+      deps.exportConventionManageTier()
+    },
+  })
+  target.register({
+    id: 'convention.manage.import',
+    labelKey: 'command.convention.manage.import',
+    keys: undefined,
+    run: () => {
+      if (deps.openConventionImportPreview === undefined) {
+        return portMissing('convention.manage.import', 'openConventionImportPreview')
+      }
+      deps.openConventionImportPreview()
+    },
+  })
+  target.register({
+    id: 'convention.import.confirm',
+    labelKey: 'command.convention.import.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmConventionImportPreview === undefined) {
+        return portMissing('convention.import.confirm', 'confirmConventionImportPreview')
+      }
+      deps.confirmConventionImportPreview()
+    },
+  })
+  target.register({
+    id: 'convention.import.cancel',
+    labelKey: 'command.convention.import.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelConventionImportPreview === undefined) {
+        return portMissing('convention.import.cancel', 'cancelConventionImportPreview')
+      }
+      deps.cancelConventionImportPreview()
+    },
+  })
+  target.register({
+    id: 'convention.import.keep_mine',
+    labelKey: 'command.convention.import.keep_mine',
+    keys: undefined,
+    run: () => {
+      if (deps.keepMineConventionImport === undefined) {
+        return portMissing('convention.import.keep_mine', 'keepMineConventionImport')
+      }
+      deps.keepMineConventionImport()
+    },
+  })
+  target.register({
+    id: 'convention.import.take_file',
+    labelKey: 'command.convention.import.take_file',
+    keys: undefined,
+    run: () => {
+      if (deps.takeFileConventionImport === undefined) {
+        return portMissing('convention.import.take_file', 'takeFileConventionImport')
+      }
+      deps.takeFileConventionImport()
     },
   })
   target.register({

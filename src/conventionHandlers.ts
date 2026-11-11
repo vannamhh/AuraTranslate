@@ -23,6 +23,7 @@ import {
   deleteConventionManageRule,
   disableConventionManageRule,
   enableConventionManageRule,
+  exportConventionManageTier,
   forgetConventionManageIgnore,
   nextConventionManageTier,
   openConventionManage,
@@ -31,6 +32,12 @@ import {
   stepConventionManageCursor,
   submitConventionRule,
 } from './conventionManageState'
+import {
+  cancelConventionImportPreview,
+  confirmConventionImportPreview,
+  decideConventionImportAtCursor,
+  openConventionImportOverlay,
+} from './conventionImportState'
 
 export const conventionHandlers = {
   nextMark: (): void => {
@@ -124,6 +131,30 @@ export const conventionHandlers = {
 
   clearConventionManageIgnores: (): void => {
     void clearConventionManageIgnores()
+  },
+
+  exportConventionManageTier: (): void => {
+    void exportConventionManageTier()
+  },
+
+  openConventionImportPreview: (): void => {
+    void openConventionImportOverlay()
+  },
+
+  confirmConventionImportPreview: (): void => {
+    void confirmConventionImportPreview()
+  },
+
+  cancelConventionImportPreview: (): void => {
+    void cancelConventionImportPreview()
+  },
+
+  keepMineConventionImport: (): void => {
+    decideConventionImportAtCursor('keep_mine')
+  },
+
+  takeFileConventionImport: (): void => {
+    decideConventionImportAtCursor('take_file')
   },
 
   openConventionReplace: (): void => {

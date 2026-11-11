@@ -8,6 +8,7 @@ pub mod aiconfig;
 pub mod attribution;
 pub mod cleanup;
 pub mod convention;
+pub mod delimited_text;
 pub mod dict;
 pub mod docx;
 pub mod export;

@@ -952,6 +952,22 @@ message_keys! {
     ConventionRuleMissing => "err.convention.rule_missing" [],
     ConventionWorkTierUnavailable => "err.convention.work_tier_unavailable" [],
     ConventionEmptyResult => "err.convention.empty_result" ["segment_id"],
+    ConventionImportDelimiterUnresolved => "err.convention.import_delimiter_unresolved" [],
+    ConventionImportMissingColumn => "err.convention.import_missing_column" ["column"],
+    ConventionImportDuplicateColumn => "err.convention.import_duplicate_column" ["column"],
+    ConventionImportCellCountMismatch =>
+        "err.convention.import_cell_count_mismatch" ["line", "expected", "found"],
+    ConventionImportBlankAvoidPhrase => "err.convention.import_blank_avoid_phrase" ["line"],
+    ConventionImportDuplicateAvoid =>
+        "err.convention.import_duplicate_avoid" ["first_line", "second_line"],
+    ConventionImportUnterminatedQuotedField =>
+        "err.convention.import_unterminated_quoted_field" ["line"],
+    ConventionImportDecisionUnknownRule =>
+        "err.convention.import_decision_unknown_rule" ["value"],
+    ConventionImportStale => "err.convention.import_stale" [],
+    ConventionNoPendingImport => "err.convention.no_pending_import" [],
+    ConventionExportWriteFailed => "err.convention.export_write_failed" ["path"],
+    ConventionDialogPathInvalid => "err.convention.dialog_path_invalid" [],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
     //

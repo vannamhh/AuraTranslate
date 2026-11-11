@@ -3,18 +3,21 @@
 //!
 //! Strings in this file are written without diacritics (`scripts/check-i18n.mjs`).
 
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use crate::commands::project::{OpenWork, OpenWorkState};
 use crate::commands::segment::select_chapter_segments;
 use crate::core::convention::{
-    ConventionSignature, ConventionStoreError, Matcher, RuleRow, RuleStatus, RuleTier, add_ignore,
-    add_rule, clear_ignores, delete_rule, disable_in_work, edit_rule, effective_row,
-    enable_in_work, filter_ignored, find_row_by_key, list_ignore_rows, list_ignores, list_rules,
-    phrase_spans, remove_ignore, resolve_two_tiers, row_status, rule_key, signature_of,
-    transfer_case,
+    ConflictDecision, ConventionSignature, ConventionStoreError, MAX_CONVENTION_IMPORT_BYTES,
+    Matcher, RowPlan, RowPlanKind, RuleRow, RuleStatus, RuleTier, add_ignore, add_rule,
+    apply_import, classify_import, clear_ignores, delete_rule, disable_in_work, edit_rule,
+    effective_row, enable_in_work, filter_ignored, find_row_by_key, list_ignore_rows, list_ignores,
+    list_rules, parse_import, phrase_spans, remove_ignore, render_tier, resolve_two_tiers,
+    row_status, rule_key, signature_of, transfer_case, visible_rows,
 };
+use crate::core::delimited_text::{Delimiter, read_text_file, write_text_file_atomic};
 use crate::core::glossary::{GlossarySnapshot, match_lang_for_source_lang};
 use crate::core::i18n::IpcError;
 use crate::core::segment::utf16::utf16_to_byte;
@@ -771,6 +774,188 @@ pub fn convention_ignore_clear(open: Option<&OpenWork>) -> Result<u32, IpcError>
     Ok(clear_ignores(work_store(open)?)?)
 }
 
+/// The plan of an import that has been previewed and not yet confirmed. The file content never
+/// reaches the webview; only counts and the disagreements do.
+#[derive(Debug)]
+pub struct ConventionPendingImport {
+    pub tier: RuleTier,
+    pub plans: Vec<RowPlan>,
+}
+
+pub type ConventionPendingImportState = Mutex<Option<ConventionPendingImport>>;
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConventionImportConflictWire {
+    pub rule_key: String,
+    pub existing_avoid_phrase: String,
+    pub existing_replacement_phrase: Option<String>,
+    pub file_avoid_phrase: String,
+    pub file_replacement_phrase: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConventionImportPreviewWire {
+    pub file_name: String,
+    pub tier: String,
+    pub row_count: usize,
+    pub new_count: usize,
+    pub identical_count: usize,
+    pub conflicts: Vec<ConventionImportConflictWire>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct ConventionImportSummaryWire {
+    pub added: u32,
+    pub replaced: u32,
+    pub kept: u32,
+}
+
+fn delimiter_from_path(path: &Path) -> Delimiter {
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some(ext) if ext.eq_ignore_ascii_case("tsv") => Delimiter::Tsv,
+        _ => Delimiter::Csv,
+    }
+}
+
+/// Writes the rules of `tier` (a Work's disabled-Global flags excluded) to `path`; the delimiter
+/// follows the extension (`.tsv` is tab, anything else comma).
+pub fn convention_export_tier(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: RuleTier,
+    path: &Path,
+) -> Result<(), IpcError> {
+    let store = store_for_tier(tier, global, open)?;
+    let rows = visible_rows(tier, list_rules(store)?);
+    let contents = render_tier(&rows, delimiter_from_path(path));
+    write_text_file_atomic(path, &contents).map_err(ConventionStoreError::from)?;
+    Ok(())
+}
+
+/// A cancelled dialog (`None`) is `Ok(None)`: nothing is read or written and no error is shown.
+pub fn convention_export_tier_after_dialog(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: RuleTier,
+    picked_path: Option<PathBuf>,
+) -> Result<Option<String>, IpcError> {
+    let Some(path) = picked_path else {
+        return Ok(None);
+    };
+    convention_export_tier(global, open, tier, &path)?;
+    Ok(Some(path.display().to_string()))
+}
+
+fn pending_slot(
+    pending: &ConventionPendingImportState,
+) -> std::sync::MutexGuard<'_, Option<ConventionPendingImport>> {
+    pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Reads, parses and classifies `path` against `tier` and keeps the plan. A file with any error
+/// is refused whole and no plan is kept. A new preview replaces a pending one.
+pub fn convention_open_import_preview(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &ConventionPendingImportState,
+    tier: RuleTier,
+    path: &Path,
+) -> Result<ConventionImportPreviewWire, IpcError> {
+    let store = store_for_tier(tier, global, open)?;
+    let text =
+        read_text_file(path, MAX_CONVENTION_IMPORT_BYTES).map_err(ConventionStoreError::from)?;
+    let rows = parse_import(&text)?;
+    let plans = classify_import(&rows, &visible_rows(tier, list_rules(store)?));
+
+    let count = |wanted: fn(&RowPlanKind) -> bool| plans.iter().filter(|p| wanted(&p.kind)).count();
+    let conflicts = plans
+        .iter()
+        .filter_map(|plan| match &plan.kind {
+            RowPlanKind::Conflict {
+                existing_avoid_phrase,
+                existing_replacement_phrase,
+            } => Some(ConventionImportConflictWire {
+                rule_key: plan.rule_key.clone(),
+                existing_avoid_phrase: existing_avoid_phrase.clone(),
+                existing_replacement_phrase: existing_replacement_phrase.clone(),
+                file_avoid_phrase: plan.avoid_phrase.clone(),
+                file_replacement_phrase: plan.replacement_phrase.clone(),
+            }),
+            _ => None,
+        })
+        .collect();
+    let preview = ConventionImportPreviewWire {
+        file_name: path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        tier: tier.as_str().to_owned(),
+        row_count: plans.len(),
+        new_count: count(|kind| matches!(kind, RowPlanKind::New)),
+        identical_count: count(|kind| matches!(kind, RowPlanKind::Identical)),
+        conflicts,
+    };
+
+    *pending_slot(pending) = Some(ConventionPendingImport { tier, plans });
+    Ok(preview)
+}
+
+/// A cancelled dialog (`None`) is `Ok(None)`: nothing is read and no plan is kept or replaced.
+pub fn convention_open_import_preview_after_dialog(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    pending: &ConventionPendingImportState,
+    tier: RuleTier,
+    picked_path: Option<PathBuf>,
+) -> Result<Option<ConventionImportPreviewWire>, IpcError> {
+    let Some(path) = picked_path else {
+        return Ok(None);
+    };
+    convention_open_import_preview(global, open, pending, tier, &path).map(Some)
+}
+
+/// Writes the pending plan in one transaction and drops the cached matcher. `decisions` maps a
+/// `rule_key` to what to do with that disagreement; a missing key keeps the existing rule. Any
+/// failure leaves the plan pending and writes nothing.
+pub fn convention_confirm_import(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    cache: &ConventionMatcherState,
+    pending: &ConventionPendingImportState,
+    decisions: &BTreeMap<String, ConflictDecision>,
+) -> Result<ConventionImportSummaryWire, IpcError> {
+    let mut slot = pending_slot(pending);
+    let Some(batch) = slot.as_ref() else {
+        return Err(ConventionStoreError::NoPendingImport.into());
+    };
+    let store = store_for_tier(batch.tier, global, open)?;
+    let summary = apply_import(store, batch.tier, &batch.plans, decisions)?;
+    *slot = None;
+    cache.invalidate();
+    Ok(ConventionImportSummaryWire {
+        added: summary.added,
+        replaced: summary.replaced,
+        kept: summary.kept,
+    })
+}
+
+pub fn convention_cancel_import(pending: &ConventionPendingImportState) {
+    *pending_slot(pending) = None;
+}
+
+/// Drops a pending Work-tier plan when the Work it was classified against goes away.
+pub fn clear_pending_convention_import_for_work(pending: &ConventionPendingImportState) {
+    let mut slot = pending_slot(pending);
+    if slot
+        .as_ref()
+        .is_some_and(|batch| batch.tier == RuleTier::Work)
+    {
+        *slot = None;
+    }
+}
+
 fn state_missing() -> IpcError {
     crate::core::i18n::state_missing(
         "convention",
@@ -780,15 +965,19 @@ fn state_missing() -> IpcError {
 }
 
 pub mod wire {
+    use std::collections::BTreeMap;
+
     use super::{
-        ConventionIgnoreWire, ConventionMatcherState, ConventionRuleWire,
+        ConventionIgnoreWire, ConventionImportPreviewWire, ConventionImportSummaryWire,
+        ConventionMatcherState, ConventionPendingImportState, ConventionRuleWire,
         ConventionScanProgressWire, ConventionScanWire, ConventionSuggestionItem,
         ConventionSuggestionScanWire, ConventionTierFilter, state_missing,
     };
     use crate::commands::project::OpenWorkState;
-    use crate::core::convention::RuleTier;
+    use crate::core::convention::{ConflictDecision, ConventionStoreError, RuleTier};
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
+    use tauri_plugin_dialog::DialogExt as _;
 
     #[tauri::command]
     pub fn convention_list_rules<R: tauri::Runtime>(
@@ -1069,5 +1258,128 @@ pub mod wire {
         app: tauri::AppHandle<R>,
     ) -> Result<u32, IpcError> {
         with_open(&app, super::convention_ignore_clear)
+    }
+
+    fn work_tier_is_open<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+        use tauri::Manager as _;
+
+        app.try_state::<OpenWorkState>().is_some_and(|state| {
+            state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_some()
+        })
+    }
+
+    /// Async: the save dialog blocks, and on the main thread that deadlocks the event loop the
+    /// dialog waits on. No `OpenWorkState` lock is held across the dialog: the Work-tier check takes
+    /// and releases it first, and the rows are read under a fresh lock after the dialog closes.
+    #[tauri::command(async)]
+    pub fn convention_export_tier<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        tier: RuleTier,
+    ) -> Result<Option<String>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        if global.is_none() {
+            return Err(super::store_is_missing());
+        }
+        if tier == RuleTier::Work && !work_tier_is_open(&app) {
+            return Err(ConventionStoreError::WorkTierUnavailable.into());
+        }
+        let picked_path = match app
+            .dialog()
+            .file()
+            .add_filter("CSV", &["csv"])
+            .set_file_name(format!("convention_{}.csv", tier.as_str()))
+            .blocking_save_file()
+        {
+            None => None,
+            Some(picked) => Some(
+                picked
+                    .into_path()
+                    .map_err(|_| IpcError::from(ConventionStoreError::DialogPathInvalid))?,
+            ),
+        };
+        with_open(&app, |open| {
+            super::convention_export_tier_after_dialog(global.as_deref(), open, tier, picked_path)
+        })
+    }
+
+    /// Async for the same reason as `convention_export_tier`.
+    #[tauri::command(async)]
+    pub fn convention_open_import_preview<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        tier: RuleTier,
+    ) -> Result<Option<ConventionImportPreviewWire>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        if global.is_none() {
+            return Err(super::store_is_missing());
+        }
+        if tier == RuleTier::Work && !work_tier_is_open(&app) {
+            return Err(ConventionStoreError::WorkTierUnavailable.into());
+        }
+        let Some(pending) = app.try_state::<ConventionPendingImportState>() else {
+            return Err(state_missing());
+        };
+        let picked_path = match app
+            .dialog()
+            .file()
+            .add_filter("CSV/TSV", &["csv", "tsv"])
+            .blocking_pick_file()
+        {
+            None => None,
+            Some(picked) => Some(
+                picked
+                    .into_path()
+                    .map_err(|_| IpcError::from(ConventionStoreError::DialogPathInvalid))?,
+            ),
+        };
+        with_open(&app, |open| {
+            super::convention_open_import_preview_after_dialog(
+                global.as_deref(),
+                open,
+                &pending,
+                tier,
+                picked_path,
+            )
+        })
+    }
+
+    /// Async: one transaction over every row of the plan, and it holds the pending slot for the
+    /// whole write.
+    #[tauri::command(async)]
+    pub fn convention_confirm_import<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        decisions: BTreeMap<String, ConflictDecision>,
+    ) -> Result<ConventionImportSummaryWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let (Some(cache), Some(pending)) = (
+            app.try_state::<ConventionMatcherState>(),
+            app.try_state::<ConventionPendingImportState>(),
+        ) else {
+            return Err(state_missing());
+        };
+        with_open(&app, |open| {
+            super::convention_confirm_import(global.as_deref(), open, &cache, &pending, &decisions)
+        })
+    }
+
+    /// Async: locks the slot `convention_confirm_import` holds for its whole write.
+    #[tauri::command(async)]
+    pub fn convention_cancel_import<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        if let Some(pending) = app.try_state::<ConventionPendingImportState>() {
+            super::convention_cancel_import(&pending);
+        }
+        Ok(())
     }
 }

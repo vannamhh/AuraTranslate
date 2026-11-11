@@ -233,7 +233,7 @@ const tsFiles = keep(tsAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const VUE_FLOOR = 62
-const TS_FLOOR = 131
+const TS_FLOOR = 140
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
@@ -249,7 +249,7 @@ const COMMAND_FLOOR = 309
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 312
-const DISPATCH_FLOOR = 412
+const DISPATCH_FLOOR = 445
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2461,6 +2461,9 @@ const HANDLER_TABLE = {
   'src/ProofreadMemoryOverlay.vue::onEscape': { ids: ['ai.proofread.memory.close'] },
   'src/ProofreadMemoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ConventionIgnoreCard.vue::selectConventionManageIgnore': { nonCommand: R_CURSOR_LOCAL },
+  'src/ConventionImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ConventionImportOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
+  'src/ConventionImportOverlay.vue::onListKeydown': { nonCommand: R_CURSOR_LOCAL },
   'src/ConventionManageOverlay.vue::onEscape': { ids: ['convention.manage.cancel', 'convention.manage.close'] },
   'src/ConventionManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ConventionManageOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },

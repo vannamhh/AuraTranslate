@@ -6,6 +6,7 @@ import {
   CONVENTION_WORK_TIER_UNAVAILABLE,
   deleteConventionRule,
   editConventionRule,
+  exportConventionTier,
   listConventionIgnores,
   listConventionRules,
   removeConventionIgnore,
@@ -19,6 +20,7 @@ import type {
   ConventionWriteAck,
 } from './config/convention'
 import { scanConventionNow } from './conventionState'
+import { UNKNOWN_IPC_ERROR } from './config/aitranslate'
 import type { IpcError } from './i18n'
 import { editorChapterId, flushEditorBeforeDiscreteWrite } from './panels/editorPanelState'
 
@@ -40,6 +42,8 @@ const tab = ref<ConventionManageTab>('rules')
 const ignoreRows = shallowRef<readonly ConventionIgnoreRowWire[]>([])
 const ignoreSelectedId = ref<number | null>(null)
 const ignoreClearPending = ref(false)
+const exchangeBusy = ref(false)
+const exportedPath = ref<string | null>(null)
 const ignoreDone = shallowRef<{ readonly kind: 'forgot' | 'cleared'; readonly count: number } | null>(null)
 
 export const conventionAvoidDraft = ref('')
@@ -62,11 +66,19 @@ export const conventionManageSearch: DeepReadonly<Ref<string>> = readonly(search
 export const conventionManageCursor: DeepReadonly<Ref<number>> = readonly(cursor)
 export const conventionManageEditing: DeepReadonly<Ref<boolean>> = readonly(editing)
 export const conventionManageTab: DeepReadonly<Ref<ConventionManageTab>> = readonly(tab)
+export const conventionManageExchangeBusy: DeepReadonly<Ref<boolean>> = readonly(exchangeBusy)
+export const conventionManageExportedPath: DeepReadonly<Ref<string | null>> = readonly(exportedPath)
 export const conventionManageIgnoreRows: Readonly<Ref<readonly ConventionIgnoreRowWire[]>> = ignoreRows
 export const conventionManageIgnoreSelectedId: DeepReadonly<Ref<number | null>> = readonly(ignoreSelectedId)
 export const conventionManageIgnoreClearPending: DeepReadonly<Ref<boolean>> = readonly(ignoreClearPending)
 export const conventionManageIgnoreDone: Readonly<Ref<{ readonly kind: 'forgot' | 'cleared'; readonly count: number } | null>> =
   ignoreDone
+
+/** The tier Export and Import act on: the filter's tier, and for Both the Work when one is open. */
+export const conventionManageExchangeTier: ComputedRef<ConventionTier> = computed(() => {
+  if (tierFilter.value === 'both') return workTierAvailable.value ? 'work' : 'global'
+  return tierFilter.value
+})
 
 export function conventionRuleKey(rule: Pick<ConventionRuleWire, 'tier' | 'id'>): string {
   return `${rule.tier}:${rule.id}`
@@ -199,6 +211,8 @@ function clearCells(): void {
   ignoreSelectedId.value = null
   ignoreClearPending.value = false
   ignoreDone.value = null
+  exchangeBusy.value = false
+  exportedPath.value = null
   conventionAvoidDraft.value = ''
   conventionReplacementDraft.value = ''
   conventionAddTier.value = 'global'
@@ -246,6 +260,7 @@ export function closeConventionManage(): void {
 export function setConventionManageTier(value: ConventionTierFilter): void {
   if (value === 'work' && !workTierAvailable.value) return
   if (editing.value) return
+  if (tierFilter.value !== value) exportedPath.value = null
   tierFilter.value = value
   cancelPending()
   cursor.value = 0
@@ -431,4 +446,28 @@ export async function clearConventionManageIgnores(): Promise<void> {
       if (mine === session) ignoreDone.value = { kind: 'cleared', count: result.cleared }
     }
   })
+}
+
+export function setConventionExchangeBusy(value: boolean): void {
+  exchangeBusy.value = value
+}
+
+/** Opens the save dialog in Rust for the exchange tier. A cancelled dialog changes nothing and says nothing. */
+export async function exportConventionManageTier(): Promise<void> {
+  if (!open.value || busy.value || editing.value || exchangeBusy.value) return
+  const mine = session
+  exchangeBusy.value = true
+  failure.value = null
+  exportedPath.value = null
+  const result = await exportConventionTier(conventionManageExchangeTier.value)
+  if (mine !== session) return
+  exchangeBusy.value = false
+  if (result.outcome === 'done') exportedPath.value = result.path
+  else if (result.outcome === 'error') failure.value = result.error
+  else if (result.outcome === 'ipc_unavailable') failure.value = UNKNOWN_IPC_ERROR
+}
+
+/** After an import was applied: reload both tiers, then rescan the open Chapter once. */
+export async function reloadConventionManageAfterImport(): Promise<void> {
+  await afterWrite(session, { ok: true, error: null })
 }

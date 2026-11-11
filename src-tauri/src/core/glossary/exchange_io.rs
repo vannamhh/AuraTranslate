@@ -11,10 +11,9 @@
 //!
 //! ⚠️ Mọi chuỗi trong `src-tauri/src/**` viết KHÔNG DẤU; doc-comment có dấu là hợp lệ.
 
-use std::io::Read as _;
 use std::path::Path;
 
-use uuid::Uuid;
+use crate::core::delimited_text::{self, ReadError, WriteError};
 
 use super::store::GlossaryError;
 
@@ -28,156 +27,19 @@ use super::store::GlossaryError;
 /// tức ~80 MiB cho một tệp chạm trần. Chấp nhận được; trần cao hơn thì không.
 pub const MAX_GLOSSARY_IMPORT_BYTES: u64 = 16 * 1024 * 1024;
 
-/// Dấu thứ tự byte UTF-8 (`EF BB BF`) — khuôn chép `core::segment::pipeline::strip_bom`.
-/// 🔵 **SỬA 2026-09-04 (Story 6.2)** — con trỏ đổi vì hàm gốc dời từ `core::segment::import`
-/// sang `core::segment::pipeline` (bước giải mã của chuỗi AD-39); bản CHÉP ở đây không đổi.
-/// Chỉ cắt ở ĐẦU: một `U+FEFF` giữa văn bản là nội dung thật.
-fn strip_bom(raw: &str) -> &str {
-    raw.strip_prefix('\u{feff}').unwrap_or(raw)
-}
-
-/// Đọc một tệp nhập Glossary từ đĩa.
-///
-/// 🔴 **SỬA 2026-08-25 (vòng rà ba lớp, mục ⑧) — `metadata` KHÔNG còn là cơ chế chặn, chỉ
-/// còn là chẩn đoán.** Bản trước: `metadata` ⇒ so trần ⇒ (nếu qua) `std::fs::read` KHÔNG
-/// CHẶN đọc TRỌN tệp. Giữa hai bước đó là một cửa sổ TOCTOU thật: nếu tệp LỚN LÊN sau khi
-/// `metadata` đã đo (một script khác đang ghi vào nó, hoặc người dùng đổi tệp trong hộp
-/// thoại rồi bấm lại) nhưng TRƯỚC khi `std::fs::read` chạy, `metadata` nói 1 MiB trong khi
-/// `read` gặp 20 MiB — trần bị bỏ qua và TOÀN BỘ 20 MiB đó vẫn bị nạp vào bộ nhớ trước khi
-/// có bất kỳ điều gì bị từ chối.
-///
-/// Vá: `File::open` ⇒ bọc bằng [`std::io::Read::take`] đúng `LIMIT + 1` byte ⇒
-/// `read_to_end`. Đây là ĐƯỜNG THẬT chặn: `read_to_end` không bao giờ nạp quá `LIMIT + 1`
-/// byte vào `Vec`, BẤT KỂ tệp trên đĩa lớn thế nào tại thời điểm đọc — quyết định "quá
-/// trần" dựa trên SỐ BYTE THẬT SỰ ĐÃ NẠP (`buffer.len()`), không dựa trên một con số
-/// `metadata` đã có thể cũ. Đọc `LIMIT + 1` (không phải đúng `LIMIT`) là mẹo chuẩn để phân
-/// biệt "tệp DÀI ĐÚNG BẰNG trần" (đọc được `LIMIT` byte, `take` cạn, hợp lệ) với "tệp DÀI
-/// HƠN trần" (đọc được `LIMIT + 1` byte, cần đúng một byte thừa để biết chắc còn nữa).
-///
-/// ⚠️ `size` trong lỗi trả về là SỐ BYTE THẬT SỰ ĐÃ ĐỌC (`LIMIT + 1` khi trần bị vượt),
-/// KHÔNG phải kích thước thật của tệp trên đĩa — hệ quả trực tiếp của việc không còn đọc
-/// `metadata` cho quyết định chặn. Đây là đánh đổi có chủ: một con số hơi khác biệt so với
-/// kích thước thật đổi lấy việc KHÔNG BAO GIỜ nạp quá `LIMIT + 1` byte, dù tệp thật là 20
-/// MiB hay 20 GiB.
+/// Reads a Glossary import file; the cap and BOM handling live in `delimited_text::read_text_file`.
 pub fn read_import_file(path: &Path) -> Result<String, GlossaryError> {
-    let path_str = path.display().to_string();
-
-    let file = std::fs::File::open(path).map_err(|e| GlossaryError::ImportReadFailed {
-        path: path_str.clone(),
-        detail: e.to_string(),
-    })?;
-
-    let mut bytes = Vec::new();
-    file.take(MAX_GLOSSARY_IMPORT_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|e| GlossaryError::ImportReadFailed {
-            path: path_str.clone(),
-            detail: e.to_string(),
-        })?;
-
-    if bytes.len() as u64 > MAX_GLOSSARY_IMPORT_BYTES {
-        return Err(GlossaryError::ImportFileTooLarge {
-            size: bytes.len() as u64,
-            limit: MAX_GLOSSARY_IMPORT_BYTES,
-        });
-    }
-
-    let text =
-        String::from_utf8(bytes).map_err(|_| GlossaryError::ImportNotUtf8 { path: path_str })?;
-
-    Ok(strip_bom(&text).to_owned())
+    delimited_text::read_text_file(path, MAX_GLOSSARY_IMPORT_BYTES).map_err(|e| match e {
+        ReadError::ReadFailed { path, detail } => GlossaryError::ImportReadFailed { path, detail },
+        ReadError::TooLarge { size, limit } => GlossaryError::ImportFileTooLarge { size, limit },
+        ReadError::NotUtf8 { path } => GlossaryError::ImportNotUtf8 { path },
+    })
 }
 
-/// Ghi `contents` NGUYÊN TỬ xuống `path` — khuôn chép `core/library/meta.rs::write_atomic`
-/// (`:131-166`): tạm cạnh đích ⇒ `write_all` ⇒ `sync_all` ⇒ `rename` ⇒ dọn `.tmp` ở CẢ
-/// HAI nhánh lỗi ⇒ fsync thư mục cha.
-///
-/// ⚠️ **Kho chưa có tiền lệ ghi ra một đường dẫn TUỲ Ý người dùng chọn** — khuôn gốc ghi
-/// vào một đường dẫn NỘI BỘ CỐ ĐỊNH (`meta.json` cạnh `.atproj/`). Rủi ro mới: tệp `.tmp`
-/// cạnh đích có thể bị hệ điều hành từ chối tạo ở một thư mục người dùng chọn (§Ask
-/// First của spec). Lý do vẫn chọn nguyên tử: một tệp cụt sau lượt ghi dở là một BẢN SAO
-/// LƯU người dùng tưởng mình đang có — cùng lớp "hỏng trong im lặng" mà kho đã hụt bốn
-/// lần.
-///
-/// 🔵 **SỬA 2026-08-25 (vòng rà ba lớp, mục ⑨) — "khuôn chép `write_atomic`" nay chỉ còn
-/// ĐÚNG MỘT PHẦN: năm bước ở trên (tạm cạnh đích/ghi/sync/rename/dọn+fsync) vẫn y hệt, NHƯNG
-/// TÊN tệp tạm THÌ KHÔNG.** `write_atomic` đặt tên tạm là `<tên>.tmp` KHÔNG có hậu tố duy
-/// nhất — an toàn ở ĐÓ vì đích của nó (`meta.json`) là một đường dẫn NỘI BỘ CỐ ĐỊNH mà MỌI
-/// lượt ghi đi qua `Store` (một writer NỐI TIẾP, không có hai lượt ghi đồng thời cùng đích).
-/// Đích của hàm NÀY là một đường dẫn NGƯỜI DÙNG VỪA CHỌN trong hộp thoại — không writer nào
-/// nối tiếp hoá việc đó — nên HAI LƯỢT XUẤT chạy song song cùng một đích (ví dụ người dùng
-/// bấm "Xuất" hai lần liên tiếp trước khi lượt đầu xong) đều tính ra CÙNG một tên tạm
-/// `<tên>.tmp`, cùng ghi vào CÙNG một tệp — nội dung của lượt này có thể bị lượt kia GHI ĐÈ
-/// giữa chừng, và `rename` cuối cùng đưa một bản TRỘN (không phải một trong hai bản trọn
-/// vẹn) vào đích, đúng lúc mã lại đang viện dẫn `write_atomic` để khẳng định tính nguyên tử.
-///
-/// Tên tạm nay mang một hậu tố DUY NHẤT: `std::process::id()` + `uuid::Uuid::new_v4()`.
-/// `pid` một mình không đủ — HAI lượt xuất trong CÙNG một tiến trình (hai lần bấm Xuất)
-/// chia nhau cùng pid. Một `AtomicU64` một mình cũng không đủ — nó chết theo tiến trình,
-/// nên một lượt xuất của phiên TRƯỚC để lại `.tmp` mồ côi vẫn va với phiên SAU. `uuid` đã có
-/// sẵn trong `Cargo.toml` (`=1.24.0`, feature `v4`) và đã dùng ở `commands/project/work_creation.rs` —
-/// dùng lại nó tốn ĐÚNG một dòng `use`, KHÔNG phải một phụ thuộc mới (NFR15).
+/// Writes an export file atomically; see `delimited_text::write_text_file_atomic`.
 pub fn write_export_file(path: &Path, contents: &str) -> Result<(), GlossaryError> {
-    let path_str = path.display().to_string();
-
-    // 🔴 P8 (vòng rà ba lớp 2026-08-25) — TỪ CHỐI TƯỜNG MINH khi `path` không có thành
-    // phần TÊN TỆP (vd. kết thúc bằng `..`, hoặc là gốc `/`) — không ĐOÁN. Bản trước
-    // `unwrap_or_default()` trên `file_name()` biến một đường dẫn KHÔNG có tên tệp thành
-    // một tệp tạm TRẦN `.tmp` ngay trong thư mục cha (`OsString::default()` rỗng + đuôi
-    // `.tmp` = tên tệp `".tmp"`) — một tệp KHÁC HẲN thứ người dùng yêu cầu, ghi ra mà không
-    // nói một câu nào.
-    let Some(file_name) = path.file_name() else {
-        return Err(GlossaryError::ExportWriteFailed {
-            path: path_str,
-            detail: "duong dan khong co thanh phan ten tep -- khong doan duoc ten tep tam"
-                .to_owned(),
-        });
-    };
-
-    // Hậu tố DUY NHẤT (mục ⑨) — xem doc-comment của hàm cho lý do pid+uuid, không pid trần,
-    // không AtomicU64 trần.
-    let mut tmp_name = file_name.to_os_string();
-    tmp_name.push(format!(".{}-{}.tmp", std::process::id(), Uuid::new_v4()));
-    let tmp = path.with_file_name(tmp_name);
-
-    let write_result = (|| -> std::io::Result<()> {
-        use std::io::Write as _;
-        let mut file = std::fs::File::create(&tmp)?;
-        file.write_all(contents.as_bytes())?;
-        file.sync_all()?;
-        Ok(())
-    })();
-
-    if let Err(e) = write_result {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(GlossaryError::ExportWriteFailed {
-            path: path_str,
-            detail: e.to_string(),
-        });
-    }
-
-    if let Err(e) = std::fs::rename(&tmp, path) {
-        // ⚠️ Dọn tệp tạm ở CẢ nhánh này — không có nó, một `rename` trượt để lại
-        // `<tên>.tmp` nằm cạnh một đích vắng mặt, và lần sau lại thêm một cái nữa.
-        let _ = std::fs::remove_file(&tmp);
-        return Err(GlossaryError::ExportWriteFailed {
-            path: path_str,
-            detail: e.to_string(),
-        });
-    }
-
-    // fsync THƯ MỤC CHA — không thừa: `file.sync_all()` làm bền NỘI DUNG tệp tạm,
-    // `rename` sửa THƯ MỤC, và mục thư mục đó nằm trong cache hệ tệp cho tới khi chính
-    // thư mục được fsync. Im lặng khi trượt có chủ ý (khuôn `meta.rs`) — một khác biệt
-    // nền tảng (vd. `File::open` một thư mục thất bại trên Windows) không biến thành
-    // một lỗi cho người dùng khi bản ghi chính đã thành công.
-    if let Some(dir) = path.parent()
-        && let Ok(dir_handle) = std::fs::File::open(dir)
-    {
-        let _ = dir_handle.sync_all();
-    }
-
-    Ok(())
+    delimited_text::write_text_file_atomic(path, contents)
+        .map_err(|WriteError { path, detail }| GlossaryError::ExportWriteFailed { path, detail })
 }
 
 #[cfg(test)]

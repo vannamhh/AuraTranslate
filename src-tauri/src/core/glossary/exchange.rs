@@ -28,26 +28,27 @@ use std::collections::BTreeMap;
 
 use crate::core::i18n::{IpcError, MessageKey};
 
+pub use crate::core::delimited_text::Delimiter;
+use crate::core::delimited_text::{
+    self, DelimitedError, count_line_breaks, render_field, strip_bom, strip_formula_guard,
+    unquoted_char_present,
+};
+pub(crate) use crate::core::delimited_text::{
+    split_fields, split_first_logical_line, strip_zero_width,
+};
+
 use super::entry::{Category, GlossaryEntry};
 
-/// Dấu phân cách. `Delimiter::as_char()` là điểm DUY NHẤT quy ra ký tự thật — mọi hàm
-/// khác trong module nhận `Delimiter`, không nhận `char` trần.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Delimiter {
-    /// `,` — RFC 4180.
-    Csv,
-    /// `\t`.
-    Tsv,
-}
-
-impl Delimiter {
-    /// Ký tự thật trên tệp.
-    pub const fn as_char(self) -> char {
-        match self {
-            Delimiter::Csv => ',',
-            Delimiter::Tsv => '\t',
+pub(crate) fn logical_lines(
+    text: &str,
+    delimiter: Option<char>,
+    start_line: usize,
+) -> Result<Vec<(usize, &str)>, ParseIssue> {
+    delimited_text::logical_lines(text, delimiter, start_line).map_err(|e| match e {
+        DelimitedError::UnterminatedQuotedField { line } => {
+            ParseIssue::UnterminatedQuotedField { line }
         }
-    }
+    })
 }
 
 /// Sáu cột của tệp xuất — thứ tự CỐ ĐỊNH, dùng cho CẢ hàng tiêu đề lẫn việc dò cột lúc
@@ -62,137 +63,9 @@ const COLUMNS: [&str; 6] = [
     "created_at",
 ];
 
-/// Dấu thứ tự byte UTF-8 (`EF BB BF`) — cùng khuôn `core::segment::pipeline::strip_bom`.
-/// 🔵 **SỬA 2026-09-04 (Story 6.2)** — con trỏ đổi vì hàm gốc dời từ `core::segment::import`
-/// sang `core::segment::pipeline` (bước giải mã của chuỗi AD-39); bản CHÉP ở đây không đổi.
-///
-/// ⚠️ Bản CHÉP, không `use` hàm kia: nó là `fn` riêng tư của `core::segment::pipeline`
-/// (không `pub`), và module này cố ý không phụ thuộc `core::segment` cho một việc một
-/// dòng — xem Code Map của spec 3.10 ("khuôn chép", không "tái dùng").
-fn strip_bom(raw: &str) -> &str {
-    raw.strip_prefix('\u{feff}').unwrap_or(raw)
-}
-
-// ═════════════════════════════════════════════════════════════════════════════════
-// 🔵 THÊM 2026-08-25 (vòng rà ba lớp, mục ①) — VÔ HIỆU HOÁ CÔNG THỨC (CSV/TSV injection)
-// ═════════════════════════════════════════════════════════════════════════════════
-// Một tệp Glossary xuất ra là DỮ LIỆU NGƯỜI KHÁC GỬI TỚI khi nó được mở lại bằng một bảng
-// tính (Numbers/Excel/LibreOffice) — bảng tính đó không phân biệt được "chuỗi người dùng gõ
-// tình cờ bắt đầu bằng `=`" với "một công thức". Một `translation` như `=1+1` hay
-// `+HYPERLINK("http://...")` chạy NGAY khi mở tệp, không cần người dùng bấm gì. RFC 4180
-// (mà `field_needs_quoting` rào) không nói gì về việc này — nó là quy ước riêng của bảng
-// tính, không phải của định dạng.
-//
-// Vá theo khuyến nghị OWASP CSV Injection: một dấu nháy ĐƠN (`'`) đứng NGAY ĐẦU ô vô hiệu
-// hoá diễn giải công thức của mọi bảng tính phổ biến. Dấu nháy đó KHÔNG đặc biệt với RFC
-// 4180 (không phải `"`), nên nó là một ký tự NỘI DUNG bình thường với `field_needs_quoting`/
-// `split_fields` — [`strip_formula_guard`] là chỗ DUY NHẤT gỡ nó lại lúc `parse`, để vòng
-// tròn xuất→nhập trả về đúng giá trị GỐC (AC ① của spec cụm B).
-//
-// 🔵 SỬA 2026-08-25 (lượt rà của cụm B, đo trên chính ca test) — MỆNH ĐỀ "giới hạn có
-// tên" của bản trước SAI. Bản trước viết: một giá trị GỐC đã tự bắt đầu bằng `'` rồi theo
-// sau bởi một ký tự kích hoạt (ví dụ `'=cong thuc`) "không phủ được... mà không thêm một
-// cột đánh dấu riêng". Lượt rà đo bằng ca thật (`entry(1, "term", Some("'=1+1"))` round-trip
-// qua `render_tier`/`parse`) và chỉ ra: 0 cột mới cần thiết — cái THIẾU là một vị từ ĐẾM
-// SỐ DẤU NHÁY ĐƠN DẪN ĐẦU thay vì chỉ NHÌN ĐÚNG MỘT KÝ TỰ ĐẦU. `needs_formula_guard` bản
-// trước hỏi "ký tự ĐẦU TIÊN có phải ký tự kích hoạt không" — với `'=1+1` ký tự đầu là `'`
-// (không kích hoạt) nên trả `false`, ô không được rào lúc xuất, rồi `strip_formula_guard`
-// lúc nhập lại NHẦM cắt mất dấu `'` gốc vì ký tự NGAY SAU nó là `=`. Cả bốn giá trị dạng
-// `'=x`/`'+x`/`'-x`/`'@x` đều mất ký tự đầu qua một vòng xuất→nhập — vi phạm thẳng AC ①
-// ("giá trị đọc ra bằng đúng từng byte giá trị đã xuất").
-//
-// Vị từ ĐÚNG (đối xứng, dùng CHUNG cho cả hai chiều qua [`char_after_leading_quotes`]):
-// bỏ HẾT các dấu `'` dẫn đầu (0, 1, hay nhiều), rồi hỏi ký tự NGAY SAU chuỗi đó có phải
-// một ký tự kích hoạt không. Xuất: cần rào ⇒ thêm ĐÚNG MỘT `'` (dù giá trị gốc đã có sẵn
-// bao nhiêu dấu `'` dẫn đầu). Nhập: cần rào VÀ ô đọc được bắt đầu bằng `'` ⇒ bỏ ĐÚNG MỘT
-// `'` (không phải bỏ hết) — cùng khuôn RFC 4180 thoát `"` bằng cách NHÂN ĐÔI nó. Bốn ca
-// đối chiếu: `=x` → xuất `'=x` → nhập lại `=x` ✓ · `'=x` → xuất `''=x` → nhập lại `'=x` ✓
-// (bảng tính ẩn dấu `'` dẫn đầu nên `''=x` vẫn HIỂN THỊ đúng `'=x` cho người đọc) · `'abc`
-// → ký tự sau dấu `'` dẫn đầu là `a`, không kích hoạt ⇒ không rào, giữ nguyên ✓ · `abc` →
-// không rào ✓.
-//
-// ⚠️ **Nghiệm thu bằng mắt trên một bảng tính THẬT không chạy được ở môi trường không có
-// GUI** — xem §Verification của spec cụm B: ghi vào `deferred-work.md` thay vì đánh dấu đạt
-// bằng suy luận nếu lượt thi hành không mở được Numbers/Excel/LibreOffice thật.
-
-/// Bốn ký tự mà bảng tính hiểu là "ô này là một công thức" khi đứng NGAY ĐẦU ô (sau khi đã
-/// bỏ hết mọi dấu `'` dẫn đầu — xem [`char_after_leading_quotes`]).
-const FORMULA_TRIGGER_CHARS: [char; 4] = ['=', '+', '-', '@'];
-
-/// Tiền tố vô hiệu hoá — một dấu nháy đơn.
-const FORMULA_GUARD_PREFIX: char = '\'';
-
-/// Bỏ HẾT các dấu `'` DẪN ĐẦU của `field` (0, 1, hay nhiều), rồi trả ký tự NGAY SAU chuỗi
-/// đó — `None` nếu `field` chỉ toàn dấu `'` hoặc rỗng. Đây là MỘT hàm DUY NHẤT dùng CHUNG
-/// bởi cả [`needs_formula_guard`] (chiều XUẤT, nhìn giá trị GỐC) lẫn gián tiếp qua chính
-/// [`needs_formula_guard`] ở chiều NHẬP ([`strip_formula_guard`]) — một vị từ chung là thứ
-/// giữ hai chiều ĐỐI XỨNG nhau; hai vị từ viết tay riêng rẽ là đúng cách bản trước bị lệch.
-fn char_after_leading_quotes(field: &str) -> Option<char> {
-    field
-        .trim_start_matches(FORMULA_GUARD_PREFIX)
-        .chars()
-        .next()
-}
-
-fn needs_formula_guard(field: &str) -> bool {
-    matches!(char_after_leading_quotes(field), Some(c) if FORMULA_TRIGGER_CHARS.contains(&c))
-}
-
-/// Gỡ ĐÚNG MỘT [`FORMULA_GUARD_PREFIX`] khỏi `field` — CHỈ khi [`needs_formula_guard`] xác
-/// nhận ô này CẦN rào (đúng vị từ mà chiều XUẤT đã dùng để quyết định có thêm `'` hay
-/// không) VÀ `field` thật sự bắt đầu bằng `'` (một giá trị kích hoạt KHÔNG được rào từ một
-/// nguồn ngoài kho, ví dụ `=x` trần không do module này xuất ra, không bị đụng tới — không
-/// có `'` nào để bỏ). Bỏ ĐÚNG MỘT dấu, không bỏ hết: một giá trị gốc tự mang `'=x` được xuất
-/// thành `''=x` (thêm một `'`), và nhập lại phải trả về ĐÚNG `'=x` (bỏ một `'`), không phải
-/// `=x` (bỏ cả hai).
-fn strip_formula_guard(field: &str) -> &str {
-    if needs_formula_guard(field)
-        && let Some(rest) = field.strip_prefix(FORMULA_GUARD_PREFIX)
-    {
-        return rest;
-    }
-    field
-}
-
 // ═════════════════════════════════════════════════════════════════════════════════
 // XUẤT — render_tier
 // ═════════════════════════════════════════════════════════════════════════════════
-
-/// Một ô cần bọc nháy kép khi nó chứa dấu phân cách, nháy kép, hoặc xuống dòng (`\n`/`\r`)
-/// — RFC 4180, áp CHO CẢ HAI dấu phân cách (xem doc-comment đầu tệp).
-fn field_needs_quoting(field: &str, delimiter: char) -> bool {
-    field.contains(delimiter) || field.contains('"') || field.contains('\n') || field.contains('\r')
-}
-
-/// Bọc một ô: nháy kép nhân đôi bên trong, cả cụm bọc trong một cặp nháy kép — RFC 4180.
-fn quote_field(field: &str) -> String {
-    let mut out = String::with_capacity(field.len() + 2);
-    out.push('"');
-    for c in field.chars() {
-        if c == '"' {
-            out.push('"');
-        }
-        out.push(c);
-    }
-    out.push('"');
-    out
-}
-
-/// Render một ô: vô hiệu hoá công thức nếu cần (mục ①), rồi bọc nếu cần, nguyên văn nếu
-/// không.
-fn render_field(field: &str, delimiter: char) -> String {
-    let guarded: std::borrow::Cow<'_, str> = if needs_formula_guard(field) {
-        std::borrow::Cow::Owned(format!("{FORMULA_GUARD_PREFIX}{field}"))
-    } else {
-        std::borrow::Cow::Borrowed(field)
-    };
-
-    if field_needs_quoting(&guarded, delimiter) {
-        quote_field(&guarded)
-    } else {
-        guarded.into_owned()
-    }
-}
 
 /// Xuất một tầng thành một `String` — hàng tiêu đề + N hàng, **6 cột, không cột `id`**
 /// (§Never: `id` chỉ duy nhất TRONG một kho, một `id` trong tệp của người khác là một con
@@ -521,45 +394,6 @@ pub struct ParsedImport {
     pub header_columns: Vec<String>,
 }
 
-// ═════════════════════════════════════════════════════════════════════════════════
-// 🔵 THÊM 2026-08-25 (vòng rà ba lớp, cụm B, mục ⑥/⑥b) — ZERO-WIDTH trong `source_term`
-// ═════════════════════════════════════════════════════════════════════════════════
-// Đo được 2026-08-25 (`rustc -O`, xem §Design Notes của spec cụm B): U+200B (ZERO WIDTH
-// SPACE), U+200C, U+200D, U+2060, U+FEFF (giữa văn bản) đều KHÔNG mang thuộc tính Unicode
-// `White_Space` — chúng lọt CẢ `str::trim()` (rào ⑥ hiện có ở dòng dưới) LẪN bảng 25 điểm
-// mã `White_Space` của `CHECK` trong `GLOSSARY_ENTRY_DDL`. Một `source_term` chỉ gồm những
-// ký tự này qua lọt cả hai lớp phòng thủ, thành một mục Glossary KHÔNG NHÌN THẤY ĐƯỢC.
-//
-// ⚠️ **Tập ĐÓNG, chỉ năm ký tự VIẾT RA ĐƯỢC — KHÔNG phủ trọn thuộc tính Unicode `Cf`.** Rust
-// std không mang bảng phân loại category, và kéo một crate Unicode về là một cổng NFR15
-// mới. Vế đó là một mục nợ có chủ (`deferred-work.md`), không phải một dòng vá ở đây.
-//
-// ⚠️ **Bản vá này CHỈ đứng ở lớp Rust của ĐƯỜNG NHẬP** (`exchange.rs::parse`) — không chạm
-// `GLOSSARY_ENTRY_DDL`, không bước di trú, không `insert_manual_entry` (đường nhập tay không
-// đi qua module này). Vế SQL + vế nhập tay của cùng lỗ hổng là một mục nợ riêng, chủ là story
-// đầu tiên chạm `GLOSSARY_ENTRY_DDL`.
-//
-// 🔵 **SỬA 2026-08-25 (vòng rà ba lớp, mục ⑥c)** — câu trên bản trước còn khai *"CHỈ áp cho
-// `source_term`"*, và mệnh đề ấy HẾT ĐÚNG: hai lăng kính độc lập cùng chỉ ra `translation` và
-// `note` bị bỏ lại với mỗi `.trim()`. Ice ký nới phạm vi sang cả ba cột văn bản tự do; lý do
-// đầy đủ ghi tại chỗ trích ba cột đó trong `parse`. Ranh giới CÒN LẠI (SQL + nhập tay) không
-// đổi.
-const ZERO_WIDTH_CHARS: [char; 5] = ['\u{200B}', '\u{200C}', '\u{200D}', '\u{2060}', '\u{FEFF}'];
-
-/// Cắt MỌI xuất hiện của [`ZERO_WIDTH_CHARS`] khỏi `s` — không chỉ ở biên (khác `str::trim()`,
-/// vốn chỉ cắt biên): một ký tự zero-width GIỮA một thuật ngữ (ví dụ ai đó dán hai tệp xuất
-/// nối liền, để lại một U+FEFF giữa văn bản) cũng phải bị loại khỏi giá trị LƯU XUỐNG, không
-/// chỉ khỏi phép kiểm rỗng.
-///
-/// `pub(crate)`: `insert_manual_entry` also calls this. `GLOSSARY_ENTRY_DDL` itself stays
-/// unchanged; a twin migration adds triggers instead, since an already-migrated store never
-/// reruns old DDL.
-pub(crate) fn strip_zero_width(s: &str) -> String {
-    s.chars()
-        .filter(|c| !ZERO_WIDTH_CHARS.contains(c))
-        .collect()
-}
-
 /// `s` khớp hình dạng `YYYY-MM-DDTHH:MM:SS.mmmZ` — đúng thứ SQLite
 /// `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')` sinh ra ở MỌI đường ghi khác vào cột
 /// `created_at`. Đây là kiểm HÌNH DẠNG (đúng chữ số ở đúng vị trí, đúng dấu phân cách), KHÔNG
@@ -586,235 +420,6 @@ fn looks_like_iso8601_utc(s: &str) -> bool {
         && b[19] == b'.'
         && digits(20..23)
         && b[23] == b'Z'
-}
-
-/// Tìm ranh giới DÒNG LOGIC đầu tiên trong `text` — dừng ở `\n`/`\r\n` KHÔNG nằm trong một
-/// ô đang bọc nháy kép. Trả `(dòng, phần còn lại SAU dấu xuống dòng)`.
-///
-/// 🔵 **SỬA 2026-08-25 (Story 3.10b) — áp ĐÚNG luật mở ô bọc của [`split_fields`]: một
-/// `"` chỉ mở ô bọc khi đứng NGAY ĐẦU Ô, không phải một `"` bất kỳ ở bất kỳ đâu.** Bản
-/// trước đảo `in_quotes` trên MỌI `"` gặp được, nên một nháy kép đặt sai chỗ giữa một ô
-/// KHÔNG bọc (`a"b,c`) tự mở một "ô bọc" giả — mọi `\n` sau đó bị nuốt vào cùng một
-/// "dòng logic" cho tới khi gặp `"` thứ hai, làm lệch số dòng của MỌI hàng phía sau.
-/// Đóng `deferred-work.md §*Deferred from: 3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap (2026-08-22)*`. `delimiter = None` (dùng cho hàng TIÊU ĐỀ, lúc dấu phân
-/// cách CHƯA biết) coi CẢ HAI ứng viên (`,` và TAB) là ranh giới ô — đủ an toàn cho một
-/// hàng tiêu đề (định danh máy đọc, không mang dữ liệu tự do); `delimiter = Some(d)`
-/// dùng ĐÚNG MỘT ký tự đã chốt cho các hàng dữ liệu, khớp hệt [`split_fields`].
-///
-/// Một cặp nháy kép nhân đôi (`""`, cách thoát một nháy kép RFC 4180 bên trong ô) vẫn
-/// đảo trạng thái HAI LẦN khi đang Ở TRONG một ô đã bọc — vào rồi ra ngay — nên nó không
-/// bị hiểu nhầm thành một dấu đóng ô thật.
-///
-/// 🔵 **SỬA 2026-08-25 (vòng rà ba lớp, mục ②) — trả thêm một cờ `unterminated`.** Bản
-/// trước, khi hết `text` mà `in_quotes` vẫn `true` (ô mở nhưng không bao giờ đóng), rơi
-/// vào ĐÚNG nhánh `(text, "")` mà một dòng cuối tệp HỢP LỆ (không dấu xuống dòng cuối) cũng
-/// dùng — hai tình huống khác hẳn nhau (một cái là lỗi cấu trúc, một cái là bình thường)
-/// không phân biệt được ở chỗ gọi. Cờ thứ ba tách hai ca đó ra: `true` ⇒ toàn bộ `text` đã
-/// bị NUỐT vào một ô đang mở, không phải một dòng logic hợp lệ.
-/// 🔵 **SỬA 2026-09-11 (Story 6.16) — `pub(crate)`, KHÔNG đổi thân.** Nhập song ngữ (FR115)
-/// tái dùng đúng ba hàm tách dòng/ô này qua [`crate::core::segment::bilingual`] — NFR15
-/// (đo trước khi chốt kiến trúc): một tập con RFC 4180 THỨ HAI cho cùng một việc là một
-/// bản chép mà hai bản phải khớp nhau bằng kỷ luật, đúng lớp rủi ro NFR15 tồn tại để chặn.
-/// `core::segment::bilingual` KHÔNG viết vào tệp, KHÔNG biết đường dẫn (Story 3.10 AC5 quét
-/// `exchange.rs` chính nó, không quét chỗ gọi) — hàm CHỈ tách chữ, tính chất "module thuần"
-/// không đổi khi mở rộng khả kiến từ riêng tư sang `pub(crate)`.
-pub(crate) fn split_first_logical_line(text: &str, delimiter: Option<char>) -> (&str, &str, bool) {
-    let is_field_boundary = |c: char| match delimiter {
-        Some(d) => c == d,
-        None => c == ',' || c == '\t',
-    };
-
-    let mut in_quotes = false;
-    let mut at_field_start = true;
-    let mut chars = text.char_indices().peekable();
-
-    while let Some((i, c)) = chars.next() {
-        if in_quotes {
-            if c == '"' {
-                if chars.peek().map(|&(_, next)| next) == Some('"') {
-                    chars.next();
-                } else {
-                    in_quotes = false;
-                }
-            }
-            continue;
-        }
-
-        match c {
-            '"' if at_field_start => {
-                in_quotes = true;
-                at_field_start = false;
-            }
-            '\n' => return (&text[..i], &text[i + 1..], false),
-            '\r' => {
-                if let Some(&(j, '\n')) = chars.peek() {
-                    return (&text[..i], &text[j + 1..], false);
-                }
-                return (&text[..i], &text[i + 1..], false);
-            }
-            c if is_field_boundary(c) => at_field_start = true,
-            _ => at_field_start = false,
-        }
-    }
-
-    (text, "", in_quotes)
-}
-
-/// Đếm số RANH GIỚI DÒNG trong `s` theo đúng luật mà [`split_first_logical_line`] dùng
-/// NGOÀI một ô đang bọc: `\r\n` là MỘT ranh giới, `\r` trần là MỘT, `\n` trần là MỘT.
-///
-/// 🔵 **THÊM 2026-08-25 (vòng rà ba lớp, mục ③).** Trước bản vá, [`logical_lines`] đếm
-/// `line.matches('\n').count()` — chỉ `\n`. Một ô bọc nháy kép mang một `\r` TRẦN bên trong
-/// (ví dụ `"dong1\rdong2"`) bị `split_first_logical_line` nuốt như NỘI DUNG (đúng, vì nó
-/// đang ở TRONG ô bọc), nhưng người dùng mở file bằng trình soạn thảo vẫn thấy đó là HAI
-/// dòng màn hình. Đếm chỉ `\n` bỏ sót đúng ranh giới đó, làm số dòng của MỌI hàng phía sau
-/// lệch thấp hơn thứ người dùng tự đếm. Hàm này áp CÙNG MỘT luật nhận dạng ranh giới dòng
-/// mà chính `split_first_logical_line` dùng ở NGOÀI ngoặc kép, nên hai lớp không còn lệch
-/// nhau.
-fn count_line_breaks(s: &str) -> usize {
-    let mut count = 0;
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '\n' => count += 1,
-            '\r' => {
-                if chars.peek() == Some(&'\n') {
-                    chars.next();
-                }
-                count += 1;
-            }
-            _ => {}
-        }
-    }
-    count
-}
-
-/// Mọi dòng logic của `text`, kèm số dòng NGUỒN (1-based, bắt đầu từ `start_line`) mà nó
-/// BẮT ĐẦU — một ô bọc nháy kép mang xuống dòng thật bên trong làm một "dòng logic" trải
-/// qua NHIỀU dòng nguồn; số dòng báo lỗi là dòng nó bắt đầu, đúng thứ một người đọc file
-/// bằng trình soạn thảo sẽ đếm.
-///
-/// 🔵 **SỬA 2026-08-25 (vòng rà ba lớp) — trả `Result`, mục ② VÀ ③ cùng lượt.** `Err` khi
-/// [`split_first_logical_line`] báo một ô mở ngoặc kép không bao giờ đóng (mục ②) — dừng
-/// NGAY, không tiếp tục dò các "hàng" phía sau (thứ đó chỉ là phần còn lại của ô đang mở,
-/// không phải dữ liệu). Đếm ranh giới dòng qua [`count_line_breaks`] thay vì chỉ đếm `\n`
-/// (mục ③).
-/// 🔵 **SỬA 2026-09-11 (Story 6.16) — `pub(crate)`, KHÔNG đổi thân.** Xem doc-comment
-/// [`split_first_logical_line`] — cùng lý do NFR15, cùng lượt sửa.
-pub(crate) fn logical_lines(
-    text: &str,
-    delimiter: Option<char>,
-    start_line: usize,
-) -> Result<Vec<(usize, &str)>, ParseIssue> {
-    let mut out = Vec::new();
-    let mut remaining = text;
-    let mut line_no = start_line;
-
-    while !remaining.is_empty() {
-        let (line, rest, unterminated) = split_first_logical_line(remaining, delimiter);
-        if unterminated {
-            return Err(ParseIssue::UnterminatedQuotedField { line: line_no });
-        }
-        out.push((line_no, line));
-        line_no += count_line_breaks(line) + 1;
-        remaining = rest;
-    }
-
-    Ok(out)
-}
-
-/// Tách MỘT dòng logic thành các ô theo `delimiter` — nháy kép mở/đóng một ô (chỉ khi nó
-/// đứng NGAY ĐẦU ô), nháy kép nhân đôi bên trong là một nháy kép thoát, dấu phân cách/xuống
-/// dòng bên trong một ô đang bọc là NỘI DUNG chứ không phải ranh giới.
-/// 🔵 **SỬA 2026-09-11 (Story 6.16) — `pub(crate)`, KHÔNG đổi thân.** Xem doc-comment
-/// [`split_first_logical_line`] — cùng lý do NFR15, cùng lượt sửa.
-pub(crate) fn split_fields(line: &str, delimiter: char) -> Vec<String> {
-    let mut fields = Vec::new();
-    let mut field = String::new();
-    let mut in_quotes = false;
-    let mut at_field_start = true;
-    let mut chars = line.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if in_quotes {
-            if c == '"' {
-                if chars.peek() == Some(&'"') {
-                    field.push('"');
-                    chars.next();
-                } else {
-                    in_quotes = false;
-                }
-            } else {
-                field.push(c);
-            }
-            continue;
-        }
-
-        if c == '"' && at_field_start {
-            in_quotes = true;
-            at_field_start = false;
-            continue;
-        }
-
-        if c == delimiter {
-            fields.push(std::mem::take(&mut field));
-            at_field_start = true;
-            continue;
-        }
-
-        field.push(c);
-        at_field_start = false;
-    }
-
-    fields.push(field);
-    fields
-}
-
-/// `target` (`,` hoặc TAB) có xuất hiện NGOÀI một ô đang bọc nháy kép trong `text` hay
-/// không — dùng để dò dấu phân cách trên hàng TIÊU ĐỀ mà KHÔNG cần tách ô trước.
-///
-/// 🔵 **THÊM 2026-08-25 (vòng rà ba lớp, mục ④).** Bản trước dùng `header_text.contains(',')`
-/// trên văn bản THÔ — một ô tiêu đề TSV bọc nháy kép chứa dấu phẩy (ví dụ tiêu đề TSV có một
-/// cột `"note, extra"`) làm `has_comma` SAI thành `true`, và vì TSV thật cũng có `has_tab =
-/// true`, kết quả là `DelimiterUnresolved` oan cho một tệp hoàn toàn hợp lệ.
-///
-/// ⚠️ **Vì sao KHÔNG tách hai lượt bằng `split_fields`** (phương án bị cân nhắc và loại ở
-/// §Ask First của spec): gọi `split_fields(header_text, ',')` rồi lại `split_fields(header_text,
-/// '\t')` để so sánh là hai lượt TÁCH, và tách vốn không có nhánh lỗi (không giống `parse`)
-/// nhưng lại giả định SAI một delimiter trong lúc chưa biết delimiter đúng — mỗi lượt tự áp
-/// một luật ranh giới ô SAI cho ứng viên còn lại. Hàm dưới đây không tách gì cả, chỉ QUÉT
-/// một lượt DUY NHẤT cho một `target`, dùng CHÍNH luật mở/đóng ô mà [`split_first_logical_line`]
-/// (chế độ `delimiter = None`, coi CẢ hai ứng viên là ranh giới ô — đúng luật hàng tiêu đề)
-/// đã dùng để trích ra `header_text` — không đoán delimiter nào trước, không có nhánh lỗi.
-fn unquoted_char_present(text: &str, target: char) -> bool {
-    let mut in_quotes = false;
-    let mut at_field_start = true;
-    let mut chars = text.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if in_quotes {
-            if c == '"' {
-                if chars.peek() == Some(&'"') {
-                    chars.next();
-                } else {
-                    in_quotes = false;
-                }
-            }
-            continue;
-        }
-
-        match c {
-            '"' if at_field_start => {
-                in_quotes = true;
-                at_field_start = false;
-            }
-            c if c == target => return true,
-            ',' | '\t' => at_field_start = true,
-            _ => at_field_start = false,
-        }
-    }
-
-    false
 }
 
 /// Phân tích TRỌN văn bản một tệp CSV/TSV thành các hàng — hàm THUẦN, không chạm Store

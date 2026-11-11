@@ -73,6 +73,7 @@ import { resetReviewMode } from '../reviewModeState'
 import { resetGlossaryQueue } from '../glossaryQueueState'
 import { resetAlignment } from '../alignmentState'
 import { resetConventionManage } from '../conventionManageState'
+import { resetConventionImport } from '../conventionImportState'
 import { resetReviewerImport } from '../reviewerImportState'
 import { setOpenWork } from '../openWorkIdentity'
 import { restorePromptSetForWork } from '../promptSetState'
@@ -486,6 +487,7 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     // The convention rules are global, but the manage overlay's open flag, error and drafts
     // belong to the session that opened them, so they go with this batch.
     resetConventionManage()
+    resetConventionImport()
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY
