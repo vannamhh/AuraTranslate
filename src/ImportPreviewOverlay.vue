@@ -7,7 +7,7 @@ import { focusReturnTargetOnOpen } from './commands/focus'
 import { takeRecordedImportOpener } from './importOpener'
 import { groupThousands } from './importFormat'
 import { aiUsageLine } from './aiUsageLine'
-import { quickAiConfigReadiness, refreshQuickAiConfigReadiness } from './quickAiConfigState'
+import { quickAiAutoEnabled, quickAiConfigReadiness, refreshQuickAiConfigReadiness } from './quickAiConfigState'
 import { useSelectionSurface } from './panels/selectionContract'
 import ChapterOrigin from './ChapterOrigin.vue'
 import SelectMenu from './SelectMenu.vue'
@@ -23,6 +23,7 @@ import {
   importPreviewBlockFocusedIndex,
   importPreviewBlockTranslationAt,
   importPreviewBlockTranslations,
+  importPreviewQuickAutoPaused,
   importPreviewQuickBatchBusyElsewhere,
   importPreviewQuickBatchNote,
   importPreviewQuickBatchPendingCount,
@@ -1814,8 +1815,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   {{ t('mode.library.preview.tier2_quick_cancel') }}
                 </button>
               </template>
+              <span v-else-if="importPreviewQuickAutoPaused" class="ip-quick-status" role="status" data-ip-quick-paused>{{
+                t('mode.library.preview.tier2_quick_paused')
+              }}</span>
               <button
-                v-else
+                v-if="!importPreviewQuickBatchRunning && (!quickAiAutoEnabled || importPreviewQuickAutoPaused)"
                 type="button"
                 class="ui-btn"
                 data-ip-quick-translate

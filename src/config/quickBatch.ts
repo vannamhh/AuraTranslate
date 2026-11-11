@@ -114,6 +114,7 @@ export async function translateQuickBlocks(
   runId: number,
   onEvent: (event: QuickBlockEventWire) => void,
   retranslate = false,
+  trigger: 'auto' | 'manual' = 'manual',
 ): Promise<{ value: QuickBatchOutcomeWire | null; error: IpcError | null }> {
   const channel = new Channel<unknown>()
   channel.onmessage = (event) => {
@@ -121,7 +122,7 @@ export async function translateQuickBlocks(
     else console.error(`[quick-batch] \`${CMD_BLOCKS}\` sent an unexpected event`)
   }
   try {
-    const wire: unknown = await invoke(CMD_BLOCKS, { texts, trigger: 'manual', retranslate, runId, channel })
+    const wire: unknown = await invoke(CMD_BLOCKS, { texts, trigger, retranslate, runId, channel })
     if (!isQuickBatchOutcomeWire(wire)) {
       console.error(`[quick-batch] \`${CMD_BLOCKS}\` returned an unexpected shape`)
       return { value: null, error: UNKNOWN_IPC_ERROR }

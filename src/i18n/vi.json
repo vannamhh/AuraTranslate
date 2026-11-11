@@ -1196,6 +1196,7 @@
   "mode.library.preview.tier2_quick_translate": "Dịch các khối đang thấy",
   "mode.library.preview.tier2_quick_running": "Đang dịch {count} khối",
   "mode.library.preview.tier2_quick_cancel": "Huỷ",
+  "mode.library.preview.tier2_quick_paused": "Lô dịch đang chạy nên tự dịch tạm dừng.",
   "mode.library.preview.tier2_quick_busy": "Đang dịch ở màn khác.",
   "mode.library.preview.tier2_quick_unconfigured": "Chưa cấu hình AI nên chưa dịch thử được.",
   "mode.library.preview.tier2_quick_open_settings": "Mở Cài đặt AI",

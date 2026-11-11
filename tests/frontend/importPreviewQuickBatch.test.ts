@@ -11,6 +11,7 @@ const blocksMock = vi.fn()
 const cancelMock = vi.fn()
 const quickAiConfigGetMock = vi.fn()
 const retranslateFlags: boolean[] = []
+const triggers: string[] = []
 
 vi.mock('../../src/config/project', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/project')>()),
@@ -26,11 +27,18 @@ vi.mock('../../src/config/quickBatch', async (importOriginal) => ({
     runId: number,
     onEvent: (event: QuickBlockEventWire) => void,
     retranslate = false,
+    trigger = 'manual',
   ) => {
     retranslateFlags.push(retranslate)
+    triggers.push(trigger)
     return blocksMock(texts, runId, onEvent)
   },
 }))
+
+vi.mock('../../src/config/aiTranslateActivity', async () => {
+  const { ref } = await import('vue')
+  return { aiTranslateActivity: ref({ revision: 0, active_count: 0 }), aiTranslateActivityError: ref(null) }
+})
 
 vi.mock('../../src/config/glossaryContextReference', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/glossaryContextReference')>()),
@@ -119,6 +127,7 @@ async function fresh(deps: Partial<CommandDeps> = {}) {
     m.mockReset()
   }
   retranslateFlags.length = 0
+  triggers.length = 0
   lookupManyMock.mockImplementation(async (texts: string[]) => ({ value: texts.map(() => miss), error: null }))
   quickAiConfigGetMock.mockResolvedValue({
     config: { fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [] },
@@ -665,5 +674,363 @@ describe('dọn kho dịch nhanh', () => {
     expect(state.importPreviewQuickBatchRunning.value).toBe(false)
     expect(run.quickRunCurrent.value).toBeNull()
     for (const index of [0, 1, 2]) expect(state.importPreviewBlockTranslationAt(index)).toBeNull()
+  })
+})
+
+describe('tự dịch các khối đang thấy', () => {
+  type Activity = { value: { revision: number; active_count: number } | null }
+
+  async function auto(enabled = true) {
+    const f = await fresh()
+    const config = await import('../../src/quickAiConfigState')
+    const activity = (await import('../../src/config/aiTranslateActivity')).aiTranslateActivity as unknown as Activity
+    const setAuto = async (on: boolean) => {
+      quickAiConfigGetMock.mockResolvedValue({
+        config: { fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [], auto_enabled: on, auto_eligible: true },
+        error: null,
+      })
+      await config.refreshQuickAiConfigReadiness()
+    }
+    await setAuto(enabled)
+    let revision = 0
+    const setActive = (count: number) => {
+      revision += 1
+      activity.value = { revision, active_count: count }
+    }
+    return { ...f, setAuto, setActive }
+  }
+
+  const wait = (ms: number) => vi.advanceTimersByTimeAsync(ms)
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('đứng yên QUICK_AUTO_WAIT_MS thì một lô trigger auto gửi khối chưa có; cuộn tiếp thì đặt lại giờ', async () => {
+    const { state } = await auto()
+    blocksMock.mockResolvedValue(doneOutcome())
+    await open(state)
+    await see(state, 0, 1)
+    await wait(799)
+    expect(blocksMock).not.toHaveBeenCalled()
+    await see(state, 0, 1, 2)
+    await wait(799)
+    expect(blocksMock).not.toHaveBeenCalled()
+    await wait(1)
+
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    expect(blocksMock.mock.calls[0]?.[0]).toEqual(['甲', '乙', '丙'])
+    expect(triggers).toEqual(['auto'])
+  })
+
+  it('khối trúng kho thì 0 lời gọi', async () => {
+    const { state } = await auto()
+    lookupManyMock.mockResolvedValue({ value: [{ state: 'hit', text: 'Giáp', model: 'm-1' }], error: null })
+    await open(state)
+    await see(state, 0)
+    await wait(2000)
+
+    expect(blocksMock).not.toHaveBeenCalled()
+  })
+
+  it('cuộn khi lô A chạy: A không bị huỷ, không lô chồng, xong A thì lô B chỉ có khối mới', async () => {
+    const { state } = await auto()
+    await open(state)
+    await see(state, 0)
+    const call = pendingBatch()
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    call.emit({ kind: 'started', indices: [0] })
+
+    await see(state, 0, 1)
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    expect(cancelMock).not.toHaveBeenCalled()
+    expect(state.importPreviewQuickBatchRunning.value).toBe(true)
+
+    call.emit({ kind: 'received', index: 0, text: 'Giáp', model: 'm-1', saved: true })
+    blocksMock.mockReset()
+    blocksMock.mockResolvedValue(doneOutcome())
+    call.finish(doneOutcome())
+    await flushPromises()
+    await wait(800)
+
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    expect(blocksMock.mock.calls[0]?.[0]).toEqual(['乙'])
+  })
+
+  it('quá trần: khối bị hoãn vẫn thấy thì lô kế tiếp lấy nốt', async () => {
+    const { state } = await auto()
+    await open(state)
+    await see(state, 0, 1)
+    const call = pendingBatch()
+    await wait(800)
+    call.emit({ kind: 'started', indices: [0] })
+    call.emit({ kind: 'received', index: 0, text: 'Giáp', model: 'm-1', saved: true })
+    blocksMock.mockReset()
+    blocksMock.mockResolvedValue(doneOutcome())
+    call.finish(doneOutcome({ deferred: 1 }))
+    await flushPromises()
+    await wait(800)
+
+    expect(blocksMock.mock.calls[0]?.[0]).toEqual(['乙'])
+  })
+
+  it('khối thiếu kết quả hoặc lỗi mạng không tự gửi lại, kể cả sau dọn kho; bấm tay vẫn gửi; mở lại màn thì được tự dịch', async () => {
+    const { state, run } = await auto()
+    await open(state)
+    await see(state, 0)
+    blocksMock.mockResolvedValue(doneOutcome({ missing: [{ index: 0, reason: 'empty' }] }))
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    expect(state.importPreviewBlockTranslationAt(0)).toEqual({ kind: 'missing' })
+
+    run.markQuickStorePurged()
+    await flushPromises()
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+
+    await state.translateImportPreviewVisibleBlocks()
+    expect(blocksMock).toHaveBeenCalledTimes(2)
+    expect(triggers).toEqual(['auto', 'manual'])
+
+    state.cancelImportPreview()
+    blocksMock.mockResolvedValue({ value: null, error: { code: 'X', message: 'x' } })
+    await open(state)
+    await see(state, 1)
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(3)
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(3)
+
+    state.cancelImportPreview()
+    blocksMock.mockResolvedValue(doneOutcome())
+    await open(state)
+    await see(state, 0)
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('lô thật đang chạy thì tạm dừng không thăm dò, hết thì lên lịch lại', async () => {
+    const { state, setActive } = await auto()
+    blocksMock.mockResolvedValue(doneOutcome())
+    setActive(1)
+    await open(state)
+    await see(state, 0)
+    expect(state.importPreviewQuickAutoPaused.value).toBe(true)
+    await wait(5000)
+    expect(blocksMock).not.toHaveBeenCalled()
+
+    setActive(0)
+    expect(state.importPreviewQuickAutoPaused.value).toBe(false)
+    await wait(799)
+    expect(blocksMock).not.toHaveBeenCalled()
+    await wait(1)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('Rust trả paused: khối về trống, có cờ tạm dừng, không gửi lại tới khi lô thật xong', async () => {
+    const { state, setActive } = await auto()
+    await open(state)
+    await see(state, 0)
+    blocksMock.mockImplementation(async () => {
+      setActive(1)
+      return { value: { state: 'paused' }, error: null }
+    })
+    await wait(800)
+    expect(state.importPreviewQuickAutoPaused.value).toBe(true)
+    expect(state.importPreviewBlockTranslationAt(0)).toBeNull()
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+
+    blocksMock.mockResolvedValue(doneOutcome())
+    setActive(1)
+    setActive(0)
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(2)
+    expect(state.importPreviewQuickAutoPaused.value).toBe(false)
+  })
+
+  it('Rust trả paused rồi cuộn: không gửi thêm lời gọi tự chạy nào', async () => {
+    const { state, setActive } = await auto()
+    await open(state)
+    await see(state, 0)
+    const call = pendingBatch()
+    await wait(800)
+    setActive(1)
+    call.finish({ value: { state: 'paused' }, error: null })
+    await flushPromises()
+    await see(state, 0, 1)
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+
+    blocksMock.mockResolvedValue(doneOutcome())
+    setActive(0)
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('Rust trả paused muộn hơn sự kiện hết hoạt động: không kẹt cờ, tự lên lịch lại', async () => {
+    const { state, setActive } = await auto()
+    await open(state)
+    await see(state, 0)
+    const call = pendingBatch()
+    await wait(800)
+    setActive(1)
+    setActive(0)
+    call.finish({ value: { state: 'paused' }, error: null })
+    await flushPromises()
+    expect(state.importPreviewQuickAutoPaused.value).toBe(false)
+    blocksMock.mockResolvedValue(doneOutcome())
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('khối lỗi rồi bấm tay thành công thì sau dọn kho tự dịch lại được', async () => {
+    const { state, run } = await auto()
+    await open(state)
+    await see(state, 0)
+    blocksMock.mockResolvedValue(doneOutcome({ missing: [{ index: 0, reason: 'empty' }] }))
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+
+    blocksMock.mockImplementation(async (_t: string[], _r: number, onEvent: (event: QuickBlockEventWire) => void) => {
+      onEvent({ kind: 'received', index: 0, text: 'Giáp', model: 'm-1', saved: true })
+      return doneOutcome()
+    })
+    await state.translateImportPreviewVisibleBlocks()
+    expect(state.importPreviewBlockTranslationAt(0)).toEqual({ kind: 'done', text: 'Giáp', model: 'm-1' })
+
+    run.markQuickStorePurged()
+    await flushPromises()
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(3)
+    expect(triggers[2]).toBe('auto')
+  })
+
+  it('tuỳ chọn tắt: 0 lời gọi; tắt trong lúc chờ xoá giờ; Rust trả auto_off cũng không gửi lại', async () => {
+    const off = await auto(false)
+    await open(off.state)
+    await see(off.state, 0, 1)
+    await wait(5000)
+    expect(blocksMock).not.toHaveBeenCalled()
+
+    await off.setAuto(true)
+    await wait(400)
+    await off.setAuto(false)
+    await wait(5000)
+    expect(blocksMock).not.toHaveBeenCalled()
+
+    await off.setAuto(true)
+    blocksMock.mockResolvedValue({ value: { state: 'auto_off' }, error: null })
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+    expect(off.state.importPreviewBlockTranslationAt(0)).toBeNull()
+  })
+
+  it('tắt tuỳ chọn hoặc đổi cấu hình khi lô tự chạy đang chạy thì huỷ lô đó; lô bấm tay không bị huỷ', async () => {
+    const { state, setAuto } = await auto()
+    await open(state)
+    await see(state, 0)
+    pendingBatch()
+    await wait(800)
+    expect(state.importPreviewQuickBatchRunning.value).toBe(true)
+
+    await setAuto(false)
+    expect(state.importPreviewQuickBatchRunning.value).toBe(false)
+    expect(cancelMock).toHaveBeenCalledTimes(1)
+    expect(state.importPreviewBlockTranslationAt(0)).toBeNull()
+
+    void state.translateImportPreviewVisibleBlocks()
+    expect(state.importPreviewQuickBatchRunning.value).toBe(true)
+    await setAuto(true)
+    expect(state.importPreviewQuickBatchRunning.value).toBe(true)
+    expect(cancelMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('Huỷ một lô tự chạy: khối về trống, không vào dấu bỏ qua; đổi tập khối đang thấy thì gửi lại', async () => {
+    const { state } = await auto()
+    await open(state)
+    await see(state, 0)
+    pendingBatch()
+    await wait(800)
+    state.cancelImportPreviewQuickBatch()
+    expect(state.importPreviewBlockTranslationAt(0)).toBeNull()
+    await wait(5000)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+
+    blocksMock.mockResolvedValue(doneOutcome())
+    await see(state, 0, 1)
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(2)
+    expect(blocksMock.mock.calls[1]?.[0]).toEqual(['甲', '乙'])
+  })
+
+  it('Bảng chờ đang chạy thì không gửi, tự lên lịch lại khi lượt kia xong', async () => {
+    const { state, run } = await auto()
+    blocksMock.mockResolvedValue(doneOutcome())
+    await open(state)
+    const other = run.beginQuickRun('glossary_queue')
+    await see(state, 0)
+    await wait(5000)
+    expect(blocksMock).not.toHaveBeenCalled()
+
+    run.endQuickRun(other)
+    await wait(800)
+    expect(blocksMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('đóng màn và đổi Chương xoá giờ: 0 lời gọi', async () => {
+    const { state } = await auto()
+    await open(state, PAGE, 2)
+    await see(state, 0)
+    state.cancelImportPreview()
+    await wait(5000)
+    expect(blocksMock).not.toHaveBeenCalled()
+
+    await open(state, PAGE, 2)
+    await see(state, 0)
+    previewChapterDetailMock.mockResolvedValue({
+      detail: { cleanup: { text: '', spans: [], rules: [], window_truncated: false, final_text: 'x' }, blocks: { blocks: [block('丁')] } },
+      error: null,
+    })
+    state.nextImportPreviewChapter()
+    await flushPromises()
+    await wait(5000)
+    expect(blocksMock).not.toHaveBeenCalled()
+  })
+
+  it('màn xem trước: tự dịch bật thì ẩn nút Dịch các khối đang thấy, trừ lúc tạm dừng có câu riêng', async () => {
+    const { state, Overlay, setActive } = await auto()
+    await open(state)
+    await see(state, 0)
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await flushPromises()
+    expect(wrapper.find('[data-ip-quick-translate]').exists()).toBe(false)
+    expect(wrapper.find('[data-ip-quick-paused]').exists()).toBe(false)
+
+    setActive(1)
+    await flushPromises()
+    expect(wrapper.find('[data-ip-quick-translate]').exists()).toBe(true)
+    expect(wrapper.get('[data-ip-quick-paused]').text()).toBe('Lô dịch đang chạy nên tự dịch tạm dừng.')
+    wrapper.unmount()
+  })
+
+  it('màn xem trước: tự dịch tắt thì nút vẫn như cũ', async () => {
+    const { state, Overlay } = await auto(false)
+    await open(state)
+    await see(state, 0)
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await flushPromises()
+    expect(wrapper.find('[data-ip-quick-translate]').exists()).toBe(true)
+    wrapper.unmount()
   })
 })

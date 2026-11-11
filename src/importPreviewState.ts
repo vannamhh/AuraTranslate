@@ -76,7 +76,10 @@ import type {
 import { cancelContextReference } from './config/glossaryContextReference'
 import { quickTranslationLookupMany, translateQuickBlocks } from './config/quickBatch'
 import type { QuickBatchOutcomeWire, QuickBlockEventWire } from './config/quickBatch'
-import { beginQuickRun, endQuickRun, quickPurgeCount, quickRunBusyFor } from './quickTranslateRun'
+import { beginQuickRun, endQuickRun, quickPurgeCount, quickRunBusyFor, quickRunCurrent } from './quickTranslateRun'
+import { quickAiAutoEnabled, quickAiConfigRevision } from './quickAiConfigState'
+import { aiTranslateActivity, aiTranslateActivityError } from './config/aiTranslateActivity'
+import { QUICK_AUTO_WAIT_MS } from './glossaryQueueState'
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
 
@@ -864,11 +867,15 @@ const quickBatchRun = ref<{
   keys: string[]
   previous: Record<string, ImportPreviewBlockTranslation>
   sent: string[] | null
+  trigger: 'auto' | 'manual'
 } | null>(null)
 const quickBatchNote = ref<ImportPreviewQuickBatchNote>('none')
 const quickBatchUsage = ref<{ usage: AiTranslateUsageWire | null; model: string } | null>(null)
 let quickLookedUp = new Set<string>()
 let quickEpoch = 0
+let quickAutoTimer: ReturnType<typeof setTimeout> | null = null
+let quickAutoFailed = new Set<string>()
+const quickAutoPausedByRust = ref(false)
 
 export const importPreviewBlockTranslations: DeepReadonly<Ref<Partial<Record<string, ImportPreviewBlockTranslation>>>> =
   readonly(blockTranslations)
@@ -878,6 +885,12 @@ export const importPreviewQuickBatchUsage: DeepReadonly<
   Ref<{ usage: AiTranslateUsageWire | null; model: string } | null>
 > = readonly(quickBatchUsage)
 export const importPreviewQuickBatchBusyElsewhere = quickRunBusyFor('import_preview')
+export const importPreviewQuickAutoPaused = computed<boolean>(
+  () =>
+    quickAiAutoEnabled.value &&
+    (quickAutoPausedByRust.value ||
+      (aiTranslateActivityError.value === null && (aiTranslateActivity.value?.active_count ?? 0) > 0)),
+)
 
 export const importPreviewQuickBatchPendingCount = computed<number>(() => {
   const run = quickBatchRun.value
@@ -958,8 +971,12 @@ function settleRunningBlocks(keys: readonly string[], to: ImportPreviewBlockTran
 function settleQuickBatch(keys: readonly string[], outcome: QuickBatchOutcomeWire): void {
   switch (outcome.state) {
     case 'auto_off':
+      settleRunningBlocks(keys, null)
+      return
     case 'paused':
       settleRunningBlocks(keys, null)
+      if ((aiTranslateActivity.value?.active_count ?? 0) > 0) quickAutoPausedByRust.value = true
+      else scheduleQuickAuto()
       return
     case 'not_configured':
     case 'store_unavailable':
@@ -988,12 +1005,52 @@ function restorePreviousTranslations(previous: Record<string, ImportPreviewBlock
   }
 }
 
-async function runQuickBatch(requested: readonly string[], retranslate = false): Promise<void> {
+function clearQuickAutoTimer(): void {
+  if (quickAutoTimer !== null) clearTimeout(quickAutoTimer)
+  quickAutoTimer = null
+}
+
+function quickAutoMayRun(): boolean {
+  const activity = aiTranslateActivity.value
+  return (
+    overlayOpen.value &&
+    lastSubmittedFrom.value === 'urls' &&
+    quickAiAutoEnabled.value &&
+    quickBatchRun.value === null &&
+    !importPreviewQuickBatchBusyElsewhere.value &&
+    activity !== null &&
+    aiTranslateActivityError.value === null &&
+    activity.active_count === 0
+  )
+}
+
+function quickAutoKeys(): string[] {
+  return visibleBlockKeys.value.filter((key) => blockTranslations.value[key] === undefined && !quickAutoFailed.has(key))
+}
+
+function scheduleQuickAuto(): void {
+  clearQuickAutoTimer()
+  if (!quickAutoMayRun() || quickAutoKeys().length === 0) return
+  quickAutoTimer = setTimeout(() => {
+    quickAutoTimer = null
+    if (!quickAutoMayRun()) return
+    const keys = quickAutoKeys()
+    if (keys.length > 0) void runQuickBatch(keys, false, 'auto')
+  }, QUICK_AUTO_WAIT_MS)
+}
+
+async function runQuickBatch(
+  requested: readonly string[],
+  retranslate = false,
+  trigger: 'auto' | 'manual' = 'manual',
+): Promise<void> {
   if (!overlayOpen.value || lastSubmittedFrom.value !== 'urls' || quickBatchRun.value !== null) return
   if (importPreviewQuickBatchBusyElsewhere.value) return
+  if (trigger === 'auto' && !quickAutoMayRun()) return
   const keys = requested.filter((key) => {
     const entry = blockTranslations.value[key]
     if (retranslate) return entry?.kind === 'done'
+    if (trigger === 'auto') return entry === undefined && !quickAutoFailed.has(key)
     return entry === undefined || entry.kind === 'missing' || entry.kind === 'failed'
   })
   if (keys.length === 0) return
@@ -1002,7 +1059,7 @@ async function runQuickBatch(requested: readonly string[], retranslate = false):
   if (retranslate) for (const key of keys) previous[key] = blockTranslations.value[key]!
   const epoch = quickEpoch
   const runId = beginQuickRun('import_preview')
-  quickBatchRun.value = { runId, keys, previous, sent: null }
+  quickBatchRun.value = { runId, keys, previous, sent: null, trigger }
   quickBatchNote.value = 'none'
   quickBatchUsage.value = null
   for (const key of keys) delete blockTranslations.value[key]
@@ -1031,10 +1088,11 @@ async function runQuickBatch(requested: readonly string[], retranslate = false):
       return
     }
     if (entry?.kind === 'done') return
+    quickAutoFailed.delete(key)
     blockTranslations.value[key] = { kind: 'done', text: event.text, model: event.model }
   }
 
-  const result = await translateQuickBlocks(keys, runId, onEvent, retranslate)
+  const result = await translateQuickBlocks(keys, runId, onEvent, retranslate, trigger)
   if (!isLive()) return
   const sent = quickBatchRun.value.sent ?? []
   quickBatchRun.value = null
@@ -1045,7 +1103,16 @@ async function runQuickBatch(requested: readonly string[], retranslate = false):
   } else {
     settleQuickBatch(keys, result.value)
   }
+  const outcome = result.value
+  const unreturned = outcome?.state === 'done' && outcome.deferred === 0
+  for (const key of keys) {
+    const kind = blockTranslations.value[key]?.kind
+    if (kind === 'missing' || kind === 'failed' || (unreturned && kind === undefined)) quickAutoFailed.add(key)
+  }
   restorePreviousTranslations(previous)
+  if (outcome?.state === 'done' && (outcome.deferred === 0 || keys.some((key) => blockTranslations.value[key]?.kind === 'done'))) {
+    scheduleQuickAuto()
+  }
 }
 
 /** Translates the blocks on screen that the store does not hold yet. Reference only. */
@@ -1067,6 +1134,7 @@ export function retranslateImportPreviewFocusedBlock(): Promise<void> {
 
 /** Stops the running batch; blocks already closed stay on screen and in the store. */
 export function cancelImportPreviewQuickBatch(): void {
+  clearQuickAutoTimer()
   const run = quickBatchRun.value
   if (run === null) return
   quickBatchRun.value = null
@@ -1075,6 +1143,32 @@ export function cancelImportPreviewQuickBatch(): void {
   restorePreviousTranslations(run.previous)
   void cancelContextReference(run.runId)
 }
+
+watch(visibleBlockKeys, scheduleQuickAuto)
+
+watch(
+  [quickAiAutoEnabled, quickAiConfigRevision],
+  () => {
+    clearQuickAutoTimer()
+    if (quickBatchRun.value?.trigger === 'auto') cancelImportPreviewQuickBatch()
+    quickAutoPausedByRust.value = false
+    scheduleQuickAuto()
+  },
+  { flush: 'sync' },
+)
+
+watch(
+  [() => aiTranslateActivity.value?.active_count, aiTranslateActivityError],
+  () => {
+    quickAutoPausedByRust.value = false
+    scheduleQuickAuto()
+  },
+  { flush: 'sync' },
+)
+
+watch(quickRunCurrent, (now, before) => {
+  if (now === null && before?.surface === 'glossary_queue') scheduleQuickAuto()
+})
 
 watch(chapterCursor, () => {
   cancelImportPreviewQuickBatch()
@@ -1089,10 +1183,14 @@ watch(quickPurgeCount, () => {
   quickBatchNote.value = 'none'
   quickBatchUsage.value = null
   void lookupVisibleBlocks()
+  scheduleQuickAuto()
 })
 
 function resetImportPreviewQuickBatch(): void {
   cancelImportPreviewQuickBatch()
+  quickAutoTimer = null
+  quickAutoFailed = new Set()
+  quickAutoPausedByRust.value = false
   quickBatchRun.value = null
   quickEpoch += 1
   quickLookedUp = new Set()
