@@ -141,6 +141,10 @@ const EXEMPT = new Map([
     'Lượt dịch nhanh đang chạy của cả app, không mang dữ liệu Tác phẩm; mỗi bề mặt tự `endQuickRun` khi xong, huỷ, đóng hoặc reset, nên một hàm reset riêng chỉ xoá lượt của bề mặt khác.',
   ],
   [
+    'src/quickTranslateRun.ts::purges',
+    'Bộ đếm đơn điệu số lần dọn kho dịch nhanh mà hai bề mặt `watch`; đặt lại nó là một lần đổi giá trị, tức một lần dọn giả huỷ lượt đang chạy.',
+  ],
+  [
     'src/panels/lookupTiming.ts::enabled',
     'Công tắc chẩn đoán do NGƯỜI ĐO bật, không một mẩu state của phiên. `resetLookupTiming()` ' +
       'cố ý không chạm nó: dọn nó là tự tắt bàn đo giữa một lượt đo.',
@@ -283,6 +287,10 @@ const EXEMPT = new Map([
   [
     'src/config/bootstrap.ts::appVersion',
     'Phiên bản ứng dụng đọc một lần lúc khởi động — thuộc tiến trình, không thuộc Tác phẩm nào.',
+  ],
+  [
+    'src/config/bootstrap.ts::quickTranslationPurgeDays',
+    'Số ngày dọn kho dịch nhanh đã nạp — cùng loại "chỉ toàn cục" với `tmFuzzyThreshold`: AppConfig là GlobalOnly, nên "đổi Tác phẩm" không phải một sự kiện của nó.',
   ],
   [
     'src/updateCheckState.ts::changed',
@@ -445,6 +453,62 @@ const EXEMPT = new Map([
   ],
   ['src/tmSettingsState.ts::saving', 'Đang ghi ngưỡng hay không — cờ của MỘT lượt ghi `putConfig`, không của Tác phẩm.'],
   ['src/tmSettingsState.ts::saveError', 'Lỗi của lượt lưu ngưỡng gần nhất — chẩn đoán của MÀN HÌNH, cùng lớp `saved`.'],
+  [
+    'src/settingsQuickDataState.ts::stats',
+    'Kho `quick-translation.db` dùng chung mọi Tác phẩm (AD-64), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::statsError',
+    'Lỗi đọc số liệu của kho `quick-translation.db` dùng chung mọi Tác phẩm (AD-64), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::statsLoaded',
+    'Kho `quick-translation.db` dùng chung mọi Tác phẩm (AD-64), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::daysInput',
+    'Giá trị THÔ đang gõ — state của MÀN HÌNH: `loadQuickDataRow` đặt lại khi mục Dữ liệu của Cài đặt mount.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::knownDays',
+    'Số ngày đã lưu THÀNH CÔNG trong phiên — dữ liệu `app_config` (GlobalOnly) sống QUA ranh giới Tác phẩm.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::olderCount',
+    'Số câu sẽ xoá, đếm trên kho `quick-translation.db` dùng chung mọi Tác phẩm (AD-64), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::olderError',
+    'Lỗi của lượt đếm gần nhất — state của MÀN HÌNH: `loadQuickDataRow` đặt lại khi mục Dữ liệu của Cài đặt mount.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::busy',
+    'Cờ của MỘT lượt dọn đang chạy; đặt lại giữa lượt sẽ mở nút cho một lượt dọn thứ hai chồng lên.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::confirmingAll',
+    'Bước xác nhận `Dọn tất cả` — state của MÀN HÌNH: `loadQuickDataRow` đặt lại khi mục Dữ liệu của Cài đặt mount.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::result',
+    'Câu kết quả của lượt dọn gần nhất — state của MÀN HÌNH: `loadQuickDataRow` đặt lại khi mục Dữ liệu của Cài đặt mount.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::purgeError',
+    'Lỗi của lượt dọn gần nhất — state của MÀN HÌNH: `loadQuickDataRow` đặt lại khi mục Dữ liệu của Cài đặt mount.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::daysSaveError',
+    'Lỗi lưu số ngày gần nhất — state của MÀN HÌNH: `loadQuickDataRow` đặt lại khi mục Dữ liệu của Cài đặt mount.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::countSequence',
+    'Bộ đếm đơn điệu bỏ phản hồi đến muộn; đặt lại thì một phản hồi cũ trùng số với lượt mới.',
+  ],
+  [
+    'src/settingsQuickDataState.ts::statsSequence',
+    'Bộ đếm đơn điệu bỏ phản hồi đến muộn; đặt lại thì một phản hồi cũ trùng số với lượt mới.',
+  ],
 ])
 
 /**
