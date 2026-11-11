@@ -14097,3 +14097,4 @@ chính nó.
   Cần đọc run chứa revision 15.5 sau khi push; không suy kết quả từ macOS cục bộ hoặc nightly cũ.
   Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md` §Parent CI inspection.
   → 🟡 2026-11-11 (Story 15.7) — mục này nhận cả revision 15.6 `c292f35c4311d80343e78438bde3f7d48af335bd` và các commit sau nó tới 15.7: chưa revision nào của 15.5–15.7 lên CI, cần đọc push CI (nửa Windows, UTC) và nightly e2e đầu tiên chứa chúng. Trỏ: `tickets/epic-dich-nhanh/tickets/story-refactor-sweep-plan.md` §Implementation Notes. Chủ: Epic 15.
+  → 🟡 2026-11-11 (Story 15.7) — push CI run 43048708565 ở `41ae38264994e83fbc2f12821743417a0f1c055f` xanh cả `check (macos-26)` lẫn `check (windows-2025)`, bước `npm test`, `npm run build`, `cargo test` chạy thật. Còn nightly e2e đầu tiên chứa revision này. Chủ: Epic 15.
