@@ -14116,3 +14116,5 @@ chính nó.
   Quan trọng vì e2e chỉ kiểm thuộc tính, không kiểm hình. Chủ: Epic 2. Trỏ: plan bug 2.19, tiêu chí 4.
 - `e2e/specs/grid-blocks.e2e.mjs`, ca "Mod+Shift+ArrowDown across the block boundary": đỏ một lần ở máy Ice ngày 2026-11-12 (nhận hàng 221–225 thay vì 199–203), ở cả hai phía của phép sửa 2.19. Lượt chạy lại xanh 5/5; nguyên nhân chưa tìm.
   Quan trọng vì một ca chập chờn ở ranh giới khối che được lỗi thật. Chủ: Epic 2. Trỏ: plan bug 2.19, Review Triage Log.
+- Khi một lượt ghi `target_text` không qua gõ phím (`replaceEditorSegment`) chạm câu có chữ chưa flush, mà ô đó đang giữ tiêu điểm, Vue ghi đè chữ đang gõ, và lượt chép lại không đặt lại vì bỏ qua ô có tiêu điểm. Hành vi này có từ trước bug 2.18, ca `gridRestoreEditedText` "ô đang giữ tiêu điểm" ghi nhận nó.
+  Quan trọng vì nếu có chỗ gọi chạm được ca này thì người dịch mất chữ đang gõ mà không có báo lỗi. Cần lần từng chỗ gọi (`conventionState.ts`, `proofreadState.ts`, `reviewModeState.ts`, `segmentHistoryState.ts`, `editorPanelState.ts`) xem có giữ tiêu điểm ô hay flush trước không. Chủ: Epic 2. Trỏ: plan bug 2.18, Review Triage Log.

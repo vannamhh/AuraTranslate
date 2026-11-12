@@ -91,3 +91,27 @@ Bàn đo: `e2e/measure/confirm-trace.e2e.mjs` (knob `AURA_BENCH_VIEW|SAMPLES|CHE
 - ⇒ Độ dốc theo số câu đã xác nhận biến mất (đường 0 → 300 gần phẳng, ~20–35 ms). Seam: `restoreEditedText` chạy một `querySelector` toàn lưới (`targetCellById`) cho MỖI câu trong `editorEditedText` (mọi câu đã gõ trong phiên) sau mỗi lần `editorSegments` đổi; lượt xác nhận đổi `editorSegments` nên trả giá O(số câu đã sửa × kích thước DOM). Ở kiểu song song DOM nặng hơn (320 `.hv-surface`, 5440 `<rt>`) nên hệ số ≈ 6× plain, khớp tỉ lệ 0,33 so với 0,05 ms/câu của pha 1.
 - ⚠️ Bàn đo gõ 3 chữ vào MỌI câu nên `editedText` = số câu đã xác nhận; ngoài đời cũng vậy khi Ice sửa từng câu rồi Mod+Enter. Chưa tách riêng chi phí `querySelector` khỏi phép so sánh `textContent`; chưa thử bản vá (ngoài phạm vi: chỉ định vị). `src/` và `src-tauri/` đã khôi phục (`git diff --stat` rỗng).
 - ⚠️ Vẫn chưa loại: Windows/WebView2, bản release, IME. Mốc gõ từng phím của Ice chậm ở đó vẫn không tái hiện ở đây (phím 12–17 ms).
+
+## Pha 3: đo nền và ba bản vá thử (bug 2-18)
+
+**Điều kiện.** WKWebView thật qua wdio, binary debug `--features wdio` (dựng từ `baseline_revision` 22c66f0b, `cargo build` 1,6 s vì đã có cache), Vite dev, Mac 8 lõi. Chương 320 câu, 320 ô `tgt` dựng cùng lúc (không cắt khối), mỗi câu điền AI rồi gõ `qwe` + `Mod+Enter`. Mốc 0/50/100/299, 4 mẫu liên tiếp mỗi mốc, `AURA_BENCH_FLUSH=0`. Một lượt mỗi ô (nền parallel, nền plain, a, b, c), chạy liền nhau trong ~4 phút; load 3,5–5,8 (`uptime`: nền parallel 3,89 → 5,80; nền plain 5,80 → 4,27; a 4,27 → 3,98; b 3,98 → 4,27; c 4,27 → 3,55). Bộ đếm tạm (`window.__rs` trong `restoreEditedText`: lượt tra ô `targetCellById`/quét, lượt ghi `textContent`) và bản vá thử đã gỡ: `git diff --stat` rỗng.
+
+**Con trỏ sang hàng kế sau `Mod+Enter`** (ms, trung vị 4 mẫu / max):
+
+| bản | 0 | 50 | 100 | 299 | tra ô mỗi lượt xác nhận (mốc 0 / 50 / 100 / 299) | ghi DOM mỗi lượt |
+|---|---|---|---|---|---|---|
+| nền parallel | 26 / 30 | 40 / 49 | 56 / 62 | 172 / 271 | 1 / 51 / 101 / 300 | 0 |
+| nền plain | 30 / 31 | 34 / 36 | 34 / 39 | 44 / 46 | 1 / 51 / 101 / 300 | 0 |
+| (a) so mảng cũ-mới | 28 / 32 | 28 / 29 | 30 / 33 | 28 / 45 | 0 | 0 |
+| (b) tỉa tập sau xác nhận | 28 / 29 | 29 / 34 | 30 / 31 | 25 / 27 | 0 | 0 |
+| (c) một `querySelectorAll` + Map | 26 / 28 | 28 / 32 | 30 / 34 | 26 / 27 | 1 (một lượt quét) | 0 |
+
+- ⇒ Nền parallel vượt tiêu chí 1 (mốc 0 + 15 ms = 41): 40 ở mốc 50 sát ngưỡng, 56 và 172 vượt. Mốc 299 chưa đạt trước khi sửa nên không dừng theo tiêu chí 3.
+- ⇒ Cả ba bản đều đạt: mốc 299 ≤ mốc 0 + 2 ms (trung vị); max (a) 45 ở một mẫu (mốc 0 + 17) là lệch đơn lẻ, ba mẫu kia 24–29.
+- ⇒ Số ghi DOM của lượt chép lại bằng 0 ở MỌI bản kể cả nền: bàn đo chỉ xác nhận (không dựng lại lưới), `textContent` đã khớp nên không có ghi. Chi phí nền là phép tra, không phải ghi. Ca có ghi thật (dựng lại lưới, gộp/tách) chỉ kiểm được bằng vitest.
+- ⚠️ Mẫu mỗi mốc chỉ 4, một lượt mỗi ô; (a)(b)(c) không phân biệt được với nhau ở thang này.
+
+**Rủi ro hành vi từng bản.**
+- (a): rủi ro duy nhất là bỏ sót nhánh cần chép toàn bộ. Điều kiện chép toàn bộ: `gridRoot` đổi, độ dài đổi, id lệch ở cùng vị trí. Một ô mount lại mà mảng không đổi (khối cắt/dựng lại khi cuộn, cùng `gridRoot`) sẽ KHÔNG được chép lại, ô hiện `target_text` lúc nạp thay vì chữ đang gõ ⇒ cần đối chiếu: ô khối mới gắn do cuộn có đi qua watcher này không (hiện nền chép vì `editorSegments` đổi, nhưng nếu khối gắn mà `editorSegments` không đổi thì nền cũng không chép). Cần ca vitest cho cuộn/khối.
+- (b): ĐỤNG hợp đồng Story 2.3. Bản thử xoá `editedText` của câu vừa xác nhận; `segments.target_text` giữ bản lúc nạp (chú thích `editorPanelState.ts:276`), nên dựng lại lưới/mở lại Chương sẽ hiện chữ cũ cho câu đã xác nhận trừ khi cũng cập nhật `target_text` snapshot (ảnh hưởng FR117). Theo plan: chọn (b) thì dừng, chia vé.
+- (c): giữ nguyên nghĩa, rủi ro thấp nhất; còn O(số câu đã sửa) phép so `textContent` và một lượt quét `querySelectorAll` toàn lưới (ở bàn đo đã không thấy dốc). Có thể tăng ở Chương lớn có nhiều khối, cần đo nếu chọn.

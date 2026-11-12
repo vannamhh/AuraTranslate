@@ -1247,12 +1247,15 @@ function onStripFocusOut(event: FocusEvent): void {
  * mọi ô vẫn `contenteditable` *(chúng luôn thế)* nhưng tiêu điểm thì không, và đó đúng là
  * lượt cần khôi phục nhất.
  */
-function restoreEditedText(): void {
+function restoreEditedText(only: ReadonlySet<number> | null = null): void {
   if (gridRoot.value === null) return
   const edited = editorEditedText.value
   if (edited.size === 0) return
 
-  for (const [id, text] of edited) {
+  const entries: Iterable<[number, string | undefined]> =
+    only === null ? edited : Array.from(only, (id): [number, string | undefined] => [id, edited.get(id)])
+  for (const [id, text] of entries) {
+    if (text === undefined) continue
     const el = targetCellById(id)
     if (el === null || document.activeElement === el) continue
     if (el.textContent !== text) el.textContent = text
@@ -1260,7 +1263,26 @@ function restoreEditedText(): void {
   repaintProofread()
 }
 
-watch([() => editorSegments.value, gridRoot], restoreEditedText, { flush: 'post' })
+function idsWithChangedTargetText(
+  before: readonly { id: number; target_text: string }[],
+  after: readonly { id: number; target_text: string }[],
+): Set<number> | null {
+  if (before.length !== after.length) return null
+  const changed = new Set<number>()
+  for (let i = 0; i < after.length; i += 1) {
+    if (after[i].id !== before[i].id) return null
+    if (after[i].target_text !== before[i].target_text) changed.add(after[i].id)
+  }
+  return changed
+}
+
+watch(
+  [() => editorSegments.value, gridRoot],
+  ([after, root], [before, previousRoot]) => {
+    restoreEditedText(root === previousRoot ? idsWithChangedTargetText(before, after) : null)
+  },
+  { flush: 'post' },
+)
 
 /** Underlines are inline spans inside the cell; drawn only while the cell still holds the scanned text. */
 function repaintProofread(): void {

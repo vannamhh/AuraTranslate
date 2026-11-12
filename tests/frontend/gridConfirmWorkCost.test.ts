@@ -83,6 +83,10 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return {
     ...actual,
+    saveSegmentTargets: async (chapterId: number, edits: readonly unknown[]) => ({
+      outcome: { chapter_id: chapterId, saved: edits.length },
+      error: null,
+    }),
     confirmSegment: async (segmentId: number) => ({
       outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false, tm_filled: [], tm_prefill: { kind: 'not_asked' } },
       error: null,
@@ -146,7 +150,7 @@ afterEach(() => {
   while (restore.length > 0) restore.pop()?.()
 })
 
-async function confirmWork(count: number): Promise<{ rules: number; sourceScans: number; gridQueries: number }> {
+async function confirmWork(count: number, editedBefore = 0): Promise<{ rules: number; sourceScans: number; gridQueries: number }> {
   sizeHolder.count = count
   vi.resetModules()
   vi.doMock('../../src/inlineStripEligibility', () => ({ inlineStripAnchorSegmentId: anchor, stripTrackFloats: ref(false) }))
@@ -159,6 +163,8 @@ async function confirmWork(count: number): Promise<{ rules: number; sourceScans:
   })
   await state.ensureSegmentsLoaded()
   await wrapper.vm.$nextTick()
+  for (let i = 0; i < editedBefore; i += 1) state.noteEditorEdit(BASE_ID + i, `Da sua ${String(i)}.`)
+  if (editedBefore > 0) expect(await state.flushEditorNow()).toBe('saved')
   state.setEditorCaret(BASE_ID + 250)
   await wrapper.vm.$nextTick()
 
@@ -184,5 +190,12 @@ describe('GridPanel confirm work cost', { timeout: 60_000 }, () => {
     expect(large.sourceScans).toBe(small.sourceScans)
     expect(large.gridQueries).toBe(small.gridQueries)
     expect(small.gridQueries).toBe(0)
+  })
+
+  it('a status-only confirm looks up no more cells with 200 edited rows than with 20', async () => {
+    const few = await confirmWork(1050, 20)
+    const many = await confirmWork(1050, 200)
+    expect(many.gridQueries).toBe(few.gridQueries)
+    expect(many.gridQueries).toBe(0)
   })
 })
