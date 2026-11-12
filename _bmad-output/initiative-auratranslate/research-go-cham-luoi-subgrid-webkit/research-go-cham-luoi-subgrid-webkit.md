@@ -35,6 +35,8 @@ claims_overturned: 1
 
 **Deepen 2026-11-06 (D6–D11), không đổi kết luận trên, và không tìm ra nguyên nhân của triệu chứng mới.** Triệu chứng: gõ trễ 1–2 giây mỗi ký tự chỉ trên Windows (WebView2 156.0.4314.58, MacBook Pro 2015 trên Boot Camp) và chỉ ở kiểu Song song Hán Việt. Năm chiều mới (D6–D10) cộng một phép đo tại máy (D11) **không chống đỡ được** lời giải thích nào dựa trên lượng. Phép đo là chắc nhất: ruby và cỡ DOM không mua thêm chi phí nào, 94.057 nút cho 1,70 ms mỗi phím, bằng 14.057 nút chữ thường [53]. Ba đường còn lại chỉ **thiếu bằng chứng đỡ**, chứ không bị bác: tài liệu trợ năng không nói chi phí mỗi phím tăng theo cỡ DOM, nhưng cũng không nói ngược lại [46]; `software_rendering_list.json` không có mục nào gọi tên GPU của máy đó, nhưng tệp ấy khớp bằng mã hex nên điều đó không chứng minh không mục nào khớp [50]; bộ đệm glyph của Skia khoá theo strike chứ không theo cỡ tệp phông, nhưng đó là mặc định lúc dịch và nguồn không nói Chromium có giữ nó [52]. Tiền lệ mạnh nhất, issue 40688351, ghi đúng sự bất đối xứng Windows so với macOS trong cùng một Blink và đúng hình dạng DOM của lưới này, nhưng trạng thái hiện tại là Won't Fix (Obsolete) và không có CL sửa nào [40]. ⇒ Nguyên nhân nằm ở một chi phí của nền tảng Windows hoặc của riêng máy đó, và không nguồn công khai nào đo được nó: việc còn lại là một vệt DevTools qua cổng 9222 trên chính bản MSI đã cài, khuyến nghị 12–14. Khuyến nghị 15: không sửa CSS hay DOM của lưới dựa trên lượt này.
 
+**Spike 2.17 (2026-11-12, D12) trả lời phần Windows.** Vệt đo trên chính máy Windows cho thấy mỗi lần ô bản dịch đổi chữ, Blink bố cục lại toàn bộ cây bố cục của lưới (37 đối tượng bẩn, 8.562 đối tượng được bố cục, 67 ms trung vị ở Song song, 7 ms ở Nguyên văn). EVKey biến mỗi chữ có dấu thành phím xoá cộng gõ lại, nên có ít nhất hai lần bố cục, và hàng phím chờ dài dần. Trợ năng, vẽ và JS của app bị loại bằng số. Lượt tiếp theo là bug 2.19.
+
 ## D1. Cơ chế engine
 
 - **Điểm nóng nằm ở bước tính kích thước track nội tại của subgrid.** Bản sửa đổi độ phức tạp của bước này, không bỏ nó đi; tác giả ghi rằng các engine khác vẫn nhanh hơn và đây chỉ là "điểm bắt đầu" [2]. Bug 232176 (lưới lồng nhau chậm, từ 2021) bị đóng là trùng với 304869 [1].
@@ -176,6 +178,25 @@ Ba kết luận [53]:
 - 🔴 **Chi phí mỗi phím không tăng theo cỡ DOM.** 94.057 nút với hàng nghìn `<ruby>` cho 1,70 ms, còn 14.057 nút chữ thường cho 1,90 ms — gấp 6,7 lần số nút, chi phí **không** tăng. Kích thước nội tại của ruby được đệm.
 - **Hai cách chữa của issue 40688351 không mua được gì ở kiểu Song song, tức ở đúng kiểu đang lỗi** [40][53]. Ở hàng ruby, `overflow-y: hidden` cho 1,80 ms so với 1,70 ms, không cải thiện. ⚠️ Ở hàng chữ thường thì nó hạ trung vị 1,90 xuống 1,60 ms, khoảng 16%, nên câu *không mua được gì* chỉ đúng cho kiểu Song song, và phần cải thiện ở cột thường vẫn là câu hỏi mở. `contain: size` cộng chiều cao cố định hạ **đỉnh** rõ ở cả hai hàng (4,30 xuống 2,00 ms với ruby; 5,00 xuống 2,10 ms với chữ thường) nhưng trung vị gần như đứng (1,70 so với 1,70; 1,80 so với 1,90), tức nó cắt các lượt đổi chiều cao hàng, mà những lượt đó vốn đã rẻ.
 - ⇒ Trên Blink 156, cấu trúc DOM và CSS của lưới **không** giải thích được độ trễ 1–2 giây. Nguyên nhân nằm ở thứ chỉ Windows có, hoặc ở chính máy đó.
+
+## D12. Vệt Performance trên máy Windows (spike 2.17, 2026-11-12)
+
+Đo trên máy ảo VMware của Ice: Windows, MSI v1.0.2, WebView2 nối cổng 9222 qua `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, vẽ hoàn toàn bằng phần mềm (`gpu: VMware SVGA 3D`, `ANGLE_D3D11_WARP`, xem `windows-trace/gpu-vmware-2026-11-12.txt`). Ice gõ bằng EVKey. Máy ảo này còn nhanh hơn máy Boot Camp nơi người dùng gặp lỗi. Ba vệt đầu ghi khi app đã chậm. Ba vệt sau ghi lại cùng ba kiểu, với `--disable-renderer-accessibility`. Bảy vệt nặng khoảng 250 MB, nằm ngoài repo; số dưới đây tính bằng hai script trong `windows-trace/`.
+
+| Vệt | Kiểu xem, cách gõ | Đối tượng bố cục | Lần bố cục | Một lần bố cục, trung vị / p90 | Tác vụ > 50 ms, dài nhất |
+|---|---|---|---|---|---|
+| 145309 | Song song, có dấu | 8.562 | 192 cho 145 chữ | 67 / 101 ms | 99, 865 ms |
+| 145536 | Song song, không dấu | 8.562 | 102 cho 99 chữ | 66 / 96 ms | 104, 134 ms |
+| 145629 | kiểu thứ ba, có dấu | 8.876 | 179 | 20 / 25 ms | 15, 204 ms |
+| 145718 | Nguyên văn, có dấu | 827 | 193 | 7 / 9 ms | 4, 71 ms |
+| 150334 | Song song, có dấu, tắt trợ năng | 8.501 | 84 | 63 / 100 ms | 37, 471 ms |
+| 150419 | Song song, không dấu, tắt trợ năng | 8.501 | 59 | 61 / 93 ms | 60, 120 ms |
+| 150507 | kiểu thứ ba, có dấu, tắt trợ năng | 8.816 | 88 | 19 / 24 ms | 10, 189 ms |
+
+- 🔴 **Mỗi lần sửa chữ là một lần bố cục lại toàn bộ cây**, dù chỉ 37 đối tượng bẩn. Cả 7 vệt đều ghi `dirtyObjects` = 37, `partialLayout` = false, một gốc bố cục. Chi phí tăng gần tuyến tính theo số đối tượng: 827 đối tượng 7 ms, 8.562 đối tượng 67 ms. 827 ứng với khoảng 200 hàng × 4 ô, nên cây được bố cục lại cỡ một khối 200 hàng hoặc cả Chương; vệt không cho biết Chương đó dài bao nhiêu câu. Lượt bố cục nằm trong `textInput` (chữ gõ vào) hoặc `keydown` (phím xoá EVKey gửi). Không lượt nào có stack JS, tức không do mã của app ép.
+- **EVKey nhân số lần bố cục.** Một chữ có dấu là phím xoá rồi gõ lại: vệt 145309 có 193 `keydown` cho 145 chữ và 192 lần bố cục. Bố cục chiếm 12,9 s trong 27,8 s ghi. Gõ không dấu là một lần bố cục mỗi phím, và máy theo kịp. ⇒ "Chậm sau một lúc gõ" khớp với một hàng phím chờ dài dần khi nhịp gõ có dấu vượt sức máy. Chưa kiểm chi phí mỗi lần bố cục có tăng dần trong một vệt hay không.
+- **Đã loại bằng số:** JS của app (`FunctionCall` 0,10–0,45 s mỗi vệt); cây trợ năng (tắt bằng cờ thì 63 so với 67 ms, 61 so với 66, 19 so với 20, nên D8 đóng); vẽ (`Paint` dưới 1,4 s mỗi vệt dù vẽ bằng CPU, nên D9 không phải nguyên nhân chính).
+- ⇒ Câu hỏi còn lại cho bug 2.19: vì sao Blink bố cục lại toàn bộ cây (không chỉ ô đang gõ) ở mỗi lần sửa một ô. D11 đo 1,7 ms ở trang tổng hợp trên Chrome macOS, nên điều kiện khiến app thật bố cục lại toàn bộ chưa được tái hiện ngoài app.
 
 ## Cross-dimension insights
 

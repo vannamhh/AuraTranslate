@@ -55,4 +55,6 @@ Hộp thời gian: khoảng 45 phút của Ice trên máy Windows, cộng một 
 - Decision: 2026-11-12, Ice — lỗi chỉ khi gõ có dấu bằng EVKey (Telex và VNI) ở Song song trên Windows, sau một lúc gõ; gõ không dấu vẫn nhanh.
 - Decision: 2026-11-12, Ice — đo trên Windows trước, sửa sau (phương án Y), vì lỗi đã lặp lại nhiều lần mà chưa từng có số đo trên máy đó.
 - Nghi can từ mã, chưa phải kết luận: `onEditKeydown` hẹn một lượt vẽ lại gạch chân toàn lưới sau mỗi `keydown` (`src/panels/GridPanel.vue`, ~1723); EVKey làm ra một chữ có dấu bằng phím xoá rồi gõ lại, nên một phím thành nhiều sự kiện; DOM ruby của Song song làm mỗi lượt quét lưới đắt hơn.
-- Open question: một vệt có thể nặng hàng chục MB. Commit cả vệt vào repo, hay chỉ commit bảng tóm tắt và giữ vệt ngoài repo?
+- 🔵 2026-11-12 — đã trả lời: chỉ commit bảng tóm tắt, hai script đọc vệt và `edge://gpu` vào `research-go-cham-luoi-subgrid-webkit/windows-trace/`. Bảy vệt (khoảng 250 MB) giữ ngoài repo. Ice chọn.
+- Decision: 2026-11-12, Ice — chấp nhận câu trả lời ở D12 của tài liệu research. Mỗi lần ô bản dịch đổi chữ, Blink bố cục lại toàn bộ cây (37 đối tượng bẩn, 8.562 được bố cục, 67 ms trung vị ở Song song). EVKey cho mỗi chữ có dấu ít nhất hai lần bố cục. Trợ năng, vẽ và JS của app đã bị loại bằng số. Bug sửa là 2.19.
+- Decision: 2026-11-12, Ice — máy đo là một máy ảo VMware chạy Windows. Máy này nhanh hơn máy Boot Camp nơi người dùng gặp lỗi.

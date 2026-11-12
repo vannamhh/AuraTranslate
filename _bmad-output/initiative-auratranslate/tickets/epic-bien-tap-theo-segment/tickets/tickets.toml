@@ -238,6 +238,17 @@ hitl = true
 risk = "medium"
 
 [[entry]]
+id = 19
+type = "bug"
+title = "Gõ có dấu ở Song song chậm vì mỗi lần sửa chữ bố cục lại cả lưới"
+description = "Trên Windows, mỗi lần ô bản dịch đổi chữ ở Song song thì Blink bố cục lại toàn bộ cây (37 đối tượng bẩn, 8.562 được bố cục, 67 ms trung vị trên máy ảo), và EVKey cho mỗi chữ có dấu ít nhất hai lần bố cục nên phím xếp hàng."
+verify = "Với MSI chứa bản sửa trên máy ảo Windows của spike 17, khi gõ có dấu bằng EVKey ở Song song và ghi vệt Performance, thì một lần bố cục có trung vị ≤ 16 ms, p90 ≤ 25 ms, và không tác vụ nào trên 100 ms do gõ."
+covers = []
+after = [17]
+hitl = true
+risk = "high"
+
+[[entry]]
 id = 18
 type = "bug"
 title = "Xác nhận câu chậm dần theo số câu đã sửa trong phiên"
