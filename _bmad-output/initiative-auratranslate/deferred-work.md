@@ -14105,3 +14105,14 @@ chính nó.
   Quan trọng vì Chương có nhiều dấu sẽ khựng ở mỗi lượt xác nhận và mỗi phím. Chủ: Epic 16. Trỏ: `research-go-cham-luoi-subgrid-webkit/handoff-xac-nhan-song-song.md` §Đã loại.
 - Trên `master` sau v1.0.2, lượt quét lại quy ước chữ sau mỗi lần lưu (`conventionState.ts`, `onEditorFlushed`) luôn thay Map kết quả mới, nên cả Chương bị vẽ lại gạch chân mỗi 2–5 giây khi đang gõ liên tục, kể cả khi không có gì đổi.
   Quan trọng vì sẽ phát hành cùng bản kế tiếp, cộng dồn với mục ngay trên. Chủ: Epic 16. Trỏ: commit `c622f334` và mục ngay trên.
+
+## Deferred from: bug 2.19 gõ có dấu ở Song song chậm (2026-11-12)
+
+- Bản sửa `scrollbar-gutter: stable` trên `.grid-scroll` mới đo trên Chrome 157 ở Mac, chưa đo trên WebView2. Tiêu chí 1 và 2 của vé 19 (vệt Performance trên máy ảo Windows khi gõ có dấu bằng EVKey: trung vị ≤ 16 ms, p90 ≤ 25 ms, không tác vụ nào trên 100 ms; bảng trước/sau kèm phiên bản WebView2) đo trên bản `v1.0.3`, theo quyết định của Ice.
+  Quan trọng vì nguyên nhân tìm ra trên Chrome của Mac, và chỉ vệt Windows mới chứng minh được nó đúng ở chỗ người dùng gặp lỗi. Chủ: Epic 2. Trỏ: `tickets/epic-bien-tap-theo-segment/tickets/bug-go-co-dau-o-song-song-cham-vi-moi-lan-sua-chu-bo-cuc-lai-ca-luoi-plan.md`, research D13.
+- Tiêu chí 4 của vé 19: gõ có dấu ở Song song quá 100 câu trên máy Boot Camp nơi lỗi được báo, chữ phải theo kịp phím gõ. Cần bản `v1.0.3` và máy Windows thật.
+  Quan trọng vì máy đó chậm hơn máy ảo, nên đạt trên máy ảo chưa chứng minh được là đạt ở đây. Chủ: B7. Trỏ: mục ngay trên.
+- Bug 2.19 thêm `scrollbar-gutter: stable` cho `.grid-scroll`. Chưa ai nhìn trong app thật: ở Chương ngắn (không cuộn) và Chương dài, trên cả ba kiểu xem, lưới phải cuộn được, không cắt chữ, và mép phải phải đúng như Ice chấp nhận (Chương ngắn mất 10px).
+  Quan trọng vì e2e chỉ kiểm thuộc tính, không kiểm hình. Chủ: Epic 2. Trỏ: plan bug 2.19, tiêu chí 4.
+- `e2e/specs/grid-blocks.e2e.mjs`, ca "Mod+Shift+ArrowDown across the block boundary": đỏ một lần ở máy Ice ngày 2026-11-12 (nhận hàng 221–225 thay vì 199–203), ở cả hai phía của phép sửa 2.19. Lượt chạy lại xanh 5/5; nguyên nhân chưa tìm.
+  Quan trọng vì một ca chập chờn ở ranh giới khối che được lỗi thật. Chủ: Epic 2. Trỏ: plan bug 2.19, Review Triage Log.

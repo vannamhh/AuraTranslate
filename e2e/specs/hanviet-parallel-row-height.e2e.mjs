@@ -118,6 +118,13 @@ describe('Bugfix — Hán Việt song song không tràn/đè hàng lưới', () 
     await assertRowsFitAndDoNotOverlap()
   })
 
+  it('ô cuộn của lưới giữ scrollbar-gutter: stable để Blink không bố cục lại cả lưới mỗi lần sửa chữ', async () => {
+    await openWorkspaceWithWork('HV row-height — scrollbar-gutter', TEXT)
+    await waitForGridRows(2)
+    const gutter = await browser.execute(() => getComputedStyle(document.querySelector('.grid-scroll')).scrollbarGutter)
+    await expect(String(gutter)).toMatch(/^stable/)
+  })
+
   it('không phần tử nào trong một ô [data-col] tự cuộn, ở cả hai kiểu xem', async () => {
     await openWorkspaceWithWork('HV row-height — không hộp cuộn riêng', TEXT)
     await waitForGridRows(2)
