@@ -128,6 +128,46 @@ export function wordStartOffsets(text: string): ReadonlySet<number> {
   return starts
 }
 
+export type WordSpan = { start: number; end: number; wordLike: boolean }
+
+const WORD_CHAR = /[\p{L}\p{N}]/u
+
+/**
+ * The word containing the code point at `cpOffset`, in raw code points of `text` (the unit of
+ * `source_text` offsets). The segmenter runs on the newline-normalised text, like double-click.
+ * `null` when `cpOffset` is out of range; `wordLike` is `false` for punctuation and whitespace.
+ */
+export function wordAt(text: string, cpOffset: number): WordSpan | null {
+  const raw = [...text]
+  if (!Number.isInteger(cpOffset) || cpOffset < 0 || cpOffset >= raw.length) return null
+
+  // `\r\n` collapses to one normalised code point, so normalised and raw code-point indices differ.
+  const rawIndexOf: number[] = []
+  const norm: string[] = []
+  for (let i = 0; i < raw.length; i += 1) {
+    rawIndexOf.push(i)
+    norm.push(raw[i] === '\r' ? '\n' : raw[i])
+    if (raw[i] === '\r' && raw[i + 1] === '\n') i += 1
+  }
+  let normIndex = rawIndexOf.findIndex((r) => r >= cpOffset)
+  if (rawIndexOf[normIndex] !== cpOffset) normIndex -= 1
+  if (normIndex < 0) return null
+
+  const seg = hanWordSegmenter()
+  const rawEndOf = (n: number): number => (n < rawIndexOf.length ? rawIndexOf[n] : raw.length)
+
+  if (seg === null) {
+    return { start: rawIndexOf[normIndex], end: rawEndOf(normIndex + 1), wordLike: WORD_CHAR.test(norm[normIndex]) }
+  }
+
+  const joined = norm.join('')
+  const part = seg.segment(joined).containing(norm.slice(0, normIndex).join('').length)
+  if (part === undefined) return null
+  const startCp = [...joined.slice(0, part.index)].length
+  const endCp = startCp + [...part.segment].length
+  return { start: rawIndexOf[startCp], end: rawEndOf(endCp), wordLike: part.isWordLike === true }
+}
+
 /**
  * 🔴 **KÝ TỰ NỐI TỪ `U+2060` (WORD JOINER) — RỘNG BẰNG 0, VÀ ĐÓ LÀ CẢ VẤN ĐỀ LẪN LỜI GIẢI.**
  *

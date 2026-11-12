@@ -14123,3 +14123,8 @@ chính nó.
 
 - Ở `dict-vietphrase.db`, điều kiện tra chính xác `(headword = ?1 OR headword_simp = ?1) AND lang = 'zh'` (`core/dict/query.rs:217`) ra kế hoạch `SCAN`, mất 77 ms một lượt, vì `headword_simp` toàn NULL nên `sqlite_stat1` khiến planner bỏ qua chỉ mục (`dict-core.db` vẫn đi `MULTI-INDEX OR`, 0,0 ms). Mới đo bằng SQLite 3.43 của hệ thống với tham số gắn, chưa đo bằng SQLite bundled của rusqlite 0.40.1.
   Quan trọng vì nếu app cũng quét bảng thì mỗi lượt Auto-Lookup trả thêm khoảng 77 ms ở đường nóng mà AD-26 bắt phải đi B-tree, và tra bằng một cú bấm sẽ gọi đường này nhiều hơn. Chủ: Amelia. Trỏ: commit `2358e434`.
+
+## Deferred from: story 1.23 tra bằng một cú bấm (2026-11-12)
+
+- Tiêu chí 8 của story 1.23: chưa có vệt Performance nào cho thấy việc tô `lookup-active` bằng Custom Highlight API không gây một lần bố cục lại lưới ở Song song 300 câu. Lý thuyết là API này chỉ vẽ lại, nhưng chưa đo trên WKWebView lẫn WebView2.
+  Quan trọng vì cú bấm tra là thao tác lặp nhiều nhất, và bug 2.19 cho thấy một lần bố cục ở Song song tốn 39 ms. Chủ: Epic 1. Trỏ: plan story 1.23, Review Triage Log lượt 1.

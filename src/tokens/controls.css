@@ -762,3 +762,7 @@ summary.ui-field {
     outline-offset: 1px;
   }
 }
+
+::highlight(lookup-active) {
+  color: var(--color-lookup-active);
+}

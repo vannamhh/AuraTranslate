@@ -219,8 +219,31 @@ export function currentSelectionText(): string {
   return sourceSelectionText(false)
 }
 
+let pointLookup: string | null = null
+let skipSettle = false
+
+/**
+ * Hands the next settled mouse release a phrase picked from a plain click, which leaves no DOM
+ * selection to read. Lives for exactly one release: the cell listener sets it, the document
+ * watcher consumes and clears it, so `Mod+Alt+L` never sees a stale value.
+ */
+export function offerPointLookup(text: string): void {
+  pointLookup = text
+}
+
+export function resetPointLookup(): void {
+  pointLookup = null
+  skipSettle = false
+}
+
+/** Makes the next settled mouse release dispatch nothing (the second click of a double-click on a point-lookup surface). */
+export function skipNextAutoLookup(): void {
+  skipSettle = true
+}
+
 /** A surface registered with `autoLookup = false` answers an explicit command, never a released mouse. */
 function sourceSelectionText(forAutoLookup: boolean): string {
+  if (pointLookup !== null) return pointLookup
   const selection = window.getSelection()
   if (selection === null) return ''
 
@@ -355,10 +378,26 @@ export function attachSelectionWatcher(target: Document, dispatchLookup: () => v
    * `currentQuery.value` khi kết quả về, nên không cần dọn tay.
    */
   let lastAutoDispatched: string | null = null
+  const stopForgetting = watch(
+    currentQuery,
+    (query) => {
+      if (query !== lastAutoDispatched) lastAutoDispatched = null
+    },
+    { flush: 'sync' },
+  )
   const shouldDispatch = (text: string): boolean =>
     text !== '' && text !== currentQuery.value && text !== lastAutoDispatched
 
   const onSelectionSettled = (): void => {
+    try {
+      settle()
+    } finally {
+      resetPointLookup()
+    }
+  }
+
+  const settle = (): void => {
+    if (skipSettle) return
     const text = sourceSelectionText(true)
 
     // 🔴 **Bẫy 5 — vùng chọn RỖNG ⇒ không LÀM GÌ, không xoá panel.** Một cú **bấm** (không kéo) cũng
@@ -407,6 +446,7 @@ export function attachSelectionWatcher(target: Document, dispatchLookup: () => v
   return () => {
     target.removeEventListener('mouseup', onMouseUp)
     target.removeEventListener('keyup', onKeyUp)
+    stopForgetting()
   }
 }
 

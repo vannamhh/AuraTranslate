@@ -81,3 +81,21 @@ export async function modifiedMouseDown(element, modifier) {
     modifier,
   )
 }
+
+/**
+ * The same real press sequence as `realClick`, at viewport coordinates, for targets that are a
+ * single character inside a text node rather than an element.
+ *
+ * @param {number} x
+ * @param {number} y
+ */
+export async function realClickAt(x, y) {
+  await browser
+    .action('pointer')
+    .move({ origin: 'viewport', x: Math.round(x), y: Math.round(y) })
+    .down()
+    .pause(30)
+    .up()
+    .pause(100)
+    .perform()
+}

@@ -58,11 +58,11 @@ export const ENTRY_MODULE = '/src/main.ts'
 /**
  * Trần số module một lượt duyệt được phép chạm.
  *
- * ⚠️ Đây là một **hàng rào chống vòng lặp**, không một mệnh đề về quần thể. Số thật hôm
- * nay là 58; trần đặt rộng gấp bốn để một lượt thêm tệp bình thường không đụng nó, nhưng
- * một `matchAll` hỏng sinh URL vô hạn thì đụng.
+ * ⚠️ Đây là một **hàng rào chống vòng lặp**, không một mệnh đề về quần thể. Trần đặt rộng
+ * khoảng gấp bốn số module app thật nạp, để một lượt thêm tệp bình thường không đụng nó,
+ * nhưng một `matchAll` hỏng sinh URL vô hạn thì đụng.
  */
-const MODULE_CEILING = 250
+const MODULE_CEILING = 1000
 
 /**
  * Hai hình dạng DUY NHẤT đo được là "Vite hấp hối" cho một đường module KHÔNG phải
@@ -178,7 +178,7 @@ export async function crawlModuleGraph(fetchModule) {
   // 🔵 **CODE REVIEW BA TẦNG 2026-08-19 — TRẦN KHÔNG ĐƯỢC CẮT TRONG IM LẶNG.**
   //
   // 🔴 Bản đầu thoát vòng vì chạm trần rồi trả về hình dạng **y hệt** một lượt duyệt trọn vẹn
-  // — cùng `{ visited, bad }`, không một cờ nào. Ngày quần thể module vượt 250 *(hôm nay 58)*,
+  // — cùng `{ visited, bad }`, không một cờ nào. Ngày quần thể module vượt trần,
   // một module **vỡ** nằm sau điểm cắt sẽ không bao giờ được thăm, và `assertModuleGraphHealthy`
   // báo *"lành"* trên một Vite thật sự vỡ. Đó là xanh oan — đúng lớp lỗi mà cả tệp này viết ra
   // để chống, đi vào bằng cửa của chính hàng rào chống vòng lặp.
@@ -190,7 +190,7 @@ export async function crawlModuleGraph(fetchModule) {
   // ⚠️ Vị từ là *"còn việc CHƯA LÀM trong hàng đợi"*, không phải *"hàng đợi không rỗng"* và
   // cũng không phải `seen.size >= MODULE_CEILING`. Hai vị từ sau đều SAI ở một chiều: hàng đợi
   // có thể còn những URL **đã thăm** *(chúng được `push` rồi bị `continue` bỏ qua)*, và một
-  // graph có đúng 250 đỉnh duyệt **trọn vẹn** vẫn chạm `seen.size === MODULE_CEILING`. Cả hai
+  // graph có đúng `MODULE_CEILING` đỉnh duyệt **trọn vẹn** vẫn chạm `seen.size === MODULE_CEILING`. Cả hai
   // cho ĐỎ OAN, và một phép kiểm đỏ oan sẽ bị nới cho hết đỏ.
   const truncated = queue.some((u) => !seen.has(u))
   return { visited: [...seen], bad, truncated }
@@ -211,7 +211,7 @@ export function describeTruncatedGraph(visitedCount) {
     'di tron graph, nen mot module vo nam sau diem cat da KHONG duoc kiem.\n\n' +
     '🔴 Day la LOI HA TANG, KHONG mot phep kiem dat va cung KHONG mot hoi quy san pham:\n' +
     'tran la mot hang rao chong vong lap, va cham nó nghia la tham so cua ban do da cu.\n' +
-    `Xet lai \`MODULE_CEILING\` o \`e2e/support/devServerHealth.mjs\` (so that 2026-08-18: 58),\n` +
+    `Xet lai \`MODULE_CEILING\` o \`e2e/support/devServerHealth.mjs\` (dat khoang gap bon so module that),\n` +
     'hoac tim mot `matchAll` hong dang sinh URL vo han.'
   )
 }
@@ -344,7 +344,7 @@ export async function selfCheckDevServerHealth() {
   // `truncated` thành `queue.length > 0` mà tự kiểm vẫn XANH. Lý do: vòng lặp `shift()` cho tới
   // khi hàng đợi rỗng, nên với một graph nhỏ thì `queue.length === 0` ở mọi lối ra. Hai vị từ
   // chỉ tách nhau ở **đúng biên**: chạm trần **và** phần còn lại trong hàng đợi toàn URL đã
-  // thăm. Ca dưới đây dựng đúng biên ấy — 250 đỉnh, duyệt trọn, đỉnh cuối `import` lại đỉnh
+  // thăm. Ca dưới đây dựng đúng biên ấy — `MODULE_CEILING` đỉnh, duyệt trọn, đỉnh cuối `import` lại đỉnh
   // đầu ⇒ ra khỏi vòng với `queue = ['/src/n1.ts']` mà `n1` **đã** trong `seen`.
   // ⇒ *"Cây rỗng không phải cây sạch"*, và một ca âm không cắn được đột biến không phải một ca âm.
   const bien = {}

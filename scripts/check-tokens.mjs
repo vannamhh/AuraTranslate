@@ -157,6 +157,7 @@ const EXPECTED_COLORS_LIGHT = {
   'tm-rule': '#a38347',
   'caret-rule': '#25484d',
   'tm-text': '#7a5d25',
+  'lookup-active': '#a8430c',
   error: '#8f2f22',
   'diff-add-bg': '#e7f0e4',
   'diff-add-ink': '#3f5b34',
@@ -199,6 +200,7 @@ const EXPECTED_COLORS_DARK = {
   'tm-rule': '#92763f',
   'caret-rule': '#c7dee1',
   'tm-text': '#d3b276',
+  'lookup-active': '#fb923c',
   error: '#e5867a',
   'diff-add-bg': '#2b3a2a',
   'diff-add-ink': '#a9c99a',
@@ -337,7 +339,7 @@ const EXPECTED_ROUNDED = {
  * 🔵 2026-11-01 (Ice): `typography` lên 21 với `cover-name` — tên Tác phẩm trên bìa 16px / 23px;
  * hàng 17 của bảng `DESIGN.md`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 20, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 40, typography: 20, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -352,7 +354,7 @@ const LARGE_TEXT_MIN_PX = 24
 
 /** Vai quyết định token được phép làm gì. Vai KHÔNG đổi theo theme, và KHÔNG đổi theo tệp. */
 const EXPECTED_ROLES = {
-  text: ['on-surface', 'on-surface-variant', 'primary', 'on-primary', 'confirmed', 'tm-text', 'error'],
+  text: ['on-surface', 'on-surface-variant', 'primary', 'on-primary', 'confirmed', 'tm-text', 'lookup-active', 'error'],
   surface: ['background', 'surface', 'surface-sunken', 'surface-accent', 'surface-tm', 'primary'],
   stroke: ['outline', 'outline-faint', 'control-rule', 'ornament', 'draft', 'tm-rule', 'caret-rule'],
 }
@@ -381,6 +383,7 @@ const EXPECTED_EXCLUDED = new Set([
   'primary|primary',
   'confirmed|primary',
   'tm-text|primary',
+  'lookup-active|primary',
   'error|primary',
 ])
 

@@ -365,6 +365,111 @@ const SRC_START = 'data-src-start'
  */
 const SRC_ATOMIC = 'data-src-atomic'
 
+/** Half-open `[start, end)` range of raw code points in a segment's `source_text`. */
+export type SourceSpan = { start: number; end: number }
+
+/** Atomic anchors that stand for Han characters: the switch view's `.hv-word` and the parallel view's `.hv-unit`. */
+const HAN_BLOCK_SELECTOR = '.hv-word, .hv-unit'
+
+function sourceTextNodesOf(cell: Element, anchor: Element): Text[] {
+  const out: Text[] = []
+  const walker = cell.ownerDocument.createTreeWalker(anchor, NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
+    if (!duoiRt(cell, n)) out.push(n as Text)
+  }
+  return out
+}
+
+/** Source characters an anchor stands for; `.hv-word` shows readings, one `.hv-syl` per character. */
+function anchorLength(cell: Element, anchor: Element): number {
+  if (anchor.classList.contains('hv-word')) return anchor.querySelectorAll('.hv-syl').length
+  let total = 0
+  for (const n of sourceTextNodesOf(cell, anchor)) total += demKyTu(n.textContent)
+  return total
+}
+
+/** Ranges covering the source characters `[start, end)` of one cell; atomic anchors are covered whole. */
+export function sourceRangesForSpan(cell: Element, start: number, end: number): Range[] {
+  const doc = cell.ownerDocument
+  const out: Range[] = []
+  for (const anchor of cell.querySelectorAll(`[${SRC_START}]`)) {
+    const from = Number(anchor.getAttribute(SRC_START))
+    if (!Number.isFinite(from)) continue
+    const to = from + anchorLength(cell, anchor)
+    if (to <= start || from >= end) continue
+
+    if (anchor.hasAttribute(SRC_ATOMIC)) {
+      if (anchor.classList.contains('hv-word')) {
+        const range = doc.createRange()
+        range.selectNodeContents(anchor)
+        out.push(range)
+        continue
+      }
+      for (const n of sourceTextNodesOf(cell, anchor)) {
+        const range = doc.createRange()
+        range.selectNodeContents(n)
+        out.push(range)
+      }
+      continue
+    }
+
+    const text = sourceTextNodesOf(cell, anchor).at(0)
+    if (text === undefined) continue
+    const chars = [...text.data]
+    const a = Math.max(start, from) - from
+    const b = Math.min(end, to) - from
+    const range = doc.createRange()
+    range.setStart(text, chars.slice(0, a).join('').length)
+    range.setEnd(text, chars.slice(0, b).join('').length)
+    out.push(range)
+  }
+  return out
+}
+
+export type LookupSpanContext = {
+  sourceText: string
+  glossarySpanAt: (cp: number) => SourceSpan | null
+  wordAt: (text: string, cp: number) => { start: number; end: number; wordLike: boolean } | null
+  /** `true` when the pointer is over a glyph of the target, not blank space around it. */
+  hits: (target: Range | Element) => boolean
+}
+
+/**
+ * The source characters a plain click at DOM position `(node, offsetInNode)` should look up, or
+ * `null` when the click is not on a character that has a phrase (punctuation, blank space, Latin
+ * runs in a Han Viet view). A Glossary term containing the character wins over the word.
+ */
+export function lookupSpanAtPoint(
+  cell: Element,
+  node: Node,
+  offsetInNode: number,
+  ctx: LookupSpanContext,
+): SourceSpan | null {
+  if (!cell.contains(node)) return null
+  const anchor = neoNguonCua(cell, node)
+  if (anchor === null) return null
+  const from = Number(anchor.getAttribute(SRC_START))
+  if (!Number.isFinite(from)) return null
+
+  if (anchor.hasAttribute(SRC_ATOMIC)) {
+    if (!anchor.matches(HAN_BLOCK_SELECTOR) || !ctx.hits(anchor)) return null
+    return ctx.glossarySpanAt(from) ?? { start: from, end: from + anchorLength(cell, anchor) }
+  }
+
+  const caret = sourceCutOffsetOf(cell, node, offsetInNode)
+  if (caret === null) return null
+  const length = [...ctx.sourceText].length
+  for (const cp of [caret, caret - 1]) {
+    if (cp < 0 || cp >= length) continue
+    if (!sourceRangesForSpan(cell, cp, cp + 1).some((range) => ctx.hits(range))) continue
+    const term = ctx.glossarySpanAt(cp)
+    if (term !== null) return term
+    const word = ctx.wordAt(ctx.sourceText, cp)
+    return word !== null && word.wordLike ? { start: word.start, end: word.end } : null
+  }
+  return null
+}
+
 /**
  * Tổ tiên gần nhất **trong `cell`** mang neo `data-src-start`, hoặc `null`.
  *

@@ -25,6 +25,7 @@ colors:
   caret-rule: '#25484d'
   control-rule: '#8a8276'
   tm-text: '#7a5d25'
+  lookup-active: '#a8430c'
   error: '#8f2f22'
 colors-dark:
   background: '#201e1b'
@@ -44,6 +45,7 @@ colors-dark:
   caret-rule: '#c7dee1'
   control-rule: '#807868'
   tm-text: '#d3b276'
+  lookup-active: '#fb923c'
   error: '#e5867a'
 typography:
   # 🔵 2026-10-29 (Ice): giãn dòng là bội 7px, trừ source-cjk · source-hanviet · editor của thân lưới Workspace. Xem §Layout & Spacing.
@@ -209,6 +211,7 @@ Bảng màu lấy từ giấy và mực, không lấy từ màn hình.
 | 17 | `draft` | `#b9b3aa` | `#575249` | Vạch *đã dịch tay, chưa ai ký* — **là vạch, không phải chữ**. 🔵 Story 2.5b. 🔵 2026-10-25: không còn mượn giá trị `ornament` |
 | 18 | `caret-rule` | `#25484d` | `#c7dee1` | Vạch lề câu đang sửa — **là vạch, không phải chữ**. 🔵 2026-10-25 |
 | 19 | `control-rule` | `#8a8276` | `#807868` | Viền nút phụ, nút phân đoạn — **là nét, không phải chữ**. 🔵 2026-10-26 (Ice duyệt): 3,63:1 trên `surface`, 3,21:1 trên `surface-sunken` (sáng); 3,55:1 và 3,98:1 (tối). Đạt 3:1 của WCAG 1.4.11; `outline` chỉ 1,31:1 và `ornament` 2,44:1 |
+| 20 | `lookup-active` | `#a8430c` | `#fb923c` | Chữ cụm đang tra ở cột nguyên văn (Auto-Lookup bằng một cú bấm) |
 
 Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component** (AD-34) — thứ cần kiểm tra tập trung thì không được rải rác.
 

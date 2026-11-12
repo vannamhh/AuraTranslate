@@ -74,7 +74,10 @@ import GridBlock from './GridBlock.vue'
 import GridSentenceMenu from './GridSentenceMenu.vue'
 import { GRID_BLOCK_CONTEXT } from './gridBlockContext'
 import type { GridBlockContext, GridBlockView, SourcePieceInfo } from './gridBlockContext'
-import { useSelectionSurface } from './selectionContract'
+import { offerPointLookup, skipNextAutoLookup, useSelectionSurface } from './selectionContract'
+import { currentQuery } from './lookupPanelState'
+import { clearLookupPaint, paintLookupRanges } from './lookupPaint'
+import { wordAt } from './wordBoundary'
 import { resolveHanVietSelection } from './hanVietSurfaces'
 import { isSourceColumnSelecting, sourceColumnText } from './gridSourceSelection'
 import type { DockviewPanelProps } from '../layout/panelProps'
@@ -85,11 +88,13 @@ import { detectIsMac, dispatch } from '../commands'
 import { commandTitle } from '../config/shortcutsState'
 import {
   hasPrimaryModifier,
+  lookupSpanAtPoint,
   resolveSegmentRule,
   segmentRuleInputOf,
   sourceCutOffsetOf,
+  sourceRangesForSpan,
 } from './editorSegments'
-import type { SegmentRuleValue, TextShape } from './editorSegments'
+import type { SegmentRuleValue, SourceSpan, TextShape } from './editorSegments'
 import {
   activeTab,
   canUseParallelView,
@@ -913,7 +918,10 @@ function onSourceCellMouseUp(event: MouseEvent): void {
   //    `commands/README.md:73` cấm bằng chữ. Nửa Windows của kho không có đường nghiệm thu
   //    tại chỗ, nên một `metaKey` trần đi qua **cả hai nền tảng của CI** rồi hỏng ở tay người
   //    dùng Windows. Vị từ sống ở `editorSegments.ts` và nhận nền tảng qua **tham số**.
-  if (!hasPrimaryModifier(event, PLATFORM)) return
+  if (!hasPrimaryModifier(event, PLATFORM)) {
+    lookupByPlainClick(event)
+    return
+  }
 
   const from = event.target instanceof Element ? event.target : event.target instanceof Node ? event.target.parentElement : null
   const cell = from?.closest<HTMLElement>('[data-col="src"]') ?? null
@@ -935,6 +943,73 @@ function onSourceCellMouseUp(event: MouseEvent): void {
   if (cut === null) return
   setEditorSourceCut(id, cut)
 }
+
+let paintedLookup: string | null = null
+
+function clearPaintedLookup(): void {
+  paintedLookup = null
+  clearLookupPaint()
+}
+
+function paintLookup(ranges: readonly Range[], text: string): void {
+  paintedLookup = text
+  paintLookupRanges(ranges)
+}
+
+function pointerOver(event: MouseEvent, target: Range | Element): boolean {
+  for (const rect of target.getClientRects()) {
+    if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
+      return true
+    }
+  }
+  return false
+}
+
+/** A plain click leaves `rangeCount 0` on WKWebView, so there is no selection to read. */
+function lookupByPlainClick(event: MouseEvent): void {
+  if (event.button !== 0) return
+  const from = event.target instanceof Element ? event.target : event.target instanceof Node ? event.target.parentElement : null
+  const cell = from?.closest<HTMLElement>('[data-col="src"]') ?? null
+  const id = segmentIdOf(cell)
+  if (cell === null || id === null) return
+
+  if (event.detail === 2) {
+    skipNextAutoLookup()
+    return
+  }
+  // WebDriver-synthesised mouse events carry `detail 0`; a real single click carries 1.
+  if (event.detail > 1) return
+  const selection = window.getSelection()
+  if (selection !== null && selection.rangeCount > 0 && !selection.isCollapsed) return
+
+  const sourceText = toRaw(editorSegments.value).find((segment) => segment.id === id)?.source_text
+  const caret = caretPointAt(event.clientX, event.clientY)
+  if (sourceText === undefined || caret === null) return
+
+  const span: SourceSpan | null = lookupSpanAtPoint(cell, caret.node, caret.offset, {
+    sourceText,
+    glossarySpanAt: (cp) => glossarySpanAtPoint(id, cp),
+    wordAt,
+    hits: (target) => pointerOver(event, target),
+  })
+  if (span === null) return
+  const ranges = sourceRangesForSpan(cell, span.start, span.end)
+  const text = [...sourceText].slice(span.start, span.end).join('')
+  if (ranges.length === 0 || text === '') return
+
+  offerPointLookup(text)
+  paintLookup(ranges, text)
+}
+
+watch(
+  [() => editorSegments.value, glossaryMarksPerSegment, showHanViet, viewMode, editorChapterId],
+  clearPaintedLookup,
+  { flush: 'post' },
+)
+watch(currentQuery, (query) => {
+  if (paintedLookup !== null && query !== paintedLookup) clearPaintedLookup()
+})
+onBeforeUnmount(clearPaintedLookup)
 
 /**
  * `mousedown` — dời **vùng gõ** sang ô vừa bấm.
