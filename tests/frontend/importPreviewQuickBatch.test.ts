@@ -48,6 +48,9 @@ vi.mock('../../src/config/glossaryContextReference', async (importOriginal) => (
 vi.mock('../../src/config/quickAiConfig', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/quickAiConfig')>()),
   quickAiConfigGet: () => quickAiConfigGetMock(),
+  quickAiConfigSaveFields: async () => null,
+  quickAiConfigSaveKey: async () => null,
+  quickAiConfigDeleteKey: async () => null,
 }))
 
 const URLS = ['https://a.example/1']
@@ -1032,5 +1035,102 @@ describe('tự dịch các khối đang thấy', () => {
     await flushPromises()
     expect(wrapper.find('[data-ip-quick-translate]').exists()).toBe(true)
     wrapper.unmount()
+  })
+})
+
+describe('đổi cấu hình khi một lô đang chạy hoặc đang chờ', () => {
+  const CHANGES = ['save field', 'save key', 'delete key', 'auto on', 'auto off'] as const
+  type Change = (typeof CHANGES)[number]
+
+  async function applyChange(change: Change): Promise<void> {
+    const config = await import('../../src/quickAiConfigState')
+    if (change === 'save field') {
+      config.setQuickAiConfigDraft('quick_model', 'm-changed')
+      await config.commitQuickAiConfigDrafts()
+    } else if (change === 'save key') {
+      config.setQuickAiConfigKeyDraft('sk-new')
+      await config.saveQuickAiConfigKey()
+    } else if (change === 'delete key') {
+      await config.deleteQuickAiConfigKey()
+    } else {
+      quickAiConfigGetMock.mockResolvedValue({
+        config: { fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [], auto_enabled: change === 'auto on', auto_eligible: true },
+        error: null,
+      })
+      await config.refreshQuickAiConfigReadiness()
+    }
+    await flushPromises()
+  }
+
+  async function setup(autoOn: boolean) {
+    const f = await fresh()
+    const activity = (await import('../../src/config/aiTranslateActivity')).aiTranslateActivity as unknown as { value: { revision: number; active_count: number } }
+    activity.value = { revision: 0, active_count: 0 }
+    quickAiConfigGetMock.mockResolvedValue({
+      config: { fields: [], source: 'dedicated', key_configured: null, ready: true, not_ready: [], auto_enabled: autoOn, auto_eligible: true },
+      error: null,
+    })
+    await (await import('../../src/quickAiConfigState')).refreshQuickAiConfigReadiness()
+    await open(f.state)
+    await see(f.state, 0)
+    return f
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each(CHANGES)('manual Dịch thử × %s completes without cancelling', async (change) => {
+    const { state } = await setup(change === 'auto off')
+    const call = pendingBatch()
+    void state.translateImportPreviewVisibleBlocks()
+    await flushPromises()
+    expect(state.importPreviewQuickBatchRunning.value).toBe(true)
+
+    await applyChange(change)
+    const afterChange = { cancels: cancelMock.mock.calls.length, running: state.importPreviewQuickBatchRunning.value }
+
+    call.emit({ kind: 'received', index: 0, text: 'Giáp', model: 'm-1', saved: true })
+    call.finish(doneOutcome())
+    await flushPromises()
+    expect(state.importPreviewBlockTranslationAt(0)).toEqual({ kind: 'done', text: 'Giáp', model: 'm-1' })
+    expect(afterChange).toEqual({ cancels: 0, running: true })
+    expect(cancelMock).not.toHaveBeenCalled()
+  })
+
+  const others = CHANGES.filter(change => change !== 'auto on')
+  it.each(others)('automatic running × %s aborts with its run id', async (change) => {
+    const { state } = await setup(true)
+    const call = pendingBatch()
+    await vi.advanceTimersByTimeAsync(800)
+    expect(state.importPreviewQuickBatchRunning.value).toBe(true)
+    const runId = blocksMock.mock.calls[0]?.[1] as number
+    call.emit({ kind: 'started', indices: [0] })
+    call.emit({ kind: 'token', index: 0, text: 'Gi' })
+    expect(state.importPreviewBlockTranslationAt(0)).toEqual({ kind: 'running', text: 'Gi' })
+
+    await applyChange(change)
+    expect(state.importPreviewQuickBatchRunning.value).toBe(false)
+    expect(cancelMock).toHaveBeenCalledWith(runId)
+    call.emit({ kind: 'received', index: 0, text: 'Giáp', model: 'm-1', saved: true })
+    call.finish({ value: { state: 'cancelled' }, error: null })
+    await flushPromises()
+    expect(state.importPreviewBlockTranslationAt(0)).toBeNull()
+  })
+
+  it.each(others)('automatic waiting × %s clears the timer', async (change) => {
+    const { state } = await setup(true)
+    blocksMock.mockResolvedValue(doneOutcome())
+    await vi.advanceTimersByTimeAsync(400)
+
+    await applyChange(change)
+    await vi.advanceTimersByTimeAsync(799)
+    expect(blocksMock).not.toHaveBeenCalled()
+    expect(cancelMock).not.toHaveBeenCalled()
+    expect(state.importPreviewQuickBatchRunning.value).toBe(false)
   })
 })

@@ -128,6 +128,7 @@ const references = ref<Partial<Record<number, ContextReference>>>({})
 /** The run whose tokens and result may still land; `null` once aborted or finished. */
 let activeRunId: number | null = null
 let runningCandidateId: number | null = null
+let runningTrigger: 'auto' | 'manual' | null = null
 /** What the running row showed before `Dịch lại`, restored when that run is cancelled. */
 let runningPrevious: ContextReference | undefined
 
@@ -163,6 +164,7 @@ function abortContextReference(): void {
   endQuickRun(runId)
   runningCandidateId = null
   activeRunId = null
+  runningTrigger = null
   runningPrevious = undefined
   void cancelContextReference(runId)
 }
@@ -247,7 +249,7 @@ watch(
 
 watch([quickAiAutoEnabled, quickAiConfigRevision], () => {
   clearAutoTimer()
-  abortContextReference()
+  if (runningTrigger === 'auto') abortContextReference()
   const row = rows.value.at(cursor.value)
   if (row !== undefined && references.value[row.candidate.id]?.kind === 'paused') references.value[row.candidate.id] = { kind: 'none' }
   scheduleAutomaticReference()
@@ -284,6 +286,7 @@ async function runContextReference(retranslate: boolean, trigger: 'auto' | 'manu
   const mine = beginQuickRun('glossary_queue')
   activeRunId = mine
   runningCandidateId = id
+  runningTrigger = trigger
   runningPrevious = retranslate ? current : undefined
   references.value[id] = { kind: 'running', text: '' }
 
@@ -300,6 +303,7 @@ async function runContextReference(retranslate: boolean, trigger: 'auto' | 'manu
   const fallback = settled()
   runningCandidateId = null
   activeRunId = null
+  runningTrigger = null
   runningPrevious = undefined
   const outcome = result.value
   if (result.error !== null) references.value[id] = { kind: 'failed', error: result.error }
