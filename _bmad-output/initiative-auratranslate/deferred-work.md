@@ -14118,3 +14118,8 @@ chính nó.
   Quan trọng vì một ca chập chờn ở ranh giới khối che được lỗi thật. Chủ: Epic 2. Trỏ: plan bug 2.19, Review Triage Log.
 - Khi một lượt ghi `target_text` không qua gõ phím (`replaceEditorSegment`) chạm câu có chữ chưa flush, mà ô đó đang giữ tiêu điểm, Vue ghi đè chữ đang gõ, và lượt chép lại không đặt lại vì bỏ qua ô có tiêu điểm. Hành vi này có từ trước bug 2.18, ca `gridRestoreEditedText` "ô đang giữ tiêu điểm" ghi nhận nó.
   Quan trọng vì nếu có chỗ gọi chạm được ca này thì người dịch mất chữ đang gõ mà không có báo lỗi. Cần lần từng chỗ gọi (`conventionState.ts`, `proofreadState.ts`, `reviewModeState.ts`, `segmentHistoryState.ts`, `editorPanelState.ts`) xem có giữ tiêu điểm ô hay flush trước không. Chủ: Epic 2. Trỏ: plan bug 2.18, Review Triage Log.
+
+## Deferred from: thiết kế tra bằng một cú bấm, FR21 (2026-11-12)
+
+- Ở `dict-vietphrase.db`, điều kiện tra chính xác `(headword = ?1 OR headword_simp = ?1) AND lang = 'zh'` (`core/dict/query.rs:217`) ra kế hoạch `SCAN`, mất 77 ms một lượt, vì `headword_simp` toàn NULL nên `sqlite_stat1` khiến planner bỏ qua chỉ mục (`dict-core.db` vẫn đi `MULTI-INDEX OR`, 0,0 ms). Mới đo bằng SQLite 3.43 của hệ thống với tham số gắn, chưa đo bằng SQLite bundled của rusqlite 0.40.1.
+  Quan trọng vì nếu app cũng quét bảng thì mỗi lượt Auto-Lookup trả thêm khoảng 77 ms ở đường nóng mà AD-26 bắt phải đi B-tree, và tra bằng một cú bấm sẽ gọi đường này nhiều hơn. Chủ: Amelia. Trỏ: commit `2358e434`.
