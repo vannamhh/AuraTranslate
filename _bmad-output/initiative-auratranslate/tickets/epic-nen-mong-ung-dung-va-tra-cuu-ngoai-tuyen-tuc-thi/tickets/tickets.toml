@@ -311,3 +311,15 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "1-22-bộ-chạy-e2e-trong-webview-thật"
+
+[[entry]]
+id = 23
+type = "story"
+title = "Tra bằng một cú bấm, cụm đang tra đổi màu chữ"
+description = "Bấm một chữ ở cột nguyên văn là thấy ngay nghĩa của từ chứa nó, như ở QuickTranslator, để tôi không phải bấm đúp hàng trăm lần mỗi Chương."
+verify = "Với một Chương tiếng Trung đang mở, khi người dịch bấm một cái vào một chữ ở cột nguyên văn hoặc âm Hán Việt, thì Panel Lookup hiện kết quả cho thuật ngữ Glossary hoặc từ chứa chữ đó, và cụm đó đổi màu chữ chứ không bị bôi đen."
+covers = ["FR21"]
+after = []
+hitl = false
+risk = "medium"
+refine = true

@@ -29,6 +29,7 @@ Nguồn: PRD (prd-auratranslate/prd-auratranslate.md); epics.md §Epic 1 (`FRs c
 - FR18: Bố cục workspace được lưu và khôi phục giữa các phiên làm việc. Hỗ trợ lưu nhiều preset bố cục và chuyển nhanh giữa chúng.
 - FR19: Cột nguyên văn của lưới hiển thị văn bản gốc (Anh hoặc Trung) kèm Hán Việt cho tài liệu tiếng Trung — xem ở chế độ chuyển đổi hoặc song song, người dùng tự bật tắt. 🔵 (Sửa 2026-08-14: chữ "tab" rút — Hán Việt sống bên trong ô nguyên văn. …
 - FR21: Auto-Lookup: bôi đen một cụm từ ở cột nguyên văn của lưới — chữ gốc hoặc âm Hán Việt — → kết quả tra cứu hiện ngay ở panel Lookup. Không copy, không paste, không chuyển cửa sổ. 🔵 (Sửa 2026-08-14: "Panel Source" → "cột nguyên văn của lưới". …
+  🔵 Bổ sung 2026-11-12 (Ice ký): bấm một cái vào một chữ cũng tra thuật ngữ Glossary hoặc từ chứa chữ đó, và cụm đang tra đổi màu chữ thay vì bôi đen; xem PRD FR21. Story 1.23.
 - FR22: Global Hotkeys cho các thao tác lặp lại: dịch segment hiện tại, chuyển focus giữa các panel, xác nhận segment, tra cứu cụm đang chọn, bật/tắt sync scroll. Toàn bộ phím tắt cấu hình lại được.
 - FR27: Toàn bộ dữ liệu từ điển nhúng trong bản cài. Tra cứu hoạt động 100% offline, không có cơ chế tải thêm sau khi cài đặt.
 - FR28: Panel Lookup hiển thị một bản ghi có cấu trúc, không phải một đoạn văn bản. Mỗi mục gồm: nguồn · từ loại · nghĩa · ví dụ[] · trích dẫn[] · ghi chú.
