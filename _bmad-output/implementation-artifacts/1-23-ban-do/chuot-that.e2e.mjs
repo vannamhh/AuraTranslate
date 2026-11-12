@@ -150,8 +150,23 @@ async function pressAt(kind, point) {
   throw new Error(`press never reached the page at ${point}`)
 }
 
+// Panel Lookup only mounts in the `full` tier (work area 1100×820, under a 42px titlebar and a 35px status bar). A window as tall as the screen makes WKWebView
+// report `screenY` at the screen's bottom edge, which breaks the screen mapping, so it is sized to fit instead.
+async function fullTierWindow() {
+  const dpr = await browser.execute(() => window.devicePixelRatio)
+  await browser.setWindowSize(Math.round(1200 * dpr), Math.round(910 * dpr))
+  await browser.waitUntil(
+    async () => (await browser.execute(() => document.querySelector('[data-layout-tier]')?.getAttribute('data-layout-tier'))) === 'full',
+    {
+      timeout: 10_000,
+      timeoutMsg: `bench window did not reach the full layout tier: ${JSON.stringify(await browser.execute(() => ({ w: window.innerWidth, h: window.innerHeight, x: window.screenX, y: window.screenY, tier: document.querySelector('[data-layout-tier]')?.getAttribute('data-layout-tier') })))}`,
+    },
+  )
+}
+
 async function fresh(name) {
   await openWorkspaceWithWork(name, SOURCE)
+  await fullTierWindow()
   await waitForGridRows(1, { what: 'bench' })
   await installProbe()
   for (let attempt = 0; attempt < 5 && offset === null; attempt += 1) {

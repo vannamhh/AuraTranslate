@@ -86,7 +86,7 @@ context:
 - The embedded WebDriver (`tauri-plugin-wdio-webdriver` 1.3.0) builds `new MouseEvent` without `detail`, so its clicks carry `detail 0`; the plain-click branch accepts `detail <= 1` and skips only 2. Its pointer events never move the selection, so the e2e drag case builds the Range itself.
 - e2e must call `ensureFullLayoutTier()`: in a small window Panel Lookup retreats to the drawer and never mounts. 8/8 green on WKWebView; removing the `lookupByPlainClick` call turns the 7 click cases red with Panel Lookup mounted and nothing looked up or painted, the drag case stays green.
 - The new module took the Vite graph to 251, over `MODULE_CEILING` 250 (nightly before this story: exactly 250); the ceiling now follows its own rule, about four times the real count (1000).
-- Real-mouse bench (`1-23-ban-do/`) not run: it drives the real mouse through `osascript`, which fails under Claude Code (-1743), so Ice runs it.
+- Real-mouse bench (`1-23-ban-do/`): 3/3 green on WKWebView with real `cliclick` input (`ket-qua.json`); removing the `lookupByPlainClick` call turns the single-click case red with nothing looked up or painted. It sizes the window to 1200×910 itself: a screen-tall window (as `ensureFullLayoutTier` makes) breaks its screen mapping, and below the `full` tier Panel Lookup never mounts.
 
 ## Plan Change Log
 

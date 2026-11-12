@@ -1,0 +1,35 @@
+{
+  "calibration": {
+    "win": {
+      "ih": 910,
+      "oh": 0,
+      "x": 0,
+      "y": 960
+    },
+    "guess": {
+      "x": 300,
+      "y": 250
+    },
+    "pt": [
+      147,
+      206
+    ]
+  },
+  "activation_ms": 1056,
+  "click_word": {
+    "headword": "小提琴",
+    "painted": "小提琴",
+    "selection": ""
+  },
+  "click_punctuation": {
+    "headword": "小提琴",
+    "painted": "小提琴"
+  },
+  "calibration_errors": [
+    "Error: no press reached the page at {\"x\":300,\"y\":250} win={\"ih\":910,\"oh\":0,\"x\":0,\"y\":960} mouse=300,250 app=30324 front=30324"
+  ],
+  "double_click": {
+    "headword": "小提琴",
+    "mutations": 0
+  }
+}
