@@ -7,9 +7,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::aitranslate::{
-    PrepareOutcome, PreparedTranslateCall, QuickBatchOutcomeWire, QuickBlockEventWire,
-    QuickLookupWire, QuickMissingWire, QuickSurface, QuickTranslateError, QuickTranslateGeneration,
-    QuickTranslateOutcomeWire, quick_lookup_many_wire, quick_translate, quick_translate_blocks,
+    PreparedTranslateCall, QuickBatchOutcomeWire, QuickBlockEventWire, QuickLookupWire,
+    QuickMissingWire, QuickPrepareOutcome, QuickSurface, QuickTranslateError,
+    QuickTranslateGeneration, QuickTranslateOutcomeWire, quick_lookup_many_wire, quick_translate,
+    quick_translate_blocks,
 };
 use auratranslate_lib::core::quick_translation::{
     KeyGroup, QUICK_BATCH_MAX_BLOCKS, QUICK_BATCH_MAX_CHARS, QuickTranslationStore,
@@ -129,8 +130,8 @@ impl TranslationProvider for Fake {
     }
 }
 
-fn ready() -> Result<PrepareOutcome, auratranslate_lib::core::i18n::IpcError> {
-    Ok(PrepareOutcome::Ready(PreparedTranslateCall {
+fn ready() -> Result<QuickPrepareOutcome, auratranslate_lib::core::i18n::IpcError> {
+    Ok(QuickPrepareOutcome::Ready(PreparedTranslateCall {
         endpoint: "http://localhost/v1".to_owned(),
         model: "model-a".to_owned(),
         temperature: None,
@@ -505,7 +506,7 @@ fn not_configured_and_an_unopened_store_make_no_call() {
     let outcome = tauri::async_runtime::block_on(quick_translate_blocks(
         Some(&store),
         &provider,
-        || Ok(PrepareOutcome::NotConfigured),
+        || Ok(QuickPrepareOutcome::NotConfigured),
         &items,
         false,
         &mut on_event,

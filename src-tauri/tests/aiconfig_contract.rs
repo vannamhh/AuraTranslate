@@ -1773,7 +1773,7 @@ fn quick_configuration_is_global_and_keys_are_isolated_with_unknown_denials() {
         quick_ai_config_save_key,
     };
     use auratranslate_lib::commands::aitranslate::{
-        PrepareOutcome, prepare_context_reference_call,
+        QuickPrepareOutcome, QuickTranslateTrigger, prepare_context_reference_call,
     };
     let _lock = KEYCHAIN_KEY_TEST_LOCK
         .lock()
@@ -1784,17 +1784,26 @@ fn quick_configuration_is_global_and_keys_are_isolated_with_unknown_denials() {
     quick_ai_config_delete_key(AiConfigTier::Global).unwrap();
     quick_fields(&global, "https://quick.example/v1", "quick-model");
     assert!(matches!(
-        prepare_context_reference_call(Some(&global), None, "句").unwrap(),
-        PrepareOutcome::NotConfigured
+        prepare_context_reference_call(Some(&global), None, "句", QuickTranslateTrigger::Manual)
+            .unwrap(),
+        QuickPrepareOutcome::NotConfigured
     ));
     ai_config_save_key(AiConfigTier::Global, "main-secret").unwrap();
     assert!(matches!(
-        prepare_context_reference_call(Some(&global), None, "句").unwrap(),
-        PrepareOutcome::NotConfigured
+        prepare_context_reference_call(Some(&global), None, "句", QuickTranslateTrigger::Manual)
+            .unwrap(),
+        QuickPrepareOutcome::NotConfigured
     ));
     quick_ai_config_save_key(AiConfigTier::Global, "quick-secret").unwrap();
-    let prepared = match prepare_context_reference_call(Some(&global), None, "句").unwrap() {
-        PrepareOutcome::Ready(call) => call,
+    let prepared = match prepare_context_reference_call(
+        Some(&global),
+        None,
+        "句",
+        QuickTranslateTrigger::Manual,
+    )
+    .unwrap()
+    {
+        QuickPrepareOutcome::Ready(call) => call,
         _ => panic!("quick key must configure the call"),
     };
     assert_eq!(prepared.api_key, "quick-secret");
@@ -1811,7 +1820,7 @@ fn quick_configuration_is_global_and_keys_are_isolated_with_unknown_denials() {
     assert!(!format!("{error:?}").contains("secret"));
     deny_quick_key();
     assert_eq!(
-        prepare_context_reference_call(Some(&global), None, "句")
+        prepare_context_reference_call(Some(&global), None, "句", QuickTranslateTrigger::Manual)
             .err()
             .unwrap()
             .code(),
@@ -1844,8 +1853,9 @@ fn quick_configuration_is_global_and_keys_are_isolated_with_unknown_denials() {
         "main-model",
     )
     .unwrap();
-    let PrepareOutcome::Ready(fallback) =
-        prepare_context_reference_call(Some(&global), None, "句").unwrap()
+    let QuickPrepareOutcome::Ready(fallback) =
+        prepare_context_reference_call(Some(&global), None, "句", QuickTranslateTrigger::Manual)
+            .unwrap()
     else {
         panic!("main fallback ready")
     };
@@ -1859,7 +1869,8 @@ fn quick_configuration_is_global_and_keys_are_isolated_with_unknown_denials() {
 fn partial_quick_configuration_rejects_before_either_key_read_or_fallback() {
     use auratranslate_lib::commands::aiconfig::quick_ai_config_get;
     use auratranslate_lib::commands::aitranslate::{
-        PrepareOutcome, prepare_context_reference_call, prepare_quick_connection_check,
+        QuickPrepareOutcome, QuickTranslateTrigger, prepare_context_reference_call,
+        prepare_quick_connection_check,
     };
     let _lock = KEYCHAIN_KEY_TEST_LOCK
         .lock()
@@ -1887,8 +1898,14 @@ fn partial_quick_configuration_rejects_before_either_key_read_or_fallback() {
         inject_one_shot_keychain_error();
         deny_quick_key();
         assert!(matches!(
-            prepare_context_reference_call(Some(&global), None, "句").unwrap(),
-            PrepareOutcome::NotConfigured
+            prepare_context_reference_call(
+                Some(&global),
+                None,
+                "句",
+                QuickTranslateTrigger::Manual
+            )
+            .unwrap(),
+            QuickPrepareOutcome::NotConfigured
         ));
         assert!(matches!(
             prepare_quick_connection_check(Some(&global)).unwrap(),

@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::aitranslate::{
-    AiTranslateGeneration, PrepareOutcome, PreparedTranslateCall, QuickLookupWire,
+    AiTranslateGeneration, PreparedTranslateCall, QuickLookupWire, QuickPrepareOutcome,
     QuickPurgeScopeWire, QuickSurface, QuickTranslateError, QuickTranslateGeneration,
     QuickTranslateOutcomeWire, quick_count_older_wire, quick_lookup_wire, quick_purge_wire,
     quick_stats_wire, quick_translate,
@@ -126,8 +126,8 @@ impl TranslationProvider for Fake {
     }
 }
 
-fn ready() -> Result<PrepareOutcome, auratranslate_lib::core::i18n::IpcError> {
-    Ok(PrepareOutcome::Ready(PreparedTranslateCall {
+fn ready() -> Result<QuickPrepareOutcome, auratranslate_lib::core::i18n::IpcError> {
+    Ok(QuickPrepareOutcome::Ready(PreparedTranslateCall {
         endpoint: "http://localhost/v1".to_owned(),
         model: "model-a".to_owned(),
         temperature: None,
@@ -453,7 +453,7 @@ fn an_unconfigured_provider_is_reached_before_the_network() {
     let outcome = tauri::async_runtime::block_on(quick_translate(
         Some(&store),
         &provider,
-        || Ok(PrepareOutcome::NotConfigured),
+        || Ok(QuickPrepareOutcome::NotConfigured),
         "src",
         false,
         &mut on_token,
@@ -728,62 +728,11 @@ fn automatic_command_wires_reject_off_incomplete_and_real_activity_before_provid
     use auratranslate_lib::core::aiconfig::store::{write_quick_auto, write_quick_fields};
     use auratranslate_lib::core::aiconfig::{AiConfigField, QuickAiConfigField, write_field};
     use auratranslate_lib::core::store::{Store, StoreSpec};
-    use std::io::{Read, Write};
-    use std::net::TcpListener;
     use tauri::Manager as _;
     use tauri::test::{mock_builder, mock_context, noop_assets};
 
-    let listener = TcpListener::bind("127.0.0.1:0").expect("fixture loopback");
-    listener.set_nonblocking(true).unwrap();
-    let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
-    let calls = Arc::new(AtomicUsize::new(0));
-    let stop = Arc::new(AtomicBool::new(false));
-    let (count, stopped) = (calls.clone(), stop.clone());
-    let server = std::thread::spawn(move || {
-        while !stopped.load(Ordering::SeqCst) {
-            match listener.accept() {
-                Ok((mut stream, _)) => {
-                    stream.set_nonblocking(false).unwrap();
-                    stream
-                        .set_read_timeout(Some(std::time::Duration::from_secs(3)))
-                        .unwrap();
-                    let mut body = Vec::new();
-                    let mut chunk = [0; 4096];
-                    loop {
-                        let n = stream.read(&mut chunk).unwrap_or(0);
-                        if n == 0 {
-                            break;
-                        }
-                        body.extend_from_slice(&chunk[..n]);
-                        if let Some(header_end) = body.windows(4).position(|w| w == b"\r\n\r\n") {
-                            let headers =
-                                String::from_utf8_lossy(&body[..header_end]).to_lowercase();
-                            let length = headers
-                                .lines()
-                                .find_map(|l| l.strip_prefix("content-length:"))
-                                .and_then(|v| v.trim().parse::<usize>().ok())
-                                .unwrap_or(0);
-                            if body.len() >= header_end + 4 + length {
-                                break;
-                            }
-                        }
-                    }
-                    count.fetch_add(1, Ordering::SeqCst);
-                    let frames = "data: {\"choices\":[{\"delta\":{\"content\":\"translated\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
-                    let response = format!(
-                        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                        frames.len(),
-                        frames
-                    );
-                    let _ = stream.write_all(response.as_bytes());
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                    std::thread::sleep(std::time::Duration::from_millis(2))
-                }
-                Err(error) => panic!("fixture accept: {error}"),
-            }
-        }
-    });
+    let fixture = CountingServer::start();
+    let (endpoint, calls) = (fixture.endpoint.clone(), fixture.calls.clone());
     let dir = temp_dir("auto-admission");
     let global = Store::open(StoreSpec::global(dir.join("global.db"))).unwrap();
     write_field(&global, AiConfigField::Provider, "ollama").unwrap();
@@ -900,9 +849,312 @@ fn automatic_command_wires_reject_off_incomplete_and_real_activity_before_provid
     );
     assert_eq!(generation.activity().active_count, 1);
     drop(active);
-    stop.store(true, Ordering::SeqCst);
-    server.join().unwrap();
+    fixture.finish();
     drop(app);
+    cleanup(&dir);
+}
+
+struct CountingServer {
+    endpoint: String,
+    calls: Arc<AtomicUsize>,
+    stop: Arc<AtomicBool>,
+    thread: std::thread::JoinHandle<()>,
+}
+
+impl CountingServer {
+    fn start() -> Self {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("fixture loopback");
+        listener.set_nonblocking(true).unwrap();
+        let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
+        let calls = Arc::new(AtomicUsize::new(0));
+        let stop = Arc::new(AtomicBool::new(false));
+        let (count, stopped) = (calls.clone(), stop.clone());
+        let thread = std::thread::spawn(move || {
+            while !stopped.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        stream.set_nonblocking(false).unwrap();
+                        stream
+                            .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                            .unwrap();
+                        let mut body = Vec::new();
+                        let mut chunk = [0; 4096];
+                        loop {
+                            let n = stream.read(&mut chunk).unwrap_or(0);
+                            if n == 0 {
+                                break;
+                            }
+                            body.extend_from_slice(&chunk[..n]);
+                            if let Some(header_end) = body.windows(4).position(|w| w == b"\r\n\r\n")
+                            {
+                                let headers =
+                                    String::from_utf8_lossy(&body[..header_end]).to_lowercase();
+                                let length = headers
+                                    .lines()
+                                    .find_map(|l| l.strip_prefix("content-length:"))
+                                    .and_then(|v| v.trim().parse::<usize>().ok())
+                                    .unwrap_or(0);
+                                if body.len() >= header_end + 4 + length {
+                                    break;
+                                }
+                            }
+                        }
+                        count.fetch_add(1, Ordering::SeqCst);
+                        let frames = "data: {\"choices\":[{\"delta\":{\"content\":\"translated\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                            frames.len(),
+                            frames
+                        );
+                        let _ = stream.write_all(response.as_bytes());
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(std::time::Duration::from_millis(2))
+                    }
+                    Err(error) => panic!("fixture accept: {error}"),
+                }
+            }
+        });
+        Self {
+            endpoint,
+            calls,
+            stop,
+            thread,
+        }
+    }
+
+    fn accepted(&self) -> usize {
+        self.calls.load(Ordering::SeqCst)
+    }
+
+    fn finish(self) {
+        self.stop.store(true, Ordering::SeqCst);
+        self.thread.join().unwrap();
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum AfterGate {
+    Nothing,
+    ClearQuickEndpoint,
+    ClearQuickEndpointAndModel,
+    SwitchAutoOff,
+}
+
+fn apply_after_gate(global: &auratranslate_lib::core::store::Store, change: AfterGate) {
+    use auratranslate_lib::core::aiconfig::QuickAiConfigField;
+    use auratranslate_lib::core::aiconfig::store::{write_quick_auto, write_quick_fields};
+    let set = |endpoint: &str, model: &str| {
+        write_quick_fields(
+            global,
+            &[
+                (QuickAiConfigField::Provider, "ollama".to_owned()),
+                (QuickAiConfigField::Endpoint, endpoint.to_owned()),
+                (QuickAiConfigField::Model, model.to_owned()),
+            ],
+        )
+        .unwrap();
+    };
+    match change {
+        AfterGate::Nothing => {}
+        AfterGate::ClearQuickEndpoint => set("", "quick-fixture"),
+        AfterGate::ClearQuickEndpointAndModel => set("", ""),
+        AfterGate::SwitchAutoOff => write_quick_auto(global, false).unwrap(),
+    }
+}
+
+fn configure_main_and_quick(
+    global: &auratranslate_lib::core::store::Store,
+    main: &str,
+    quick: &str,
+) {
+    use auratranslate_lib::core::aiconfig::store::{write_quick_auto, write_quick_fields};
+    use auratranslate_lib::core::aiconfig::{AiConfigField, QuickAiConfigField, write_field};
+    write_field(global, AiConfigField::Provider, "ollama").unwrap();
+    write_field(global, AiConfigField::Endpoint, main).unwrap();
+    write_field(global, AiConfigField::Model, "main-fixture").unwrap();
+    write_quick_fields(
+        global,
+        &[
+            (QuickAiConfigField::Provider, "ollama".to_owned()),
+            (QuickAiConfigField::Endpoint, quick.to_owned()),
+            (QuickAiConfigField::Model, "quick-fixture".to_owned()),
+        ],
+    )
+    .unwrap();
+    write_quick_auto(global, true).unwrap();
+}
+
+#[test]
+fn an_automatic_blocks_run_whose_dedicated_config_changes_after_the_gate_never_reaches_a_provider()
+{
+    use auratranslate_lib::commands::aitranslate::{
+        QuickBatchOutcomeWire, QuickTranslateTrigger, wire,
+    };
+    use auratranslate_lib::commands::project::OpenWorkState;
+    use auratranslate_lib::core::store::Store;
+    use tauri::Manager as _;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+
+    for (change, expect_done) in [
+        (AfterGate::ClearQuickEndpointAndModel, false),
+        (AfterGate::Nothing, true),
+        (AfterGate::ClearQuickEndpoint, false),
+        (AfterGate::SwitchAutoOff, false),
+    ] {
+        let main = CountingServer::start();
+        let quick = CountingServer::start();
+        let dir = temp_dir("auto-after-gate-blocks");
+        let global = Store::open(auratranslate_lib::core::store::StoreSpec::global(
+            dir.join("global.db"),
+        ))
+        .unwrap();
+        configure_main_and_quick(&global, &main.endpoint, &quick.endpoint);
+        let store = open_store(&dir);
+        store
+            .save("remembered", "da dich", "m", false, always())
+            .unwrap();
+        let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+        app.manage(global);
+        app.manage(store);
+        app.manage::<OpenWorkState>(Mutex::new(None));
+        app.manage(AiTranslateGeneration::default());
+        app.manage(QuickTranslateGeneration::default());
+        let handle = app.handle().clone();
+        let changed = Arc::new(AtomicBool::new(false));
+        let on_cached = {
+            let handle = handle.clone();
+            let changed = changed.clone();
+            move |_event| {
+                if !changed.swap(true, Ordering::SeqCst) {
+                    apply_after_gate(&handle.state::<Store>(), change);
+                }
+                Ok(())
+            }
+        };
+        let outcome = tauri::async_runtime::block_on(wire::quick_translate_blocks(
+            handle,
+            vec!["remembered".to_owned(), "new text".to_owned()],
+            QuickTranslateTrigger::Auto,
+            false,
+            301,
+            tauri::ipc::Channel::new(on_cached),
+        ))
+        .unwrap();
+        assert!(
+            changed.load(Ordering::SeqCst),
+            "{change:?}: the cached event never reached the channel"
+        );
+        assert_eq!(
+            main.accepted(),
+            0,
+            "{change:?}: an automatic run reached the main endpoint"
+        );
+        if expect_done {
+            assert!(matches!(outcome, QuickBatchOutcomeWire::Done { .. }));
+            assert_eq!(quick.accepted(), 1);
+        } else {
+            assert_eq!(outcome, QuickBatchOutcomeWire::AutoOff, "{change:?}");
+            assert_eq!(quick.accepted(), 0, "{change:?}");
+        }
+        drop(app);
+        main.finish();
+        quick.finish();
+        cleanup(&dir);
+    }
+}
+
+#[test]
+fn an_automatic_glossary_run_whose_dedicated_config_changes_after_the_gate_never_reaches_a_provider()
+ {
+    use auratranslate_lib::commands::aitranslate::{
+        AiTranslateActivityWire, QuickTranslateTrigger, prepare_context_reference_call,
+        quick_auto_gate,
+    };
+    use auratranslate_lib::core::ai::client::OpenAiChatClient;
+    use auratranslate_lib::core::store::{Store, StoreSpec};
+
+    for (change, expect_done) in [
+        (AfterGate::ClearQuickEndpointAndModel, false),
+        (AfterGate::Nothing, true),
+        (AfterGate::ClearQuickEndpoint, false),
+        (AfterGate::SwitchAutoOff, false),
+    ] {
+        let main = CountingServer::start();
+        let quick = CountingServer::start();
+        let dir = temp_dir("auto-after-gate-glossary");
+        let global = Store::open(StoreSpec::global(dir.join("global.db"))).unwrap();
+        configure_main_and_quick(&global, &main.endpoint, &quick.endpoint);
+        let store = open_store(&dir);
+        let admitted = quick_auto_gate(
+            Some(&global),
+            &AiTranslateActivityWire::default(),
+            QuickTranslateTrigger::Auto,
+        )
+        .unwrap();
+        assert!(admitted.is_none(), "{change:?}: the gate must admit");
+        apply_after_gate(&global, change);
+        let provider = OpenAiChatClient::new();
+        let mut on_token = |_: &str| {};
+        let outcome = tauri::async_runtime::block_on(quick_translate(
+            Some(&store),
+            &provider,
+            || {
+                prepare_context_reference_call(
+                    Some(&global),
+                    None,
+                    "a sentence",
+                    QuickTranslateTrigger::Auto,
+                )
+            },
+            "a sentence",
+            false,
+            &mut on_token,
+            not_cancelled(),
+        ));
+        assert_eq!(main.accepted(), 0, "{change:?}: reached the main endpoint");
+        if expect_done {
+            assert!(matches!(
+                outcome,
+                Ok(QuickTranslateOutcomeWire::Done { .. })
+            ));
+            assert_eq!(quick.accepted(), 1);
+        } else {
+            assert!(
+                matches!(outcome, Ok(QuickTranslateOutcomeWire::AutoOff)),
+                "{change:?}"
+            );
+            assert_eq!(quick.accepted(), 0, "{change:?}");
+        }
+        main.finish();
+        quick.finish();
+        cleanup(&dir);
+    }
+}
+
+#[test]
+fn a_manual_quick_run_keeps_the_main_fallback_when_both_quick_fields_are_empty_and_rejects_half_set()
+ {
+    use auratranslate_lib::commands::aitranslate::{
+        QuickTranslateTrigger, prepare_context_reference_call,
+    };
+    use auratranslate_lib::core::store::{Store, StoreSpec};
+
+    let dir = temp_dir("manual-r1");
+    let global = Store::open(StoreSpec::global(dir.join("global.db"))).unwrap();
+    configure_main_and_quick(&global, "http://main.example/v1", "http://quick.example/v1");
+    apply_after_gate(&global, AfterGate::ClearQuickEndpointAndModel);
+    let prepare = |trigger| prepare_context_reference_call(Some(&global), None, "s", trigger);
+    match prepare(QuickTranslateTrigger::Manual).unwrap() {
+        QuickPrepareOutcome::Ready(call) => assert_eq!(call.endpoint, "http://main.example/v1"),
+        _ => panic!("both quick fields empty falls back to the main config"),
+    }
+    apply_after_gate(&global, AfterGate::ClearQuickEndpoint);
+    assert!(matches!(
+        prepare(QuickTranslateTrigger::Manual).unwrap(),
+        QuickPrepareOutcome::NotConfigured
+    ));
     cleanup(&dir);
 }
 

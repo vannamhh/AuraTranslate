@@ -7,7 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::aitranslate::{
-    PrepareOutcome, QuickTranslateOutcomeWire, prepare_context_reference_call, quick_translate,
+    QuickPrepareOutcome, QuickTranslateOutcomeWire, QuickTranslateTrigger,
+    prepare_context_reference_call, quick_translate,
 };
 use auratranslate_lib::commands::glossary::glossary_context_translation;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
@@ -148,9 +149,14 @@ fn an_unconfigured_provider_is_a_state_reached_before_any_network_call() {
     let gdir = temp_dir("unconf-g");
     let global = open_global(&gdir);
     let open = open_work(&root, "一二三。");
-    let outcome =
-        prepare_context_reference_call(Some(&global), Some(&open), "一二三。").expect("prepare");
-    assert!(matches!(outcome, PrepareOutcome::NotConfigured));
+    let outcome = prepare_context_reference_call(
+        Some(&global),
+        Some(&open),
+        "一二三。",
+        QuickTranslateTrigger::Manual,
+    )
+    .expect("prepare");
+    assert!(matches!(outcome, QuickPrepareOutcome::NotConfigured));
     drop((global, open));
     let _ = fs::remove_dir_all(root);
     let _ = fs::remove_dir_all(gdir);
@@ -176,11 +182,16 @@ fn configured_local() -> (PathBuf, PathBuf, Store, OpenWork) {
 fn the_prepared_call_carries_the_fixed_prompt_and_touches_no_stored_row() {
     let (root, gdir, global, open) = configured_local();
     let before = snapshot(&open);
-    let prepared = match prepare_context_reference_call(Some(&global), Some(&open), "一二三。")
-        .expect("prepare")
+    let prepared = match prepare_context_reference_call(
+        Some(&global),
+        Some(&open),
+        "一二三。",
+        QuickTranslateTrigger::Manual,
+    )
+    .expect("prepare")
     {
-        PrepareOutcome::Ready(p) => p,
-        PrepareOutcome::NotConfigured => panic!("phai san sang"),
+        QuickPrepareOutcome::Ready(p) => p,
+        _ => panic!("phai san sang"),
     };
     assert_eq!(
         prepared.prompt,
@@ -199,7 +210,7 @@ fn the_prepared_call_carries_the_fixed_prompt_and_touches_no_stored_row() {
     let outcome = tauri::async_runtime::block_on(quick_translate(
         Some(&store),
         &provider,
-        move || Ok(PrepareOutcome::Ready(prepared)),
+        move || Ok(QuickPrepareOutcome::Ready(prepared)),
         "一二三。",
         false,
         &mut on_token,
@@ -364,9 +375,13 @@ fn quick_routing_uses_dedicated_or_whole_main_global_despite_work_overrides() {
             if dedicated { "lmstudio" } else { "ollama" }
         );
         for work in [None, Some(&open)] {
-            let PrepareOutcome::Ready(call) =
-                prepare_context_reference_call(Some(&global), work, "句").unwrap()
-            else {
+            let QuickPrepareOutcome::Ready(call) = prepare_context_reference_call(
+                Some(&global),
+                work,
+                "句",
+                QuickTranslateTrigger::Manual,
+            )
+            .unwrap() else {
                 panic!("ready")
             };
             assert_eq!(

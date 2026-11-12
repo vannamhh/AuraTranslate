@@ -676,6 +676,20 @@ pub enum QuickTranslateTrigger {
     Manual,
 }
 
+fn quick_auto_ready(global: &Store) -> Result<bool, IpcError> {
+    let config = crate::core::aiconfig::store::resolve_two_tiers(
+        &crate::core::scope::ScopeResolver::global_only(),
+        global,
+        None,
+    )?;
+    let dedicated = ["quick_endpoint", "quick_model"].iter().all(|key| {
+        config
+            .get(*key)
+            .is_some_and(|field| !field.value.trim().is_empty())
+    });
+    Ok(dedicated && crate::core::scope::store::load_global_config(global)?.quick_translate_auto())
+}
+
 pub fn quick_auto_gate(
     global: Option<&Store>,
     activity: &AiTranslateActivityWire,
@@ -687,18 +701,7 @@ pub fn quick_auto_gate(
     let Some(global) = global else {
         return Ok(Some(QuickTranslateOutcomeWire::AutoOff));
     };
-    let config = crate::core::aiconfig::store::resolve_two_tiers(
-        &crate::core::scope::ScopeResolver::global_only(),
-        global,
-        None,
-    )?;
-    let dedicated = ["quick_endpoint", "quick_model"].iter().all(|key| {
-        config
-            .get(*key)
-            .is_some_and(|field| !field.value.trim().is_empty())
-    });
-    if !crate::core::scope::store::load_global_config(global)?.quick_translate_auto() || !dedicated
-    {
+    if !quick_auto_ready(global)? {
         return Ok(Some(QuickTranslateOutcomeWire::AutoOff));
     }
     if activity.active_count > 0 {
@@ -1064,6 +1067,12 @@ pub fn prepare_quick_connection_check(
     }))
 }
 
+pub enum QuickPrepareOutcome {
+    AutoOff,
+    NotConfigured,
+    Ready(PreparedTranslateCall),
+}
+
 /// Resolves the quick-translation configuration and key into a call carrying `prompt`. Not
 /// configured (empty endpoint/model, or no stored key) is reached before any network call.
 /// Reads and writes no Work data and records nothing.
@@ -1071,14 +1080,25 @@ pub fn prepare_quick_call(
     global: Option<&Store>,
     prompt: String,
     system: Option<String>,
-) -> Result<PrepareOutcome, IpcError> {
+    trigger: QuickTranslateTrigger,
+) -> Result<QuickPrepareOutcome, IpcError> {
+    if trigger == QuickTranslateTrigger::Auto && !global.map_or(Ok(false), quick_auto_ready)? {
+        return Ok(QuickPrepareOutcome::AutoOff);
+    }
     let Some(config) = resolve_quick_call_config(global)? else {
-        return Ok(PrepareOutcome::NotConfigured);
+        return Ok(if trigger == QuickTranslateTrigger::Auto {
+            QuickPrepareOutcome::AutoOff
+        } else {
+            QuickPrepareOutcome::NotConfigured
+        });
     };
+    if trigger == QuickTranslateTrigger::Auto && !config.dedicated {
+        return Ok(QuickPrepareOutcome::AutoOff);
+    }
     let Some(api_key) = read_quick_api_key(&config)? else {
-        return Ok(PrepareOutcome::NotConfigured);
+        return Ok(QuickPrepareOutcome::NotConfigured);
     };
-    Ok(PrepareOutcome::Ready(PreparedTranslateCall {
+    Ok(QuickPrepareOutcome::Ready(PreparedTranslateCall {
         endpoint: config.endpoint,
         model: config.model,
         temperature: config.temperature,
@@ -1094,11 +1114,13 @@ pub fn prepare_context_reference_call(
     global: Option<&Store>,
     _open: Option<&OpenWork>,
     context_example: &str,
-) -> Result<PrepareOutcome, IpcError> {
+    trigger: QuickTranslateTrigger,
+) -> Result<QuickPrepareOutcome, IpcError> {
     prepare_quick_call(
         global,
         crate::commands::aiprompt::context_reference_prompt(context_example),
         None,
+        trigger,
     )
 }
 
@@ -1300,7 +1322,7 @@ impl<E: Into<IpcError>> From<QuickTranslateError<E>> for IpcError {
 pub async fn quick_translate<P: TranslationProvider>(
     store: Option<&QuickTranslationStore>,
     provider: &P,
-    prepare: impl FnOnce() -> Result<PrepareOutcome, IpcError>,
+    prepare: impl FnOnce() -> Result<QuickPrepareOutcome, IpcError>,
     text: &str,
     retranslate: bool,
     on_token: &mut dyn FnMut(&str),
@@ -1325,8 +1347,9 @@ pub async fn quick_translate<P: TranslationProvider>(
         }
     }
     let prepared = match prepare().map_err(QuickTranslateError::Ipc)? {
-        PrepareOutcome::NotConfigured => return Ok(QuickTranslateOutcomeWire::NotConfigured),
-        PrepareOutcome::Ready(prepared) => prepared,
+        QuickPrepareOutcome::AutoOff => return Ok(QuickTranslateOutcomeWire::AutoOff),
+        QuickPrepareOutcome::NotConfigured => return Ok(QuickTranslateOutcomeWire::NotConfigured),
+        QuickPrepareOutcome::Ready(prepared) => prepared,
     };
     if should_cancel() {
         return Ok(QuickTranslateOutcomeWire::Cancelled);
@@ -1441,7 +1464,7 @@ fn wire_index(index: usize) -> u32 {
 pub async fn quick_translate_blocks<P: TranslationProvider>(
     store: Option<&QuickTranslationStore>,
     provider: &P,
-    prepare: impl FnOnce() -> Result<PrepareOutcome, IpcError>,
+    prepare: impl FnOnce() -> Result<QuickPrepareOutcome, IpcError>,
     texts: &[String],
     retranslate: bool,
     on_event: &mut dyn FnMut(QuickBlockEventWire),
@@ -1492,8 +1515,9 @@ pub async fn quick_translate_blocks<P: TranslationProvider>(
     }
 
     let mut prepared = match prepare().map_err(QuickTranslateError::Ipc)? {
-        PrepareOutcome::NotConfigured => return Ok(QuickBatchOutcomeWire::NotConfigured),
-        PrepareOutcome::Ready(prepared) => prepared,
+        QuickPrepareOutcome::AutoOff => return Ok(QuickBatchOutcomeWire::AutoOff),
+        QuickPrepareOutcome::NotConfigured => return Ok(QuickBatchOutcomeWire::NotConfigured),
+        QuickPrepareOutcome::Ready(prepared) => prepared,
     };
     if should_cancel() {
         return Ok(QuickBatchOutcomeWire::Cancelled);
@@ -2951,7 +2975,7 @@ pub mod wire {
             let store = app.try_state::<QuickTranslationStore>();
             let prepare = || {
                 let global = app.try_state::<Store>();
-                prepare_context_reference_call(global.as_deref(), None, &context_example)
+                prepare_context_reference_call(global.as_deref(), None, &context_example, trigger)
             };
             let should_cancel: std::sync::Arc<dyn Fn() -> bool + Send + Sync> =
                 std::sync::Arc::new(move || !generation_state.is_current(generation));
@@ -3019,7 +3043,7 @@ pub mod wire {
             let store = app.try_state::<QuickTranslationStore>();
             let prepare = || {
                 let global = app.try_state::<Store>();
-                prepare_quick_call(global.as_deref(), String::new(), None)
+                prepare_quick_call(global.as_deref(), String::new(), None, trigger)
             };
             let should_cancel: std::sync::Arc<dyn Fn() -> bool + Send + Sync> =
                 std::sync::Arc::new(move || !generation_state.is_current(generation));
