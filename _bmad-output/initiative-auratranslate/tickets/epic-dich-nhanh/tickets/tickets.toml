@@ -82,3 +82,27 @@ covers = []
 after = [1, 2, 3, 4, 5, 6]
 hitl = false
 risk = "low"
+
+[[entry]]
+id = 8
+type = "bug"
+title = "Lưu cấu hình dịch nhanh làm mất câu `Dịch thử` đang chạy ở Bảng chờ Glossary"
+description = "Ở Bảng chờ Glossary, lưu cấu hình dịch nhanh hoặc đổi `Tự dịch` huỷ cả lượt `Dịch thử`/`Dịch lại` người dùng tự bấm; màn xem trước nhập URL chỉ huỷ lượt tự chạy."
+verify = "Đang có lượt bấm tay ở Bảng chờ, lưu model nhanh trong Cài đặt thì lượt chạy xong và câu hiện; lượt tự chạy vẫn bị huỷ, giống màn xem trước."
+covers = ["R5"]
+after = []
+hitl = false
+risk = "medium"
+refine = true
+
+[[entry]]
+id = 9
+type = "bug"
+title = "Tự dịch có thể gọi bằng cấu hình và khoá chính khi cấu hình nhanh vừa bị xoá"
+description = "Cổng tự chạy kiểm cấu hình nhanh một lần; bước chuẩn bị đọc lại qua hàm phân giải dùng chung với bấm tay, hàm này rơi về cấu hình chính khi cấu hình nhanh trống, nên một lượt `auto` có thể đi bằng endpoint và khoá chính."
+verify = "Test Rust qua lệnh thật: xoá cấu hình nhanh giữa cổng và bước chuẩn bị của một lượt `auto` thì trả `auto_off` và provider ở endpoint chính nhận 0 lời gọi."
+covers = ["R4", "R11"]
+after = []
+hitl = false
+risk = "medium"
+refine = true
