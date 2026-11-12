@@ -225,3 +225,25 @@ covers = []
 after = [16]
 hitl = false
 risk = "medium"
+
+[[entry]]
+id = 17
+type = "spike"
+title = "Gõ có dấu bằng EVKey ở Song song trên Windows tốn thời gian ở đâu"
+description = "Trên Windows, gõ tiếng Việt có dấu bằng EVKey (Telex và VNI) ở kiểu Song song Hán Việt chậm dần sau một lúc gõ, còn gõ không dấu thì nhanh; mọi bàn đo trên Mac đều gõ ASCII nên chưa ai đo được chi phí này."
+verify = "Với ba vệt Performance lấy trên máy Windows của Ice (có dấu ở Song song, không dấu ở Song song, có dấu ở chữ thường), khi agent đọc vệt, thì bảng so ghi được số sự kiện mỗi phím và ba khoản tốn nhất, và bug sửa đã được mở trong Epic 2."
+covers = []
+after = []
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 18
+type = "bug"
+title = "Xác nhận câu chậm dần theo số câu đã sửa trong phiên"
+description = "Mỗi lượt Mod+Enter chặn luồng chính lâu dần theo số câu đã sửa trong phiên, nặng nhất ở Song song: 11–27 ms lúc đầu, 108–126 ms ở 300 câu (WKWebView, debug), trong khi Rust confirm_segment giữ 2–3 ms."
+verify = "Với Chương 320 câu ở Song song và bàn đo confirm-trace, khi xác nhận lần lượt tới 300 câu, thì khoảng Mod+Enter tới con trỏ sang hàng kế ở các mốc 50, 100 và 300 không vượt mốc 0 quá 15 ms."
+covers = []
+after = []
+hitl = false
+risk = "medium"

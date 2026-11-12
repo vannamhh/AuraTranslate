@@ -14098,3 +14098,10 @@ chính nó.
   Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/tickets/story-tu-dich-hang-ang-mo-o-bang-cho-glossary-handoff.md` §Parent CI inspection.
   → 🟡 2026-11-11 (Story 15.7) — mục này nhận cả revision 15.6 `c292f35c4311d80343e78438bde3f7d48af335bd` và các commit sau nó tới 15.7: chưa revision nào của 15.5–15.7 lên CI, cần đọc push CI (nửa Windows, UTC) và nightly e2e đầu tiên chứa chúng. Trỏ: `tickets/epic-dich-nhanh/tickets/story-refactor-sweep-plan.md` §Implementation Notes. Chủ: Epic 15.
   → 🟡 2026-11-11 (Story 15.7) — push CI run 43048708565 ở `41ae38264994e83fbc2f12821743417a0f1c055f` xanh cả `check (macos-26)` lẫn `check (windows-2025)`, bước `npm test`, `npm run build`, `cargo test` chạy thật. Còn nightly e2e đầu tiên chứa revision này. Chủ: Epic 15.
+
+## Deferred from: research gõ chậm Song song, pha 0–2 (2026-11-12)
+
+- Lượt vẽ lại gạch chân (`repaintProofreadHost`) gỡ rồi bọc lại mọi ô có dấu trong cả Chương, và tra mỗi câu bằng một lượt quét cả lưới. Chromium 156, 667 câu: 15 ms ở 25 ô có dấu, 72–112 ms ở 100, 0,7–1,4 s ở 667. Nó chạy mỗi lần danh sách câu hay kết quả soát lỗi/quy ước đổi, và sau mỗi `keydown`.
+  Quan trọng vì Chương có nhiều dấu sẽ khựng ở mỗi lượt xác nhận và mỗi phím. Chủ: Epic 16. Trỏ: `research-go-cham-luoi-subgrid-webkit/handoff-xac-nhan-song-song.md` §Đã loại.
+- Trên `master` sau v1.0.2, lượt quét lại quy ước chữ sau mỗi lần lưu (`conventionState.ts`, `onEditorFlushed`) luôn thay Map kết quả mới, nên cả Chương bị vẽ lại gạch chân mỗi 2–5 giây khi đang gõ liên tục, kể cả khi không có gì đổi.
+  Quan trọng vì sẽ phát hành cùng bản kế tiếp, cộng dồn với mục ngay trên. Chủ: Epic 16. Trỏ: commit `c622f334` và mục ngay trên.
