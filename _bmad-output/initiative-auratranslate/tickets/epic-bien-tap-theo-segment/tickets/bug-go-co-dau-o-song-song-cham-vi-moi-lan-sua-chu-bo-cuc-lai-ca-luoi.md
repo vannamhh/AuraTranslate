@@ -82,7 +82,7 @@ Vì sao Blink không giới hạn lượt bố cục vào ô đang gõ thì chư
 
 - Decision: 2026-11-12, Ice — hướng sửa là (c): tìm vì sao Blink bố cục lại toàn bộ cây thay vì chỉ ô đang gõ, rồi sửa đúng chỗ đó. Không chọn (a) thu nhỏ khối ở Song song hay (b) `content-visibility` cho ruby ngoài màn hình làm bước đầu.
 - Decision: 2026-11-12, Ice — làm vé này trước bug 18.
-- Assumption: ngưỡng ở tiêu chí 1 (trung vị ≤ 16 ms, p90 ≤ 25 ms trên máy ảo) do Sofia đề xuất, chờ Ice xác nhận.
-- Open question: bản MSI chứa bản sửa đến tay Ice bằng đường nào? (a) ra tag `v1.0.3`; (b) thêm bước tải `.msi` lên ở lượt chạy tay `release.yml`.
+- Decision: 2026-11-12, Ice — ngưỡng ở tiêu chí 1: trung vị ≤ 16 ms, p90 ≤ 25 ms trên máy ảo, tức trong một khung hình.
+- Decision: 2026-11-12, Ice — MSI chứa bản sửa đến tay Ice qua tag `v1.0.3`, sau khi bản sửa vào `master` và CI xanh; không đổi `release.yml`. Tiêu chí 1, 2 và 4 vì thế đo trên bản đã phát hành.
 - risk high vì vé có thể đổi cách lưới truyền thay đổi chiều cao hàng, chạm vạch lề, vùng chọn và ruby. Kiểm thêm ngoài tiêu chí: chạy lại `e2e/specs/hanviet-parallel-row-height.e2e.mjs` và các ca vùng chọn qua ranh giới khối.
 - Nếu tìm ra rằng sửa đúng chỗ phải đổi một bất biến của lưới (subgrid, chia khối 200 hàng), đó là một AD mới do Winston soạn, không phải một dòng mã. Báo lại để chia vé.
