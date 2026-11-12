@@ -3,7 +3,7 @@ title: 'Xác nhận câu không chậm dần theo số câu đã sửa trong phi
 type: 'bugfix'
 ticket: '18'
 created: '2026-11-12'
-status: 'built'
+status: 'done'
 baseline_revision: '22c66f0b9f3ab4baf2705107f4aa0228c94fef7b'
 route: 'full'
 route_source: 'auto'
