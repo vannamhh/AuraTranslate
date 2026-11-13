@@ -23,7 +23,7 @@ context:
 **Approach:** Add `created_at` as the third AD-18 key inside `core/tm`, ship it on the wire, and list every distinct target of an exact-source match, each with its date, in the 7.5 strip slot so the translator picks one.
 
 **Decisions (Ice, 2026-10-03):**
-- Q1 ⇒ (A) when the active segment's source has 2+ distinct exact targets, the 7.5 strip slot shows ALL of them (no cap of 3): target, date, side, tier, the row equal to the current text marked as in use; same keys as 7.5 (Mod+Alt+E, ↑/↓, Enter or 1–9, Esc). Concordance rows gain the date too.
+- Q1 ⇒ (A) when the active segment's source has 2+ distinct exact targets, the 7.5 strip slot shows ALL of them (no cap of 3): target, date, side, tier, the row equal to the current text marked as in use; same keys as 7.5 (Mod+Alt+E, ↑/↓, Enter or 1–9, Esc). Concordance rows gain the date too. 🔵 2026-11-13 (Ice chọn B): bản dịch đang dùng không còn được đánh dấu mà bị bỏ khỏi danh sách, ở cả khớp mờ; danh sách còn trống thì dải không hiện (`plan-tm-bo-de-xuat-dang-dung.md`).
 - Q2 ⇒ (a) a picked row writes the pair's own origin, under the existing AD-47 ③ row "Điền sẵn từ TM khớp 100%"; no spine change.
 - Q3 ⇒ (i) 7.4 still pre-fills the head; the list lets the translator switch.
 - Q4 ⇒ newest first within the same side and tier (`tm-manage.html:174-186`), so 7.4 now pre-fills the latest translation instead of the oldest.

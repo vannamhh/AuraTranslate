@@ -438,13 +438,19 @@ fn first_per_text_pair<T>(items: Vec<T>, pair_of: impl Fn(&T) -> &TmPair) -> Vec
         .collect()
 }
 
-/// One row per distinct `target_text`, the first in AD-18 order; stored rows are never merged.
+/// One row per distinct trimmed `target_text`, the first in AD-18 order; stored rows are never
+/// merged.
 pub fn distinct_exact_targets(pairs: Vec<TmPair>) -> Vec<TmPair> {
     let mut seen = std::collections::HashSet::new();
     pairs
         .into_iter()
-        .filter(|p| seen.insert(p.target_text.clone()))
+        .filter(|p| seen.insert(p.target_text.trim().to_owned()))
         .collect()
+}
+
+/// Both sides compare trimmed: an imported pair or the sentence may keep surrounding whitespace.
+pub fn is_in_use(pair_target: &str, in_use_target: Option<&str>) -> bool {
+    in_use_target.is_some_and(|current| pair_target.trim() == current.trim())
 }
 
 /// Number of fuzzy rows the strip shows.
@@ -566,17 +572,21 @@ pub fn target_suggestions_for_term(
     })
 }
 
+/// `in_use_target`: the sentence's current translation; a pair carrying it is not a suggestion
+/// and leaves its slot to the next one.
 pub fn rank_fuzzy_candidates(
     resolver: &crate::core::scope::ScopeResolver,
     candidates: TierRows,
     source_text: &str,
     lang: crate::core::matching::MatchLang,
     threshold: u8,
+    in_use_target: Option<&str>,
 ) -> Result<PolicedMatches<FuzzyPair>, TmStoreError> {
     Ok(
         fuzzy_pairs_in_candidates(resolver, &candidates, source_text, lang, threshold)?.map_kept(
             |all| {
                 let mut merged = first_per_text_pair(all, |f| &f.pair);
+                merged.retain(|f| !is_in_use(&f.pair.target_text, in_use_target));
                 merged.sort_by_key(|m| std::cmp::Reverse(m.percent));
                 merged.truncate(FUZZY_MATCH_LIMIT);
                 merged

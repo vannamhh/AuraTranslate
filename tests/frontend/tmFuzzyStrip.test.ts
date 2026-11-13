@@ -588,19 +588,6 @@ describe('exact-source list (Story 7.8)', () => {
     wrapper.unmount()
   })
 
-  it('marks the row equal to the current text as in use', async () => {
-    const { wrapper, editor } = await withExact(12, [
-      exactOf({ target_text: 'Bản mới' }),
-      exactOf({ unit_id: 2, target_text: 'Gió thổi tới từ cuối hành lang.' }),
-    ])
-    const current = editor.editorSegments.value.find((s) => s.id === 12)?.target_text
-    expect(current).toBe('Gió thổi tới từ cuối hành lang.')
-    const rows = wrapper.findAll('.tmf-exact-row')
-    expect(rows[0]?.find('.tmf-in-use').exists()).toBe(false)
-    expect(rows[1]?.find('.tmf-in-use').exists()).toBe(true)
-    wrapper.unmount()
-  })
-
   it('digit 2 picks the second row through accept_tm_exact, with the pair identity', async () => {
     const { wrapper } = await withExact()
     acceptTmExactMock.mockResolvedValue(acceptedOf({ translation_origin: 'self' }))

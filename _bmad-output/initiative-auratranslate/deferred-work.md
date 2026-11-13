@@ -12965,6 +12965,7 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-8-nhieu-ban-dich-cho-cung-mot-cau-nguon.md`
   summary: In the real app, unverified: the exact-source list layout in the strip slot (8em date column, long lists with no cap), the "Đang dùng" mark, digits 4–9, and Mod+Alt+E focus and Esc with the exact list showing.
   evidence: happy-dom cannot show layout or focus; `tests/frontend/tmFuzzyStrip.test.ts` covers state and dispatch only. Chủ: Epic 7.
+  → 🟡 2026-11-13: nhãn "Đang dùng" đã gỡ (Ice chọn B, `plan-tm-bo-de-xuat-dang-dung.md`), bản dịch đang dùng nay bị bỏ khỏi danh sách nên vế đó hết đối tượng. Còn hở: bố cục danh sách, phím số 4–9, tiêu điểm Mod+Alt+E và Esc. Chủ: Epic 7.
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-8-nhieu-ban-dich-cho-cung-mot-cau-nguon.md`
   summary: The AD-18 date key compares `tm_unit.created_at` as strings, correct only while every row is ISO-8601 UTC with milliseconds; TMX import must write that exact format (TMX `creationdate` is `YYYYMMDDThhmmssZ`).
   evidence: `core/tm/mod.rs::merge_tiers` `newest_first`; today the only writer is `insert_pair` (`strftime('%Y-%m-%dT%H:%M:%fZ','now')`). Chủ: Story 7.10.

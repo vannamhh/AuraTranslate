@@ -5,7 +5,7 @@ import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
 import { eligibleInlineStrips } from './inlineStripEligibility'
-import { editorCaretSegmentId, editorSegments } from './panels/editorPanelState'
+import { editorCaretSegmentId } from './panels/editorPanelState'
 import { historyTimeLabel } from './panels/segmentHistoryTime'
 import { shortDayMonth } from './panels/shortDate'
 import { topmostStrip } from './panels/inlineStripPriority'
@@ -24,7 +24,6 @@ import {
   tmFuzzyRowCount,
   tmFuzzyScanError,
   tmFuzzyRowKey,
-  tmFuzzySegmentId,
 } from './tmFuzzyStripState'
 
 watch(editorCaretSegmentId, (segmentId) => { syncTmFuzzyStrip(segmentId) }, { immediate: true })
@@ -43,11 +42,6 @@ const DIGIT_ROWS: Readonly<Record<string, number>> = {
 }
 
 const isExactList = computed(() => tmFuzzyExactShown.value.length > 0)
-
-const currentTarget = computed(() => {
-  const id = tmFuzzySegmentId.value
-  return editorSegments.value.find((s) => s.id === id)?.target_text ?? null
-})
 
 const stripTitle = computed(() => {
   if (isExactList.value) return t('tm.exact.title')
@@ -74,7 +68,7 @@ const exactRows = computed(() => {
   const nowMs = Date.now()
   return tmFuzzyExactShown.value.map((row) => {
     const { key, params } = historyTimeLabel(row.created_at, nowMs)
-    return { row, date: t(key, params), inUse: row.target_text === currentTarget.value }
+    return { row, date: t(key, params) }
   })
 })
 
@@ -160,7 +154,7 @@ const acceptErrorText = computed(() => {
         v-for="(item, i) in exactRows"
         :key="`${item.row.tier}:${item.row.unit_id}`"
         class="tmf-row tmf-exact-row"
-        :class="{ 'tmf-row-aimed': i === tmFuzzyAimedIndex, 'tmf-row-in-use': item.inUse }"
+        :class="{ 'tmf-row-aimed': i === tmFuzzyAimedIndex }"
         :aria-current="i === tmFuzzyAimedIndex ? 'true' : undefined"
         @mouseenter="aimTmFuzzyRow(i)"
       >
@@ -177,7 +171,6 @@ const acceptErrorText = computed(() => {
             <!-- aura-allow-text: result of t(). -->
             {{ item.row.tier === 'work' ? t('tm.fuzzy.tier_work') : t('tm.fuzzy.tier_global') }}
           </span>
-          <span v-if="item.inUse" class="tmf-in-use">{{ t('tm.exact.in_use') }}</span>
           <span class="tmf-meta-actions">
             <button
               type="button"
@@ -372,13 +365,6 @@ const acceptErrorText = computed(() => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.tmf-in-use {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-tm-text);
 }
 
 .tmf-ins {

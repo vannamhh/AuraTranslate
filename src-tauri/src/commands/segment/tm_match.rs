@@ -64,6 +64,7 @@ pub struct TmFuzzyScan {
     resolver: crate::core::scope::ScopeResolver,
     candidates: crate::core::tm::TierRows,
     exact_hidden: usize,
+    in_use_target: Option<String>,
 }
 
 pub enum TmFuzzyPrepared {
@@ -83,16 +84,23 @@ pub fn prepare_tm_fuzzy(
 
     let found = open.store.read(move |conn| {
         match conn.query_row(
-            "SELECT source_text, retired_at IS NOT NULL FROM segment WHERE id = ?1",
+            "SELECT source_text, retired_at IS NOT NULL, target_text FROM segment WHERE id = ?1",
             [segment_id],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, bool>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
         ) {
             Ok(v) => Ok(Some(v)),
             Err(SqlError::QueryReturnedNoRows) => Ok(None),
             Err(err) => Err(err),
         }
     })?;
-    let (source, retired) = found.ok_or_else(|| segment_not_found(segment_id))?;
+    let (source, retired, target) = found.ok_or_else(|| segment_not_found(segment_id))?;
+    let in_use_target = Some(target);
     if retired {
         return Err(segment_retired(segment_id));
     }
@@ -126,6 +134,7 @@ pub fn prepare_tm_fuzzy(
         }
         let exact = distinct
             .into_iter()
+            .filter(|p| !crate::core::tm::is_in_use(&p.target_text, in_use_target.as_deref()))
             .map(|p| TmExactTarget {
                 tier: tier_wire(p.tier),
                 unit_id: p.id,
@@ -153,6 +162,7 @@ pub fn prepare_tm_fuzzy(
         threshold: u8::try_from(threshold).unwrap_or(u8::MAX),
         resolver: open.scope.clone(),
         candidates,
+        in_use_target,
     }))
 }
 
@@ -168,6 +178,7 @@ pub fn score_tm_fuzzy(prepared: TmFuzzyPrepared) -> Result<TmFuzzyMatches, IpcEr
         &scan.source,
         scan.lang,
         scan.threshold,
+        scan.in_use_target.as_deref(),
     )
     .map_err(|e| tm_lookup_failed(&e))?
     .into_parts();

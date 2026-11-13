@@ -156,6 +156,7 @@ fn the_strip_filters_before_the_cut_of_three() {
             "一二三四五六七八九十",
             MatchLang::Zh,
             40,
+            None,
         )
         .unwrap()
         .into_parts()

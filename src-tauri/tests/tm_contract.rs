@@ -2349,6 +2349,7 @@ fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
         query,
         match_lang_for_source_lang(source_lang),
         99,
+        None,
     )
     .expect("xep hang")
     .into_parts()
@@ -2377,6 +2378,7 @@ fn a_source_differing_only_by_surrounding_whitespace_scores_99_and_no_other_pair
         "\u{7b2c}\u{4e09}\u{7ae0}",
         MatchLang::Zh,
         65,
+        None,
     )
     .expect("xep hang")
     .into_parts()
@@ -2702,6 +2704,135 @@ fn one_distinct_target_gives_neither_list_nor_fuzzy_rows() {
     w.seed_global(FUZZY_CURRENT, "A", "other");
     let got = fuzzy(&w, w.first_id());
     assert!(got.exact.is_empty() && got.matches.is_empty());
+}
+
+#[test]
+fn the_only_fuzzy_suggestion_already_in_use_leaves_the_strip_empty() {
+    let w = wired("in-use-only", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    w.set_target_state(id, "near", "near");
+    let got = fuzzy(&w, id);
+    assert!(got.matches.is_empty() && got.exact.is_empty());
+}
+
+#[test]
+fn a_fuzzy_suggestion_in_use_gives_its_slot_to_the_next_one() {
+    let w = wired("in-use-slot", FUZZY_CURRENT, true);
+    for (source, target) in [
+        (FUZZY_NEAR, "cat"),
+        ("The quick brown fox jumps over the lazy cow.", "cow"),
+        ("The quick brown fox jumps over the lazy owl.", "owl"),
+        ("The quick brown fox jumps over the lazy pig.", "pig"),
+    ] {
+        w.seed_work(source, target, "self");
+    }
+    let id = w.first_id();
+    let before: Vec<String> = fuzzy(&w, id)
+        .matches
+        .iter()
+        .map(|m| m.target_text.clone())
+        .collect();
+    assert_eq!(before.len(), 3);
+    let in_use = before[0].clone();
+    w.set_target_state(id, &in_use, &in_use);
+
+    let after: Vec<String> = fuzzy(&w, id)
+        .matches
+        .iter()
+        .map(|m| m.target_text.clone())
+        .collect();
+
+    assert_eq!(after.len(), 3, "{after:?}");
+    assert!(!after.contains(&in_use), "{after:?}");
+}
+
+#[test]
+fn an_exact_target_in_use_drops_out_of_the_exact_list() {
+    let w = wired("in-use-exact", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_work_dated(&source, "A", "self", "2026-06-28T00:00:00.000Z");
+    w.seed_work_dated(&source, "B", "self", "2026-08-03T00:00:00.000Z");
+    w.set_target_state(id, "B", "B");
+
+    let got = fuzzy(&w, id);
+
+    assert_eq!(
+        exact_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(),
+        ["A"]
+    );
+}
+
+#[test]
+fn a_target_differing_only_by_surrounding_whitespace_counts_as_in_use() {
+    let w = wired("in-use-trim", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    w.set_target_state(id, "  near \n", "  near \n");
+    assert!(fuzzy(&w, id).matches.is_empty());
+}
+
+#[test]
+fn an_untranslated_sentence_keeps_every_suggestion() {
+    let w = wired("in-use-none", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_work(&source, "A", "self");
+    w.seed_work(&source, "B", "self");
+    w.set_target_state(id, "   ", "");
+    assert_eq!(fuzzy(&w, id).exact.len(), 2);
+
+    let w = wired("in-use-none-fz", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    w.set_target_state(id, "", "");
+    assert_eq!(fuzzy_shape(&fuzzy(&w, id)), vec![("near", "work", "mine")]);
+}
+
+#[test]
+fn an_exact_target_in_use_with_surrounding_whitespace_still_drops_out() {
+    let w = wired("in-use-exact-trim", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_work_dated(&source, "A", "self", "2026-06-28T00:00:00.000Z");
+    w.seed_work_dated(&source, "B", "self", "2026-08-03T00:00:00.000Z");
+    w.set_target_state(id, "  B \n", "  B \n");
+
+    let got = fuzzy(&w, id);
+
+    assert_eq!(
+        exact_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(),
+        ["A"]
+    );
+}
+
+#[test]
+fn exact_targets_differing_only_by_surrounding_whitespace_are_one_translation() {
+    let w = wired("ws-variant", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_work_dated(&source, "B", "self", "2026-08-03T00:00:00.000Z");
+    w.seed_global_dated(&source, "B  ", "other", "2026-07-01T00:00:00.000Z");
+    let got = fuzzy(&w, id);
+    assert!(got.exact.is_empty() && got.matches.is_empty());
+
+    w.seed_work_dated(&source, "A", "self", "2026-06-28T00:00:00.000Z");
+    assert_eq!(
+        exact_shape(&fuzzy(&w, id))
+            .iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>(),
+        ["B", "A"]
+    );
+    w.set_target_state(id, "B", "B");
+    assert_eq!(
+        exact_shape(&fuzzy(&w, id))
+            .iter()
+            .map(|r| r.0)
+            .collect::<Vec<_>>(),
+        ["A"]
+    );
 }
 
 #[test]
@@ -4297,6 +4428,7 @@ fn a_sentence_differing_only_by_han_form_is_a_99_percent_fuzzy_match_and_not_a_p
         query,
         auratranslate_lib::core::matching::MatchLang::Zh,
         65,
+        None,
     )
     .expect("xep hang")
     .into_parts()
