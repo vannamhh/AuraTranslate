@@ -79,7 +79,8 @@ if [ "$DOCS_ONLY" = 1 ]; then
   echo '  (chỉ đổi tài liệu — bỏ qua test, build, cargo test, fr77)'
 else
   printf '  %-14s' 'test'
-  if npm run --silent test >"$LOG_DIR/test.log" 2>&1; then
+  # A working machine (VM, browsers) times tests out at vitest's default worker count; CI keeps the default.
+  if npm run --silent test -- --maxWorkers=8 >"$LOG_DIR/test.log" 2>&1; then
     green 'OK'
   else
     echo ''
