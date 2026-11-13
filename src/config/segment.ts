@@ -1379,6 +1379,8 @@ export type TmConcordanceHit = {
   target_text: string
   side: TmFuzzySide
   created_at: string
+  /** Code-point `[start, end)` ranges of the query inside `source_text`, ascending, non-overlapping. */
+  source_spans: readonly (readonly [number, number])[]
 }
 
 /** Matches `commands::segment::TmConcordance`; `hits.length < total` when capped. */

@@ -2530,6 +2530,40 @@ fn more_than_fifty_matches_ship_fifty_rows_and_the_true_total() {
 }
 
 #[test]
+fn concordance_spans_are_code_point_ranges_of_every_match_under_the_same_fold_as_the_filter() {
+    use auratranslate_lib::core::tm::concordance_spans;
+    assert_eq!(
+        concordance_spans("他叫师父，师父来了。", "师父"),
+        vec![[2, 4], [5, 7]]
+    );
+    assert_eq!(
+        concordance_spans("中共對美國發起全面", "发起"),
+        vec![[5, 7]]
+    );
+    assert_eq!(concordance_spans("𠧜龙吼", "龍"), vec![[1, 2]]);
+    assert_eq!(
+        concordance_spans("The Dragon roared.", "  dragon "),
+        vec![[4, 10]]
+    );
+    assert_eq!(
+        concordance_spans("A cafe\u{301} nearby.", "caf\u{e9}"),
+        vec![[2, 7]]
+    );
+    assert_eq!(concordance_spans("aaaa", "aa"), vec![[0, 2], [2, 4]]);
+    assert!(concordance_spans("师父。", "  ").is_empty());
+    assert!(concordance_spans("师父。", "师兄").is_empty());
+}
+
+#[test]
+fn a_concordance_hit_carries_the_source_spans_of_the_phrase() {
+    let w = wired("cc-spans", "一。", true);
+    w.seed_work("他叫師父，师父来了。", "t", "other");
+    let got = concordance(&w, "师父");
+    assert_eq!(got.hits.len(), 1);
+    assert_eq!(got.hits[0].source_spans, vec![[2, 4], [5, 7]]);
+}
+
+#[test]
 fn a_blank_query_hits_nothing() {
     let w = wired("cc-blank", "一。", true);
     w.seed_work("师父。", "t", "other");

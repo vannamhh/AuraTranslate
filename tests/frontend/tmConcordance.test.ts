@@ -23,7 +23,7 @@ vi.mock('../../src/config/dict', async (importOriginal) => {
 })
 
 function hitOf(patch: Partial<TmConcordanceHit> = {}): TmConcordanceHit {
-  return { tier: 'work', unit_id: 1, source_text: '他叫师父。', target_text: 'Hắn gọi sư phụ.', side: 'mine', created_at: '2026-08-03T00:00:00.000Z', ...patch }
+  return { tier: 'work', unit_id: 1, source_text: '他叫师父。', target_text: 'Hắn gọi sư phụ.', side: 'mine', created_at: '2026-08-03T00:00:00.000Z', source_spans: [], ...patch }
 }
 
 function answerOf(query: string, patch: Partial<TmConcordance> = {}) {
@@ -148,6 +148,27 @@ describe('concordance states', () => {
     const { w, text } = await tab(answerOf('师父'))
     expect(text()).toContain('Không có cặp nào trong bộ nhớ dịch chứa "师父"')
     expect(text()).not.toContain('Bộ nhớ dịch còn trống')
+    w.unmount()
+  })
+
+  it('each source span is marked, code-point exact, and the rest of the sentence is plain', async () => {
+    const { w } = await tab(
+      answerOf('师父', {
+        total: 1,
+        hits: [hitOf({ source_text: '𠧜叫師父，师父来了。', source_spans: [[2, 4], [5, 7]] })],
+      }),
+    )
+    const source = w.get('.concordance-source')
+    expect(source.findAll('.concordance-match').map((m) => m.text())).toEqual(['師父', '师父'])
+    expect(source.text()).toBe('𠧜叫師父，师父来了。')
+    w.unmount()
+  })
+
+  it('a hit with no span renders the whole sentence unmarked', async () => {
+    const { w } = await tab(answerOf('师父', { total: 1, hits: [hitOf({ source_text: '他叫师父。' })] }))
+    const source = w.get('.concordance-source')
+    expect(source.findAll('.concordance-match')).toHaveLength(0)
+    expect(source.text()).toBe('他叫师父。')
     w.unmount()
   })
 

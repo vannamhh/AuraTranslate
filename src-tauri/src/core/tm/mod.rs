@@ -647,6 +647,48 @@ fn concordance_key(text: &str) -> String {
     crate::core::matching::fold_zh(&text.trim().nfc().collect::<String>().to_lowercase())
 }
 
+/// Code-point `[start, end)` ranges of every non-overlapping match of `query` in `source`, under the
+/// fold [`rank_concordance`] filters with; a combining mark is folded with its base so NFC can compose.
+pub fn concordance_spans(source: &str, query: &str) -> Vec<[usize; 2]> {
+    use unicode_normalization::UnicodeNormalization;
+    use unicode_normalization::char::canonical_combining_class;
+
+    let needle = concordance_key(query);
+    if needle.is_empty() {
+        return Vec::new();
+    }
+    let chars: Vec<char> = source.chars().collect();
+    let mut clusters: Vec<[usize; 2]> = Vec::new();
+    let mut key = String::new();
+    let mut cluster_of_byte: Vec<usize> = Vec::new();
+    let mut start = 0;
+    while start < chars.len() {
+        let mut end = start + 1;
+        while end < chars.len() && canonical_combining_class(chars[end]) != 0 {
+            end += 1;
+        }
+        let cluster: String = chars[start..end].iter().collect();
+        let piece =
+            crate::core::matching::fold_zh(&cluster.nfc().collect::<String>().to_lowercase());
+        cluster_of_byte.extend(std::iter::repeat_n(clusters.len(), piece.len()));
+        key.push_str(&piece);
+        clusters.push([start, end]);
+        start = end;
+    }
+    let mut spans = Vec::new();
+    let mut from = 0;
+    while let Some(offset) = key[from..].find(&needle) {
+        let at = from + offset;
+        let last = at + needle.len() - 1;
+        spans.push([
+            clusters[cluster_of_byte[at]][0],
+            clusters[cluster_of_byte[last]][1],
+        ]);
+        from = at + needle.len();
+    }
+    spans
+}
+
 /// Pairs of both tiers whose source contains `query` as a substring: NFC, lower-cased and
 /// Traditional/Simplified-folded on both sides, no stemming, matches inside words; one hit per distinct (source, target), the
 /// first in AD-18 order. A blank query hits nothing.

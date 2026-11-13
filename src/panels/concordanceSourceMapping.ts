@@ -29,3 +29,20 @@ export function sourceSpanForVietnameseSelection(
 export function sliceByCodePoint(text: string, start: number, end: number): string {
   return Array.from(text).slice(start, end).join('')
 }
+
+export type ConcordancePiece = { readonly text: string; readonly match: boolean }
+
+/** Cuts `text` at the code-point `spans` Rust located, so each match renders as its own piece. */
+export function concordancePieces(text: string, spans: readonly (readonly [number, number])[]): ConcordancePiece[] {
+  const points = Array.from(text)
+  const pieces: ConcordancePiece[] = []
+  let at = 0
+  for (const [start, end] of spans) {
+    if (start < at || end <= start || end > points.length) continue
+    if (start > at) pieces.push({ text: points.slice(at, start).join(''), match: false })
+    pieces.push({ text: points.slice(start, end).join(''), match: true })
+    at = end
+  }
+  if (at < points.length) pieces.push({ text: points.slice(at).join(''), match: false })
+  return pieces
+}

@@ -232,6 +232,8 @@ pub struct TmConcordanceHit {
     pub side: &'static str,
     /// ISO-8601 UTC with milliseconds.
     pub created_at: String,
+    /// Code-point `[start, end)` ranges of the query inside `source_text`.
+    pub source_spans: Vec<[usize; 2]>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -285,6 +287,7 @@ pub fn score_tm_concordance(scan: TmConcordanceScan) -> Result<TmConcordance, Ip
         .map(|pair| TmConcordanceHit {
             tier: tier_wire(pair.tier),
             unit_id: pair.id,
+            source_spans: crate::core::tm::concordance_spans(&pair.source_text, &scan.query),
             source_text: pair.source_text,
             target_text: pair.target_text,
             side: side_wire(pair.translation_origin),

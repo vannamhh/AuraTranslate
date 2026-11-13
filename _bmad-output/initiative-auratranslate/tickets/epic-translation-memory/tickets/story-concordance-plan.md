@@ -120,7 +120,7 @@ context:
 - VG4 / B10a `concordanceState` imported twice in `tmConcordanceCommandDeps.ts` — low — patch: merge.
 - B1 / E6 probe scans the whole TM on every dictionary miss — false as a defect: Ice chose Q3(b) knowing it costs one scan per miss (frozen Decisions).
 - B2 / E8 per-row NFC+lowercase allocation, `İ` fold — low — reject: inside the measured ~84 ms/tier, fix needs a stored folded column (migration, forbidden).
-- B3 hit rows do not highlight the phrase — false: no FR60/epic/UX line asks for it; UX docs draw no hit row.
+- B3 hit rows do not highlight the phrase — false: no FR60/epic/UX line asks for it; UX docs draw no hit row. 🔵 2026-11-13 (Ice chọn): hit rows now mark the phrase in the source sentence from Rust `source_spans` (same fold as the filter); the target stays unmarked, the TM keeps no word alignment.
 - B4 no paging past 50 — false: the 50 cap with total is the approved spec (Always).
 - B5 / E2 null outcome or query mismatch falls back to `not_searched` — low — patch: error state instead (silent-emptiness class).
 - B6a mapping is exact-match only — false: Ice's Q2(α) says "equals".

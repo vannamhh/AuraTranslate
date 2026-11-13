@@ -71,6 +71,7 @@ import {
   concordanceView,
   probeConcordanceCount,
 } from './concordanceState'
+import { concordancePieces } from './concordanceSourceMapping'
 import {
   lookupGroups as groups,
   lookupHeadPinKey as headPinKey,
@@ -626,8 +627,14 @@ onBeforeUnmount(() => {
               class="concordance-hit"
               :class="{ 'is-mine': hit.side === 'mine' }"
             >
-              <!-- aura-allow-text: câu nguồn của cặp TM — DỮ LIỆU người dùng. -->
-              <span class="concordance-source">{{ hit.source_text }}</span>
+              <span class="concordance-source">
+                <!-- aura-allow-text: câu nguồn của cặp TM — DỮ LIỆU người dùng. -->
+                <span
+                  v-for="(piece, i) in concordancePieces(hit.source_text, hit.source_spans)"
+                  :key="i"
+                  :class="{ 'concordance-match': piece.match }"
+                >{{ piece.text }}</span>
+              </span>
               <!-- aura-allow-text: câu đích của cặp TM — DỮ LIỆU người dùng. -->
               <span class="concordance-target">{{ hit.target_text }}</span>
               <!-- aura-allow-text: result of t() computed in the script. -->
@@ -1235,6 +1242,11 @@ onBeforeUnmount(() => {
   font-size: var(--font-lookup-gloss);
   line-height: var(--leading-lookup-gloss);
   color: var(--color-on-surface);
+}
+
+.concordance-match {
+  background-color: var(--color-surface-accent);
+  color: inherit;
 }
 
 .concordance-target {
