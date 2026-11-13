@@ -95,6 +95,13 @@ const neverLookedUpKey = computed(() =>
   lookupChord.value === '' ? 'panel.lookup.status' : 'panel.lookup.status_chord',
 )
 
+const concordanceChord = computed(
+  () => shortcutRows.value.find((row) => row.id === 'tm.concordance')?.display.join(' / ') ?? '',
+)
+const concordanceNotSearchedKey = computed(() =>
+  concordanceChord.value === '' ? 'tm.concordance.not_searched' : 'tm.concordance.not_searched_chord',
+)
+
 /** `id` của tab đang chọn — `aria-labelledby` của vùng nội dung trỏ về đúng nút đó. */
 const tabpanelLabelledBy = computed(() => `lookup-tab-${lookupTab.value}`)
 
@@ -587,7 +594,7 @@ onBeforeUnmount(() => {
             {{ t('tm.concordance.error') }}
           </p>
           <p v-else-if="concordanceView === 'not_searched'" class="lookup-empty">
-            {{ t('tm.concordance.not_searched') }}
+            {{ t(concordanceNotSearchedKey, { chord: concordanceChord }) }}
           </p>
           <p v-else-if="concordanceView === 'pending'" class="lookup-empty">{{ t('tm.concordance.searching') }}</p>
           <p v-else-if="concordanceView === 'no_glossary_term'" class="lookup-empty">

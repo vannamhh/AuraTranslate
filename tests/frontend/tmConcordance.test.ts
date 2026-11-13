@@ -103,8 +103,8 @@ describe('tab arrow keys', () => {
 })
 
 describe('concordance states', () => {
-  async function tab(answer: unknown | null, query = '师父') {
-    const ctx = await fresh()
+  async function tab(answer: unknown | null, query = '师父', extra: Partial<CommandDeps> = {}) {
+    const ctx = await fresh(extra)
     ctx.history.selectLookupTab('concordance')
     const w = panelOf(ctx.LookupPanel)
     if (answer !== null) {
@@ -115,10 +115,25 @@ describe('concordance states', () => {
     return { ...ctx, w, text: () => w.get('#lookup-tabpanel').text() }
   }
 
-  it('not searched yet: teaching line, no IPC', async () => {
+  it('not searched yet: teaching line names the real chords and the right-click item, no IPC', async () => {
     const { w, text } = await tab(null)
-    expect(text()).toContain('phím tắt Concordance')
+    expect(text()).toContain('bấm F3 / Ctrl+Alt+N')
+    expect(text()).toContain('chuột phải chọn Tra Concordance')
     expect(tmConcordanceMock).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('not searched yet: a stored binding is the chord the line names', async () => {
+    const { w, text } = await tab(null, '师父', { bindings: { 'tm.concordance': ['Mod+Alt+Y'] } })
+    expect(text()).toContain('bấm Ctrl+Alt+Y')
+    expect(text()).not.toContain('F3')
+    w.unmount()
+  })
+
+  it('not searched yet with no chord bound: only the right-click item is taught', async () => {
+    const { w, text } = await tab(null, '师父', { bindings: { 'tm.concordance': [] } })
+    expect(text()).toContain('chuột phải chọn Tra Concordance')
+    expect(text()).not.toContain('bấm')
     w.unmount()
   })
 

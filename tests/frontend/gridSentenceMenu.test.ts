@@ -15,10 +15,12 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
       return { ...result, loaded: { ...result.loaded, segments } }
     },
     saveSegmentTargets: recordSave,
+    tmConcordance: (...args: unknown[]) => tmConcordanceMock(...args),
   }
 })
 
 const addTermMock = vi.fn()
+const tmConcordanceMock = vi.fn()
 
 vi.mock('../../src/config/glossary', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/glossary')>()),
@@ -43,7 +45,7 @@ beforeEach(() => {
   resetRecorder()
 })
 
-async function mountGrid(options: { realStrip?: boolean } = {}) {
+async function mountGrid(options: { realStrip?: boolean; realConcordance?: boolean } = {}) {
   vi.resetModules()
   const state = await import('../../src/panels/editorPanelState')
   const commands = await import('../../src/commands')
@@ -68,16 +70,22 @@ async function mountGrid(options: { realStrip?: boolean } = {}) {
     openSegmentHistory: spy('openSegmentHistory', undefined),
     openGlossaryQuickAdd: spy<[string], void>('openGlossaryQuickAdd', undefined),
     currentSelectionForGlossary: spy('currentSelectionForGlossary', ''),
+    openTmConcordance: spy('openTmConcordance', undefined),
   }
   const realStrip =
     options.realStrip === true
       ? { openGlossaryQuickAdd: strip.openGlossaryQuickAdd, currentSelectionForGlossary: selection.currentSelectionTextForGlossaryQuickAdd }
       : {}
+  const realConcordance =
+    options.realConcordance === true ? (await import('../../src/tmConcordanceCommandDeps')).tmConcordanceCommandDeps() : {}
+  const concordance = await import('../../src/panels/concordanceState')
+  const lookupTabs = await import('../../src/panels/lookupHistoryState')
   commands.installCommands({
     isMac: true,
     setMode: () => {},
     ...deps,
     ...realStrip,
+    ...realConcordance,
     openSentenceMenu: () => {
       menuState.openSentenceMenu()
     },
@@ -91,7 +99,7 @@ async function mountGrid(options: { realStrip?: boolean } = {}) {
   mounted.push(wrapper)
   await state.ensureSegmentsLoaded()
   await wrapper.vm.$nextTick()
-  return { state, commands, menuState, strip, deps, calledOn, wrapper }
+  return { state, commands, menuState, strip, deps, calledOn, wrapper, concordance, lookupTabs }
 }
 
 const cell = (col: 'src' | 'tgt', id: number): HTMLElement => {
@@ -141,6 +149,7 @@ describe('menu câu của Lưới — mỗi id một mục chạy trên câu đ�
     ['editor.split_chapter', 'Tách Chương tại đây', 'splitChapter', null],
     ['history.open', 'Lịch sử phiên bản', 'openSegmentHistory', null],
     ['glossary.add_term', 'Thêm thuật ngữ', 'openGlossaryQuickAdd', null],
+    ['tm.concordance', 'Tra Concordance', 'openTmConcordance', null],
   ]
 
   const FLAG_ARG: Readonly<Record<string, boolean>> = {
@@ -593,7 +602,7 @@ function selectWord(el: Element): string {
 }
 
 describe('mục Thêm thuật ngữ', () => {
-  it('nằm giữa nhóm 1 và nhóm 3, ngay trước Lịch sử phiên bản', async () => {
+  it('nằm giữa nhóm 1 và nhóm 3, trước Tra Concordance và Lịch sử phiên bản', async () => {
     await mountGrid()
     press(cell('src', 12))
     await flushPromises()
@@ -601,10 +610,7 @@ describe('mục Thêm thuật ngữ', () => {
       li.getAttribute('role') === 'separator' ? '|' : (li.querySelector('button span')?.textContent ?? ''),
     )
     const at = rows.indexOf('Thêm thuật ngữ')
-    expect(rows[at - 1]).toBe('|')
-    expect(rows[at + 1]).toBe('Lịch sử phiên bản')
-    expect(rows[at + 2]).toBe('|')
-    expect(rows[at + 3]).toBe('Cắt bỏ câu')
+    expect(rows.slice(at - 1, at + 5)).toEqual(['|', 'Thêm thuật ngữ', 'Tra Concordance', 'Lịch sử phiên bản', '|', 'Cắt bỏ câu'])
   })
 
   it.each(['src', 'tgt'] as const)('trong vùng bôi ở cột %s: ô thuật ngữ điền đúng từ bôi', async (col) => {
@@ -739,5 +745,47 @@ describe('mục Thêm thuật ngữ', () => {
     await flushPromises()
 
     expect(state.editorCaretSegmentId.value).toBe(11)
+  })
+})
+
+describe('mục Tra Concordance', () => {
+  beforeEach(() => {
+    tmConcordanceMock.mockReset()
+    tmConcordanceMock.mockImplementation(async (query: string) => ({
+      outcome: { query, tm_empty: false, total: 0, hits: [] },
+      error: null,
+    }))
+  })
+
+  it('hiện hợp âm thật của tm.concordance', async () => {
+    await mountGrid()
+    press(cell('src', 12))
+    await flushPromises()
+    expect(itemByText('Tra Concordance').textContent).toContain('F3 / Ctrl+Alt+N')
+  })
+
+  it('vùng bôi ở cột nguyên văn: tìm đúng cụm bôi và chuyển sang tab Concordance', async () => {
+    const { concordance, lookupTabs } = await mountGrid({ realConcordance: true })
+    const picked = selectWord(cell('src', 12))
+    expect(picked).not.toBe('')
+
+    press(cell('src', 12))
+    await flushPromises()
+    itemByText('Tra Concordance').click()
+    await flushPromises()
+
+    expect(tmConcordanceMock.mock.calls).toEqual([[picked]])
+    expect(lookupTabs.lookupTab.value).toBe('concordance')
+    expect(concordance.concordanceView.value).toBe('no_hit')
+    expect(menuEl()).toBeNull()
+  })
+
+  it('không mang dấu mở lớp phủ hay dấu của dải', async () => {
+    await mountGrid()
+    press(cell('src', 13))
+    await flushPromises()
+    const item = itemByText('Tra Concordance')
+    expect(item.hasAttribute('data-opens-overlay')).toBe(false)
+    expect(item.hasAttribute('data-opens-glossary-strip')).toBe(false)
   })
 })

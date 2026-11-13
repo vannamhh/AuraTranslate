@@ -179,6 +179,13 @@ onBeforeUnmount(() => {
         </button>
       </li>
       <li role="none">
+        <button type="button" role="menuitem" tabindex="-1" class="ui-menu-item" :title="t('command.tm.concordance')" @click="dispatch('tm.concordance')">
+          <span>{{ t('panel.grid.menu.concordance') }}</span>
+          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+          <span class="sentence-menu-chord">{{ chordOf('tm.concordance') }}</span>
+        </button>
+      </li>
+      <li role="none">
         <button type="button" role="menuitem" tabindex="-1" class="ui-menu-item" data-opens-overlay :title="t('command.history.open')" @click="dispatch('history.open')">
           <span>{{ t('panel.grid.menu.history') }}</span>
           <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
