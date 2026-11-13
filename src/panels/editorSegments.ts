@@ -445,6 +445,8 @@ export type LookupSpanContext = {
   wordAt: (text: string, cp: number) => { start: number; end: number; wordLike: boolean } | null
   /** `true` when the pointer is over a glyph of the target, not blank space around it. */
   hits: (target: Range | Element) => boolean
+  /** The node under the pointer (the event target). */
+  pointerTarget: Node | null
 }
 
 /**
@@ -458,8 +460,9 @@ export function lookupSpanAtPoint(
   offsetInNode: number,
   ctx: LookupSpanContext,
 ): SourceSpan | null {
-  if (!cell.contains(node)) return null
-  const anchor = neoNguonCua(cell, node)
+  // Over the left half of a glyph, WebKit's caret is the boundary before it, i.e. the end of the previous block.
+  const under = ctx.pointerTarget !== null && cell.contains(ctx.pointerTarget) ? neoNguonCua(cell, ctx.pointerTarget) : null
+  const anchor = under?.hasAttribute(SRC_ATOMIC) === true ? under : cell.contains(node) ? neoNguonCua(cell, node) : null
   if (anchor === null) return null
   const from = Number(anchor.getAttribute(SRC_START))
   if (!Number.isFinite(from)) return null

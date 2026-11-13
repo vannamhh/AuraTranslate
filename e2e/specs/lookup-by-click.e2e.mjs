@@ -210,6 +210,38 @@ describe('lookup by one click', () => {
     expect(colours.unit).not.toBe(colours.rt)
   })
 
+  it('Han Viet parallel view: a click on the left part of a Han character looks up that block, not the previous one', async () => {
+    await openGrid(SOURCE, 1)
+    await realClick(await $('#grid-tab-han-viet'))
+    await realClick(await $('.view-toggle'))
+    await $('[data-col="src"] .hv-unit rt').waitForDisplayed({ timeout: 15_000 })
+    const block = await browser.execute(() => {
+      const el = document.querySelectorAll('[data-col="src"] .hv-unit')[1]
+      const text = el.querySelector('ruby').firstChild
+      const glyph = document.createRange()
+      glyph.setStart(text, 0)
+      glyph.setEnd(text, 1)
+      const rect = glyph.getBoundingClientRect()
+      return { base: text.data, x: rect.left + rect.width / 4, y: rect.top + rect.height / 2 }
+    })
+    await realClickAt(block.x, block.y)
+    await browser.waitUntil(async () => (await headword()) === block.base, { timeout: 15_000, timeoutMsg: 'the click on the left part of the glyph did not look up its block' })
+    expect(await paintedText()).toBe(block.base)
+  })
+
+  it('Han Viet switch view: a click just inside the left edge of a block looks up that block', async () => {
+    await openGrid(SOURCE, 1)
+    await realClick(await $('#grid-tab-han-viet'))
+    await $('[data-col="src"] .hv-word').waitForDisplayed({ timeout: 15_000 })
+    const block = await browser.execute(() => {
+      const el = document.querySelectorAll('[data-col="src"] .hv-word')[1]
+      const rect = el.getBoundingClientRect()
+      return { readings: el.textContent, x: rect.left + 2, y: rect.top + rect.height / 2 }
+    })
+    await realClickAt(block.x, block.y)
+    await browser.waitUntil(async () => (await paintedText()) === block.readings, { timeout: 15_000, timeoutMsg: 'the click on the left edge of the block did not paint it' })
+  })
+
   it('toggling the Han Viet view after a click leaves no lookup highlight', async () => {
     await openGrid(SOURCE, 1)
     await clickPhrase()

@@ -998,6 +998,7 @@ function lookupByPlainClick(event: MouseEvent): void {
     glossarySpanAt: (cp) => glossarySpanAtPoint(id, cp),
     wordAt,
     hits: (target) => pointerOver(event, target),
+    pointerTarget: event.target instanceof Node ? event.target : null,
   })
   if (span === null) return
   const text = [...sourceText].slice(span.start, span.end).join('')

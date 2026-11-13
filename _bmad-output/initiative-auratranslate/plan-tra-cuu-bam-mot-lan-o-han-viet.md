@@ -95,6 +95,7 @@ Dấu tô là thuộc tính ngoài vnode, nên khi Vue dựng lại khối thì 
 - Đối chứng đỏ đã làm thật: gỡ phép thử `<rt>` làm đỏ ca vitest "only the reading is hit" và ca e2e "middle of the reading" (headword rỗng). Gỡ `clearLookupPaint()` trong `paintLookupBlocks` làm đỏ ca tô A rồi B.
 - e2e chạy cả spec đỏ 9/10 ở fixture ("Đã gọi 5 hàm reset mà lưới còn 1 hàng nguyên văn") vì Vite của `tauri dev` mở từ 09:41 phục vụ module có tem `?t=`. Chạy từng ca bằng `--mochaOpts.grep` thì 10/10 xanh trong WKWebView 605.1.15.
 - e2e đọc DOM, không đọc điểm ảnh. Lỗi vẽ lại chỉ thấy bằng mắt; bàn đo Safari đã cho thấy cách tô bằng thuộc tính không giữ màu cũ (0/3 lượt).
+- Ice dùng thật sau bản đầu (2026-11-13): Song song vẫn khó bấm. Bản đồ điểm trong WKWebView: bấm nửa trái chữ Hán thì caret là ranh giới trước chữ, tức cuối khối liền trước, nên tra trượt; Chuyển đổi trượt một dải ~6px ở mép trái mỗi khối. Nay khối nguyên tử dưới `event.target` thắng caret. Điểm trúng: Song song 4179/4541 → 4521/4541, Chuyển đổi 1302/1449 → 1449/1449 (12 khối đầu mỗi kiểu, lưới 3px).
 
 ## Review Triage Log
 

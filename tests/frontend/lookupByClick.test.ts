@@ -32,7 +32,7 @@ function mountCell(html: string): HTMLElement {
 }
 
 function ctx(sourceText: string, overrides: Partial<LookupSpanContext> = {}): LookupSpanContext {
-  return { sourceText, glossarySpanAt: () => null, wordAt, hits: () => true, ...overrides }
+  return { sourceText, glossarySpanAt: () => null, wordAt, hits: () => true, pointerTarget: null, ...overrides }
 }
 
 function textOf(node: Node | null): Text {
@@ -310,6 +310,32 @@ describe('lookupSpanAtPoint, Han Viet views', () => {
   it('a block the pointer is not over is not looked up', () => {
     const cell = mountCell(switchHtml)
     expect(lookupSpanAtPoint(cell, textOf(cell.querySelector('.hv-syl')), 0, ctx(source, { hits: () => false }))).toBeNull()
+  })
+
+  it('switch: the block under the pointer wins over a caret that snapped to the end of the previous block', () => {
+    const cell = mountCell(switchHtml)
+    const punctuation = textOf(cell.querySelector('.hv-text'))
+    const target = cell.querySelectorAll('.hv-syl')[2]
+    const span = lookupSpanAtPoint(cell, punctuation, 1, ctx(source, { pointerTarget: target }))
+    expect(span).toEqual({ start: 3, end: 4 })
+  })
+
+  it('parallel: the unit under the pointer wins over a caret that snapped into the previous reading', () => {
+    const cell = mountCell(
+      '<p class="hv-parallel">' +
+        '<span class="hv-unit" data-src-start="0" data-src-atomic="1"><ruby>他<rt>tha</rt></ruby></span>' +
+        '<span class="hv-unit" data-src-start="1" data-src-atomic="1"><ruby>小提琴<rt>tieu de cam</rt></ruby></span>' +
+        '</p>',
+    )
+    const [first, second] = cell.querySelectorAll('ruby')
+    const span = lookupSpanAtPoint(cell, textOf(first.querySelector('rt')), 3, ctx('他小提琴', { pointerTarget: second }))
+    expect(span).toEqual({ start: 1, end: 4 })
+  })
+
+  it('punctuation under the pointer is not looked up even when the caret snapped into a block', () => {
+    const cell = mountCell(switchHtml)
+    const span = lookupSpanAtPoint(cell, textOf(cell.querySelector('.hv-syl')), 0, ctx(source, { pointerTarget: cell.querySelector('.hv-text') }))
+    expect(span).toBeNull()
   })
 })
 
