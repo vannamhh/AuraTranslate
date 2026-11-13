@@ -76,7 +76,7 @@ import { GRID_BLOCK_CONTEXT } from './gridBlockContext'
 import type { GridBlockContext, GridBlockView, LookupSpan, SourcePieceInfo } from './gridBlockContext'
 import { offerPointLookup, skipNextAutoLookup, useSelectionSurface } from './selectionContract'
 import { currentQuery } from './lookupPanelState'
-import { clearLookupPaint, paintLookupBlocks } from './lookupPaint'
+import { resetLookupPaint, paintLookupBlocks } from './lookupPaint'
 import { wordAt } from './wordBoundary'
 import { resolveHanVietSelection } from './hanVietSurfaces'
 import { isSourceColumnSelecting, sourceColumnText } from './gridSourceSelection'
@@ -966,7 +966,7 @@ let paintedLookup: string | null = null
 function clearPaintedLookup(): void {
   paintedLookup = null
   lookupSpan.value = null
-  clearLookupPaint()
+  resetLookupPaint()
 }
 
 function paintLookup(segmentId: number, span: SourceSpan, text: string): void {

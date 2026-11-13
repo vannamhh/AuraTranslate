@@ -381,15 +381,15 @@ describe('atomicBlocksForSpan and block paint', () => {
     expect(atomicBlocksForSpan(cell, 5, 6)).toEqual([])
   })
 
-  it('painting block B after block A leaves only B marked, and clearLookupPaint removes it', async () => {
-    const { clearLookupPaint, paintLookupBlocks } = await import('../../src/panels/lookupPaint')
+  it('painting block B after block A leaves only B marked, and resetLookupPaint removes it', async () => {
+    const { resetLookupPaint, paintLookupBlocks } = await import('../../src/panels/lookupPaint')
     const cell = mountCell(html)
     const [a, , b] = [...cell.querySelectorAll('[data-src-atomic]')]
     paintLookupBlocks([a!])
     paintLookupBlocks([b!])
     expect(cell.querySelectorAll('[data-lookup-active]')).toHaveLength(1)
     expect(b!.hasAttribute('data-lookup-active')).toBe(true)
-    clearLookupPaint()
+    resetLookupPaint()
     expect(cell.querySelectorAll('[data-lookup-active]')).toHaveLength(0)
   })
 
