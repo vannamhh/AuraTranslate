@@ -71,5 +71,7 @@ export default defineConfig({
     // `setTimeout`/`setImmediate` wait — the latter needs the event loop's timer phase, which
     // starves under CPU contention long before a microtask does.
     fileParallelism: true,
+    // pre-push runs every file in parallel on a working machine; cold mounts pass the 5 s default there without hanging.
+    testTimeout: 15_000,
   },
 })
