@@ -66,7 +66,7 @@ import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './pro
 import type { ConventionScanEntry } from './proofreadHighlight'
 import { clearProofreadFor, proofreadResults } from '../proofreadState'
 import { resetConventionReplace } from '../conventionReplaceState'
-import { clearConventionFor, conventionResults, conventionStripIsEligible, openConventionAt, resetConvention, scanConventionNow } from '../conventionState'
+import { clearConventionFor, conventionResults, openConventionAt, resetConvention, scanConventionNow } from '../conventionState'
 import { openWorkId } from '../openWorkIdentity'
 import { CONVENTION_MARK_CLASS } from './proofreadHighlight'
 import PanelFrame from './PanelFrame.vue'
@@ -127,7 +127,8 @@ import {
 // 🔴 Ba nhánh từ chối của lượt khôi phục FR101 vào CHUNG một bề mặt với lỗi xác nhận/flush
 // (cột nhãn trạng thái của hàng).
 import { historyRestoreError } from './segmentHistoryState'
-import { inlineStripAnchorSegmentId, stripTrackFloats } from '../inlineStripEligibility'
+import { eligibleInlineStrips, inlineStripAnchorSegmentId, stripTrackFloats } from '../inlineStripEligibility'
+import { topmostStrip } from './inlineStripPriority'
 // 🔵 Story 3.4b — tiêu thụ bề mặt IPC `glossary_marks_for_chapter` (Story 3.4). `glossaryMarks`
 // là mảng TUYỆT ĐỐI (offset vào chuỗi Chương nối bằng `\n`); `glossaryMarksBySegment` chia nó
 // về từng hàng — xem doc-comment của cả hai tệp cho lý do chất nối và lý do KHÔNG gộp tập biên
@@ -1853,7 +1854,19 @@ function onEditKeydown(event: KeyboardEvent): void {
   // tiêu điểm tình cờ nằm trong lưới. Một lượt xoá tập điểm cắt **không** loại trừ một lượt
   // đóng lớp phủ — hai việc ở hai tầng.
   if (event.key === 'Escape') {
-    if (conventionStripIsEligible.value) dispatch('convention.hide')
+    const top = topmostStrip(eligibleInlineStrips.value)
+    switch (top) {
+      // Closing these forms restores focus saved when they opened, which would pull the caret
+      // away from the cell; they keep their own Esc.
+      case 'glossary_quick_add':
+      case 'glossary_confirm': break
+      case 'proofreader':
+      case 'proofreader_summary': dispatch('ai.proofread.hide'); break
+      case 'convention': dispatch('convention.hide'); break
+      case 'tm_fuzzy': dispatch('tm.fuzzy.hide'); break
+      case null: break
+      default: top satisfies never
+    }
     dispatch('editor.clear_source_cuts')
     dispatch('segment.selection.clear')
   }

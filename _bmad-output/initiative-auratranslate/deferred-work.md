@@ -14134,3 +14134,8 @@ chính nó.
 
 - Chưa thử trong app thật (WKWebView) rằng khi gán `Shift+Enter` cho *Xác nhận câu đang sửa*, bấm nó trong ô bản dịch thì câu được xác nhận và không có dòng mới chèn vào ô. Test vitest chỉ thấy `preventDefault` được gọi, chưa thấy engine thật bỏ `insertLineBreak`. Với bộ gõ Vietnamese có sẵn của macOS, `Shift+Enter` chốt chữ cũng có thể tới với `isComposing = false`.
   Quan trọng vì nếu engine vẫn chèn dòng thì câu được ký kèm một `\n` thừa. Chủ: Epic 1. Trỏ: `plan-shift-enter-xac-nhan-trong-o-dich.md`.
+
+## Deferred from: Esc trong ô bản dịch ẩn dải nội tuyến (2026-11-13)
+
+- Chưa thử trong app thật (WKWebView): con trỏ trong ô bản dịch, dải đề xuất TM, quy ước hoặc Proofreader đang hiện, bấm `Esc` thì dải ẩn và con trỏ ở yên trong ô. happy-dom không tái hiện tiêu điểm và vùng chọn của WebKit.
+  Quan trọng vì nếu lệnh ẩn trả tiêu điểm sai chỗ thì người dịch mất vị trí đang gõ. Chủ: Epic 2. Trỏ: `plan-esc-an-dai-noi-tuyen-tu-o-dich.md`.
