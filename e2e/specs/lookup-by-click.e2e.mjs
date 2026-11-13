@@ -20,6 +20,16 @@ async function headword() {
 
 async function paintedText() {
   return await browser.execute(() => {
+    const marked = [...document.querySelectorAll('[data-lookup-active]')]
+    if (marked.length > 0) {
+      return marked
+        .map((el) => {
+          const copy = el.cloneNode(true)
+          for (const rt of copy.querySelectorAll('rt')) rt.remove()
+          return copy.textContent
+        })
+        .join('')
+    }
     const highlight = CSS.highlights.get('lookup-active')
     return highlight === undefined ? null : [...highlight].map((range) => range.toString()).join('')
   })
@@ -154,6 +164,50 @@ describe('lookup by one click', () => {
     expect(await paintedText()).toBe(block.base)
     expect(await paintedText()).not.toContain(block.reading)
     expect(await headword()).toBe(block.base)
+  })
+
+  it('Han Viet switch view: clicking block A then block B marks only B', async () => {
+    await openGrid(SOURCE, 1)
+    await realClick(await $('#grid-tab-han-viet'))
+    await $('[data-col="src"] .hv-word').waitForDisplayed({ timeout: 15_000 })
+    const centres = await browser.execute(() =>
+      [...document.querySelectorAll('[data-col="src"] .hv-word')].slice(0, 2).map((el) => {
+        const rect = el.getBoundingClientRect()
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      }),
+    )
+    expect(centres.length).toBe(2)
+    await realClickAt(centres[0].x, centres[0].y)
+    await browser.waitUntil(async () => (await browser.execute(() => document.querySelectorAll('[data-lookup-active]').length)) > 0, { timeout: 15_000 })
+    await realClickAt(centres[1].x, centres[1].y)
+    await browser.waitUntil(
+      async () => (await browser.execute(() => {
+        const marked = [...document.querySelectorAll('[data-lookup-active]')]
+        const words = [...document.querySelectorAll('[data-col="src"] .hv-word')]
+        return marked.length === 1 && marked[0] === words[1]
+      })),
+      { timeout: 15_000, timeoutMsg: 'block A kept its mark after clicking block B' },
+    )
+  })
+
+  it('Han Viet parallel view: a click in the middle of the reading looks up and colours the Han base only', async () => {
+    await openGrid(SOURCE, 1)
+    await realClick(await $('#grid-tab-han-viet'))
+    await realClick(await $('.view-toggle'))
+    await $('[data-col="src"] .hv-unit rt').waitForDisplayed({ timeout: 15_000 })
+    const block = await browser.execute(() => {
+      const el = document.querySelector('[data-col="src"] .hv-unit')
+      const base = [...el.querySelector('ruby').childNodes].filter((n) => n instanceof Text).map((n) => n.data).join('')
+      const rect = el.querySelector('rt').getBoundingClientRect()
+      return { base, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+    })
+    await realClickAt(block.x, block.y)
+    await browser.waitUntil(async () => (await headword()) === block.base, { timeout: 15_000, timeoutMsg: `the click on the reading did not look up ${block.base}` })
+    const colours = await browser.execute(() => {
+      const el = document.querySelector('[data-col="src"] [data-lookup-active]')
+      return { unit: getComputedStyle(el).color, rt: getComputedStyle(el.querySelector('rt')).color }
+    })
+    expect(colours.unit).not.toBe(colours.rt)
   })
 
   it('toggling the Han Viet view after a click leaves no lookup highlight', async () => {

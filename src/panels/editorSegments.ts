@@ -426,6 +426,19 @@ export function sourceRangesForSpan(cell: Element, start: number, end: number): 
   return out
 }
 
+/** Atomic blocks (`data-src-atomic`) overlapping the source characters `[start, end)` of one cell. */
+export function atomicBlocksForSpan(cell: Element, start: number, end: number): Element[] {
+  const out: Element[] = []
+  for (const anchor of cell.querySelectorAll(`[${SRC_START}][${SRC_ATOMIC}]`)) {
+    const from = Number(anchor.getAttribute(SRC_START))
+    if (!Number.isFinite(from)) continue
+    const to = from + anchorLength(cell, anchor)
+    if (to <= start || from >= end) continue
+    out.push(anchor)
+  }
+  return out
+}
+
 export type LookupSpanContext = {
   sourceText: string
   glossarySpanAt: (cp: number) => SourceSpan | null
@@ -452,7 +465,10 @@ export function lookupSpanAtPoint(
   if (!Number.isFinite(from)) return null
 
   if (anchor.hasAttribute(SRC_ATOMIC)) {
-    if (!anchor.matches(HAN_BLOCK_SELECTOR) || !ctx.hits(anchor)) return null
+    if (!anchor.matches(HAN_BLOCK_SELECTOR)) return null
+    // WebKit's client rects of `.hv-unit` cover only the base line, not the `<rt>` below it.
+    const reading = anchor.classList.contains('hv-unit') ? anchor.querySelector('rt') : null
+    if (!ctx.hits(anchor) && (reading === null || !ctx.hits(reading))) return null
     return ctx.glossarySpanAt(from) ?? { start: from, end: from + anchorLength(cell, anchor) }
   }
 

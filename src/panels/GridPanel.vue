@@ -76,7 +76,7 @@ import { GRID_BLOCK_CONTEXT } from './gridBlockContext'
 import type { GridBlockContext, GridBlockView, SourcePieceInfo } from './gridBlockContext'
 import { offerPointLookup, skipNextAutoLookup, useSelectionSurface } from './selectionContract'
 import { currentQuery } from './lookupPanelState'
-import { clearLookupPaint, paintLookupRanges } from './lookupPaint'
+import { clearLookupPaint, paintLookupBlocks, paintLookupRanges } from './lookupPaint'
 import { wordAt } from './wordBoundary'
 import { resolveHanVietSelection } from './hanVietSurfaces'
 import { isSourceColumnSelecting, sourceColumnText } from './gridSourceSelection'
@@ -92,6 +92,7 @@ import {
   resolveSegmentRule,
   segmentRuleInputOf,
   sourceCutOffsetOf,
+  atomicBlocksForSpan,
   sourceRangesForSpan,
 } from './editorSegments'
 import type { SegmentRuleValue, SourceSpan, TextShape } from './editorSegments'
@@ -957,6 +958,11 @@ function paintLookup(ranges: readonly Range[], text: string): void {
   paintLookupRanges(ranges)
 }
 
+function paintLookupBlocksFor(blocks: readonly Element[], text: string): void {
+  paintedLookup = text
+  paintLookupBlocks(blocks)
+}
+
 function pointerOver(event: MouseEvent, target: Range | Element): boolean {
   for (const rect of target.getClientRects()) {
     if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
@@ -994,12 +1000,14 @@ function lookupByPlainClick(event: MouseEvent): void {
     hits: (target) => pointerOver(event, target),
   })
   if (span === null) return
-  const ranges = sourceRangesForSpan(cell, span.start, span.end)
   const text = [...sourceText].slice(span.start, span.end).join('')
-  if (ranges.length === 0 || text === '') return
+  const blocks = atomicBlocksForSpan(cell, span.start, span.end)
+  const ranges = blocks.length === 0 ? sourceRangesForSpan(cell, span.start, span.end) : []
+  if ((blocks.length === 0 && ranges.length === 0) || text === '') return
 
   offerPointLookup(text)
-  paintLookup(ranges, text)
+  if (blocks.length > 0) paintLookupBlocksFor(blocks, text)
+  else paintLookup(ranges, text)
 }
 
 watch(

@@ -978,6 +978,10 @@ onBeforeUnmount(() => {
   color: var(--color-primary);
 }
 
+[data-src-atomic][data-lookup-active] {
+  color: var(--color-lookup-active);
+}
+
 .glossary-pending {
   text-decoration-line: underline;
   text-decoration-color: var(--color-primary);

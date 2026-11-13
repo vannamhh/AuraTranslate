@@ -6,12 +6,26 @@ function highlightRegistry(): HighlightRegistry | null {
   return css?.highlights ?? null
 }
 
+const LOOKUP_BLOCK_ATTR = 'data-lookup-active'
+
+let paintedBlocks: Element[] = []
+
 export function clearLookupPaint(): void {
   highlightRegistry()?.delete(LOOKUP_HIGHLIGHT)
+  for (const block of paintedBlocks) block.removeAttribute(LOOKUP_BLOCK_ATTR)
+  paintedBlocks = []
+}
+
+/** Marks whole atomic blocks with an attribute (colour lives in CSS); Custom Highlight does not repaint reliably over them on WebKit. */
+export function paintLookupBlocks(blocks: readonly Element[]): void {
+  clearLookupPaint()
+  for (const block of blocks) block.setAttribute(LOOKUP_BLOCK_ATTR, '')
+  paintedBlocks = [...blocks]
 }
 
 /** Colours `ranges` with the `lookup-active` highlight; without the API, selects them (black-on-highlight) instead. */
 export function paintLookupRanges(ranges: readonly Range[]): void {
+  clearLookupPaint()
   const registry = highlightRegistry()
   if (registry !== null && typeof Highlight === 'function') {
     registry.set(LOOKUP_HIGHLIGHT, new Highlight(...ranges))

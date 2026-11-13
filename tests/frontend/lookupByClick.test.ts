@@ -6,7 +6,7 @@ vi.mock('../../src/config/dict', async (original) => ({
 }))
 
 import { resetLookupPanel, runLookup } from '../../src/panels/lookupPanelState'
-import { lookupSpanAtPoint, sourceRangesForSpan } from '../../src/panels/editorSegments'
+import { atomicBlocksForSpan, lookupSpanAtPoint, sourceRangesForSpan } from '../../src/panels/editorSegments'
 import type { LookupSpanContext, SourceSpan } from '../../src/panels/editorSegments'
 import {
   attachSelectionWatcher,
@@ -339,6 +339,44 @@ describe('sourceRangesForSpan', () => {
   it('counts astral characters as one code point', () => {
     const cell = mountCell('<span class="src-piece" data-src-start="0">𠀀小提琴</span>')
     expect(sourceRangesForSpan(cell, 1, 2).map((r) => r.toString())).toEqual(['小'])
+  })
+})
+
+describe('atomicBlocksForSpan and block paint', () => {
+  const html =
+    '<span class="hv-word" data-src-start="0" data-src-atomic="1"><span class="hv-syl">a</span><span class="hv-syl">b</span></span>' +
+    '<span class="hv-text" data-src-start="2" data-src-atomic="1">，</span>' +
+    '<span class="hv-unit" data-src-start="3" data-src-atomic="1"><ruby>小提<rt>x y</rt></ruby></span>'
+
+  it('returns the atomic blocks overlapping the span, whatever their class', () => {
+    const cell = mountCell(html)
+    expect(atomicBlocksForSpan(cell, 1, 4).map((e) => e.className)).toEqual(['hv-word', 'hv-text', 'hv-unit'])
+    expect(atomicBlocksForSpan(cell, 3, 5).map((e) => e.className)).toEqual(['hv-unit'])
+    expect(atomicBlocksForSpan(cell, 5, 6)).toEqual([])
+  })
+
+  it('painting block B after block A leaves only B marked, and clearLookupPaint removes it', async () => {
+    const { clearLookupPaint, paintLookupBlocks } = await import('../../src/panels/lookupPaint')
+    const cell = mountCell(html)
+    const [a, , b] = [...cell.querySelectorAll('[data-src-atomic]')]
+    paintLookupBlocks([a!])
+    paintLookupBlocks([b!])
+    expect(cell.querySelectorAll('[data-lookup-active]')).toHaveLength(1)
+    expect(b!.hasAttribute('data-lookup-active')).toBe(true)
+    clearLookupPaint()
+    expect(cell.querySelectorAll('[data-lookup-active]')).toHaveLength(0)
+  })
+
+  it('parallel: only the reading is hit, the click still resolves to the block', () => {
+    const cell = mountCell(html)
+    const rt = cell.querySelector('rt')
+    const span = lookupSpanAtPoint(cell, textOf(rt), 1, ctx('ab，小提', { hits: (t) => t === rt }))
+    expect(span).toEqual({ start: 3, end: 5 })
+  })
+
+  it('parallel: a caret in the reading with the pointer over neither block nor reading looks nothing up', () => {
+    const cell = mountCell(html)
+    expect(lookupSpanAtPoint(cell, textOf(cell.querySelector('rt')), 1, ctx('ab，小提', { hits: () => false }))).toBeNull()
   })
 })
 
