@@ -14160,4 +14160,4 @@ chính nó.
 ## Deferred from: Chế độ đọc đọc cả Chương đang dịch (2026-11-13)
 
 - Chưa ai đọc một Chương Đang dịch trong app thật. Ice: mở Tác phẩm "test", vào Chế độ đọc, thấy bản dịch của Chương 1 cùng dòng mờ "… N câu chưa dịch", bấm dòng mờ để vào Workspace đúng câu, bật Song ngữ thì không thấy chữ Trung của câu chưa dịch; nút "Đọc" ở trang Tác phẩm có mặt cho Chương Đang dịch.
-  Quan trọng vì e2e 5-12 chưa chạy xanh trên tệp thật (Vite của `tauri dev` mang tem HMR cũ). Chủ: Epic 5. Trỏ: `story-che-o-oc-oc-ca-chuong-ang-dich-va-tam-ngung-plan.md` §Implementation Notes.
+  Quan trọng vì e2e chỉ đi qua driver, không phải chuột và mắt người. 🔵 2026-11-13: e2e 5-12 đã xanh trên tệp thật sau khi tắt `tauri dev`. Chủ: Epic 5. Trỏ: `story-che-o-oc-oc-ca-chuong-ang-dich-va-tam-ngung-plan.md` §Implementation Notes.

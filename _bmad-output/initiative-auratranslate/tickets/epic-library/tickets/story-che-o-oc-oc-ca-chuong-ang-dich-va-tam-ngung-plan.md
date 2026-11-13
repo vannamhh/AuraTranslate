@@ -112,7 +112,7 @@ Webview (`src/`):
 - Pha 3 phát hiện `libraryChapters.ts::openCurrentChapterInReading` còn chặn ở `done`, nên nút "Đọc" của Library thành no-op im lặng với Chương Đang dịch. Đã sửa theo cùng vị từ.
 - Aim của khối đặt cả ở `@mousedown`: cú bấm thật trong WKWebView qua driver không phát `mouseenter`/`focusin` trên nút. `check-commands.mjs` thêm hàng `HANDLER_TABLE` cho handler đó (Kiểm K).
 - `reading.open_untranslated` không khai `pointer`: `@click` là một `dispatch` trần nên Kiểm M đã thoả.
-- e2e 12-34 xanh trên app thật. e2e 5-12 đỏ ở bước gõ ("flush … không hoàn tất sau 30000 ms") vì Vite của `tauri dev` đang chạy trên :1420 mang tem `?t=` cũ. `editor-typing-flush` và bản HEAD của spec cũng đỏ y như vậy. Bản sao tạm của spec dùng lối chờ đọc đĩa thì xanh, nhưng tệp thật CHƯA được chạy xanh.
+- e2e 12-34 xanh trên app thật. e2e 5-12 đỏ ở bước gõ ("flush … không hoàn tất sau 30000 ms") vì Vite của `tauri dev` đang chạy trên :1420 mang tem `?t=` cũ. `editor-typing-flush` và bản HEAD của spec cũng đỏ y như vậy. Bản sao tạm của spec dùng lối chờ đọc đĩa thì xanh, nhưng tệp thật CHƯA được chạy xanh. 🔵 2026-11-13: khi đã tắt `tauri dev`, `npm run test:e2e -- --spec` tệp thật cho 1 passing, chạy ngoài sandbox.
 
 ## Plan Change Log
 
