@@ -4,12 +4,15 @@ import type { ChapterAsset, ChapterSegment } from '../config/segment'
 import type { SegmentRuleValue } from './editorSegments'
 import type { SegmentGlossaryMarks, SegmentTermSpan } from './glossaryMarksMap'
 
+export type LookupSpan = { segmentId: number; start: number; end: number }
+
 export type SourcePieceInfo = {
   text: string
   start: number
   isPendingCut: boolean
   glossary: SegmentTermSpan | null
   concordance: boolean
+  lookup: boolean
 }
 
 export type GridBlockView = {
@@ -30,6 +33,7 @@ export type GridBlockContext = {
   cutCountOf(segmentId: number): number
   glossaryTermsOf(segmentId: number): SegmentGlossaryMarks
   sourcePieceInfoOf(segmentId: number, text: string): readonly SourcePieceInfo[]
+  lookupSpanOf(segmentId: number): LookupSpan | null
   trailingImagesOf(id: number): ChapterAsset[]
   leadingImagesOf(id: number): ChapterAsset[]
   roleLabelKeys: Readonly<Record<string, string>>

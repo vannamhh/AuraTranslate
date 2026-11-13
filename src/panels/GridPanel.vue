@@ -73,10 +73,10 @@ import PanelFrame from './PanelFrame.vue'
 import GridBlock from './GridBlock.vue'
 import GridSentenceMenu from './GridSentenceMenu.vue'
 import { GRID_BLOCK_CONTEXT } from './gridBlockContext'
-import type { GridBlockContext, GridBlockView, SourcePieceInfo } from './gridBlockContext'
+import type { GridBlockContext, GridBlockView, LookupSpan, SourcePieceInfo } from './gridBlockContext'
 import { offerPointLookup, skipNextAutoLookup, useSelectionSurface } from './selectionContract'
 import { currentQuery } from './lookupPanelState'
-import { clearLookupPaint, paintLookupBlocks, paintLookupRanges } from './lookupPaint'
+import { clearLookupPaint, paintLookupBlocks } from './lookupPaint'
 import { wordAt } from './wordBoundary'
 import { resolveHanVietSelection } from './hanVietSurfaces'
 import { isSourceColumnSelecting, sourceColumnText } from './gridSourceSelection'
@@ -466,6 +466,13 @@ function glossaryTermsOf(segmentId: number) {
   return glossaryMarksPerSegment.value.get(segmentId) ?? EMPTY_SEGMENT_GLOSSARY_MARKS
 }
 
+const lookupSpan = shallowRef<LookupSpan | null>(null)
+
+function lookupSpanOf(segmentId: number): LookupSpan | null {
+  const span = lookupSpan.value
+  return span !== null && span.segmentId === segmentId ? span : null
+}
+
 /**
  * 🔴 **Chỉ số ký tự nguồn nơi mỗi mảnh của [`sourcePiecesOf`] bắt đầu** — Story 2.9, AC9.
  *
@@ -486,9 +493,11 @@ function glossaryTermsOf(segmentId: number) {
 function sourcePieceStartsOf(segmentId: number, text: string): readonly number[] {
   const pending = cutOffsetsOf(segmentId)
   const terms = glossaryTermsOf(segmentId).boundaries
-  if (pending.length === 0 && terms.length === 0) return [0]
+  const lookup = lookupSpanOf(segmentId)
+  const lookupEdges = lookup === null ? [] : [lookup.start, lookup.end]
+  if (pending.length === 0 && terms.length === 0 && lookupEdges.length === 0) return [0]
   const ky = [...text]
-  const moc = [...new Set([...pending, ...terms])]
+  const moc = [...new Set([...pending, ...terms, ...lookupEdges])]
     .filter((o) => o > 0 && o < ky.length)
     .sort((a, b) => a - b)
   return [0, ...moc]
@@ -551,8 +560,14 @@ function sourcePieceInfoOf(segmentId: number, text: string): readonly SourcePiec
       isPendingCut: isPendingCutAt(segmentId, start),
       glossary: glossarySpanAt(segmentId, start, end),
       concordance: isConcordanceHighlighted(segmentId, start, end),
+      lookup: isLookupActive(segmentId, start, end),
     }
   })
+}
+
+function isLookupActive(segmentId: number, pieceStart: number, pieceEnd: number): boolean {
+  const span = lookupSpanOf(segmentId)
+  return span !== null && pieceStart >= span.start && pieceEnd <= span.end
 }
 
 function isConcordanceHighlighted(segmentId: number, pieceStart: number, pieceEnd: number): boolean {
@@ -950,15 +965,18 @@ let paintedLookup: string | null = null
 
 function clearPaintedLookup(): void {
   paintedLookup = null
+  lookupSpan.value = null
   clearLookupPaint()
 }
 
-function paintLookup(ranges: readonly Range[], text: string): void {
+function paintLookup(segmentId: number, span: SourceSpan, text: string): void {
+  clearPaintedLookup()
   paintedLookup = text
-  paintLookupRanges(ranges)
+  lookupSpan.value = { segmentId, start: span.start, end: span.end }
 }
 
 function paintLookupBlocksFor(blocks: readonly Element[], text: string): void {
+  clearPaintedLookup()
   paintedLookup = text
   paintLookupBlocks(blocks)
 }
@@ -1008,7 +1026,7 @@ function lookupByPlainClick(event: MouseEvent): void {
 
   offerPointLookup(text)
   if (blocks.length > 0) paintLookupBlocksFor(blocks, text)
-  else paintLookup(ranges, text)
+  else paintLookup(id, span, text)
 }
 
 watch(
@@ -2063,6 +2081,7 @@ const gridBlockContext: GridBlockContext = {
   cutCountOf,
   glossaryTermsOf,
   sourcePieceInfoOf,
+  lookupSpanOf,
   trailingImagesOf,
   leadingImagesOf,
   roleLabelKeys: ROLE_LABEL_KEYS,

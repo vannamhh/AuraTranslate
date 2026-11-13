@@ -38,6 +38,7 @@ const {
   cutCountOf,
   glossaryTermsOf,
   sourcePieceInfoOf,
+  lookupSpanOf,
   trailingImagesOf,
   leadingImagesOf,
   roleLabelKeys: ROLE_LABEL_KEYS,
@@ -99,7 +100,7 @@ function cellLabelOf(id: number, index: number): string {
     : t('panel.grid.cell_label_error', { n: String(index + 1), state, error })
 }
 // vue-tsc 3.3.9 does not count a `v-memo` expression as a read of these helpers.
-defineExpose({ concordanceHighlightOf, chapterAssetsOf })
+defineExpose({ concordanceHighlightOf, chapterAssetsOf, lookupSpanOf })
 </script>
 
 <template>
@@ -163,6 +164,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
               cutOffsetsOf(s.id),
               glossaryTermsOf(s.id),
               concordanceHighlightOf(s.id),
+              lookupSpanOf(s.id),
               trailingImagesOf(s.id),
               chapterAssetsOf(s.id),
               editorAssetsDir,
@@ -251,6 +253,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
                     'glossary-pending': piece.glossary?.isConfirmed === false,
                     'concordance-source': piece.concordance,
                   }"
+                  :data-lookup-active="piece.lookup ? '' : undefined"
                   :data-src-start="piece.start"
                   @mouseenter="onGlossaryPieceEnter(piece.glossary)"
                   @mouseleave="onGlossaryPieceLeave()"
@@ -607,6 +610,10 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  */
 .src-piece.glossary-confirmed {
   color: var(--color-primary);
+}
+
+.src-piece[data-lookup-active] {
+  color: var(--color-lookup-active);
 }
 
 .src-piece.concordance-source {

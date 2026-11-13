@@ -21,17 +21,14 @@ async function headword() {
 async function paintedText() {
   return await browser.execute(() => {
     const marked = [...document.querySelectorAll('[data-lookup-active]')]
-    if (marked.length > 0) {
-      return marked
-        .map((el) => {
-          const copy = el.cloneNode(true)
-          for (const rt of copy.querySelectorAll('rt')) rt.remove()
-          return copy.textContent
-        })
-        .join('')
-    }
-    const highlight = CSS.highlights.get('lookup-active')
-    return highlight === undefined ? null : [...highlight].map((range) => range.toString()).join('')
+    if (marked.length === 0) return null
+    return marked
+      .map((el) => {
+        const copy = el.cloneNode(true)
+        for (const rt of copy.querySelectorAll('rt')) rt.remove()
+        return copy.textContent
+      })
+      .join('')
   })
 }
 
@@ -101,6 +98,18 @@ describe('lookup by one click', () => {
     await browser.pause(500)
     expect(await headword()).toBe(PHRASE)
     expect(await paintedText()).toBe(PHRASE)
+  })
+
+  it('Original view: a click on a second word paints only that word', async () => {
+    await openGrid(SOURCE, 1)
+    await clickPhrase()
+    await clickChar(SOURCE.indexOf('拉'))
+    await browser.waitUntil(async () => (await headword()) !== PHRASE, { timeout: 15_000, timeoutMsg: 'second word was not looked up' })
+    const word = await headword()
+    await browser.waitUntil(async () => (await paintedText()) === word, {
+      timeout: 5_000,
+      timeoutMsg: `painted text is ${await paintedText()}, expected only ${word}`,
+    })
   })
 
   it('a second click inside the same phrase does not look it up again', async () => {
