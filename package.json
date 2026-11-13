@@ -7,6 +7,7 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
+    "predev": "node scripts/sync-dev-dicts.mjs",
     "dev": "vite",
     "build": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.node.json && vite build",
     "preview": "vite preview",
