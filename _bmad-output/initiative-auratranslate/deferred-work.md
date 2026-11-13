@@ -14128,3 +14128,8 @@ chính nó.
 
 - Tiêu chí 8 của story 1.23: chưa có vệt Performance nào cho thấy việc tô `lookup-active` bằng Custom Highlight API không gây một lần bố cục lại lưới ở Song song 300 câu. Lý thuyết là API này chỉ vẽ lại, nhưng chưa đo trên WKWebView lẫn WebView2.
   Quan trọng vì cú bấm tra là thao tác lặp nhiều nhất, và bug 2.19 cho thấy một lần bố cục ở Song song tốn 39 ms. Chủ: Epic 1. Trỏ: plan story 1.23, Review Triage Log lượt 1.
+
+## Deferred from: Shift+Enter gán lại cho xác nhận câu (2026-11-13)
+
+- Chưa thử trong app thật (WKWebView) rằng khi gán `Shift+Enter` cho *Xác nhận câu đang sửa*, bấm nó trong ô bản dịch thì câu được xác nhận và không có dòng mới chèn vào ô. Test vitest chỉ thấy `preventDefault` được gọi, chưa thấy engine thật bỏ `insertLineBreak`. Với bộ gõ Vietnamese có sẵn của macOS, `Shift+Enter` chốt chữ cũng có thể tới với `isComposing = false`.
+  Quan trọng vì nếu engine vẫn chèn dòng thì câu được ký kèm một `\n` thừa. Chủ: Epic 1. Trỏ: `plan-shift-enter-xac-nhan-trong-o-dich.md`.

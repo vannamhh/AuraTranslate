@@ -310,7 +310,7 @@ Hán Việt sống **bên trong ô nguyên văn**. Cả hai chế độ FR19 cò
 |---|---|
 | `⌘Enter` | **Xác nhận và sang câu kế.** Chuẩn memoQ + Trados; đã có sẵn trong bản dựng |
 | `Enter` | **Xuống dòng trong ô** — và đây là chỗ chứa quyền *"bản dịch ngắt đoạn khác bản gốc"* |
-| `Shift+Enter` | dự phòng cho xuống dòng, nếu bản dựng cần hai đường |
+| `Shift+Enter` | dự phòng cho xuống dòng, nếu bản dựng cần hai đường — 🔵 **THÊM 2026-11-13 (Ice quyết):** người dùng gán `Shift+Enter` cho *Xác nhận câu đang sửa* ở màn phím tắt thì nó xác nhận ngay trong ô bản dịch, ngoại lệ duy nhất của luật vùng gõ (`CommandSpec.shiftEnterWhileTyping`). Ô input ngoài lưới vẫn nhường, `Enter` trơn vẫn xuống dòng. |
 | `⌘M` | **Gộp với câu trên**, cùng mục menu chuột phải của câu — 🔵 **SỬA 2026-11-01 (Ice chọn):** hàng này từng ghi `Backspace` đầu ô; cử chỉ đó đã rút, `Backspace` ở đầu ô không làm gì. |
 | `Mod`+click | **Đánh dấu chỗ cắt** ở cột nguyên văn — 🔵 **THÊM 2026-08-17 (Story 2.9).** Bấm đơn/double-click trơn để trống cho tra cứu (FR21). Bấm trùng một điểm đã có thì **gỡ** nó ra. |
 | `⌘/` | **Tách câu, thực hiện ở CỘT NGUYÊN VĂN** — 🔵 **SỬA 2026-08-17 (Story 2.8):** ô này viết `⌘T`, ngược `epics.md:2502` *(AC, nguồn chính thức)* và ngược chính dòng `:169` của tệp này. Hợp âm đã đăng ký trong mã là `Mod+Slash`. |

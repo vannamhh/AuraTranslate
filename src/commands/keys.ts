@@ -450,6 +450,9 @@ function isTypingZone(target: unknown, code?: string): boolean {
   return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.tagName === 'SUMMARY'
 }
 
+const isEditingHost = (target: unknown): boolean =>
+  typeof target === 'object' && target !== null && (target as { isContentEditable?: unknown }).isContentEditable === true
+
 /**
  * Lớp hợp âm ĐÈ LÊN `CommandSpec.keys`, khoá theo id thao tác. Story 1.21.
  *
@@ -478,7 +481,7 @@ export function createKeymap(
    */
   overrides?: ChordOverrides,
 ): Keymap {
-  const compiled: { mods: Mods; code: string; repeatable: boolean; binding: Binding }[] = []
+  const compiled: { mods: Mods; code: string; repeatable: boolean; firesWhileTyping: boolean; binding: Binding }[] = []
   /** Hợp âm ⇒ id, để bắt hai command cùng giành một phím. */
   const claimed = new Map<string, CommandId>()
 
@@ -506,6 +509,8 @@ export function createKeymap(
         // Đọc MỘT LẦN lúc biên dịch, không mỗi keydown: `registry.list()` dựng một mảng
         // mới ở mỗi lời gọi, và đường lặp phím chạy ~30 lần/giây khi người ta giữ `Shift+→`.
         repeatable: spec.repeatable === true,
+        firesWhileTyping:
+          spec.shiftEnterWhileTyping === true && code === 'Enter' && mods.shift && !mods.alt,
         binding: { chord, resolved, id: spec.id },
       })
     }
@@ -528,7 +533,13 @@ export function createKeymap(
     }
     for (const entry of compiled) {
       if (entry.code !== event.code || !sameMods(entry.mods, mods)) continue
-      if (lacksPrimaryMod(entry.mods) && isTypingZone(event.target, event.code)) return false
+      if (
+        lacksPrimaryMod(entry.mods) &&
+        isTypingZone(event.target, event.code) &&
+        !(entry.firesWhileTyping && isEditingHost(event.target))
+      ) {
+        return false
+      }
       // Khớp ⇒ chặn hành vi mặc định RỒI mới dispatch. Ngược thứ tự thì một handler ném
       // sẽ để `⌘1` chạy tiếp xuống webview.
       event.preventDefault?.()

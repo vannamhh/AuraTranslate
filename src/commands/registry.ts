@@ -92,6 +92,8 @@ export type CommandSpec = {
    * lượt ghi.
    */
   repeatable?: boolean
+  /** A user-assigned `Shift+Enter` fires inside a typing zone instead of inserting a line break. */
+  shiftEnterWhileTyping?: boolean
   pointer?: CommandPointer
 }
 
@@ -149,6 +151,7 @@ const frozen = (spec: CommandSpec): CommandSpec =>
     // đọc trường này ở mỗi keydown lặp, và một phép so ba trạng thái ở đường nóng là chỗ
     // một bản sau sẽ viết `!spec.repeatable` rồi tự hỏi `undefined` nghĩa là gì.
     repeatable: spec.repeatable === true,
+    shiftEnterWhileTyping: spec.shiftEnterWhileTyping === true,
     ...(spec.pointer === undefined ? {} : { pointer: Object.freeze({ ...spec.pointer }) as CommandPointer }),
   })
 

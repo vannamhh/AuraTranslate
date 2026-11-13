@@ -3537,6 +3537,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     id: 'editor.confirm_segment',
     labelKey: 'command.editor.confirm_segment',
     keys: ['Mod+Enter'],
+    shiftEnterWhileTyping: true,
     run: () => {
       if (deps.confirmSegment === undefined) {
         return portMissing('editor.confirm_segment', 'confirmSegment')
