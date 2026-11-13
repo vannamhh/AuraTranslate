@@ -2418,6 +2418,7 @@ const R_CLOSE_IMPORTED =
 const R_CURSOR_LOCAL = 'sets caret / grid-cell cursor memory in place — no dispatch'
 const R_CURSOR_IMPORTED = 'sets grid-cell cursor memory via a state-module import — same limit as R_CLOSE_IMPORTED'
 const R_SUBMIT_DIRECT = '`@submit` acting directly on local form state — a named exemption, not a command'
+const R_GENRE_AIM = 'aims a genre row from a press or focus in place — view state, no dispatch'
 const R_FILTER_LOCAL = 'filters a list in place from a typed key or chord — view state, no dispatch'
 const R_CATEGORY_NAV = 'in-place list navigation (arrow/Enter selects a row) — no dispatch'
 const R_DISPATCH_VIA_PARAM =
@@ -2570,6 +2571,7 @@ const HANDLER_TABLE = {
   'src/SettingsLayoutSection.vue::onSavePreset': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsLayoutSection.vue::onRenamePreset': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsLayoutSection.vue::onDeletePreset': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsGenreSection.vue::selectGenreRow': { nonCommand: R_GENRE_AIM },
   'src/SettingsShortcutsSection.vue::onSearchKeydown': { nonCommand: R_FILTER_LOCAL },
   'src/SettingsShortcutsSection.vue::onExportShortcuts': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsShortcutsSection.vue::onImportShortcuts': { nonCommand: R_SUBMIT_DIRECT },

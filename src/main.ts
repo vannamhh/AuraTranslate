@@ -73,6 +73,7 @@ import { panelHeadersShown, setPanelHeadersShown } from './layout/panelHeadersSt
 // ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ngay trên: `lookupDrawerState.ts` dùng `ref`
 // của Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E cùng lúc.
 import { closeLookupDrawer, openLookupDrawer } from './layout/lookupDrawerState'
+import { addGenre, deleteSelectedGenre, loadGenres, renameSelectedGenre } from './genreState'
 import { openLibraryImportForm } from './modes/libraryImportFocus'
 import { toggleToolsMenu } from './titlebarToolsState'
 // ── Story 1.15 — form nhập Tác phẩm ở Library ───────────────────────────────────────
@@ -1113,6 +1114,9 @@ async function boot(): Promise<void> {
       openSettings,
       openSettingsToPrivacy,
       openSettingsToAiConfig,
+      addGenre: () => { void addGenre() },
+      renameGenre: () => { void renameSelectedGenre() },
+      deleteGenre: () => { void deleteSelectedGenre() },
       clearAllAiConfigOverrides: clearAiOverridesFromSettings,
       confirmAiConfigPreset: () => {
         void confirmAiConfigPreset()
@@ -1260,6 +1264,9 @@ async function boot(): Promise<void> {
     // `as ModeId` an toàn vì `setMode` tự kiểm lúc chạy — xem `modes/modeState.ts:39`.
     setMode(wanted as ModeId)
   }
+
+  const genreLoadError = await loadGenres()
+  if (genreLoadError !== null) console.error(`[boot] genre_list failed: ${genreLoadError.code}`)
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // 🔴 STORY 1.19 — DANH SÁCH NGUỒN VÀ TẬP BỊ TẮT, NẠP **TRƯỚC** `mount()`

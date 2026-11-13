@@ -65,6 +65,7 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { cancelCapture, captureIsArmed, shortcutDisplayFor, unboundShortcutIds, shortcutTotalCount } from './config/shortcutsState'
 import SettingsQuickAiSection from './SettingsQuickAiSection.vue'
+import SettingsGenreSection from './SettingsGenreSection.vue'
 import SettingsGlossarySection from './SettingsGlossarySection.vue'
 import SettingsShortcutsSection from './SettingsShortcutsSection.vue'
 import SettingsExportSection from './SettingsExportSection.vue'
@@ -813,6 +814,11 @@ function onDeleteAiConfigKey(): void {
               </p>
             </template>
             <SettingsQuickAiSection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'genre'">
+            <h3 class="set-h2">{{ t('settings.nav.genre') }}</h3>
+            <p class="set-h2s">{{ t('settings.genre.intro') }}</p>
+            <SettingsGenreSection />
           </template>
           <template v-else-if="settingsActiveSection === 'glossary'">
             <h3 class="set-h2">{{ t('glossary.settings.title') }}</h3>

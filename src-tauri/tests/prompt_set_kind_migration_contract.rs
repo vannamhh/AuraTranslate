@@ -96,13 +96,14 @@ fn a_global_store_from_step_15_keeps_its_sets_as_translate_and_accepts_a_proofre
             "than cu",
         )
         .expect("tao bo");
-        assert_eq!(store.schema_version(), 17, "kho moi phai co buoc 17");
+        assert_eq!(store.schema_version(), 18, "kho moi phai co buoc 18");
         store
             .write(|tx: &Transaction<'_>| {
                 tx.execute_batch(&format!(
                     "{DOWNGRADE_PROMPT_SET_KIND} \
                      DROP TABLE convention_rule; \
-                     DELETE FROM schema_migration_log WHERE version IN (16, 17); \
+                     DROP TABLE genre; \
+                     DELETE FROM schema_migration_log WHERE version IN (16, 17, 18); \
                      PRAGMA user_version = 15;"
                 ))
             })
@@ -110,7 +111,7 @@ fn a_global_store_from_step_15_keeps_its_sets_as_translate_and_accepts_a_proofre
     }
 
     let store = Store::open(StoreSpec::global(path)).expect("mo lai global.db");
-    assert_eq!(store.schema_version(), 17);
+    assert_eq!(store.schema_version(), 18);
     let translate = prompt_set_list(Some(&store), None, PromptSetKind::Translate).unwrap();
     assert_eq!(names(&translate.sets), [("A", "than cu")]);
     assert!(

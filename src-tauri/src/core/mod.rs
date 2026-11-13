@@ -12,6 +12,7 @@ pub mod delimited_text;
 pub mod dict;
 pub mod docx;
 pub mod export;
+pub mod genre;
 pub mod glossary;
 pub mod i18n;
 pub mod library;

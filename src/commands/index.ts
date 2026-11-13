@@ -1143,6 +1143,12 @@ export type CommandDeps = {
   openSettingsToPrivacy?: () => void
   /** Mở lớp phủ THẲNG vào mục AI và mô hình. Handler của `settings.ai_config.open`. */
   openSettingsToAiConfig?: () => void
+  /** Handler of `settings.genre.add`. */
+  addGenre?: () => void
+  /** Handler of `settings.genre.rename`. */
+  renameGenre?: () => void
+  /** Handler of `settings.genre.delete`. */
+  deleteGenre?: () => void
   /** Trả mọi trường AI đang ghi đè ở tầng Tác phẩm về kế thừa. Handler của `settings.ai_config.clear_all_overrides`. */
   clearAllAiConfigOverrides?: () => void
   /** Handler of `settings.ai_config.preset_apply`. */
@@ -4962,6 +4968,9 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     },
   })
   for (const [id, port] of [
+    ['settings.genre.add', 'addGenre'],
+    ['settings.genre.rename', 'renameGenre'],
+    ['settings.genre.delete', 'deleteGenre'],
     ['settings.ai_config.preset_apply', 'confirmAiConfigPreset'],
     ['settings.ai_config.preset_cancel', 'cancelAiConfigPreset'],
     ['settings.quick_ai.auto_toggle', 'toggleQuickAiAuto'],

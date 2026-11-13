@@ -17,6 +17,7 @@
  * cả", điều `not.toHaveBeenCalled()` không phân biệt được khi test khác đã gọi trước đó.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { seedGenres } from './support/genreSeed'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
 import type { WorkRow } from '../../src/config/library'
@@ -140,8 +141,9 @@ beforeAll(async () => {
   await Promise.all([import('../../src/modes/LibraryMode.vue'), import('../../src/ImportPreviewOverlay.vue')])
 })
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetModules()
+  await seedGenres()
   mockInvoke.mockReset()
   previewTextMock.mockReset()
   previewFileMock.mockReset()

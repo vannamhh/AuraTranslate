@@ -6,6 +6,7 @@
  * `vi.mock`, không gọi `@tauri-apps/api` thật.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SEED_GENRES, seedGenres } from './support/genreSeed'
 
 const promptSetListMock = vi.fn()
 const promptSetCreateMock = vi.fn()
@@ -31,6 +32,7 @@ vi.mock('../../src/config/promptset', () => ({
  * `aiConfigState.test.ts`. */
 async function freshState() {
   vi.resetModules()
+  await seedGenres()
   return import('../../src/promptSetState')
 }
 
@@ -616,6 +618,26 @@ describe('restorePromptSetForWork — bộ đã lưu ⇒ thể loại ⇒ không
     await restorePromptSetForWork('legal')
     expect(selectedPromptSet()?.name).toBe('Pháp lý')
     expect(promptSetChoiceSetMock).not.toHaveBeenCalled()
+  })
+
+  it('thể loại tự thêm "Truyện ngắn" ⇒ tự chọn bộ cùng tên', async () => {
+    withSets(true, 'Pháp lý', 'Truyện ngắn')
+    saved(null)
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    const { setGenreRows } = await import('../../src/genreState')
+    setGenreRows([...SEED_GENRES, { id: 'g30', name: 'Truyện ngắn' }])
+    await restorePromptSetForWork('g30')
+    expect(selectedPromptSet()?.name).toBe('Truyện ngắn')
+  })
+
+  it('thể loại có sẵn đổi tên "Thời sự" → "Tin tức" ⇒ tự chọn theo tên mới, không theo tên cũ', async () => {
+    withSets(true, 'Thời sự', 'Tin tức')
+    saved(null)
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    const { setGenreRows } = await import('../../src/genreState')
+    setGenreRows(SEED_GENRES.map((g) => (g.id === 'news' ? { id: 'news', name: 'Tin tức' } : g)))
+    await restorePromptSetForWork('news')
+    expect(selectedPromptSet()?.name).toBe('Tin tức')
   })
 
   it('Mỗi Tác phẩm riêng: đổi qua lại A/B ⇒ mỗi bên đúng bộ của mình', async () => {

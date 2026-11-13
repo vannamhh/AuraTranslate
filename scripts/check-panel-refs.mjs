@@ -129,6 +129,14 @@ function walk(dir, out = [], seen = new Set()) {
  */
 const EXEMPT = new Map([
   [
+    'src/genreState.ts::genreRows',
+    'Global genre list read from `global.db`, not Work data; clearing it on a Work change would empty every genre menu until the next reload.',
+  ],
+  [
+    'src/genreState.ts::genresHaveLoaded',
+    'Says the Global genre list was loaded at least once; it follows `genreRows` and is never Work-scoped.',
+  ],
+  [
     'src/aiTranslateRunClock.ts::stamp',
     'Bộ đếm đơn điệu để so thứ tự giữa lượt dịch đơn và lô; không mang danh tính Tác phẩm nên không cần reset.',
   ],

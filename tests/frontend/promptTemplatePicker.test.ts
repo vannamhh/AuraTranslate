@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
+import { SEED_GENRES, seedGenres } from './support/genreSeed'
 
 const promptSetListMock = vi.fn()
 const promptSetCreateMock = vi.fn()
@@ -17,7 +18,7 @@ vi.mock('../../src/config/promptset', () => ({
 type Row = { id: number; name: string; body: string; tier: 'global' | 'work'; shadowed_body: string | null; shadowed_id: number | null }
 const row = (over: Partial<Row>): Row => ({ id: 1, name: 'X', body: 'b', tier: 'global', shadowed_body: null, shadowed_id: null, ...over })
 
-async function openPicker(sets: Row[], workTierAvailable = false) {
+async function openPicker(sets: Row[], workTierAvailable = false, genres = SEED_GENRES) {
   vi.resetModules()
   document.body.innerHTML = ''
   promptSetListMock.mockReset()
@@ -27,6 +28,9 @@ async function openPicker(sets: Row[], workTierAvailable = false) {
   const state = await import('../../src/promptSetState')
   const Picker = (await import('../../src/PromptTemplatePicker.vue')).default
   const i18n = await import('../../src/i18n')
+  await seedGenres()
+  const genreState = await import('../../src/genreState')
+  genreState.setGenreRows(genres)
   await state.loadPromptSets()
   const wrapper = mount(Picker, { attachTo: document.body })
   await flushPromises()
@@ -48,6 +52,16 @@ describe('PromptTemplatePicker.vue', () => {
     expect(wrapper.find('[data-template-preview-body]').exists()).toBe(false)
     await wrapper.get('li[data-template-id="legal"] form').trigger('submit')
     expect(wrapper.get('[data-template-preview-body] pre').text()).toBe(PROMPT_TEMPLATES.legal.trim())
+  })
+
+  it('chỉ liệt kê mẫu của thể loại còn trong bảng và dùng tên hiện tại của nó', async () => {
+    const genres = SEED_GENRES.filter((g) => g.id !== 'wuxia').map((g) =>
+      g.id === 'xianxia' ? { id: g.id, name: 'Tu tiên' } : g,
+    )
+    const { wrapper } = await openPicker([], false, genres)
+    expect(wrapper.findAll('li[data-template-id]')).toHaveLength(28)
+    expect(wrapper.find('li[data-template-id="wuxia"]').exists()).toBe(false)
+    expect(wrapper.get('li[data-template-id="xianxia"]').text()).toContain('Tu tiên')
   })
 
   it('mẫu đã có hiện "Đã có" và bị khoá', async () => {
@@ -98,6 +112,7 @@ describe('PromptTemplatePicker.vue', () => {
     vi.resetModules()
     promptSetListMock.mockResolvedValue({ sets: [], workTierAvailable: false, variables: [], error: null })
     const state = await import('../../src/promptSetState')
+    await seedGenres()
     const lib = await import('../../src/promptLibraryState')
     const Overlay = (await import('../../src/PromptLibraryOverlay.vue')).default
     lib.openPromptLibrary()

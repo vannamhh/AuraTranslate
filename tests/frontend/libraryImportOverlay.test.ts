@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { seedGenres } from './support/genreSeed'
 import { mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
@@ -29,6 +30,7 @@ let pages: VueWrapper[] = []
 
 async function setup() {
   vi.resetModules()
+  await seedGenres()
   mockInvoke.mockReset()
   mockInvoke.mockImplementation((cmd: string) =>
     cmd === 'library_list_works'

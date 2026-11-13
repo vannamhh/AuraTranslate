@@ -1,5 +1,6 @@
 import { t } from '../i18n'
 import type { WorkRow } from '../config/library'
+import { genreNameFor, genres } from '../genreState'
 
 export interface WorkCardMeta {
   langLabel: string | null
@@ -25,6 +26,7 @@ export function sourceLangChoices(): { value: string; label: string }[] {
   ]
 }
 
+/** Ids that have a built-in prompt template; the key type of `PROMPT_TEMPLATES`. */
 export const GENRE_IDS = [
   'news',
   'commentary',
@@ -58,22 +60,15 @@ export const GENRE_IDS = [
 ] as const
 export type GenreId = (typeof GENRE_IDS)[number]
 
-function isGenreId(raw: string): raw is GenreId {
-  return (GENRE_IDS as readonly string[]).includes(raw)
-}
-
-/** Empty is `null`; an id outside the list (older free-text value) is shown verbatim. */
+/** Empty is `null`; a value that is not a genre id (older free-text value) is shown verbatim. */
 export function genreLabel(raw: string): string | null {
   const genre = raw.trim()
   if (genre === '') return null
-  return isGenreId(genre) ? t(`mode.library.genre_${genre}`) : genre
+  return genreNameFor(genre) ?? genre
 }
 
 export function genreChoices(): { value: string; label: string }[] {
-  return [
-    { value: '', label: t('mode.library.genre_unset') },
-    ...GENRE_IDS.map((id) => ({ value: id, label: t(`mode.library.genre_${id}`) })),
-  ]
+  return [{ value: '', label: t('mode.library.genre_unset') }, ...genres.value.map((g) => ({ value: g.id, label: g.name }))]
 }
 
 /** `null` when the timestamp is unreadable or lies in the future. */

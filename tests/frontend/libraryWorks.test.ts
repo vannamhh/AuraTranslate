@@ -14,6 +14,7 @@
  * giới `tests/AGENTS.md` đã vạch.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { seedGenres } from './support/genreSeed'
 import { mount } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
 
@@ -963,6 +964,7 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
 
   it('chip Lĩnh vực hiện nhãn cho định danh trong danh sách và nguyên văn cho giá trị lạ, cả ở lựa chọn lẫn nút chip', async () => {
     vi.resetModules()
+    await seedGenres()
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_list_works') {
         return Promise.resolve({

@@ -1,12 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { GENRE_IDS, genreLabel } from '../../src/modes/libraryWorkCard'
 import { PROMPT_TEMPLATES } from '../../src/promptTemplates'
+import { setGenreRows } from '../../src/genreState'
+import { SEED_GENRES } from './support/genreSeed'
 import { splitPromptBody } from '../../src/promptMarkers'
 
 const known = (JSON.parse(readFileSync('tests/fixtures/prompt-variable-markers.json', 'utf8')) as { known: string[] }).known
 
 describe('PROMPT_TEMPLATES', () => {
+  beforeEach(() => {
+    setGenreRows(SEED_GENRES)
+  })
+
   it('có đúng 29 khoá, trùng GENRE_IDS', () => {
     expect(GENRE_IDS.length).toBe(29)
     expect(Object.keys(PROMPT_TEMPLATES).sort()).toEqual([...GENRE_IDS].sort())

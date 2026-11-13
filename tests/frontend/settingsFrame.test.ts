@@ -34,6 +34,7 @@ vi.mock('../../src/config/aiconfig', () => ({
 const EXPECTED_SECTIONS = [
   'ai_and_model',
   'prompt',
+  'genre',
   'glossary',
   'tm',
   'export',
@@ -122,6 +123,7 @@ describe('Settings nav', () => {
 
     const bodyMarkers: Record<string, (root: typeof wrapper) => boolean> = {
       ai_and_model: (root) => root.find('.ai-key-field').exists(),
+      genre: (root) => root.find('[data-settings-genre]').exists(),
       glossary: (root) => root.find('input.gs-input').exists(),
       export: (root) => root.find('[data-export-translator-input]').exists(),
       shortcuts: (root) => root.find('table.sc-table').exists(),

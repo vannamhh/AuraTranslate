@@ -1398,6 +1398,10 @@ pub fn run() {
             crate::commands::aitranslate::wire::ai_config_test_connection_cancel,
             crate::commands::update::wire::update_check,
             crate::commands::update::wire::update_open_release_page,
+            crate::commands::genre::wire::genre_list,
+            crate::commands::genre::wire::genre_create,
+            crate::commands::genre::wire::genre_rename,
+            crate::commands::genre::wire::genre_delete,
             // Story 4.4 -- bo prompt theo the loai (FR69, AD-18). Nam vo: liet ke hai tang da
             // phan giai (Quyet dinh #1 -- ca bo, theo ten, hang Global bi che van hien) · tao
             // mot bo o mot tang · doi ten · sua than · xoa. Canh bao dau ngoac (Quyet dinh #3)

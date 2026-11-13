@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { setGenreRows } from '../../src/genreState'
 import { genreChoices, genreLabel, workCardMeta } from '../../src/modes/libraryWorkCard'
+import { SEED_GENRES } from './support/genreSeed'
+
+beforeEach(() => {
+  setGenreRows(SEED_GENRES)
+})
 
 const NOW = new Date('2026-10-13T12:00:00.000Z')
 
@@ -119,5 +125,21 @@ describe('genre list', () => {
   it('the card shows the label for an id and the raw text for a foreign value', () => {
     expect(workCardMeta(work({ genre: 'xianxia' }), NOW).line).toBe('Tiên hiệp · sửa 3 giờ trước')
     expect(workCardMeta(work({ genre: 'Huyền huyễn' }), NOW).line).toBe('Huyền huyễn · sửa 3 giờ trước')
+  })
+
+  it('a renamed genre shows its new name on the card, the choices and the filter label at once', () => {
+    setGenreRows(SEED_GENRES.map((g) => (g.id === 'news' ? { id: 'news', name: 'Tin tức' } : g)))
+    expect(genreLabel('news')).toBe('Tin tức')
+    expect(workCardMeta(work({ genre: 'news' }), NOW).line).toBe('Tin tức · sửa 3 giờ trước')
+    expect(genreChoices()[1]).toEqual({ value: 'news', label: 'Tin tức' })
+  })
+
+  it('a custom genre is offered last and a deleted id is shown verbatim', () => {
+    setGenreRows([...SEED_GENRES, { id: 'g30', name: 'Truyện ngắn' }])
+    const choices = genreChoices()
+    expect(choices[choices.length - 1]).toEqual({ value: 'g30', label: 'Truyện ngắn' })
+    expect(genreLabel('g30')).toBe('Truyện ngắn')
+    setGenreRows(SEED_GENRES)
+    expect(genreLabel('g30')).toBe('g30')
   })
 })

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { t, tError } from './i18n'
 import { GENRE_IDS, genreLabel } from './modes/libraryWorkCard'
+import { genreNameFor } from './genreState'
 import type { GenreId } from './modes/libraryWorkCard'
 import { PROMPT_TEMPLATES } from './promptTemplates'
 import {
@@ -19,7 +20,11 @@ const previewId = ref<GenreId | null>(null)
 const addedCount = ref<number | null>(null)
 
 const rows = computed(() =>
-  GENRE_IDS.map((id) => ({ id, label: genreLabel(id) ?? id, exists: promptTemplateExists(tier.value, id) })),
+  GENRE_IDS.filter((id) => genreNameFor(id) !== null).map((id) => ({
+    id,
+    label: genreLabel(id) ?? id,
+    exists: promptTemplateExists(tier.value, id),
+  })),
 )
 const missingIds = computed(() => rows.value.filter((r) => !r.exists).map((r) => r.id))
 const pickedMissing = computed(() => picked.value.filter((id) => missingIds.value.includes(id)))

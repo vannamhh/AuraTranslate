@@ -229,7 +229,7 @@ impl RescanReport {
 ///
 /// 🔴 Không dựng `StoreError::OpenFailed { store: StoreKind::LibraryIndex, .. }` ở đây: viết
 /// định danh đó trong tệp này vi phạm chính cổng ranh giới mà doc-comment module vừa nhắc.
-fn indexer_is_missing() -> IpcError {
+pub(crate) fn indexer_is_missing() -> IpcError {
     let mut params = BTreeMap::new();
     params.insert("store".to_owned(), "library_index".to_owned());
     IpcError::new(

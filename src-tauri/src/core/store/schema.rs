@@ -765,7 +765,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười bảy bước, và đích là phiên bản 17** (bước 17 là `CONVENTION_RULE_DDL`, dùng lại ở bước 44 của `project.db`). Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười tám bước, và đích là phiên bản 18** (bước 17 là `CONVENTION_RULE_DDL`, dùng lại ở bước 44 của `project.db`; bước 18 là `GENRE_DDL`, chỉ ở `global.db`). Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -880,7 +880,15 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
         to_version: 17,
         sql: CONVENTION_RULE_DDL,
     },
+    Migration {
+        to_version: 18,
+        sql: GENRE_DDL,
+    },
 ];
+
+/// Global step 18: the `genre` table plus its 29 seed rows in the order of the old menu. Names
+/// live in the SQL file because `check:i18n` Kiem A forbids Vietnamese text in `.rs` code.
+pub const GENRE_DDL: &str = include_str!("../genre/genre_schema.sql");
 
 /// Global step 16 (AD-68 rule 1, 9): adds `prompt_set.kind`; name uniqueness becomes per kind.
 pub const PROMPT_SET_KIND_DDL: &str = "\

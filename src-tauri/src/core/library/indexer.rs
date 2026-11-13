@@ -695,6 +695,19 @@ impl Indexer {
         })
     }
 
+    /// Number of indexed Works whose `genre` equals `genre` exactly.
+    pub fn count_works_with_genre(&self, genre: &str) -> Result<usize, StoreError> {
+        let genre = genre.to_owned();
+        self.store.read(move |conn: ReadHandle<'_>| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM library_work WHERE genre = ?1",
+                [&genre],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|n| n as usize)
+        })
+    }
+
     /// Đường ĐỌC — mọi hàng của `library_work` khớp [`WorkQuery`], sắp theo khoá sắp của
     /// chính `query` (mặc định `updated_at DESC`, luôn kèm `, work_id` làm khoá phụ ỔN ĐỊNH —
     /// AC4), cộng tổng số hàng CHƯA LỌC và hai tập giá trị lựa chọn CHƯA LỌC (`genres`/

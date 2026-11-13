@@ -795,6 +795,15 @@ message_keys! {
     /// trên đường gọi đúng. KHÔNG tham số, cùng lý do `AiConfigScopeError`/`GlossaryScopeError`.
     PromptSetScopeError => "err.prompt_set.scope_error" [],
 
+    /// Genre name empty after trimming.
+    GenreNameEmpty => "err.genre.name_empty" [],
+    /// Genre name equals another genre's name, ignoring Unicode case.
+    GenreNameTaken => "err.genre.name_taken" ["name"],
+    /// Genre still carried by `count` Works.
+    GenreInUse => "err.genre.in_use" ["count"],
+    /// No genre row has this id.
+    GenreNotFound => "err.genre.not_found" [],
+
     // ── Story 4.5 (FR79, NFR9, AD-48) — tám khoá MỚI, ba tái dùng ────────────────────
     //
     // Hộp thoại chọn tệp nối vào xuất/nhập bộ prompt (`.prompt.md`) — cùng khuôn Story

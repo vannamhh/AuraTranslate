@@ -47,6 +47,7 @@ pub mod config;
 pub mod convention;
 pub mod dict;
 pub mod export;
+pub mod genre;
 pub mod glossary;
 pub mod library;
 pub mod lifecycle;
