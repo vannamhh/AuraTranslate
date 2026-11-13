@@ -66,9 +66,9 @@ import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './pro
 import type { ConventionScanEntry } from './proofreadHighlight'
 import { clearProofreadFor, proofreadResults } from '../proofreadState'
 import { resetConventionReplace } from '../conventionReplaceState'
-import { clearConventionFor, conventionResults, openConventionAt, resetConvention, scanConventionNow } from '../conventionState'
+import { clearConventionFor, conventionResults, openConventionAt, openProofreadFindingAt, resetConvention, scanConventionNow } from '../conventionState'
 import { openWorkId } from '../openWorkIdentity'
-import { CONVENTION_MARK_CLASS } from './proofreadHighlight'
+import { CONVENTION_MARK_CLASS, PROOFREAD_ERROR_CLASS, PROOFREAD_MEANING_CLASS } from './proofreadHighlight'
 import PanelFrame from './PanelFrame.vue'
 import GridBlock from './GridBlock.vue'
 import GridSentenceMenu from './GridSentenceMenu.vue'
@@ -1527,17 +1527,19 @@ function onSourceSelectionChange(): void {
   setHoveredGlossaryTerm({ isConfirmed: span.isConfirmed, translation: span.translation })
 }
 
-function onConventionMarkClick(event: MouseEvent): void {
+function onMarkClick(event: MouseEvent): void {
   if (event.button !== 0 || !(event.target instanceof Element)) return
-  const mark = event.target.closest(`.${CONVENTION_MARK_CLASS}`)
+  const mark = event.target.closest(`.${CONVENTION_MARK_CLASS}, .${PROOFREAD_ERROR_CLASS}, .${PROOFREAD_MEANING_CLASS}`)
   if (!(mark instanceof HTMLElement) || gridRoot.value?.contains(mark) !== true) return
   const selection = window.getSelection()
   if (selection !== null && !selection.isCollapsed) return
   const cell = mark.closest('[data-col="tgt"]')
   const id = cell instanceof HTMLElement ? segmentIdOf(cell) : null
-  const start = Number.parseInt(mark.dataset.conventionStart ?? '', 10)
+  const isConvention = mark.classList.contains(CONVENTION_MARK_CLASS)
+  const start = Number.parseInt((isConvention ? mark.dataset.conventionStart : mark.dataset.proofreadStart) ?? '', 10)
   if (id === null || !Number.isFinite(start)) return
-  openConventionAt(id, start)
+  if (isConvention) openConventionAt(id, start)
+  else openProofreadFindingAt(id, start)
 }
 
 watch(
@@ -1553,12 +1555,12 @@ watch(
 onMounted(() => {
   document.addEventListener('selectionchange', onSelectionChange)
   document.addEventListener('selectionchange', onSourceSelectionChange)
-  document.addEventListener('click', onConventionMarkClick)
+  document.addEventListener('click', onMarkClick)
 })
 onBeforeUnmount(() => {
   document.removeEventListener('selectionchange', onSelectionChange)
   document.removeEventListener('selectionchange', onSourceSelectionChange)
-  document.removeEventListener('click', onConventionMarkClick)
+  document.removeEventListener('click', onMarkClick)
 })
 
 /**

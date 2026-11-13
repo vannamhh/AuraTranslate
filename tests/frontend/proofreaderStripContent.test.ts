@@ -149,6 +149,17 @@ describe('Esc hides the strip for the caret sentence', () => {
     wrapper.unmount()
   })
 
+  it('pointing at a finding of the hidden sentence shows the strip again', async () => {
+    const wrapper = await mountWithScan()
+    state.hideProofreadStrip()
+    expect(eligibleInlineStrips.value).not.toContain('proofreader')
+
+    state.focusProofreadFinding(1, 0)
+
+    expect(eligibleInlineStrips.value).toContain('proofreader')
+    wrapper.unmount()
+  })
+
   it('does not hide the scan-level strip while a scan runs', async () => {
     runMock.mockImplementation(() => new Promise(() => {}))
     const wrapper = mount(ProofreaderStrip, { attachTo: document.body })

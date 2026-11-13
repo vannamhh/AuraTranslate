@@ -96,6 +96,7 @@ export function wrapProofread(cell: Element, scannedText: string, marks: readonl
         mark.convention === true ? CONVENTION_MARK_CLASS : mark.meaning ? PROOFREAD_MEANING_CLASS : PROOFREAD_ERROR_CLASS
       if (mark.title !== undefined) span.title = mark.title
       if (mark.convention === true) span.dataset.conventionStart = String(mark.start)
+      else span.dataset.proofreadStart = String(mark.start)
       span.appendChild(range.extractContents())
       range.insertNode(span)
       drawnTo = mark.end

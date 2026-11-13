@@ -46,6 +46,13 @@ describe('wrapProofread', () => {
     expect(cell.textContent).toBe('ab cd')
   })
 
+  it('a Proofreader span remembers where its finding starts so a click can open it', () => {
+    const cell = cellOf('ab cd')
+    wrapProofread(cell, 'ab cd', [{ start: 0, end: 2, meaning: false }, { start: 3, end: 5, meaning: true }])
+    const marks = [...cell.querySelectorAll<HTMLElement>(`.${PROOFREAD_ERROR_CLASS}, .${PROOFREAD_MEANING_CLASS}`)]
+    expect(marks.map((m) => m.dataset.proofreadStart)).toEqual(['0', '3'])
+  })
+
   it('wraps a quote that crosses several text nodes in one span', () => {
     const cell = cellOf('ab\n', 'cd\n', 'ef')
     wrapProofread(cell, 'ab\ncd\nef', [{ start: 1, end: 7, meaning: false }])

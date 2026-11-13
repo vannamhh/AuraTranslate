@@ -298,6 +298,13 @@ export function openConventionAt(segmentId: number, start: number): void {
   opened.value = { segmentId, index }
 }
 
+/** A click on a Proofreader mark lands on that finding, the way F8 does, and shows the strip again. */
+export function openProofreadFindingAt(segmentId: number, start: number): void {
+  const finding = proofreadMarkPositions().find((m) => m.segmentId === segmentId && m.start === start)
+  if (finding === undefined) return
+  land({ ...finding, family: 'proofread' })
+}
+
 /** Esc and Ẩn: focus goes back to the caret cell first so the caret survives the strip leaving. */
 export function hideConventionStrip(): void {
   const at = opened.value

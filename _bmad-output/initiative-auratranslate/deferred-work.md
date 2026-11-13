@@ -14139,3 +14139,8 @@ chính nó.
 
 - Chưa thử trong app thật (WKWebView): con trỏ trong ô bản dịch, dải đề xuất TM, quy ước hoặc Proofreader đang hiện, bấm `Esc` thì dải ẩn và con trỏ ở yên trong ô. happy-dom không tái hiện tiêu điểm và vùng chọn của WebKit.
   Quan trọng vì nếu lệnh ẩn trả tiêu điểm sai chỗ thì người dịch mất vị trí đang gõ. Chủ: Epic 2. Trỏ: `plan-esc-an-dai-noi-tuyen-tu-o-dich.md`.
+
+## Deferred from: bấm gạch chân Proofreader mở lại dải (2026-11-13)
+
+- Chưa thử bằng chuột thật trên WKWebView: bấm chữ gạch chân của Proofreader sau khi `Esc` đã ẩn dải thì dải hiện lại ở đúng lỗi; bấm ở câu khác thì con trỏ sang câu đó; kéo bôi đen rồi nhả trên chữ gạch chân thì không mở gì. Test chỉ phát `click` tổng hợp trong happy-dom.
+  Quan trọng vì cú bấm thật trên WKWebView chạy Vue giữa hai listener, thứ `.click()` không tái hiện. Chủ: Epic 9. Trỏ: `plan-bam-gach-chan-proofread-mo-lai-dai.md`.

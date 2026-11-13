@@ -244,6 +244,37 @@ describe("F8 order across both families", () => {
   });
 });
 
+describe("clicking a Proofreader mark", () => {
+  it("moves the caret to that sentence, closes the convention strip and points the Proofreader at the clicked finding", async () => {
+    await loadScan({ 1: ["Đảm bảo an toàn.", [span(0, 7)]] });
+    proofreadMarks = [
+      { segmentId: 3, index: 0, start: 0, end: 3 },
+      { segmentId: 3, index: 1, start: 5, end: 8 },
+    ];
+    caret.value = 1;
+    state.openConventionAt(1, 0);
+    expect(state.conventionCurrent.value).not.toBeNull();
+
+    state.openProofreadFindingAt(3, 5);
+
+    expect(caret.value).toBe(3);
+    expect(state.conventionCurrent.value).toBeNull();
+    expect(proofreadCursor).toEqual({ segmentId: 3, index: 1 });
+  });
+
+  it("does nothing for a start that is no finding of that sentence", () => {
+    proofreadMarks = [{ segmentId: 3, index: 0, start: 0, end: 3 }];
+    caret.value = 1;
+    proofreadCursor = null;
+
+    state.openProofreadFindingAt(3, 2);
+    state.openProofreadFindingAt(4, 0);
+
+    expect(moveMock).not.toHaveBeenCalled();
+    expect(proofreadCursor).toBeNull();
+  });
+});
+
 describe("F8 after the strip was hidden", () => {
   it("continues from the caret offset instead of returning to the first mark of the sentence", async () => {
     await loadScan({
