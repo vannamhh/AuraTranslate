@@ -1,6 +1,6 @@
 [package]
 name = "auratranslate"
-version = "1.0.2"
+version = "1.1.0"
 description = "AuraTranslate — dictionary lookup and translation workspace, fully offline"
 authors = ["AuraTranslate"]
 edition = "2024"

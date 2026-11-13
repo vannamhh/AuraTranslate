@@ -59,7 +59,7 @@ context:
 - Given bàn đo `e2e/measure/grid-scroll-relayout.mjs`, when chạy, then trường hợp chưa sửa tăng theo cỡ lưới, còn trường hợp đã sửa thì không.
 - Given `hanviet-parallel-row-height.e2e.mjs` và các ca vùng chọn qua ranh giới khối, when chạy, then cả hai đều xanh.
 - Given Chương ngắn không cần cuộn và Chương dài, when mở ở cả ba kiểu xem, then lưới cuộn được, không cắt chữ, và mép phải như Ice đã duyệt.
-- Tiêu chí 1, 2 và 4 của vé đo trên bản `v1.0.3`, theo quyết định của Ice. Bước đó ghi thành mục nợ `Chủ: Epic 2`, và phần Boot Camp ghi `Chủ: B7`.
+- Tiêu chí 1, 2 và 4 của vé đo trên bản `v1.0.3`, theo quyết định của Ice. Bước đó ghi thành mục nợ `Chủ: Epic 2`, và phần Boot Camp ghi `Chủ: B7`. 🔵 2026-11-13: bản phát hành mang bản sửa là `v1.1.0`, Ice chọn số này thay `v1.0.3`.
 
 ## Design Notes
 
