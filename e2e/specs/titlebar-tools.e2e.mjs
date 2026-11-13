@@ -10,6 +10,7 @@ const ITEM_IDS = [
   'settings.open',
   'ai.proofread.memory.open',
   'convention.manage.open',
+  'convention.replace_chapter_open',
   'export.reviewer_import.open',
   'export.alignment.open',
   'glossary.harvest.open',
@@ -34,7 +35,7 @@ async function openList() {
 }
 
 describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
-  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có mười mục theo thứ tự IA, không còn Xuất', async () => {
+  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có mười một mục theo thứ tự IA, không còn Xuất', async () => {
     await browser.keys(['Meta', '1'])
     const trigger = await $(TRIGGER)
     await trigger.waitForDisplayed({ timeout: 30_000 })
