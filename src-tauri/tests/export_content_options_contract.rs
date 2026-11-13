@@ -264,6 +264,7 @@ fn all_on() -> ExportOptions {
         number_segments: true,
         glossary_appendix: true,
         mark_unconfirmed: true,
+        curly_quotes: false,
     }
 }
 
@@ -381,6 +382,7 @@ fn one_block_markdown_and_text_take_numbers_and_appendix_but_refuse_the_mark_wit
         number_segments: true,
         glossary_appendix: true,
         mark_unconfirmed: false,
+        curly_quotes: false,
     });
 
     let block = export_docx_one_block(
@@ -724,4 +726,121 @@ fn the_term_count_is_reported_while_the_appendix_switch_is_off() {
     .expect("xem truoc");
     assert_eq!(preview.appendix_term_count, 2);
     assert!(preview.appendix.is_empty());
+}
+
+fn quoted_chapter() -> Vec<Vec<Seg>> {
+    vec![vec![
+        seg("a1", "cho biết: \"Chiến tranh pháp lý.\"", "draft"),
+        seg("a2", "đưa \"A\", \"B\" và (\"C\")", "draft"),
+    ]]
+}
+
+fn curly_only() -> ExportOptions {
+    ExportOptions {
+        curly_quotes: true,
+        ..ExportOptions::default()
+    }
+}
+
+#[test]
+fn curly_quotes_reach_the_plain_text_file_and_its_preview_without_touching_the_store() {
+    let f = fixture("curly-txt", &quoted_chapter());
+    let before = f.dump();
+    let on = f.content(curly_only());
+    let text = fs::read_to_string(f.text(TextFormat::Plain, &on)).expect("doc txt");
+    assert!(text.contains("cho biết: “Chiến tranh pháp lý.”"), "{text}");
+    assert!(text.contains("đưa “A”, “B” và (“C”)"), "{text}");
+    assert!(!text.contains('"'));
+
+    let preview = export_preview(
+        Some(&f.open),
+        &ExportScope::Work,
+        ExportFormat::Plain,
+        &on,
+        None,
+        Some(&f.global),
+    )
+    .expect("xem truoc txt");
+    assert!(
+        preview
+            .rows
+            .iter()
+            .any(|r| r.target.contains("cho biết: “Chiến tranh pháp lý.”"))
+    );
+    assert_eq!(f.dump(), before, "target_text giu nguyen dau thang");
+
+    let off = f.content(ExportOptions::default());
+    let plain = fs::read_to_string(f.text(TextFormat::Plain, &off)).expect("doc txt");
+    assert!(
+        plain.contains("cho biết: \"Chiến tranh pháp lý.\""),
+        "{plain}"
+    );
+}
+
+#[test]
+fn curly_quotes_reach_only_the_target_column_of_the_one_block_docx() {
+    let f = fixture("curly-block", &quoted_chapter());
+    let export = |content: &ExportContent| {
+        let file = export_docx_one_block(
+            Some(&f.open),
+            &ExportScope::Work,
+            ImageMode::Link,
+            content,
+            None,
+            &f.out,
+        )
+        .expect("xuat mot khoi");
+        PathBuf::from(file.path)
+    };
+    let on_content = f.content(curly_only());
+    let on = export(&on_content);
+    let preview = export_preview(
+        Some(&f.open),
+        &ExportScope::Work,
+        ExportFormat::DocxOneBlock,
+        &on_content,
+        None,
+        Some(&f.global),
+    )
+    .expect("xem truoc mot khoi");
+    assert!(
+        preview
+            .rows
+            .iter()
+            .any(|r| r.target.contains("cho biết: “Chiến tranh pháp lý.”")
+                && !r.target.contains('"')),
+        "{:?}",
+        preview.rows
+    );
+    let on_cells = rows_of(&parsed(&on));
+    assert!(
+        on_cells[0][1].contains("cho biết: “Chiến tranh pháp lý.”"),
+        "{on_cells:?}"
+    );
+    assert!(!zip_entry(&on, "word/document.xml").contains("&quot;"));
+
+    let off = export(&f.content(ExportOptions::default()));
+    assert!(zip_entry(&off, "word/document.xml").contains("cho biết: &quot;Chiến"));
+    assert_eq!(
+        on_cells[0][0],
+        rows_of(&parsed(&off))[0][0],
+        "cot nguon khong doi"
+    );
+}
+
+#[test]
+fn curly_quotes_are_ignored_silently_in_the_two_review_copies() {
+    let f = fixture("curly-review", &quoted_chapter());
+    let on = f.content(curly_only());
+    let off = f.content(ExportOptions::default());
+
+    let md_on = fs::read_to_string(f.text(TextFormat::Markdown, &on)).expect("doc md");
+    let md_off = fs::read_to_string(f.text(TextFormat::Markdown, &off)).expect("doc md");
+    assert_eq!(md_on, md_off);
+    assert!(md_on.contains('"'));
+
+    let two_on = zip_entry(&f.two_column(&on), "word/document.xml");
+    let two_off = zip_entry(&f.two_column(&off), "word/document.xml");
+    assert_eq!(two_on, two_off);
+    assert!(two_on.contains("&quot;"));
 }

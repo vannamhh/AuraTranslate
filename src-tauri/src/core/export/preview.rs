@@ -114,8 +114,11 @@ pub fn build_preview(
         }
         ExportFormat::Markdown | ExportFormat::Plain => {
             let loaded = load_chapter_text(store, &first, ImageMode::Link, attribution, options)?;
-            let (attribution, paragraphs) =
-                loaded.preview(PREVIEW_LIMIT, format == ExportFormat::Markdown);
+            let (attribution, paragraphs) = loaded.preview(
+                PREVIEW_LIMIT,
+                format == ExportFormat::Markdown,
+                options.curls_quotes_in(format),
+            );
             let rows = paragraphs
                 .into_iter()
                 .map(|target| ExportPreviewRow {

@@ -14144,3 +14144,10 @@ chính nó.
 
 - Chưa thử bằng chuột thật trên WKWebView: bấm chữ gạch chân của Proofreader sau khi `Esc` đã ẩn dải thì dải hiện lại ở đúng lỗi; bấm ở câu khác thì con trỏ sang câu đó; kéo bôi đen rồi nhả trên chữ gạch chân thì không mở gì. Test chỉ phát `click` tổng hợp trong happy-dom.
   Quan trọng vì cú bấm thật trên WKWebView chạy Vue giữa hai listener, thứ `.click()` không tái hiện. Chủ: Epic 9. Trỏ: `plan-bam-gach-chan-proofread-mo-lai-dai.md`.
+
+## Deferred from: xuất bản dịch đổi ngoặc kép cong (2026-11-13)
+
+- `core::docx::read_element_text` (`src-tauri/src/core/docx/mod.rs`) bỏ qua `Event::GeneralRef` của quick-xml 0.41, nên `&quot; &amp; &lt; &gt;` trong `w:t` rơi im lặng khi đọc `.docx`; `tmx.rs` có xử lý nhánh này.
+  Quan trọng vì nhập lại bản rà soát `.docx` hai cột sẽ báo câu có `"`/`&` là "đã sửa" với chữ mất dấu, và chấp nhận thì ghi chữ thiếu dấu vào `target_text`; nhập Tác phẩm `.docx` cũng mất các ký tự đó. Chủ: Ice. Trỏ: `plan-xuat-ngoac-kep-cong.md` Implementation Notes.
+- Chưa mở bằng Word/Pages một tệp `.docx` một khối và một `.txt` xuất với ô "ngoặc kép cong" bật để xem `“ ”` đúng chiều, cột nguồn và tiêu đề không đổi. Test chỉ đọc lại XML/tệp.
+  Quan trọng vì đây là bản xuất bản gửi người đọc. Chủ: Ice. Trỏ: `plan-xuat-ngoac-kep-cong.md`.

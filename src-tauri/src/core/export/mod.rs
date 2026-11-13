@@ -25,6 +25,7 @@ mod images;
 mod new_file;
 mod options;
 mod preview;
+mod quotes;
 mod reimport_gate;
 mod review_decision;
 mod reviewer_copy;

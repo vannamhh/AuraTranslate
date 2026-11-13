@@ -9,7 +9,7 @@ import { mount } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 
-const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false }
+const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false, curly_quotes: false }
 
 const listMock = vi.fn()
 const summaryMock = vi.fn()

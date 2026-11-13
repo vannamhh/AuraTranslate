@@ -9,7 +9,7 @@ import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 import type { ExportScopeCounts } from '../../src/config/export'
 
-const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false }
+const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false, curly_quotes: false }
 
 const listMock = vi.fn()
 const summaryMock = vi.fn()
@@ -219,7 +219,7 @@ describe('running the one-block export', () => {
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
     await settle(wrapper)
 
-    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false, OFF)
+    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false, { ...OFF, curly_quotes: true })
     expect(twoColumnMock).not.toHaveBeenCalled()
     expect(wrapper.get('[data-export-result]').text()).toBe('/tmp/out/Tac Pham-mot-khoi.docx')
     wrapper.unmount()
@@ -246,6 +246,6 @@ describe('running the one-block export', () => {
     state.setExportImageMode('link')
 
     await state.runExport()
-    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false, OFF)
+    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false, { ...OFF, curly_quotes: true })
   })
 })

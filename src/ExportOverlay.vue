@@ -14,6 +14,8 @@ import {
   exportAppendixAvailable,
   exportFirstScopeChapter,
   exportGlossaryAppendix,
+  exportCurlyQuotes,
+  exportCurlyQuotesAvailable,
   exportMarkAvailable,
   exportMarkUnconfirmed,
   exportNotReimportable,
@@ -43,6 +45,7 @@ import {
   setExportAttribution,
   setExportFormat,
   setExportGlossaryAppendix,
+  setExportCurlyQuotes,
   setExportMarkUnconfirmed,
   setExportNumberSegments,
   setExportImageMode,
@@ -114,6 +117,7 @@ const attributionFields = computed(() => {
 
 const appendixEnabled = computed(() => exportAppendixAvailable())
 const markEnabled = computed(() => exportMarkAvailable())
+const curlyEnabled = computed(() => exportCurlyQuotesAvailable())
 const notReimportable = computed(() => exportNotReimportable())
 
 const fileExtension = computed(() => {
@@ -374,6 +378,18 @@ function trapTab(event: KeyboardEvent): void {
             <span>{{ t('export.content.number_segments') }}</span>
           </label>
           <p class="ex-note">{{ t('export.content.number_segments_desc') }}</p>
+          <label class="ex-choice ui-check">
+            <input
+              type="checkbox"
+              data-export-curly-quotes-toggle
+              :checked="curlyEnabled && exportCurlyQuotes"
+              :disabled="!curlyEnabled"
+              @change="setExportCurlyQuotes(($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ t('export.content.curly_quotes') }}</span>
+          </label>
+          <p class="ex-note">{{ t('export.content.curly_quotes_desc') }}</p>
+          <p v-if="!curlyEnabled" class="ex-note" data-export-curly-quotes-disabled>{{ t('export.content.curly_quotes_publish_only') }}</p>
           <label class="ex-choice ui-check">
             <input
               type="checkbox"

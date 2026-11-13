@@ -116,6 +116,7 @@ describe('content options', () => {
       number_segments: false,
       glossary_appendix: false,
       mark_unconfirmed: false,
+      curly_quotes: false,
     })
     state.setExportNumberSegments(true)
     state.setExportGlossaryAppendix(true)
@@ -125,6 +126,7 @@ describe('content options', () => {
       number_segments: true,
       glossary_appendix: true,
       mark_unconfirmed: true,
+      curly_quotes: false,
     })
   })
 
@@ -141,6 +143,28 @@ describe('content options', () => {
     await state.runExport()
     expect(textMock.mock.calls[0].at(-1)).toMatchObject({ mark_unconfirmed: false })
     expect(previewMock.mock.calls.at(-1)?.[2]).toMatchObject({ mark_unconfirmed: false })
+    wrapper.unmount()
+  })
+
+  it('curly quotes default on for the publishing copies and are masked for the review copies', async () => {
+    const { state, Overlay } = await fresh()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await state.openExport()
+    for (const publishing of ['docx_one_block', 'plain_text'] as const) {
+      state.setExportFormat(publishing)
+      await settle(wrapper)
+      const toggle = wrapper.get('[data-export-curly-quotes-toggle]').element as HTMLInputElement
+      expect(toggle.checked).toBe(true)
+      expect(toggle.disabled).toBe(false)
+      expect(state.currentExportOptions().curly_quotes).toBe(true)
+    }
+    for (const review of ['markdown', 'docx_two_column'] as const) {
+      state.setExportFormat(review)
+      await settle(wrapper)
+      expect((wrapper.get('[data-export-curly-quotes-toggle]').element as HTMLInputElement).disabled).toBe(true)
+      expect(wrapper.find('[data-export-curly-quotes-disabled]').exists()).toBe(true)
+      expect(state.currentExportOptions().curly_quotes).toBe(false)
+    }
     wrapper.unmount()
   })
 
@@ -225,16 +249,20 @@ describe('content options', () => {
     wrapper.unmount()
   })
 
-  it('resetExport turns all three off', async () => {
+  it('resetExport turns all three off and curly quotes back on', async () => {
     const { state } = await fresh()
+    state.setExportFormat('plain_text')
+    state.setExportCurlyQuotes(false)
     state.setExportNumberSegments(true)
     state.setExportGlossaryAppendix(true)
     state.setExportMarkUnconfirmed(true)
     state.resetExport()
+    state.setExportFormat('plain_text')
     expect(state.currentExportOptions()).toEqual({
       number_segments: false,
       glossary_appendix: false,
       mark_unconfirmed: false,
+      curly_quotes: true,
     })
   })
 })

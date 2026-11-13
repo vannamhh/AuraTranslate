@@ -4,8 +4,10 @@ use super::docx_table::ImageReference;
 use super::image_files::copied_name;
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
 use super::options::{
-    ExportContent, ExportOptions, MARKDOWN_ANNOTATED_MARKER, numbered, segment_numbers,
+    ExportContent, ExportFormat, ExportOptions, MARKDOWN_ANNOTATED_MARKER, numbered,
+    segment_numbers,
 };
+use super::quotes::curl_double_quotes;
 use super::table_rows::ExportImage;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::reading::paragraphs_by_flag;
@@ -182,7 +184,12 @@ pub fn load_chapter_text(
 impl LoadedText {
     /// Attribution lines and the first `limit` paragraphs of the first Chapter, as the file
     /// would carry them.
-    pub fn preview(&self, limit: usize, escape_markdown: bool) -> (Vec<String>, Vec<String>) {
+    pub fn preview(
+        &self,
+        limit: usize,
+        escape_markdown: bool,
+        curl_quotes: bool,
+    ) -> (Vec<String>, Vec<String>) {
         let Some(chapter) = self.chapters.first() else {
             return (Vec::new(), Vec::new());
         };
@@ -191,6 +198,9 @@ impl LoadedText {
             .iter()
             .filter_map(|item| match item {
                 TextItem::Paragraph(text) if escape_markdown => Some(markdown_text(text)),
+                TextItem::Paragraph(text) if curl_quotes => {
+                    Some(curl_double_quotes(text).into_owned())
+                }
                 TextItem::Paragraph(text) => Some(text.clone()),
                 TextItem::Image(_) => None,
             })
@@ -292,8 +302,9 @@ fn markdown_block(item: &TextItem, reference: ImageReference<'_>) -> String {
     }
 }
 
-fn plain_block(item: &TextItem, reference: ImageReference<'_>) -> String {
+fn plain_block(item: &TextItem, reference: ImageReference<'_>, curl: bool) -> String {
     match item {
+        TextItem::Paragraph(text) if curl => curl_double_quotes(text).into_owned(),
         TextItem::Paragraph(text) => text.clone(),
         TextItem::Image(i) => {
             // aura-allow-text: file content the publisher reads, fixed by the export format, not UI text
@@ -358,7 +369,11 @@ pub fn render_text(
         blocks.push(heading);
         blocks.extend(chapter.items.iter().map(|item| match format {
             TextFormat::Markdown => markdown_block(item, reference),
-            TextFormat::Plain => plain_block(item, reference),
+            TextFormat::Plain => plain_block(
+                item,
+                reference,
+                content.options.curls_quotes_in(ExportFormat::Plain),
+            ),
         }));
         sections.push(blocks.join("\n\n"));
     }

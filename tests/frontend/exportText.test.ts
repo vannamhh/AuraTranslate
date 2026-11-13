@@ -8,7 +8,7 @@ import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 import type { ExportScopeCounts } from '../../src/config/export'
 
-const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false }
+const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false, curly_quotes: false }
 
 const listMock = vi.fn()
 const summaryMock = vi.fn()
@@ -160,7 +160,10 @@ describe('run', () => {
     state.setExportFormat(format)
     await state.runExport()
 
-    expect(textMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', wire, '/tmp/out', false, OFF)
+    expect(textMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', wire, '/tmp/out', false, {
+      ...OFF,
+      curly_quotes: format === 'plain_text',
+    })
     expect(twoColumnMock).not.toHaveBeenCalled()
     expect(oneBlockMock).not.toHaveBeenCalled()
     expect(state.exportRunStatus.value).toBe('done')

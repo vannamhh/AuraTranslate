@@ -15,6 +15,7 @@ export type ExportOptions = {
   number_segments: boolean
   glossary_appendix: boolean
   mark_unconfirmed: boolean
+  curly_quotes: boolean
 }
 
 export type ExportPreviewFormat = 'docx_two_column' | 'docx_one_block' | 'markdown' | 'plain'

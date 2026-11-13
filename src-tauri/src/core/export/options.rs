@@ -8,7 +8,7 @@ use crate::core::segment::omit::segments_in_translation;
 /// First line of an annotated `.md` export; the `.docx` twin is `core::docx::EXPORT_ANNOTATED_PROPERTY`.
 pub const MARKDOWN_ANNOTATED_MARKER: &str = "<!-- aura:export-annotated -->";
 
-/// Content switches of the export screen (FR152). Every one is off by default; with all three off
+/// Content switches of the export screen (FR152). Every one is off by default; with all four off
 /// the file is byte-identical to the one written before they existed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize)]
 #[serde(default)]
@@ -16,6 +16,7 @@ pub struct ExportOptions {
     pub number_segments: bool,
     pub glossary_appendix: bool,
     pub mark_unconfirmed: bool,
+    pub curly_quotes: bool,
 }
 
 impl ExportOptions {
@@ -23,6 +24,12 @@ impl ExportOptions {
     /// either cannot be re-imported. The appendix is its own paragraphs and does not count.
     pub fn annotated(&self) -> bool {
         self.number_segments || self.mark_unconfirmed
+    }
+
+    /// Only the two publishing copies are curled; the review copies are re-imported and compared
+    /// with `target_text`, so a changed quote would read as an edit.
+    pub fn curls_quotes_in(&self, format: ExportFormat) -> bool {
+        self.curly_quotes && matches!(format, ExportFormat::DocxOneBlock | ExportFormat::Plain)
     }
 }
 

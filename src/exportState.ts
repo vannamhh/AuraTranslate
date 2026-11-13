@@ -59,6 +59,7 @@ const attribution = ref(false)
 const numberSegments = ref(false)
 const glossaryAppendix = ref(false)
 const markUnconfirmed = ref(false)
+const curlyQuotes = ref(true)
 const preview = ref<ExportPreview | null>(null)
 const previewError = ref<IpcError | null>(null)
 const previewLoading = ref(false)
@@ -90,6 +91,7 @@ export const exportAttribution: DeepReadonly<Ref<boolean>> = readonly(attributio
 export const exportNumberSegments: DeepReadonly<Ref<boolean>> = readonly(numberSegments)
 export const exportGlossaryAppendix: DeepReadonly<Ref<boolean>> = readonly(glossaryAppendix)
 export const exportMarkUnconfirmed: DeepReadonly<Ref<boolean>> = readonly(markUnconfirmed)
+export const exportCurlyQuotes: DeepReadonly<Ref<boolean>> = readonly(curlyQuotes)
 export const exportPreviewData: DeepReadonly<Ref<ExportPreview | null>> = readonly(preview)
 export const exportPreviewError: DeepReadonly<Ref<IpcError | null>> = readonly(previewError)
 export const exportPreviewLoading: DeepReadonly<Ref<boolean>> = readonly(previewLoading)
@@ -110,6 +112,11 @@ export function exportMarkAvailable(): boolean {
   return format.value === 'docx_two_column'
 }
 
+/** Curling is for the two publishing copies; the review copies are re-imported and compared with the stored text. */
+export function exportCurlyQuotesAvailable(): boolean {
+  return format.value === 'docx_one_block' || format.value === 'plain_text'
+}
+
 /** Numbering and mark make the file un-reimportable; the appendix does not. */
 export function exportNotReimportable(): boolean {
   return numberSegments.value || (exportMarkAvailable() && markUnconfirmed.value)
@@ -125,6 +132,7 @@ export function currentExportOptions(): ExportOptions {
     number_segments: numberSegments.value,
     glossary_appendix: exportAppendixAvailable() && glossaryAppendix.value,
     mark_unconfirmed: exportMarkAvailable() && markUnconfirmed.value,
+    curly_quotes: exportCurlyQuotesAvailable() && curlyQuotes.value,
   }
 }
 
@@ -259,6 +267,12 @@ export function setExportGlossaryAppendix(next: boolean): void {
   void refreshExportPreview()
 }
 
+export function setExportCurlyQuotes(next: boolean): void {
+  curlyQuotes.value = next
+  clearRun()
+  void refreshExportPreview()
+}
+
 export function setExportMarkUnconfirmed(next: boolean): void {
   markUnconfirmed.value = next
   clearRun()
@@ -376,6 +390,7 @@ export function resetExport(): void {
   numberSegments.value = false
   glossaryAppendix.value = false
   markUnconfirmed.value = false
+  curlyQuotes.value = true
   previewSequence += 1
   preview.value = null
   previewError.value = null

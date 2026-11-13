@@ -1,8 +1,10 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use super::attribution::{Attribution, lines_for};
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
-use super::options::{ExportOptions, numbered, segment_numbers};
+use super::options::{ExportFormat, ExportOptions, numbered, segment_numbers};
+use super::quotes::curl_double_quotes;
 use super::table_rows::ExportImage;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::reading::paragraphs_by_flag;
@@ -116,6 +118,7 @@ fn build_column<'a>(
     pieces_of: impl Fn(&'a ChapterSegment) -> Vec<&'a str>,
     images: &ImageSplit<ExportImage>,
     numbers: Option<&BTreeMap<i64, i64>>,
+    curly_quotes: bool,
 ) -> Vec<BlockParagraph> {
     let mut column = ColumnBuilder::new(joiner);
     column.push_images(&images.head);
@@ -128,9 +131,14 @@ fn build_column<'a>(
                 let number = numbers
                     .filter(|_| i == 0)
                     .and_then(|numbers| numbers.get(&segment.id));
+                let piece = if curly_quotes {
+                    curl_double_quotes(piece)
+                } else {
+                    Cow::Borrowed(piece)
+                };
                 column.pieces.push(match number {
-                    Some(&n) => numbered(n, piece),
-                    None => piece.to_owned(),
+                    Some(&n) => numbered(n, &piece),
+                    None => piece.into_owned(),
                 });
             }
             if let Some(images) = images.by_anchor.get(&segment.id) {
@@ -150,8 +158,11 @@ fn build_chapter_block(
     segments: &[ChapterSegment],
     images: ImageSplit<ExportImage>,
     source_lang: &str,
-    numbers: Option<&BTreeMap<i64, i64>>,
+    options: ExportOptions,
 ) -> ChapterBlock {
+    let numbers = options.number_segments.then(|| segment_numbers(segments));
+    let numbers = numbers.as_ref();
+    let curly_quotes = options.curls_quotes_in(ExportFormat::DocxOneBlock);
     let source = build_column(
         segments,
         |s| s.is_paragraph_end,
@@ -159,6 +170,7 @@ fn build_chapter_block(
         |s| source_pieces(&s.source_text),
         &images,
         numbers,
+        false,
     );
     let target = build_column(
         segments,
@@ -167,6 +179,7 @@ fn build_chapter_block(
         |s| target_pieces(&s.target_text),
         &images,
         numbers,
+        curly_quotes,
     );
     ChapterBlock {
         chapter_id,
@@ -208,7 +221,6 @@ pub fn load_chapter_blocks(
             );
             skipped += split.skipped;
             let lines = lines_for(conn, chapter_id, attribution)?;
-            let numbers = options.number_segments.then(|| segment_numbers(&segments));
             blocks.push(build_chapter_block(
                 chapter_id,
                 title,
@@ -216,7 +228,7 @@ pub fn load_chapter_blocks(
                 &segments,
                 split,
                 source_lang,
-                numbers.as_ref(),
+                options,
             ));
         }
         Ok(LoadedBlocks {
