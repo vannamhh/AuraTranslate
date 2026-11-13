@@ -9,6 +9,7 @@ import {
   closeSourcesMenu,
   dictSources,
   enabledSourceCount,
+  placeDictSource,
   sourceIsDisabled,
   sourcesMenuIsOpen,
 } from './dictSourcesState'
@@ -19,6 +20,15 @@ const trigger = useTemplateRef<HTMLButtonElement>('trigger')
 
 // A long source list must not outgrow the panel: past its bottom edge it sits under the next dock group.
 const listMaxHeight = ref<string | undefined>(undefined)
+const listMaxWidth = ref<string | undefined>(undefined)
+
+const EDGE_SCROLL_ZONE_PX = 24
+const EDGE_SCROLL_STEP_PX = 12
+
+const dragOrder = ref<string[] | null>(null)
+const draggedCode = ref<string | null>(null)
+let drag: { code: string; pointerId: number; clientY: number } | null = null
+let scrollFrame = 0
 
 watch(
   sourcesMenuIsOpen,
@@ -36,15 +46,102 @@ watch(sourcesMenuIsOpen, async (open) => {
   if (!list || !body) return
   const room = body.getBoundingClientRect().bottom - list.getBoundingClientRect().top
   listMaxHeight.value = room > 0 ? `${Math.floor(room)}px` : undefined
+  const span = list.getBoundingClientRect().right - body.getBoundingClientRect().left
+  listMaxWidth.value = span > 0 ? `${Math.floor(span)}px` : undefined
 })
 
-const rows = computed(() =>
-  dictSources.value.map((src) => {
+watch(sourcesMenuIsOpen, (open) => {
+  if (!open) cancelDrag()
+})
+
+const rows = computed(() => {
+  const order = dragOrder.value
+  const sources = dictSources.value
+  const shown = order === null ? sources : order.flatMap((code) => sources.find((src) => src.code === code) ?? [])
+  return shown.map((src) => {
     const off = sourceIsDisabled(src.code)
     return { code: src.code, name: src.display_name, off, count: sourceEntryCount(groupedLookup.value, src, off) }
-  }),
-)
-const lastRow = computed(() => rows.value.length - 1)
+  })
+})
+
+function endDrag(list: HTMLElement | null): void {
+  const ended = drag
+  drag = null
+  draggedCode.value = null
+  cancelAnimationFrame(scrollFrame)
+  scrollFrame = 0
+  if (ended !== null && list?.hasPointerCapture(ended.pointerId)) list.releasePointerCapture(ended.pointerId)
+}
+
+function cancelDrag(): void {
+  endDrag(root.value?.querySelector<HTMLElement>('.sources-list') ?? null)
+  dragOrder.value = null
+}
+
+function onGripPointerDown(event: PointerEvent, code: string) {
+  if (event.button !== 0 || drag !== null) return
+  const list = root.value?.querySelector<HTMLElement>('.sources-list')
+  if (!list) return
+  event.preventDefault()
+  drag = { code, pointerId: event.pointerId, clientY: event.clientY }
+  draggedCode.value = code
+  list.setPointerCapture(event.pointerId)
+  dragOrder.value = dictSources.value.map((src) => src.code)
+}
+
+function edgeDirection(list: HTMLElement, clientY: number): -1 | 0 | 1 {
+  const bounds = list.getBoundingClientRect()
+  if (clientY < bounds.top + EDGE_SCROLL_ZONE_PX) return -1
+  if (clientY > bounds.bottom - EDGE_SCROLL_ZONE_PX) return 1
+  return 0
+}
+
+function retarget(list: HTMLElement, active: { code: string; clientY: number }) {
+  const order = dragOrder.value
+  if (order === null) return
+  let target = 0
+  for (const li of Array.from(list.querySelectorAll<HTMLElement>('.sources-row'))) {
+    if (li.dataset.sourceRow === active.code) continue
+    const rect = li.getBoundingClientRect()
+    if (rect.top + rect.height / 2 < active.clientY) target++
+  }
+  const next = order.filter((code) => code !== active.code)
+  next.splice(target, 0, active.code)
+  if (next.some((code, i) => code !== order[i])) dragOrder.value = next
+}
+
+function scrollTick(list: HTMLElement) {
+  scrollFrame = 0
+  const active = drag
+  if (active === null) return
+  const direction = edgeDirection(list, active.clientY)
+  if (direction === 0) return
+  list.scrollTop += direction * EDGE_SCROLL_STEP_PX
+  retarget(list, active)
+  scrollFrame = requestAnimationFrame(() => scrollTick(list))
+}
+
+function onListPointerMove(event: PointerEvent) {
+  const active = drag
+  const list = event.currentTarget
+  if (active === null || dragOrder.value === null || event.pointerId !== active.pointerId || !(list instanceof HTMLElement)) return
+  active.clientY = event.clientY
+  retarget(list, active)
+  if (scrollFrame === 0 && edgeDirection(list, event.clientY) !== 0) scrollFrame = requestAnimationFrame(() => scrollTick(list))
+}
+
+function onListPointerUp(event: PointerEvent) {
+  const active = drag
+  const order = dragOrder.value
+  if (active === null || event.pointerId !== active.pointerId) return
+  endDrag(event.currentTarget instanceof HTMLElement ? event.currentTarget : null)
+  dragOrder.value = null
+  if (order !== null) placeDictSource(active.code, order.indexOf(active.code))
+}
+
+function onListPointerCancel(event: PointerEvent) {
+  if (drag !== null && event.pointerId === drag.pointerId) cancelDrag()
+}
 
 function menuItems(): HTMLElement[] {
   return Array.from(root.value?.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]') ?? [])
@@ -60,6 +157,7 @@ function onKeydown(event: KeyboardEvent) {
   if (!sourcesMenuIsOpen.value) return
   if (event.key === 'Escape') {
     event.preventDefault()
+    cancelDrag()
     closeSourcesMenu()
     trigger.value?.focus()
     return
@@ -94,6 +192,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', onDocumentMouseDown, true)
+  cancelDrag()
   root.value?.removeEventListener('focusout', onFocusOut)
 })
 </script>
@@ -119,12 +218,17 @@ onBeforeUnmount(() => {
     <ul
       v-if="sourcesMenuIsOpen"
       class="sources-list ui-menu"
+      :class="{ 'is-dragging': draggedCode !== null }"
       role="menu"
       :aria-label="t('panel.lookup.sources_menu')"
-      :style="{ maxHeight: listMaxHeight }"
+      :style="{ maxHeight: listMaxHeight, maxWidth: listMaxWidth }"
       @mousedown="aimDictSourceFrom($event)"
+      @pointermove="onListPointerMove($event)"
+      @pointerup="onListPointerUp($event)"
+      @pointercancel="onListPointerCancel($event)"
+      @lostpointercapture="onListPointerCancel($event)"
     >
-      <li v-for="(row, index) in rows" :key="row.code" role="none" class="sources-row">
+      <li v-for="row in rows" :key="row.code" role="none" class="sources-row" :class="{ dragged: row.code === draggedCode }" :data-source-row="row.code">
         <button
           type="button"
           role="menuitemcheckbox"
@@ -137,33 +241,20 @@ onBeforeUnmount(() => {
         >
           <span class="sources-switch ui-switch__track" aria-hidden="true"></span>
           <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name` của chính tệp, FR31). -->
-          <span class="sources-name">{{ row.name }}</span>
+          <span class="sources-name" :title="row.name">{{ row.name }}</span>
           <span v-if="row.off" class="sources-count">{{ t('panel.lookup.source_off') }}</span>
           <!-- aura-allow-text: số mục của chữ đang tra — DỮ LIỆU dẫn xuất. -->
           <span v-else-if="row.count !== null" class="sources-count">{{ row.count }}</span>
         </button>
-        <button
-          type="button"
+        <span
+          class="sources-grip"
+          aria-hidden="true"
           tabindex="-1"
-          class="ui-icon-btn"
-          :data-source-code="row.code"
-          :disabled="index === 0"
-          :aria-label="t('panel.lookup.source_move_up')"
-          @click="dispatch('lookup.move_source_up')"
+          :title="t('panel.lookup.source_drag')"
+          @pointerdown="onGripPointerDown($event, row.code)"
         >
-          ↑
-        </button>
-        <button
-          type="button"
-          tabindex="-1"
-          class="ui-icon-btn"
-          :data-source-code="row.code"
-          :disabled="index === lastRow"
-          :aria-label="t('panel.lookup.source_move_down')"
-          @click="dispatch('lookup.move_source_down')"
-        >
-          ↓
-        </button>
+          <AppIcon name="grip" />
+        </span>
       </li>
     </ul>
   </div>
@@ -187,7 +278,15 @@ onBeforeUnmount(() => {
 
 .sources-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+}
+
+.sources-row.dragged {
+  background: var(--color-outline);
+}
+
+.sources-list.is-dragging .sources-grip {
+  cursor: grabbing;
 }
 
 .sources-row .sources-item {
@@ -203,6 +302,20 @@ onBeforeUnmount(() => {
 .sources-name {
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sources-grip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: calc(var(--space-unit) * 7);
+  color: var(--color-on-surface-variant);
+  cursor: grab;
+  touch-action: none;
 }
 
 .sources-count {

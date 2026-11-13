@@ -6,6 +6,7 @@ export type AppIconName =
   | 'chevron-up'
   | 'chevron-left'
   | 'chevron-right'
+  | 'grip'
   | 'info'
   | 'layout-left'
   | 'layout-top'
@@ -44,6 +45,14 @@ defineProps<{ name: AppIconName }>()
       stroke-linecap="round"
       stroke-linejoin="round"
     />
+    <g v-else-if="name === 'grip'" fill="currentColor">
+      <circle cx="5.75" cy="3.5" r="1.1" />
+      <circle cx="10.25" cy="3.5" r="1.1" />
+      <circle cx="5.75" cy="8" r="1.1" />
+      <circle cx="10.25" cy="8" r="1.1" />
+      <circle cx="5.75" cy="12.5" r="1.1" />
+      <circle cx="10.25" cy="12.5" r="1.1" />
+    </g>
     <template v-else-if="name === 'pin-on'">
       <path d="M6.6 1.75h2.8l.5 4.1 2.35 2.4v1.15h-8.5V8.25L6.1 5.85z" fill="currentColor" />
       <path d="M8 9.4v4.85" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />

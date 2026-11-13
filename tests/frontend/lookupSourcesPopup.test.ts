@@ -87,6 +87,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   panel?.unmount()
   panel = null
   resetDictSources()
@@ -194,36 +195,186 @@ describe('Nguồn N/M popup', () => {
   })
 })
 
-describe('source order buttons', () => {
+describe('source order dragging', () => {
   const codes = (w: VueWrapper) => rows(w).map((r) => r.attributes('data-source-code'))
-  const up = (w: VueWrapper, i: number) => w.findAll('.sources-row')[i]!.findAll('button')[1]!
-  const down = (w: VueWrapper, i: number) => w.findAll('.sources-row')[i]!.findAll('button')[2]!
+  const rowEls = (w: VueWrapper) => w.findAll('.sources-row')
+  const grip = (w: VueWrapper, i: number) => rowEls(w)[i]!.get('.sources-grip')
+  const ROW_H = 28
+  const list = (w: VueWrapper) => w.get('.sources-list').element
 
-  it('the up button of the first row and the down button of the last row are disabled', async () => {
+  // happy-dom lays nothing out: every row is a 28px slab stacked in its current DOM order.
+  function stubLayout(w: VueWrapper) {
+    const rect = (top: number, height: number) =>
+      ({ top, bottom: top + height, height, left: 0, right: 300, width: 300 }) as DOMRect
+    vi.spyOn(list(w), 'getBoundingClientRect').mockImplementation(() => rect(0, ROW_H * rowEls(w).length))
+    for (const li of rowEls(w)) {
+      vi.spyOn(li.element, 'getBoundingClientRect').mockImplementation(() =>
+        rect(rowEls(w).findIndex((r) => r.element === li.element) * ROW_H, ROW_H),
+      )
+    }
+  }
+
+  function patchCapture(w: VueWrapper) {
+    const el = list(w) as HTMLElement
+    const held = new Set<number>()
+    el.setPointerCapture = (id: number) => void held.add(id)
+    el.releasePointerCapture = (id: number) => void held.delete(id)
+    el.hasPointerCapture = (id: number) => held.has(id)
+    return held
+  }
+
+  const ptr = (type: string, y: number) => new PointerEvent(type, { pointerId: 1, button: 0, clientY: y, bubbles: true })
+
+  async function startDrag(w: VueWrapper, from: number) {
+    await trigger(w).trigger('click')
+    await flushPromises()
+    stubLayout(w)
+    const held = patchCapture(w)
+    grip(w, from).element.dispatchEvent(ptr('pointerdown', from * ROW_H + 14))
+    await flushPromises()
+    return held
+  }
+
+  it('has no up/down buttons and the grip is hidden from assistive tech', async () => {
     const w = await openPanel()
     await trigger(w).trigger('click')
-    expect(up(w, 0).attributes('disabled')).toBeDefined()
-    expect(down(w, 0).attributes('disabled')).toBeUndefined()
-    expect(up(w, 2).attributes('disabled')).toBeUndefined()
-    expect(down(w, 2).attributes('disabled')).toBeDefined()
-    expect(up(w, 0).attributes('aria-label')).toBe('Đưa nguồn lên trên')
+    expect(rowEls(w)[0]!.findAll('button')).toHaveLength(1)
+    expect(grip(w, 0).attributes('aria-hidden')).toBe('true')
   })
 
-  it('down on the first row swaps it with the second, stores the full order, re-runs the lookup and keeps the menu open', async () => {
+  it('dragging the last row to the top previews the order, then writes the full order once and re-runs the lookup', async () => {
     const w = await openPanel()
     await runLookup('打')
     await flushPromises()
     h.lookups = []
-    await trigger(w).trigger('click')
+    await startDrag(w, 2)
 
-    await down(w, 0).trigger('mousedown')
-    await down(w, 0).trigger('click')
+    list(w).dispatchEvent(ptr('pointermove', 2))
     await flushPromises()
+    expect(codes(w)).toEqual(['vietphrase', 'cvdict', 'cc-cedict'])
+    expect(h.puts).toHaveLength(0)
 
-    expect(codes(w)).toEqual(['cc-cedict', 'cvdict', 'vietphrase'])
-    expect(h.puts).toEqual([{ kind: 'app_config', key: 'dict_sources_order', value: 'cc-cedict,cvdict,vietphrase' }])
+    list(w).dispatchEvent(ptr('pointerup', 2))
+    await flushPromises()
+    expect(codes(w)).toEqual(['vietphrase', 'cvdict', 'cc-cedict'])
+    expect(h.puts).toEqual([{ kind: 'app_config', key: 'dict_sources_order', value: 'vietphrase,cvdict,cc-cedict' }])
     expect(h.lookups).toEqual(['打'])
     expect(sourcesMenuIsOpen.value).toBe(true)
+  })
+
+  it('dropping back at the original position writes nothing', async () => {
+    const w = await openPanel()
+    await startDrag(w, 0)
+    list(w).dispatchEvent(ptr('pointermove', 3 * ROW_H))
+    await flushPromises()
+    expect(codes(w)[2]).toBe('cvdict')
+    list(w).dispatchEvent(ptr('pointermove', 5))
+    await flushPromises()
+    list(w).dispatchEvent(ptr('pointerup', 5))
+    await flushPromises()
+    expect(h.puts).toHaveLength(0)
+    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
+  })
+
+  it('Escape while dragging closes the menu, restores the order and writes nothing', async () => {
+    const w = await openPanel()
+    const held = await startDrag(w, 2)
+    list(w).dispatchEvent(ptr('pointermove', 2))
+    await flushPromises()
+    expect(codes(w)[0]).toBe('vietphrase')
+
+    await w.get('.sources-menu').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(sourcesMenuIsOpen.value).toBe(false)
+    expect(held.size).toBe(0)
+    expect(h.puts).toHaveLength(0)
+    await trigger(w).trigger('click')
+    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
+  })
+
+  it('losing pointer capture mid-drag cancels without a write', async () => {
+    const w = await openPanel()
+    await startDrag(w, 2)
+    list(w).dispatchEvent(ptr('pointermove', 2))
+    await flushPromises()
+    list(w).dispatchEvent(ptr('lostpointercapture', 2))
+    await flushPromises()
+    list(w).dispatchEvent(ptr('pointerup', 2))
+    await flushPromises()
+    expect(h.puts).toHaveLength(0)
+    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
+  })
+
+  it('holding the pointer in the bottom edge zone keeps scrolling the list and marks the dragged row', async () => {
+    const w = await openPanel()
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => frames.push(cb))
+    await startDrag(w, 0)
+    expect(rowEls(w)[0]!.classes()).toContain('dragged')
+    expect(list(w).classList.contains('is-dragging')).toBe(true)
+
+    const edgeY = ROW_H * 3 - 2
+    list(w).dispatchEvent(ptr('pointermove', edgeY))
+    expect(frames).toHaveLength(1)
+    const before = list(w).scrollTop
+    frames.shift()!(0)
+    expect(list(w).scrollTop).toBeGreaterThan(before)
+    expect(frames).toHaveLength(1)
+    await flushPromises()
+    expect(codes(w)[2]).toBe('cvdict')
+
+    list(w).dispatchEvent(ptr('pointerup', edgeY))
+    await flushPromises()
+    expect(rowEls(w).some((r) => r.classes().includes('dragged'))).toBe(false)
+  })
+
+  it('pressing and releasing the grip toggles nothing and writes nothing', async () => {
+    const w = await openPanel()
+    await startDrag(w, 1)
+    list(w).dispatchEvent(ptr('pointerup', 1 * ROW_H + 14))
+    await flushPromises()
+    expect(h.puts).toHaveLength(0)
+    expect(rows(w).every((r) => !r.classes().includes('off'))).toBe(true)
+  })
+
+  it('a click on the switch or name still toggles the source without writing the order', async () => {
+    const w = await openPanel()
+    await trigger(w).trigger('click')
+    await w.get('.sources-menu').trigger('keydown', { key: 'ArrowDown' })
+    await w.get('.sources-menu').trigger('keydown', { key: 'ArrowDown' })
+    await rows(w)[1]!.trigger('click')
+    await flushPromises()
+    expect(rows(w)[1]!.classes()).toContain('off')
+    expect(h.puts.every((p) => (p as { key: string }).key !== 'dict_sources_order')).toBe(true)
+  })
+
+  it('a failed write after a drop puts the rows back in their previous order', async () => {
+    const w = await openPanel()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    h.putFails = true
+    await startDrag(w, 2)
+    list(w).dispatchEvent(ptr('pointermove', 2))
+    list(w).dispatchEvent(ptr('pointerup', 2))
+    await flushPromises()
+    expect(h.puts).toEqual([{ kind: 'app_config', key: 'dict_sources_order', value: 'vietphrase,cvdict,cc-cedict' }])
+    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
+    warn.mockRestore()
+  })
+
+  it('bounds the list width by the distance from the panel body left edge to the list right edge, and titles each name', async () => {
+    const w = await openPanel()
+    const body = w.element.querySelector('.lookup-body')!
+    vi.spyOn(body, 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 500, left: 20, right: 900 } as DOMRect)
+    const proto = HTMLElement.prototype
+    const real = proto.getBoundingClientRect
+    vi.spyOn(proto, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('sources-list')) return { top: 0, bottom: 10, left: 0, right: 320 } as DOMRect
+      return real.call(this)
+    })
+    await trigger(w).trigger('click')
+    await flushPromises()
+    expect((list(w) as HTMLElement).style.maxWidth).toBe('300px')
+    expect(w.get('.sources-name').attributes('title')).toBe(SOURCES[0]!.display_name)
   })
 
   it('the Alt+Shift+Arrow handler moves the focused row and focus stays on that row', async () => {
@@ -263,18 +414,6 @@ describe('source order buttons', () => {
     await flushPromises()
     expect(h.puts).toHaveLength(0)
     expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
-  })
-
-  it('a failed config write puts the rows back in their previous order', async () => {
-    const w = await openPanel()
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    h.putFails = true
-    await trigger(w).trigger('click')
-    await down(w, 0).trigger('mousedown')
-    await down(w, 0).trigger('click')
-    await flushPromises()
-    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
-    warn.mockRestore()
   })
 })
 

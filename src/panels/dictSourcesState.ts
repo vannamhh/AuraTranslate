@@ -376,16 +376,22 @@ export function toggleFocusedDictSource(): void {
 
 let moveSequence = 0
 
-/** Swaps the row at once, stores the full order, then reloads list and lookup so Rust's sort shows.
- * A failed write restores the previous order, but only for the latest press. */
 export function moveDictSource(code: string, step: 1 | -1): void {
+  const from = sources.value.findIndex((s) => s.code === code)
+  if (from === -1) return
+  placeDictSource(code, from + step)
+}
+
+/** Moves the row to `toIndex` at once, stores the full order, then reloads list and lookup so Rust's sort shows.
+ * An unchanged position writes nothing. A failed write restores the previous order, but only for the latest call. */
+export function placeDictSource(code: string, toIndex: number): void {
   const previous = sources.value
   const from = previous.findIndex((s) => s.code === code)
-  const to = from + step
-  if (from === -1 || to < 0 || to >= previous.length) return
+  if (from === -1 || toIndex < 0 || toIndex >= previous.length || toIndex === from) return
 
   const next = [...previous]
-  ;[next[from], next[to]] = [previous[to], previous[from]]
+  const [moved] = next.splice(from, 1)
+  next.splice(toIndex, 0, moved!)
   sources.value = next
   void refocusSourceRow(code)
 

@@ -3296,6 +3296,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     target.register({
       id,
       labelKey: `command.${id}`,
+      pointer: { kind: 'gesture', reason: 'Thay cho kéo thả hàng nguồn bằng tay kéo.' },
       keys: [chord],
       run: () => {
         const handler = deps[port]

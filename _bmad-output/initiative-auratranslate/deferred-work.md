@@ -14151,3 +14151,8 @@ chính nó.
   Quan trọng vì nhập lại bản rà soát `.docx` hai cột sẽ báo câu có `"`/`&` là "đã sửa" với chữ mất dấu, và chấp nhận thì ghi chữ thiếu dấu vào `target_text`; nhập Tác phẩm `.docx` cũng mất các ký tự đó. Chủ: Ice. Trỏ: `plan-xuat-ngoac-kep-cong.md` Implementation Notes.
 - Chưa mở bằng Word/Pages một tệp `.docx` một khối và một `.txt` xuất với ô "ngoặc kép cong" bật để xem `“ ”` đúng chiều, cột nguồn và tiêu đề không đổi. Test chỉ đọc lại XML/tệp.
   Quan trọng vì đây là bản xuất bản gửi người đọc. Chủ: Ice. Trỏ: `plan-xuat-ngoac-kep-cong.md`.
+
+## Deferred from: kéo thả sắp xếp nguồn (2026-11-13)
+
+- Kéo thả trong menu Nguồn mới được kiểm trong happy-dom (rect, pointer capture và `requestAnimationFrame` đều giả). Cần thử bằng chuột thật trên WKWebView: kéo bằng tay kéo ⋮⋮ có mượt không, có lỡ bật/tắt nguồn không, giữ chuột ở mép thì danh sách có tự cuộn không, panel hẹp như ảnh Ice gửi thì công tắc và đầu tên có còn bị cắt không.
+  Quan trọng vì happy-dom không dàn trang, nên việc sửa bề rộng chỉ mới được kiểm qua giá trị style. Chủ: Ice. Trỏ: `plan-keo-tha-sap-xep-nguon.md`.
