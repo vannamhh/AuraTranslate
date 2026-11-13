@@ -283,7 +283,7 @@ describe('keyboard', () => {
     )
     expect(interactive.length).toBeGreaterThan(5)
     expect(allowed.length).toBe(interactive.length)
-    expect(wrapper.findAll('input[type="checkbox"]').length).toBe(7)
+    expect(wrapper.findAll('input[type="checkbox"]').length).toBe(8)
 
     await wrapper.findAll('input[type="checkbox"]')[1].trigger('change')
     expect(lastScope()).toEqual({ kind: 'chapters', chapter_ids: [11] })
