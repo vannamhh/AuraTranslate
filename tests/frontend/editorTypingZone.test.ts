@@ -44,9 +44,12 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
 /** `PanelFrame` kéo theo hợp đồng focus của Story 1.6 — vai của nó không thuộc story này. */
 const STUBS = { PanelFrame: { template: '<div class="panel-frame"><slot /></div>' } }
 
+let lastState: { resetEditorPanel(): void } | null = null
+
 async function mountEditor() {
   vi.resetModules()
   const state = await import('../../src/panels/editorPanelState')
+  lastState = state
   const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
 
   const wrapper = mount(GridPanel, {
@@ -116,6 +119,9 @@ function putCaretIn(id: number, offset: number): void {
 
 beforeEach(() => {
   // A case that installs fake timers must not leak them into the next one, failure included.
+  // An earlier case's idle flush timer lives on its own module instance and can fire into this case's recorder.
+  lastState?.resetEditorPanel()
+  lastState = null
   vi.useRealTimers()
   resetRecorder()
   document.body.innerHTML = ''

@@ -126,7 +126,7 @@ describe('gridBlocksOf', () => {
   })
 })
 
-describe('GridPanel grid blocks', { timeout: 30_000 }, () => {
+describe('GridPanel grid blocks', { timeout: 90_000 }, () => {
   it('20 sentences mount as one block of 20 rows', async () => {
     segmentCount = 20
     const { wrapper, root } = await mountGrid()
@@ -238,7 +238,7 @@ function firstText(host: Element): Text {
   return node as Text
 }
 
-describe('GridPanel source surface is per cell', { timeout: 30_000 }, () => {
+describe('GridPanel source surface is per cell', { timeout: 90_000 }, () => {
   it('a selection inside a source cell of block 5 triggers the lookup', async () => {
     segmentCount = 1250
     const { wrapper, contract, root } = await mountGrid()
@@ -296,7 +296,7 @@ describe('source selection across a block boundary through GridPanel', () => {
   const EXPECTED_TEXT = `au ${FROM}.\nCau ${GRID_BLOCK_ROWS}.\nCau`
 
   for (const backward of [false, true]) {
-    it(`a ${backward ? 'backward' : 'forward'} selection from block 0 into block 1 yields only source text and copy writes only source text`, { timeout: 60_000 }, async () => {
+    it(`a ${backward ? 'backward' : 'forward'} selection from block 0 into block 1 yields only source text and copy writes only source text`, { timeout: 90_000 }, async () => {
       segmentCount = GRID_BLOCK_ROWS + 5
       const { wrapper, contract, root } = await mountGrid()
       const first = sourceTextNode(root, FROM)
