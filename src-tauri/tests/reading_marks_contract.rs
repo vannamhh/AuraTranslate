@@ -7,8 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::segment::{
-    clear_reading_marks, list_reading_marks, mark_reading_segment, read_open_chapter_segments,
-    read_reading_run, unmark_reading_segment,
+    ReadingBlock, clear_reading_marks, list_reading_marks, mark_reading_segment,
+    read_open_chapter_segments, read_reading_run, unmark_reading_segment,
 };
 use auratranslate_lib::core::store::Transaction;
 
@@ -33,6 +33,14 @@ fn work(sentences: usize) -> (OpenWork, Vec<i64>) {
     let mut open =
         create_work_from_text(&temp_dir(), "Marks", "en", "", text).expect("create work");
     let chapter_id = open.chapter_id;
+    open.store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = 'T' || id WHERE trim(target_text) = ''",
+                [],
+            )
+        })
+        .expect("translate");
     set_chapter_status(Some(&mut open), chapter_id, "done").expect("chapter done");
     let ids = read_open_chapter_segments(Some(&open))
         .expect("load")
@@ -53,9 +61,14 @@ fn marked_ids(open: &OpenWork) -> Vec<i64> {
 
 fn marked_flags(open: &OpenWork) -> Vec<bool> {
     read_reading_run(Some(open)).expect("run").chapters[0]
-        .paragraphs
+        .blocks
         .iter()
-        .flat_map(|p| p.segments.iter().map(|s| s.is_marked))
+        .flat_map(|block| match block {
+            ReadingBlock::Paragraph { segments } => {
+                segments.iter().map(|s| s.is_marked).collect::<Vec<_>>()
+            }
+            ReadingBlock::Untranslated { .. } => Vec::new(),
+        })
         .collect()
 }
 

@@ -14156,3 +14156,8 @@ chính nó.
 
 - Kéo thả trong menu Nguồn mới được kiểm trong happy-dom (rect, pointer capture và `requestAnimationFrame` đều giả). Cần thử bằng chuột thật trên WKWebView: kéo bằng tay kéo ⋮⋮ có mượt không, có lỡ bật/tắt nguồn không, giữ chuột ở mép thì danh sách có tự cuộn không, panel hẹp như ảnh Ice gửi thì công tắc và đầu tên có còn bị cắt không.
   Quan trọng vì happy-dom không dàn trang, nên việc sửa bề rộng chỉ mới được kiểm qua giá trị style. Chủ: Ice. Trỏ: `plan-keo-tha-sap-xep-nguon.md`.
+
+## Deferred from: Chế độ đọc đọc cả Chương đang dịch (2026-11-13)
+
+- Chưa ai đọc một Chương Đang dịch trong app thật. Ice: mở Tác phẩm "test", vào Chế độ đọc, thấy bản dịch của Chương 1 cùng dòng mờ "… N câu chưa dịch", bấm dòng mờ để vào Workspace đúng câu, bật Song ngữ thì không thấy chữ Trung của câu chưa dịch; nút "Đọc" ở trang Tác phẩm có mặt cho Chương Đang dịch.
+  Quan trọng vì e2e 5-12 chưa chạy xanh trên tệp thật (Vite của `tauri dev` mang tem HMR cũ). Chủ: Epic 5. Trỏ: `story-che-o-oc-oc-ca-chuong-ang-dich-va-tam-ngung-plan.md` §Implementation Notes.

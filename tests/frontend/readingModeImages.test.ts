@@ -26,8 +26,9 @@ const RUN = {
       chapter_id: 1,
       chapter_ord: 1,
       chapter_title: 'Chuong Mot',
-      paragraphs: [
+      blocks: [
         {
+          kind: 'paragraph',
           segments: [
             { id: 1, source_text: 'Mot.', target_text: 'Cau mot.', is_confirmed: true, is_marked: false },
             { id: 2, source_text: 'Hai.', target_text: 'Cau hai.', is_confirmed: true, is_marked: false },

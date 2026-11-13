@@ -1,3 +1,4 @@
+import { paragraphSegments } from './support/readingBlocks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
@@ -34,7 +35,7 @@ function runOf(originCounts: ReturnType<typeof counts>) {
         chapter_id: 1,
         chapter_ord: 1,
         chapter_title: 'Một',
-        paragraphs: [{ segments: [{ id: 11, source_text: 'a', target_text: 'b', is_confirmed: true, is_marked: true }] }],
+        blocks: [{ kind: 'paragraph', segments: [{ id: 11, source_text: 'a', target_text: 'b', is_confirmed: true, is_marked: true }] }],
         segment_count: 1,
         translation_origin_counts: originCounts,
         images: [],
@@ -86,7 +87,7 @@ describe('unmark one', () => {
     await state.ensureReadingLoaded()
     await state.openReadingMarks()
     expect(state.readingMarksTotal.value).toBe(3)
-    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.is_marked).toBe(true)
+    expect(paragraphSegments(state.readingRun.value?.chapters[0]?.blocks[0])[0]?.is_marked).toBe(true)
 
     state.setReadingMarksCursor(0)
     await state.unmarkCurrentReadingMark()
@@ -94,7 +95,7 @@ describe('unmark one', () => {
     expect(callsOf('unmark_reading_segment')).toEqual([['unmark_reading_segment', { segmentId: 11 }]])
     expect(state.readingMarks.value.map((m) => m.segment_id)).toEqual([12, 13])
     expect(state.readingMarksTotal.value).toBe(2)
-    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.is_marked).toBe(false)
+    expect(paragraphSegments(state.readingRun.value?.chapters[0]?.blocks[0])[0]?.is_marked).toBe(false)
   })
 
   it('keeps the row and the error when Rust refuses', async () => {
@@ -158,7 +159,7 @@ describe('"Bỏ hết đánh dấu" asks once', () => {
     expect(callsOf('clear_reading_marks')).toHaveLength(1)
     expect(state.readingMarks.value).toHaveLength(0)
     expect(state.readingMarksTotal.value).toBe(0)
-    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.is_marked).toBe(false)
+    expect(paragraphSegments(state.readingRun.value?.chapters[0]?.blocks[0])[0]?.is_marked).toBe(false)
   })
 
   it('a store failure keeps the marks', async () => {

@@ -15,7 +15,7 @@ function chapter(chapterId: number, segmentId: number) {
     chapter_id: chapterId,
     chapter_ord: chapterId,
     chapter_title: `Chuong ${String(chapterId)}`,
-    paragraphs: [{ segments: [{ id: segmentId, source_text: 'x', target_text: 'y', is_confirmed: true, is_marked: false }] }],
+    blocks: [{ kind: 'paragraph', segments: [{ id: segmentId, source_text: 'x', target_text: 'y', is_confirmed: true, is_marked: false }] }],
     segment_count: 1,
     translation_origin_counts: { self_count: 1, other_count: 0, bilingual_import_count: 0 },
     images: [],

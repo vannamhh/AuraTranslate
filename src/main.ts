@@ -446,6 +446,7 @@ import {
   nextReadingMark,
   nextTocChapter,
   openAimedReadingSegment,
+  openUntranslatedReadingBlock,
   openCurrentReadingMark,
   unmarkCurrentReadingMark,
   clearAllReadingMarks,
@@ -790,6 +791,9 @@ async function boot(): Promise<void> {
       },
       openAimedReadingSegment: () => {
         void openAimedReadingSegment()
+      },
+      openUntranslatedReadingBlock: () => {
+        void openUntranslatedReadingBlock()
       },
       openReadingMarks: () => {
         void openReadingMarks()

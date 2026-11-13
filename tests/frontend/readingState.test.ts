@@ -18,6 +18,7 @@
  * (`chapterHasSegments`, nhánh `'empty-unknown'`, đọc thẳng `readingChapter`) đã SỬA theo —
  * xem `deferred-work.md`/Code Map của story cho lý lẽ đầy đủ.
  */
+import { paragraphSegments } from './support/readingBlocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { IDLE_MS } from '../../src/layout/writeSchedule'
@@ -57,7 +58,8 @@ function chapterFixture(
     chapter_id: 1,
     chapter_ord: 1,
     chapter_title: 'Chuong Mot',
-    paragraphs: paragraphs.map((segments) => ({
+    blocks: paragraphs.map((segments) => ({
+      kind: 'paragraph' as const,
       segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
@@ -72,15 +74,15 @@ function endOfWorkFrontier() {
   return { kind: 'end-of-work' as const, chapter: null }
 }
 
-function nextNotDoneFrontier(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; status: string }> = {}) {
+function nextUnreadableFrontier(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; status: string }> = {}) {
   return {
-    kind: 'next-not-done' as const,
-    chapter: { chapter_id: 2, chapter_ord: 2, chapter_title: 'Chuong Hai', status: 'in_progress', ...overrides },
+    kind: 'next-unreadable' as const,
+    chapter: { chapter_id: 2, chapter_ord: 2, chapter_title: 'Chuong Hai', status: 'not_started', ...overrides },
   }
 }
 
 /** 🔵 THÊM Story 6.14 — `assets_dir: ''` mặc định, cùng lý do `images: []` của [`chapterFixture`]. */
-function runFixture(chapters: ReturnType<typeof chapterFixture>[], frontier: ReturnType<typeof endOfWorkFrontier | typeof nextNotDoneFrontier> = endOfWorkFrontier()) {
+function runFixture(chapters: ReturnType<typeof chapterFixture>[], frontier: ReturnType<typeof endOfWorkFrontier | typeof nextUnreadableFrontier> = endOfWorkFrontier()) {
   return { chapters, frontier, assets_dir: '' }
 }
 
@@ -123,7 +125,7 @@ describe('config/reading.ts::readReadingRun', () => {
     const result = await readReadingRun()
     expect(result.error).toBeNull()
     expect(result.run?.chapters[0]?.chapter_id).toBe(1)
-    expect(result.run?.chapters[0]?.paragraphs).toHaveLength(1)
+    expect(result.run?.chapters[0]?.blocks).toHaveLength(1)
   })
 
   it('Rust trả lời bằng một lỗi ⇒ { run: null, error }', async () => {
@@ -285,7 +287,7 @@ describe('modes/ReadingMode.vue — role="status" phân biệt được các ca'
   })
 
   it('dãy đọc RỖNG (Chương đang mở chưa `done`) ⇒ "frontier-only"', async () => {
-    mockInvoke.mockResolvedValueOnce(runFixture([], nextNotDoneFrontier({ chapter_id: 1, chapter_ord: 1 })))
+    mockInvoke.mockResolvedValueOnce(runFixture([], nextUnreadableFrontier({ chapter_id: 1, chapter_ord: 1 })))
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const state = await import('../../src/modes/readingState')
     wrapper = mount(ReadingMode)
@@ -503,7 +505,7 @@ describe('modes/readingState — mở một Chương từ mục lục (nhánh TH
 
     // ① Nội dung được nạp LẠI — một vòng `read_reading_run` thứ hai đã đi.
     expect(readCount).toBe(2)
-    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.id).toBe(9)
+    expect(paragraphSegments(state.readingRun.value?.chapters[0]?.blocks[0])[0]?.id).toBe(9)
     // ② Lớp phủ đóng lại.
     expect(state.readingTocOpen.value).toBe(false)
   })
@@ -543,8 +545,22 @@ describe('modes/libraryChapters — openCurrentChapterInReading (library.open_ch
     expect(chapters.libraryWorkPageWork.value).toBeNull()
   })
 
-  it('Chương chưa xong hoặc trạng thái lạ ⇒ không phát IPC, không đổi Chế độ', async () => {
-    const { chapters, modeState } = await prepare(['in_progress', 'archived'])
+  it('Chương Đang dịch và Tạm ngưng cũng mở được vào Chế độ đọc', async () => {
+    const { chapters, modeState } = await prepare(['in_progress', 'paused'])
+    for (const id of [1, 2]) {
+      modeState.setMode('library')
+      chapters.selectLibraryChapter(id, { toggle: false, range: false })
+      mockInvoke.mockClear()
+      await chapters.openCurrentChapterInReading()
+      const opened = mockInvoke.mock.calls.filter((c) => c[0] === 'open_chapter')
+      expect(opened).toHaveLength(1)
+      expect(opened[0]?.[1]).toMatchObject({ chapterId: id })
+      expect(modeState.currentMode.value).toBe('reading')
+    }
+  })
+
+  it('Chương chưa bắt đầu hoặc trạng thái lạ ⇒ không phát IPC, không đổi Chế độ', async () => {
+    const { chapters, modeState } = await prepare(['not_started', 'archived'])
     for (const id of [1, 2]) {
       chapters.selectLibraryChapter(id, { toggle: false, range: false })
       mockInvoke.mockClear()

@@ -4,7 +4,7 @@ use super::*;
 ///
 /// ⚠️ **KHÔNG** `is_omitted`, `is_paragraph_end`, `status` NGUYÊN VĂN: câu đã cắt bỏ không
 /// bao giờ đi tới đây (lọc ở [`paragraphs_in_translation`]), và cấu trúc đoạn đã được RÚT
-/// GỌN thành hình dạng `ReadingParagraph` trước khi ra dây — webview không có gì để tự tính
+/// GỌN thành hình dạng `ReadingBlock` trước khi ra dây — webview không có gì để tự tính
 /// lại. `is_confirmed` là NGOẠI LỆ có chủ ý duy nhất: nó là kết quả của một phép so `status
 /// == SEGMENT_STATUS_CONFIRMED`, không phải chuỗi `status` thô — AC6 đòi trang đọc gạch chấm
 /// nhẹ câu **chưa xác nhận** trong một Chương đã `Done` (đặt `Done` bằng tay không đồng
@@ -149,11 +149,57 @@ pub fn list_reading_marks(open: Option<&OpenWork>) -> Result<Vec<ReadingMark>, I
     open.store.read(select_reading_marks).map_err(Into::into)
 }
 
-/// Một đoạn — nhóm các [`ReadingSegment`] liên tiếp thuộc CÙNG một đoạn của bản dịch,
-/// đã qua [`paragraphs_in_translation`]. Không đoạn nào rỗng (xem doc-comment hàm đó).
+/// `Untranslated` carries ids only: an untranslated sentence's source text never crosses the
+/// wire, even in bilingual view.
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct ReadingParagraph {
-    pub segments: Vec<ReadingSegment>,
+#[serde(tag = "kind")]
+pub enum ReadingBlock {
+    #[serde(rename = "paragraph")]
+    Paragraph { segments: Vec<ReadingSegment> },
+    #[serde(rename = "untranslated")]
+    Untranslated { segment_ids: Vec<i64> },
+}
+
+/// A run of untranslated sentences merges across paragraph ends into one block.
+fn reading_blocks(
+    paragraphs: Vec<Vec<&ChapterSegment>>,
+    marked_ids: &BTreeSet<i64>,
+) -> Vec<ReadingBlock> {
+    let mut blocks = Vec::new();
+    let mut run: Vec<i64> = Vec::new();
+    for paragraph in paragraphs {
+        let mut current: Vec<ReadingSegment> = Vec::new();
+        for s in paragraph {
+            if s.target_text.trim().is_empty() {
+                if !current.is_empty() {
+                    blocks.push(ReadingBlock::Paragraph {
+                        segments: std::mem::take(&mut current),
+                    });
+                }
+                run.push(s.id);
+                continue;
+            }
+            if !run.is_empty() {
+                blocks.push(ReadingBlock::Untranslated {
+                    segment_ids: std::mem::take(&mut run),
+                });
+            }
+            current.push(ReadingSegment {
+                id: s.id,
+                source_text: s.source_text.clone(),
+                target_text: s.target_text.clone(),
+                is_confirmed: s.status == SEGMENT_STATUS_CONFIRMED,
+                is_marked: marked_ids.contains(&s.id),
+            });
+        }
+        if !current.is_empty() {
+            blocks.push(ReadingBlock::Paragraph { segments: current });
+        }
+    }
+    if !run.is_empty() {
+        blocks.push(ReadingBlock::Untranslated { segment_ids: run });
+    }
+    blocks
 }
 
 /// Một Chương trong dãy đọc, đã gom đoạn — thứ [`read_reading_run`] trả ra dây, một phần tử
@@ -167,7 +213,7 @@ pub struct ReadingChapter {
     pub chapter_ord: i64,
     /// `NULL` ⇒ Chương chưa đặt tên — cùng ngữ nghĩa `ChapterRow::title` (Story 5.7).
     pub chapter_title: Option<String>,
-    pub paragraphs: Vec<ReadingParagraph>,
+    pub blocks: Vec<ReadingBlock>,
     /// **THÊM Story 5.12.** Số hàng `segment` CÒN SỐNG của Chương này, đếm TRONG CÙNG lượt
     /// đọc — KHÔNG một `COUNT(*)` thứ hai, KHÔNG một lệnh IPC phụ (`listChapters()`) như
     /// `readingState.ts` (Story 5.11) từng làm để phân biệt "Chương rỗng" với "mọi câu đã
@@ -179,8 +225,8 @@ pub struct ReadingChapter {
     /// **THÊM Story 6.14 (FR42/FR43)** — ảnh của Chương này, phân giải neo với quy tắc "đủ
     /// điều kiện làm neo" của CHẾ ĐỘ ĐỌC (`include_omitted = false, exclude_roles = true` —
     /// chỉ segment CÒN trong bản dịch VÀ không mang vai mới thật sự lên trang). `after_segment_id`
-    /// vì thế luôn khớp `id` của một [`ReadingSegment`] có mặt trong [`Self::paragraphs`]
-    /// (hoặc `None` ⇒ trước đoạn đầu tiên) — webview không cần tra cứu gì thêm để biết chèn
+    /// vì thế luôn khớp `id` của một [`ReadingSegment`] có mặt trong [`Self::blocks`]
+    /// hoặc câu nằm trong một khối `Untranslated` (hoặc `None` ⇒ trước khối đầu tiên) — webview không cần tra cứu gì thêm để biết chèn
     /// ảnh vào đâu.
     pub images: Vec<ReadingImage>,
     /// FR151: how many sentences of this Chapter carry each translation origin, counted from
@@ -248,17 +294,17 @@ impl From<crate::core::segment::image::ResolvedImage> for ReadingImage {
 /// DO thì không"*).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ReadingFrontierKind {
-    /// Chương ngay sau dãy vừa đọc **chưa** `Done` ⇒ trường `chapter` của [`ReadingFrontier`]
-    /// nêu đích danh nó.
-    #[serde(rename = "next-not-done")]
-    NextNotDone,
-    /// Mọi Chương từ Chương đang mở tới hết Tác phẩm đều `Done` — không Chương nào chặn.
+    /// Chương ngay sau dãy vừa đọc không đọc được (`NotStarted` hoặc trạng thái lạ) ⇒ trường
+    /// `chapter` của [`ReadingFrontier`] nêu đích danh nó.
+    #[serde(rename = "next-unreadable")]
+    NextUnreadable,
+    /// Mọi Chương từ Chương đang mở tới hết Tác phẩm đều đọc được — không Chương nào chặn.
     #[serde(rename = "end-of-work")]
     EndOfWork,
 }
 
 /// Chương đứng CHẶN dãy đọc — trường `chapter` của [`ReadingFrontier`] khi
-/// `kind == NextNotDone`.
+/// `kind == NextUnreadable`.
 ///
 /// 🔴 `status` là CHUỖI THÔ trên cột `chapter.status` (chuỗi tự do ở tầng SQL, không
 /// `CHECK`), KHÔNG phải một `LifecycleStatus` đã phân giải — mốc biên phải chở được đúng
@@ -277,7 +323,7 @@ pub struct ReadingFrontierChapter {
 /// Mốc biên giới của một lượt đọc — thứ nói VÌ SAO dãy `ReadingRun::chapters` dừng ở đó,
 /// khuôn trực tiếp [`crate::commands::chapter::ChapterSwitch`].
 ///
-/// 🔴 `chapter` là `Some` **khi và chỉ khi** `kind == ReadingFrontierKind::NextNotDone` —
+/// 🔴 `chapter` là `Some` **khi và chỉ khi** `kind == ReadingFrontierKind::NextUnreadable` —
 /// cùng mệnh đề đã ký ở `ChapterSwitch::chapter`, viết ra thành chữ vì một `Option` có điều
 /// kiện mà không phát biểu điều kiện là một hợp đồng ngầm.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -312,12 +358,13 @@ pub struct ReadingRun {
 /// ② Tìm vị trí `open.chapter_id` trong danh sách đó; vắng mặt (hàng Chương đã biến mất
 /// giữa lúc mở Chương và lúc vào Chế độ đọc) ⇒ `Err(chapter_not_found(...))`.
 /// ③ Từ vị trí đó đi TỚI, lấy TIỀN TỐ liên tiếp mà
-/// `LifecycleStatus::from_wire(&status) == Some(Done)` — một giá trị lạ (ngoài bốn giá trị)
-/// đọc thành KHÔNG `Done`, dãy dừng NGAY tại đó, không đoán, không bỏ qua im lặng (§Always).
+/// `LifecycleStatus::from_wire(&status)` là `Some(s)` với `s.is_readable()` (`Done`,
+/// `InProgress`, `Paused`) — một giá trị lạ (ngoài bốn giá trị) đọc thành không đọc được,
+/// dãy dừng NGAY tại đó, không đoán, không bỏ qua im lặng (§Always).
 /// ④ Với mỗi Chương của tiền tố, gọi [`select_chapter_segments`] rồi
 /// [`crate::core::segment::reading::paragraphs_in_translation`] — `segment_count` đếm từ
 /// CHÍNH dãy vừa đọc, không một `COUNT(*)` thứ hai.
-/// ⑤ Dựng `frontier`: hàng ngay sau tiền tố ⇒ `NextNotDone` kèm dữ liệu hàng đó (kể cả khi
+/// ⑤ Dựng `frontier`: hàng ngay sau tiền tố ⇒ `NextUnreadable` kèm dữ liệu hàng đó (kể cả khi
 /// tiền tố RỖNG — hàng đó khi ấy chính là Chương đang mở); hết bảng ⇒ `EndOfWork` + `None`.
 ///
 /// # Lỗi
@@ -355,14 +402,14 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
             return Ok(None);
         };
 
-        // Tiền tố các Chương `Done` LIÊN TIẾP, bắt đầu TẠI Chương đang mở — một giá trị
-        // `status` lạ (không nằm trong bốn giá trị của `LifecycleStatus`) đọc thành KHÔNG
-        // `Done`, dãy dừng ngay tại đó (§I/O Matrix "Trạng thái lạ").
+        // Tiền tố các Chương đọc được LIÊN TIẾP, bắt đầu TẠI Chương đang mở — một giá trị
+        // `status` lạ (không nằm trong bốn giá trị của `LifecycleStatus`) đọc thành không
+        // đọc được, dãy dừng ngay tại đó (§I/O Matrix "Trạng thái lạ").
         let mut prefix_end = start;
         while prefix_end < rows.len() {
-            let is_done =
-                LifecycleStatus::from_wire(&rows[prefix_end].3) == Some(LifecycleStatus::Done);
-            if !is_done {
+            let readable = LifecycleStatus::from_wire(&rows[prefix_end].3)
+                .is_some_and(LifecycleStatus::is_readable);
+            if !readable {
                 break;
             }
             prefix_end += 1;
@@ -393,23 +440,12 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
             // `paragraphs_in_translation` chứ không thay nó: ranh giới đoạn đã đúng vị trí từ
             // lượt gom đó (kể cả khi ranh giới nằm trên chính một segment vai), nên đây chỉ
             // bớt PHẦN TỬ chứ không tính lại gì. Xem doc-comment của hàm đó.
-            let paragraphs = crate::core::segment::image::strip_role_segments(
-                crate::core::segment::reading::paragraphs_in_translation(&segments),
-            )
-            .into_iter()
-            .map(|group| ReadingParagraph {
-                segments: group
-                    .into_iter()
-                    .map(|s| ReadingSegment {
-                        id: s.id,
-                        source_text: s.source_text.clone(),
-                        target_text: s.target_text.clone(),
-                        is_confirmed: s.status == SEGMENT_STATUS_CONFIRMED,
-                        is_marked: marked_ids.contains(&s.id),
-                    })
-                    .collect(),
-            })
-            .collect();
+            let blocks = reading_blocks(
+                crate::core::segment::image::strip_role_segments(
+                    crate::core::segment::reading::paragraphs_in_translation(&segments),
+                ),
+                &marked_ids,
+            );
 
             // **THÊM Story 6.14** — ảnh của Chương này, quy tắc "đủ điều kiện làm neo" của
             // CHẾ ĐỘ ĐỌC: chỉ segment CÒN trong bản dịch VÀ không mang vai (đúng tập vừa lên
@@ -429,7 +465,7 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
                 chapter_id: *chapter_id,
                 chapter_ord: *chapter_ord,
                 chapter_title: title.clone(),
-                paragraphs,
+                blocks,
                 segment_count,
                 images,
                 translation_origin_counts: count_translation_origins(&segments),
@@ -439,7 +475,7 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
         let frontier = if prefix_end < rows.len() {
             let (chapter_id, chapter_ord, title, status) = &rows[prefix_end];
             ReadingFrontier {
-                kind: ReadingFrontierKind::NextNotDone,
+                kind: ReadingFrontierKind::NextUnreadable,
                 chapter: Some(ReadingFrontierChapter {
                     chapter_id: *chapter_id,
                     chapter_ord: *chapter_ord,

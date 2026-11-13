@@ -43,7 +43,7 @@ import type { ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/
 import type { ChapterOriginEditFields } from '../config/project'
 import { openWork } from '../config/library'
 import type { WorkRow } from '../config/library'
-import { registerChapterStartedReload, setChaptersStatus } from '../config/lifecycle'
+import { isReadableChapterStatus, registerChapterStartedReload, setChaptersStatus } from '../config/lifecycle'
 import {
   editorChapterDoneSuggested,
   editorChapterId,
@@ -499,10 +499,10 @@ export async function openCurrentChapter(): Promise<void> {
   setMode('workspace')
 }
 
-/** Opens the Chapter under the list cursor in Reading mode; a Chapter that is not Done is ignored. */
+/** Opens the Chapter under the list cursor in Reading mode; a Chapter that is not readable is ignored. */
 export async function openCurrentChapterInReading(): Promise<void> {
   const row = currentLibraryChapter.value
-  if (row === null || row.status !== 'done') return
+  if (row === null || !isReadableChapterStatus(row.status)) return
   const moved = await openChapterById(row.chapter_id)
   if (!moved) return
   setChapterSelection(new Set([row.chapter_id]), row.chapter_id)

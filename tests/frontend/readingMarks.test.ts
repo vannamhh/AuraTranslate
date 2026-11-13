@@ -1,4 +1,5 @@
 /** Story 5.13 — adapter + state marker. Hình học/hover thật thuộc e2e WebKit. */
+import { paragraphSegments } from './support/readingBlocks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
@@ -38,7 +39,7 @@ const RUN = {
       chapter_id: 4,
       chapter_ord: 2,
       chapter_title: 'Chương Hai',
-      paragraphs: [{ segments: [SEGMENT] }],
+      blocks: [{ kind: 'paragraph', segments: [SEGMENT] }],
       segment_count: 1,
       translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
       images: [],
@@ -108,7 +109,7 @@ describe('modes/readingState — aim, mark và điều hướng exact segment', 
     mockInvoke.mockResolvedValueOnce(MARK)
     await state.markAimedReadingSegment()
     expect(mockInvoke).toHaveBeenCalledWith('mark_reading_segment', { segmentId: 12 })
-    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.is_marked).toBe(true)
+    expect(paragraphSegments(state.readingRun.value?.chapters[0]?.blocks[0])[0]?.is_marked).toBe(true)
     expect(state.readingAimedSegmentId.value).toBe(12)
     expect(state.readingAnchorSegmentId.value).toBeNull()
   })
@@ -127,7 +128,7 @@ describe('modes/readingState — aim, mark và điều hướng exact segment', 
 
     await state.markAimedReadingSegment()
 
-    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.is_marked).toBe(false)
+    expect(paragraphSegments(state.readingRun.value?.chapters[0]?.blocks[0])[0]?.is_marked).toBe(false)
     expect(state.readingMarkerError.value?.code).toBe('store.write_failed')
   })
 
@@ -145,7 +146,7 @@ describe('modes/readingState — aim, mark và điều hướng exact segment', 
     await state.ensureReadingLoaded()
     resolveMark(MARK)
     await staleMark
-    expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.is_marked).toBe(false)
+    expect(paragraphSegments(state.readingRun.value?.chapters[0]?.blocks[0])[0]?.is_marked).toBe(false)
     expect(state.readingMarkerError.value).toBeNull()
 
     let resolveList: (value: unknown) => void = () => {}
@@ -315,7 +316,7 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
 
   it('chuột đặt aim khi chưa câu nào có focus; câu đang focus giữ aim khi chuột đi qua câu khác', async () => {
     const twoSegments = structuredClone(RUN)
-    twoSegments.chapters[0].paragraphs = [{ segments: [SEGMENT, { ...SEGMENT, id: 13 }] }]
+    twoSegments.chapters[0].blocks = [{ kind: 'paragraph' as const, segments: [SEGMENT, { ...SEGMENT, id: 13 }] }]
     twoSegments.chapters[0].segment_count = 2
     mockInvoke.mockResolvedValueOnce(twoSegments)
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')

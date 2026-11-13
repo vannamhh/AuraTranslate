@@ -166,3 +166,8 @@ async function refreshThenReload(): Promise<void> {
     console.error(`[chapter-started] chapter reload failed: ${String(err)}`)
   }
 }
+
+/** Mirrors `LifecycleStatus::is_readable` in Rust; an unknown status is not readable. */
+export function isReadableChapterStatus(status: string): boolean {
+  return status === 'done' || status === 'in_progress' || status === 'paused'
+}

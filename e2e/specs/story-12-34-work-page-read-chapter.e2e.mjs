@@ -1,6 +1,6 @@
 /**
- * Work page, per-row Read button: a Done Chapter row has Dịch and Đọc, any other row has
- * no Đọc; pressing Đọc on Chapter N opens Reading with N first; Mod+1 returns to the list
+ * Work page, per-row Read button: a Done, in-progress or paused Chapter row has Đọc, a
+ * not-started row has none; pressing Đọc on Chapter N opens Reading with N first; Mod+1 returns to the list
  * with the cursor still on N. One spec file = one app process; cases share one seeded Work
  * and run at 1280x860 logical.
  */
@@ -76,11 +76,12 @@ async function firstReadingTitle() {
 let ids = []
 
 describe('Story 12-34 · Work page row Read button', () => {
-  it('a Done row has Đọc, a row in progress has none', async () => {
+  it('Done, in-progress and paused rows have Đọc, a not-started row has none', async () => {
     ids = await seedWork()
     await ipcValue('set_chapter_status', { chapterId: ids[1], status: 'done' })
     await ipcValue('set_chapter_status', { chapterId: ids[3], status: 'done' })
     await ipcValue('set_chapter_status', { chapterId: ids[2], status: 'in_progress' })
+    await ipcValue('set_chapter_status', { chapterId: ids[4], status: 'paused' })
     await reloadWorks()
     await aimWork(WORK_NAME)
     await openAimedWork()
@@ -96,7 +97,9 @@ describe('Story 12-34 · Work page row Read button', () => {
     const translate = (id) => browser.execute((sel) => document.querySelector(`${sel} [data-library-row-translate]`) !== null, ROW(id))
     expect(await read(ids[1])).toBe(true)
     expect(await read(ids[3])).toBe(true)
-    expect(await read(ids[2])).toBe(false)
+    expect(await read(ids[2])).toBe(true)
+    expect(await read(ids[4])).toBe(true)
+    expect(await read(ids[0])).toBe(false)
     expect(await translate(ids[2])).toBe(true)
   })
 

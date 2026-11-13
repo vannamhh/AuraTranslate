@@ -31,7 +31,7 @@ function runOf(ord: number, title: string | null, withChapter = true) {
         chapter_id: ord,
         chapter_ord: ord,
         chapter_title: title,
-        paragraphs: [{ segments: [{ id: 11, source_text: 'a', target_text: 'b', is_confirmed: true, is_marked: false }] }],
+        blocks: [{ kind: 'paragraph', segments: [{ id: 11, source_text: 'a', target_text: 'b', is_confirmed: true, is_marked: false }] }],
         segment_count: 1,
         translation_origin_counts: { self_count: 1, other_count: 0, bilingual_import_count: 0 },
         images: [],
@@ -105,6 +105,20 @@ describe('the position strip', () => {
     expect(fill.exists()).toBe(true)
     expect(fill.attributes('style')).toContain('0%')
     expect(fill.attributes('style')).not.toContain('NaN')
+  })
+
+  it('counts done, in-progress and paused Chapters, not not-started or unknown ones', async () => {
+    const statuses = ['done', 'in_progress', 'paused', 'not_started', 'finished']
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'read_reading_run') return Promise.resolve(runOf(1, null, true))
+      if (cmd === 'list_chapters') return Promise.resolve(statuses.map((status, i) => chapterRow(i + 1, status)))
+      return Promise.resolve([])
+    })
+    const state = await import('../../src/modes/readingState')
+    const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
+    wrapper = mount(ReadingMode, { attachTo: document.body })
+    await state.ensureReadingLoaded()
+    await vi.waitFor(() => expect(state.readingChaptersDone.value).toBe(3))
   })
 
   it('is absent when the run has no Chapter at all', async () => {

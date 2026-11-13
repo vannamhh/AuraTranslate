@@ -27,6 +27,8 @@ import { currentTheme } from '../tokens/themeState'
 import {
   currentReadingLevel,
   clearReadingAim,
+  clearReadingUntranslatedAim,
+  setReadingUntranslatedAim,
   closeReadingMarksPanel,
   ensureReadingLoaded,
   readingBilingual,
@@ -60,7 +62,7 @@ import {
 } from './readingState'
 import { readingOriginLabel } from './readingOrigin'
 import { commandTitle, shortcutRows } from '../config/shortcutsState'
-import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParagraph, ReadingSegment } from '../config/reading'
+import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParagraphBlock, ReadingSegment, ReadingUntranslatedBlock } from '../config/reading'
 import AppIcon from '../AppIcon.vue'
 import ChapterImage from '../ChapterImage.vue'
 import ReadingLookupPopup from './ReadingLookupPopup.vue'
@@ -451,10 +453,10 @@ const frontierRangeText = computed(() => {
   return t('mode.reading.frontier_range', { tu: chapterLabel(first), den: chapterLabel(last) })
 })
 
-/** Câu nói Chương nào chặn kèm nhãn trạng thái — chỉ có nghĩa khi `kind === 'next-not-done'`. */
+/** Câu nói Chương nào chặn kèm nhãn trạng thái — chỉ có nghĩa khi `kind === 'next-unreadable'`. */
 const frontierBlockedText = computed(() => {
   const frontier = readingRun.value?.frontier
-  if (frontier === undefined || frontier.kind !== 'next-not-done') return ''
+  if (frontier === undefined || frontier.kind !== 'next-unreadable') return ''
   const blocked: DeepReadonly<ReadingFrontierChapter> | null = frontier.chapter
   if (blocked === null) return ''
   return t('mode.reading.frontier_blocked', {
@@ -469,7 +471,7 @@ const frontierEndOfWorkText = computed(() => {
   return frontier !== undefined && frontier.kind === 'end-of-work' ? t('mode.reading.frontier_end_of_work') : ''
 })
 
-/** Chữ trên nút *Dịch tiếp Chương N* — chỉ có nghĩa khi `kind === 'next-not-done'`. */
+/** Chữ trên nút *Dịch tiếp Chương N* — chỉ có nghĩa khi `kind === 'next-unreadable'`. */
 const frontierButtonText = computed(() => {
   const chapter = readingRun.value?.frontier.chapter
   return chapter === null || chapter === undefined ? '' : t('mode.reading.frontier_button', { ord: String(chapter.chapter_ord) })
@@ -534,6 +536,15 @@ function leadingImagesOf(chapter: DeepReadonly<ReadingChapter>): DeepReadonly<Re
   return chapter.images.filter((img) => img.after_segment_id === null)
 }
 
+/** Ảnh neo vào một câu chưa dịch của khối — hiện ngay sau khối, theo thứ tự trên dây. */
+function imagesAfterUntranslated(
+  chapter: DeepReadonly<ReadingChapter>,
+  block: DeepReadonly<ReadingUntranslatedBlock>,
+): DeepReadonly<ReadingImage>[] {
+  const ids = new Set(block.segment_ids)
+  return chapter.images.filter((img) => img.after_segment_id !== null && ids.has(img.after_segment_id))
+}
+
 /**
  * Một MẢNH của một đoạn — hoặc một dãy câu liên tiếp để render trong một `<p>`, hoặc một ảnh
  * đứng GIỮA hai câu của CÙNG một đoạn. §I/O Matrix spec 6.14: "ảnh giữa hai câu ⇒ hiện SAU
@@ -547,13 +558,13 @@ type ParagraphRun =
 
 /**
  * Chẻ MỘT đoạn quanh các ảnh neo vào câu bên trong nó — xem [`ParagraphRun`]. Đoạn của Rust
- * (`ReadingParagraph`) là MỘT khái niệm ngữ nghĩa (một đoạn văn bản dịch); nó có thể render
+ * (`ReadingParagraphBlock`) là MỘT khái niệm ngữ nghĩa (một đoạn văn bản dịch); nó có thể render
  * thành NHIỀU thẻ `<p>` liền kề khi một ảnh chen giữa — điều đó không đổi ranh giới đoạn Rust
  * đã quyết, chỉ đổi số thẻ HTML cần để vẽ nó.
  */
 function paragraphRuns(
   chapter: DeepReadonly<ReadingChapter>,
-  paragraph: DeepReadonly<ReadingParagraph>,
+  paragraph: DeepReadonly<ReadingParagraphBlock>,
 ): ParagraphRun[] {
   const imagesAfter = new Map<number, DeepReadonly<ReadingImage>[]>()
   for (const img of chapter.images) {
@@ -820,86 +831,115 @@ function paragraphRuns(
             <!-- aura-allow-text: `caption_text` là bản dịch của Tác phẩm — DỮ LIỆU, không câu giao diện. -->
             <figcaption v-if="image.caption_text !== null && image.caption_text !== ''" class="reading-figure-caption">{{ image.caption_text }}</figcaption>
           </figure>
-          <template v-if="chapter.paragraphs.length > 0">
-            <div v-for="(paragraph, index) in chapter.paragraphs" :key="index" class="reading-paragraph">
-              <!-- aura-allow-text: nguyên văn là DỮ LIỆU của Tác phẩm, không câu giao diện. -->
-              <p v-if="readingBilingual" class="source-note" data-reading-source-note @dblclick="dispatch('reading.lookup_open')">{{ paragraph.segments.map((s) => s.source_text).join(' ') }}</p>
-              <!--
-                🔵 Story 6.14 — MỘT đoạn Rust có thể vẽ thành NHIỀU `<p>` liền kề khi một ảnh
-                chen giữa hai câu của nó (§I/O Matrix "ảnh giữa hai câu ⇒ hiện sau câu k ở CẢ
-                HAI bề mặt"; xem doc-comment `paragraphRuns`). Ranh giới ĐOẠN của Rust không
-                đổi — chỉ số THẺ HTML cần để vẽ nó đổi.
-              -->
-              <template v-for="(run, runIndex) in paragraphRuns(chapter, paragraph)" :key="runIndex">
-                <p v-if="run.kind === 'text'" class="paragraph">
-                  <!--
-                    aura-allow-text: bản dịch là DỮ LIỆU của Tác phẩm, không câu giao diện.
-                    🔴 **DẤU CÁCH GIỮA HAI CÂU LÀ MỘT NỘI DUNG, KHÔNG MỘT KHOẢNG TRẮNG THỪA** — bắt ở
-                    lượt rà 2026-08-30. Bản đầu viết hai `<span>` liền nhau không gì ngăn, nên một đoạn
-                    hai câu render thành *"…giữa bóng tối.Gió thổi tới…"*. Bản dựng UX
-                    (`mockups/reading-mode.html`) không dính vì HTML nguồn của nó XUỐNG DÒNG giữa hai
-                    `<span>` và khoảng trắng ấy co lại thành một dấu cách; một `v-for` trên một dòng thì
-                    không có gì để co. Bàn đo e2e dùng `toContain` nên mù với chỗ này.
-                    ⚠️ Dấu cách đặt Ở ĐẦU mọi câu TRỪ câu đầu — đặt ở CUỐI sẽ để lại một khoảng trắng
-                    lơ lửng sau câu chót của mỗi đoạn. 🔵 Story 6.14 — "câu đầu" nay là câu đầu của
-                    RUN (mảnh `<p>` sau khi chẻ quanh ảnh), không của cả đoạn Rust.
-                    🔴 THÊM (Story 5.12, AC6) — `:class="{ unconfirmed: !segment.is_confirmed }"`: câu
-                    CHƯA xác nhận mang gạch chấm nhẹ, dấu hiệu đến từ `is_confirmed` trên dây.
-                  -->
-                  <span
-                    v-for="(segment, i) in run.segments"
-                    :key="segment.id"
-                    class="reading-segment"
-                    :class="{
-                      unconfirmed: !segment.is_confirmed,
-                      marked: segment.is_marked,
-                      'mark-side': markChipSideId === segment.id,
-                      'mark-at-press': markChipAtPress?.segmentId === segment.id,
-                    }"
-                    :data-reading-segment="segment.id"
-                    tabindex="0"
-                    @mouseenter="onSegmentMouseEnter(segment.id)"
-                    @mouseleave="onSegmentMouseLeave($event, segment.id)"
-                    @focusin="onSegmentFocusIn(segment.id)"
-                    @focusout="onSegmentFocusOut($event, segment.id)"
-                    @keydown.enter="onReadingSegmentEnter"
-                    ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
-                    <span class="segment-text" @mousedown="onSegmentTextMouseDown($event, segment.id)">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
-                    <span
-                      class="mark-actions"
-                      :style="markChipAtPress?.segmentId === segment.id
-                        ? { insetBlockStart: `${String(markChipAtPress.top)}px`, insetInlineStart: `${String(markChipAtPress.left)}px` }
-                        : undefined"
-                    >
-                      <button
-                        type="button"
-                        tabindex="-1"
-                        class="mark-affordance ui-btn ui-btn--quiet"
-                        :aria-disabled="segment.is_marked ? 'true' : undefined"
-                        @click="dispatch('reading.mark_aimed')"
-                      ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button>
-                      <button
-                        type="button"
-                        tabindex="-1"
-                        class="mark-affordance ui-btn ui-btn--quiet"
-                        @click="dispatch('reading.open_aimed')"
-                      >{{ t('mode.reading.edit_action') }}</button>
-                    </span></span
-                  >
+          <template v-if="chapter.blocks.length > 0">
+            <template v-for="(paragraph, index) in chapter.blocks" :key="index">
+              <div v-if="paragraph.kind === 'untranslated'" class="reading-paragraph">
+                <p class="paragraph">
+                  <button
+                    type="button"
+                    class="untranslated-run"
+                    data-reading-untranslated
+                    :data-reading-untranslated-first="paragraph.segment_ids[0]"
+                    :data-reading-untranslated-count="paragraph.segment_ids.length"
+                    @mouseenter="setReadingUntranslatedAim(paragraph.segment_ids)"
+                    @mousedown="setReadingUntranslatedAim(paragraph.segment_ids)"
+                    @mouseleave="clearReadingUntranslatedAim(paragraph.segment_ids)"
+                    @focusin="setReadingUntranslatedAim(paragraph.segment_ids)"
+                    @focusout="clearReadingUntranslatedAim(paragraph.segment_ids)"
+                    @click="dispatch('reading.open_untranslated')"
+                  >{{ t('mode.reading.untranslated_run', { count: String(paragraph.segment_ids.length) }) }}</button>
                 </p>
-                <!-- 🔵 Story 6.14 (FR42) — ảnh GIỮA hai câu của cùng một đoạn. -->
-                <figure v-else class="reading-figure">
+                <figure v-for="image in imagesAfterUntranslated(chapter, paragraph)" :key="'after-' + image.asset_id" class="reading-figure">
                   <ChapterImage
-                    :file-name="run.image.file_name"
+                    :file-name="image.file_name"
                     :assets-dir="readingAssetsDir"
-                    :source-url="run.image.source_url"
-                    :alt-text="run.image.alt_text ?? ''"
+                    :source-url="image.source_url"
+                    :alt-text="image.alt_text ?? ''"
                   />
                   <!-- aura-allow-text: `caption_text` là bản dịch của Tác phẩm — DỮ LIỆU. -->
-                  <figcaption v-if="run.image.caption_text !== null && run.image.caption_text !== ''" class="reading-figure-caption">{{ run.image.caption_text }}</figcaption>
+                  <figcaption v-if="image.caption_text !== null && image.caption_text !== ''" class="reading-figure-caption">{{ image.caption_text }}</figcaption>
                 </figure>
-              </template>
-            </div>
+              </div>
+              <div v-else class="reading-paragraph">
+                <!-- aura-allow-text: nguyên văn là DỮ LIỆU của Tác phẩm, không câu giao diện. -->
+                <p v-if="readingBilingual" class="source-note" data-reading-source-note @dblclick="dispatch('reading.lookup_open')">{{ paragraph.segments.map((s) => s.source_text).join(' ') }}</p>
+                <!--
+                  🔵 Story 6.14 — MỘT đoạn Rust có thể vẽ thành NHIỀU `<p>` liền kề khi một ảnh
+                  chen giữa hai câu của nó (§I/O Matrix "ảnh giữa hai câu ⇒ hiện sau câu k ở CẢ
+                  HAI bề mặt"; xem doc-comment `paragraphRuns`). Ranh giới ĐOẠN của Rust không
+                  đổi — chỉ số THẺ HTML cần để vẽ nó đổi.
+                -->
+                <template v-for="(run, runIndex) in paragraphRuns(chapter, paragraph)" :key="runIndex">
+                  <p v-if="run.kind === 'text'" class="paragraph">
+                    <!--
+                      aura-allow-text: bản dịch là DỮ LIỆU của Tác phẩm, không câu giao diện.
+                      🔴 **DẤU CÁCH GIỮA HAI CÂU LÀ MỘT NỘI DUNG, KHÔNG MỘT KHOẢNG TRẮNG THỪA** — bắt ở
+                      lượt rà 2026-08-30. Bản đầu viết hai `<span>` liền nhau không gì ngăn, nên một đoạn
+                      hai câu render thành *"…giữa bóng tối.Gió thổi tới…"*. Bản dựng UX
+                      (`mockups/reading-mode.html`) không dính vì HTML nguồn của nó XUỐNG DÒNG giữa hai
+                      `<span>` và khoảng trắng ấy co lại thành một dấu cách; một `v-for` trên một dòng thì
+                      không có gì để co. Bàn đo e2e dùng `toContain` nên mù với chỗ này.
+                      ⚠️ Dấu cách đặt Ở ĐẦU mọi câu TRỪ câu đầu — đặt ở CUỐI sẽ để lại một khoảng trắng
+                      lơ lửng sau câu chót của mỗi đoạn. 🔵 Story 6.14 — "câu đầu" nay là câu đầu của
+                      RUN (mảnh `<p>` sau khi chẻ quanh ảnh), không của cả đoạn Rust.
+                      🔴 THÊM (Story 5.12, AC6) — `:class="{ unconfirmed: !segment.is_confirmed }"`: câu
+                      CHƯA xác nhận mang gạch chấm nhẹ, dấu hiệu đến từ `is_confirmed` trên dây.
+                    -->
+                    <span
+                      v-for="(segment, i) in run.segments"
+                      :key="segment.id"
+                      class="reading-segment"
+                      :class="{
+                        unconfirmed: !segment.is_confirmed,
+                        marked: segment.is_marked,
+                        'mark-side': markChipSideId === segment.id,
+                        'mark-at-press': markChipAtPress?.segmentId === segment.id,
+                      }"
+                      :data-reading-segment="segment.id"
+                      tabindex="0"
+                      @mouseenter="onSegmentMouseEnter(segment.id)"
+                      @mouseleave="onSegmentMouseLeave($event, segment.id)"
+                      @focusin="onSegmentFocusIn(segment.id)"
+                      @focusout="onSegmentFocusOut($event, segment.id)"
+                      @keydown.enter="onReadingSegmentEnter"
+                      ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
+                      <span class="segment-text" @mousedown="onSegmentTextMouseDown($event, segment.id)">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
+                      <span
+                        class="mark-actions"
+                        :style="markChipAtPress?.segmentId === segment.id
+                          ? { insetBlockStart: `${String(markChipAtPress.top)}px`, insetInlineStart: `${String(markChipAtPress.left)}px` }
+                          : undefined"
+                      >
+                        <button
+                          type="button"
+                          tabindex="-1"
+                          class="mark-affordance ui-btn ui-btn--quiet"
+                          :aria-disabled="segment.is_marked ? 'true' : undefined"
+                          @click="dispatch('reading.mark_aimed')"
+                        ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button>
+                        <button
+                          type="button"
+                          tabindex="-1"
+                          class="mark-affordance ui-btn ui-btn--quiet"
+                          @click="dispatch('reading.open_aimed')"
+                        >{{ t('mode.reading.edit_action') }}</button>
+                      </span></span
+                    >
+                  </p>
+                  <!-- 🔵 Story 6.14 (FR42) — ảnh GIỮA hai câu của cùng một đoạn. -->
+                  <figure v-else class="reading-figure">
+                    <ChapterImage
+                      :file-name="run.image.file_name"
+                      :assets-dir="readingAssetsDir"
+                      :source-url="run.image.source_url"
+                      :alt-text="run.image.alt_text ?? ''"
+                    />
+                    <!-- aura-allow-text: `caption_text` là bản dịch của Tác phẩm — DỮ LIỆU. -->
+                    <figcaption v-if="run.image.caption_text !== null && run.image.caption_text !== ''" class="reading-figure-caption">{{ run.image.caption_text }}</figcaption>
+                  </figure>
+                </template>
+              </div>
+            </template>
           </template>
           <!-- aura-allow-text: `chapterEmptyNote()` tự đi qua t() bên trong. -->
           <p v-else class="chapter-note">{{ chapterEmptyNote(chapter) }}</p>
@@ -917,12 +957,12 @@ function paragraphRuns(
            phần kịch bản phía trên -- xem doc-comment của nó ngay trên. -->
       <p class="frontier-range">{{ frontierRangeText }}</p>
       <!-- aura-allow-text: `frontierBlockedText` tự đi qua t() bên trong. -->
-      <p v-if="readingRun.frontier.kind === 'next-not-done'" class="frontier-note" data-reading-frontier-kind="next-not-done">{{ frontierBlockedText }}</p>
+      <p v-if="readingRun.frontier.kind === 'next-unreadable'" class="frontier-note" data-reading-frontier-kind="next-unreadable">{{ frontierBlockedText }}</p>
       <!-- aura-allow-text: `frontierEndOfWorkText` tự đi qua t() bên trong. -->
       <p v-else class="frontier-note" data-reading-frontier-kind="end-of-work">{{ frontierEndOfWorkText }}</p>
       <div class="frontier-actions">
         <button
-          v-if="readingRun.frontier.kind === 'next-not-done'"
+          v-if="readingRun.frontier.kind === 'next-unreadable'"
           type="button"
           class="ui-btn ui-btn--primary"
           data-reading-frontier-continue
@@ -935,7 +975,7 @@ function paragraphRuns(
           v-if="readingMarksTotal !== null && readingMarksTotal > 0"
           type="button"
           class="ui-btn"
-          :class="{ 'ui-btn--primary': readingRun.frontier.kind !== 'next-not-done' }"
+          :class="{ 'ui-btn--primary': readingRun.frontier.kind !== 'next-unreadable' }"
           data-reading-frontier-marks
           @click="dispatch('reading.marks')"
         >
@@ -945,7 +985,7 @@ function paragraphRuns(
         <button
           type="button"
           class="ui-btn"
-          :class="{ 'ui-btn--primary': readingRun.frontier.kind !== 'next-not-done' && !(readingMarksTotal !== null && readingMarksTotal > 0) }"
+          :class="{ 'ui-btn--primary': readingRun.frontier.kind !== 'next-unreadable' && !(readingMarksTotal !== null && readingMarksTotal > 0) }"
           data-reading-frontier-work-start
           @click="dispatch('reading.work_start')"
         >
@@ -1174,6 +1214,22 @@ function paragraphRuns(
   font-family: var(--face-read-title);
 }
 
+.untranslated-run {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--color-on-surface-variant);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: start;
+}
+
+.untranslated-run:hover {
+  color: var(--color-on-surface);
+}
+
 .paragraph {
   margin: 0 0 1lh 0; /* aura-allow-spacing: one reading line box, a multiple of 7 by readingStyle */
 }
@@ -1302,7 +1358,7 @@ function paragraphRuns(
 }
 
 /* 🔵 SỬA (rà 2026-08-30, Bản vá 9) — `.frontier-blocked` đổi tên `.frontier-note`: lớp đó
-   dùng cho CẢ HAI nhánh (`next-not-done` VÀ `end-of-work`), và "blocked" nói sai một nửa số
+   dùng cho CẢ HAI nhánh (`next-unreadable` VÀ `end-of-work`), và "blocked" nói sai một nửa số
    ca -- nhánh `end-of-work` không hề bị chặn, nó báo tin đã đọc hết. */
 .frontier-range,
 .frontier-note {

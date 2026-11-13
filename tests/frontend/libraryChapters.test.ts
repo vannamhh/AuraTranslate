@@ -581,12 +581,14 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     expect(wrapper.find('[data-library-chapter-merge-open]').attributes('disabled')).toBeDefined()
   })
 
-  it('nút Đọc: hàng Đã xong có, hàng chưa xong và trạng thái lạ không; khung phải không có nút Dịch/Đọc', async () => {
+  it('nút Đọc: hàng Đã xong, Đang dịch và Tạm ngưng có, hàng chưa bắt đầu và trạng thái lạ không; khung phải không có nút Dịch/Đọc', async () => {
     ketQuaFlush.value = 'clean'
     const rows = [
       { ...CHAPTER_ROW_A, chapter_id: 1, ord: 1, status: 'done' },
       { ...CHAPTER_ROW_A, chapter_id: 2, ord: 2, status: 'in_progress' },
       { ...CHAPTER_ROW_A, chapter_id: 3, ord: 3, status: 'archived' },
+      { ...CHAPTER_ROW_A, chapter_id: 4, ord: 4, status: 'paused' },
+      { ...CHAPTER_ROW_A, chapter_id: 5, ord: 5, status: 'not_started' },
     ]
     mockInvoke.mockResolvedValue(rows)
     const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
@@ -598,8 +600,10 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     const rowOf = (id: number) => wrapper!.get(`[data-chapter-id="${id}"]`)
     expect(rowOf(1).find('[data-library-row-read]').exists()).toBe(true)
     expect(rowOf(1).find('[data-library-row-read]').attributes('aria-label')).toBe('Mở Chương 1 ở Chế độ đọc')
-    expect(rowOf(2).find('[data-library-row-read]').exists()).toBe(false)
+    expect(rowOf(2).find('[data-library-row-read]').exists()).toBe(true)
+    expect(rowOf(4).find('[data-library-row-read]').exists()).toBe(true)
     expect(rowOf(3).find('[data-library-row-read]').exists()).toBe(false)
+    expect(rowOf(5).find('[data-library-row-read]').exists()).toBe(false)
 
     await chonHang(0)
     await wrapper.vm.$nextTick()

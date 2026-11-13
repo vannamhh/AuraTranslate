@@ -1692,9 +1692,9 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
 
 /// **SỬA TẠI CHỖ Story 5.12** (trước: `reading_wire_structs_keep_snake_case_field_names`,
 /// Story 5.11). Đóng băng tên trường `snake_case` của NĂM struct dây — `ReadingSegment`
-/// (**thêm** `is_confirmed`) / `ReadingParagraph` / `ReadingChapter` (**thêm**
+/// (**thêm** `is_confirmed`) / `ReadingBlock` / `ReadingChapter` (**thêm**
 /// `segment_count`) / `ReadingFrontierChapter` / `ReadingFrontier` — VÀ hai chuỗi biến thể
-/// của `ReadingFrontierKind` trên dây (`"next-not-done"` · `"end-of-work"`), cùng lý lẽ và
+/// của `ReadingFrontierKind` trên dây (`"next-unreadable"` · `"end-of-work"`), cùng lý lẽ và
 /// cùng khuôn [`library_search_wire_structs_keep_snake_case_field_names`] ở trên.
 #[test]
 fn reading_wire_structs_keep_snake_case_field_names() {
@@ -1703,15 +1703,20 @@ fn reading_wire_structs_keep_snake_case_field_names() {
             chapter_id: 1,
             chapter_ord: 1,
             chapter_title: Some("Chương Một".to_owned()),
-            paragraphs: vec![auratranslate_lib::commands::segment::ReadingParagraph {
-                segments: vec![auratranslate_lib::commands::segment::ReadingSegment {
-                    id: 42,
-                    source_text: "原文".to_owned(),
-                    target_text: "Bản dịch".to_owned(),
-                    is_confirmed: true,
-                    is_marked: true,
-                }],
-            }],
+            blocks: vec![
+                auratranslate_lib::commands::segment::ReadingBlock::Paragraph {
+                    segments: vec![auratranslate_lib::commands::segment::ReadingSegment {
+                        id: 42,
+                        source_text: "原文".to_owned(),
+                        target_text: "Bản dịch".to_owned(),
+                        is_confirmed: true,
+                        is_marked: true,
+                    }],
+                },
+                auratranslate_lib::commands::segment::ReadingBlock::Untranslated {
+                    segment_ids: vec![43, 44],
+                },
+            ],
             segment_count: 1,
             translation_origin_counts:
                 auratranslate_lib::commands::segment::TranslationOriginCounts {
@@ -1731,7 +1736,7 @@ fn reading_wire_structs_keep_snake_case_field_names() {
             }],
         }],
         frontier: auratranslate_lib::commands::segment::ReadingFrontier {
-            kind: auratranslate_lib::commands::segment::ReadingFrontierKind::NextNotDone,
+            kind: auratranslate_lib::commands::segment::ReadingFrontierKind::NextUnreadable,
             chapter: Some(
                 auratranslate_lib::commands::segment::ReadingFrontierChapter {
                     chapter_id: 2,
@@ -1773,11 +1778,11 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     assert_eq!(
         chapter_keys,
         vec![
+            "blocks",
             "chapter_id",
             "chapter_ord",
             "chapter_title",
             "images",
-            "paragraphs",
             "segment_count",
             "translation_origin_counts"
         ],
@@ -1823,22 +1828,30 @@ fn reading_wire_structs_keep_snake_case_field_names() {
         "khoá trên dây của ReadingImage là snake_case. Nhận được: {image_keys:?}."
     );
 
-    let paragraph_value = chapter_value
-        .get("paragraphs")
+    let block_values = chapter_value
+        .get("blocks")
         .and_then(|v| v.as_array())
-        .and_then(|a| a.first())
-        .expect("paragraphs phải mang ít nhất một mục cho ca test này");
+        .expect("blocks phải là mảng");
+    let paragraph_value = &block_values[0];
     let mut paragraph_keys: Vec<&str> = paragraph_value
         .as_object()
-        .expect("một mục paragraphs phải serialize thành object")
+        .expect("một khối phải serialize thành object")
         .keys()
         .map(String::as_str)
         .collect();
     paragraph_keys.sort_unstable();
     assert_eq!(
         paragraph_keys,
-        vec!["segments"],
-        "khoá trên dây của ReadingParagraph là snake_case. Nhận được: {paragraph_keys:?}."
+        vec!["kind", "segments"],
+        "khoá trên dây của ReadingBlock::Paragraph. Nhận được: {paragraph_keys:?}."
+    );
+    assert_eq!(paragraph_value["kind"], "paragraph");
+
+    let untranslated_value = &block_values[1];
+    assert_eq!(
+        untranslated_value,
+        &serde_json::json!({ "kind": "untranslated", "segment_ids": [43, 44] }),
+        "khối chưa dịch chỉ mang kind và segment_ids; không một khoá văn bản nào."
     );
 
     let segment_value = paragraph_value
@@ -1883,14 +1896,14 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     );
     assert_eq!(
         frontier_value.get("kind").and_then(|v| v.as_str()),
-        Some("next-not-done"),
-        "ReadingFrontierKind::NextNotDone phải serialize thành chuỗi \"next-not-done\" NGUYÊN \
+        Some("next-unreadable"),
+        "ReadingFrontierKind::NextUnreadable phải serialize thành chuỗi \"next-unreadable\" NGUYÊN \
          VĂN — webview khớp đúng chuỗi này, không một biến thể nào khác."
     );
 
     let frontier_chapter_value = frontier_value
         .get("chapter")
-        .expect("chapter phải có mặt khi kind == NextNotDone");
+        .expect("chapter phải có mặt khi kind == NextUnreadable");
     let mut frontier_chapter_keys: Vec<&str> = frontier_chapter_value
         .as_object()
         .expect("frontier.chapter phải serialize thành object")

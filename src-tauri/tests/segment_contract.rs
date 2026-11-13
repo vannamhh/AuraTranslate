@@ -105,9 +105,10 @@ fn marking_a_live_reading_segment_is_idempotent_and_the_same_reading_snapshot_re
     assert_eq!(rows, 1, "INSERT idempotent phai giu dung mot hang");
 
     let chapter_id = opened.chapter_id;
+    translate_every_segment(&opened);
     set_chapter_status(Some(&mut opened), chapter_id, "done").expect("dat Chuong done");
     let reading = read_reading_run(Some(&opened)).expect("doc ReadingRun");
-    let wire = &reading.chapters[0].paragraphs[0].segments;
+    let wire = paragraph_blocks(&reading.chapters[0])[0];
     assert!(wire.iter().any(|s| s.id == id && s.is_marked));
     assert!(wire.iter().any(|s| s.id != id && !s.is_marked));
 
@@ -8100,7 +8101,73 @@ fn set_omitted(open: &auratranslate_lib::commands::project::OpenWork, ids: &[i64
 /// `read_reading_run`. Đi qua `set_chapter_status` — đường DUY NHẤT ghi `chapter.status`
 /// (Code Map của story), không một `UPDATE` tay.
 fn make_done(open: &mut auratranslate_lib::commands::project::OpenWork, chapter_id: i64) {
+    translate_every_segment(open);
     set_chapter_status(Some(open), chapter_id, "done").expect("dat trang thai done that bai");
+}
+
+/// Gives every segment still without a translation a non-empty `target_text`, so a grouping
+/// fixture reads as paragraphs instead of an untranslated block.
+fn translate_every_segment(open: &auratranslate_lib::commands::project::OpenWork) {
+    open.store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = 'Dich ' || id WHERE trim(target_text) = ''",
+                [],
+            )
+        })
+        .expect("dien ban dich cho moi cau that bai");
+}
+
+fn set_target_directly(
+    open: &auratranslate_lib::commands::project::OpenWork,
+    segment_id: i64,
+    target: &str,
+) {
+    let target = target.to_owned();
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1 WHERE id = ?2",
+                (target, segment_id),
+            )
+        })
+        .expect("dat target_text truc tiep that bai");
+}
+
+/// The `Paragraph` blocks of a chapter, in order.
+fn paragraph_blocks(
+    chapter: &auratranslate_lib::commands::segment::ReadingChapter,
+) -> Vec<&Vec<auratranslate_lib::commands::segment::ReadingSegment>> {
+    chapter
+        .blocks
+        .iter()
+        .filter_map(|block| match block {
+            auratranslate_lib::commands::segment::ReadingBlock::Paragraph { segments } => {
+                Some(segments)
+            }
+            auratranslate_lib::commands::segment::ReadingBlock::Untranslated { .. } => None,
+        })
+        .collect()
+}
+
+/// Every block as `P[index…]` or `U[index…]` (1-based positions in `ordered_ids`).
+fn block_shapes(
+    ids: &[i64],
+    chapter: &auratranslate_lib::commands::segment::ReadingChapter,
+) -> Vec<(char, Vec<usize>)> {
+    let pos = |id: i64| ids.iter().position(|&x| x == id).expect("id la thanh vien") + 1;
+    chapter
+        .blocks
+        .iter()
+        .map(|block| match block {
+            auratranslate_lib::commands::segment::ReadingBlock::Paragraph { segments } => {
+                ('P', segments.iter().map(|s| pos(s.id)).collect())
+            }
+            auratranslate_lib::commands::segment::ReadingBlock::Untranslated { segment_ids } => {
+                ('U', segment_ids.iter().map(|&id| pos(id)).collect())
+            }
+        })
+        .collect()
 }
 
 /// **THÊM Story 5.12.** Đặt `chapter.status` bằng SQL TRỰC TIẾP — dùng CHỈ cho ca "trạng
@@ -8163,11 +8230,10 @@ fn paragraph_shapes(
     ids: &[i64],
     chapter: &auratranslate_lib::commands::segment::ReadingChapter,
 ) -> Vec<Vec<usize>> {
-    chapter
-        .paragraphs
-        .iter()
-        .map(|p| {
-            p.segments
+    paragraph_blocks(chapter)
+        .into_iter()
+        .map(|segments| {
+            segments
                 .iter()
                 .map(|s| {
                     ids.iter()
@@ -8253,9 +8319,9 @@ fn an_omitted_sentence_leaves_no_trace_in_the_reading_paragraphs() {
         vec![vec![1, 2], vec![4], vec![5]],
         "cau 3 phai bien mat hoan toan, khong doan rong nao lot ra day"
     );
-    for paragraph in &chapter.paragraphs {
+    for segments in paragraph_blocks(chapter) {
         assert!(
-            paragraph.segments.iter().all(|s| s.id != ids[2]),
+            segments.iter().all(|s| s.id != ids[2]),
             "id cua cau da cat bo khong duoc xuat hien o bat ky doan nao"
         );
     }
@@ -8326,7 +8392,7 @@ fn an_entirely_omitted_paragraph_produces_no_empty_paragraph() {
         "doan giua phai bien mat TRON VEN -- khong mot doan rong nao dai dien cho no"
     );
     assert!(
-        chapter.paragraphs.iter().all(|p| !p.segments.is_empty()),
+        paragraph_blocks(chapter).iter().all(|p| !p.is_empty()),
         "khong doan nao duoc phep rong"
     );
 
@@ -8344,73 +8410,147 @@ fn reading_a_run_without_an_open_work_fails_with_work_none_open() {
     assert_eq!(err.code(), "work.none_open");
 }
 
-/// **Câu CHƯA DỊCH vẫn ở nguyên trong đoạn** — hàng *"Câu chưa dịch"* của I/O Matrix Story 5.11.
-///
-/// 🔴 Vì sao ca này tồn tại riêng, khi năm ca trên đã kiểm CẤU TRÚC đoạn: cả năm ca ấy so
-/// `paragraph_shapes` -- một phép so theo **vị trí**, mù với nội dung. Một lượt cài "bỏ qua câu
-/// rỗng cho trang đọc sạch" sẽ đi qua trọn vẹn năm ca đó. `target_text` rỗng nghĩa là *chưa dịch*,
-/// **không** phải *đã cắt bỏ*: hai trục độc lập (`commands/segment.rs` §`is_omitted`), và Chế độ
-/// đọc không được tự bịa ra nội dung lẫn tự giấu một câu người dùng chưa làm tới.
-#[test]
-fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
-    let root = temp_dir("5-11-untranslated-stays");
+/// Fixture: "一。二。\n三。四。\n五。" with a translation on every sentence except `blank`.
+fn open_reading_fixture_with_blanks(
+    tag: &str,
+    blank: &[(usize, &str)],
+) -> (auratranslate_lib::commands::project::OpenWork, Vec<i64>) {
+    let root = temp_dir(tag);
     let mut opened = create_work_from_text(
         &root,
-        "5.11 Chua dich",
+        "5.19 Chua dich",
         "zh",
         "",
         "一。二。\n三。四。\n五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
-    make_done(&mut opened, chapter_id_to_mark_done);
-
+    let chapter_id = opened.chapter_id;
+    make_done(&mut opened, chapter_id);
     let ids = ordered_ids(&opened);
-    // Dich cau 1 va cau 2, DE NGUYEN cau 3 chua dich (chuoi rong) trong cung doan voi cau 4.
-    flush_segment_targets(
-        Some(&opened),
-        opened.chapter_id,
-        &[
-            edit(ids[0], "Mot."),
-            edit(ids[1], "Hai."),
-            edit(ids[3], "Bon."),
-        ],
+    for &(index, target) in blank {
+        set_target_directly(&opened, ids[index - 1], target);
+    }
+    (opened, ids)
+}
+
+fn finish_reading_fixture(opened: auratranslate_lib::commands::project::OpenWork) {
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_trailing_untranslated_stretch_across_two_paragraphs_becomes_one_block_of_six_ids() {
+    let root = temp_dir("5-19-trailing-run");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.19 Duoi",
+        "zh",
+        "",
+        "一。二。三。四。五。\n六。七。八。九。十。".to_owned(),
     )
-    .expect("ghi ban dich that bai");
+    .expect("tao tac pham that bai");
+    let chapter_id = opened.chapter_id;
+    make_done(&mut opened, chapter_id);
+    let ids = ordered_ids(&opened);
+    assert_eq!(ids.len(), 10);
+    for &id in &ids[4..] {
+        set_target_directly(&opened, id, "");
+    }
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     let chapter = &run.chapters[0];
     assert_eq!(
-        paragraph_shapes(&ids, chapter),
-        vec![vec![1, 2], vec![3, 4], vec![5]],
-        "cau chua dich KHONG duoc bien mat -- cau truc doan phai y het ca khong cat bo nao"
+        block_shapes(&ids, chapter),
+        vec![('P', vec![1, 2, 3, 4]), ('U', vec![5, 6, 7, 8, 9, 10])],
+        "sau bon cau da dich la mot khoi 6 id, gop qua bien doan; cau dau la cau thu 5"
     );
+    assert_eq!(chapter.segment_count, 10);
+    finish_reading_fixture(opened);
+}
 
-    let third = chapter
-        .paragraphs
-        .iter()
-        .flat_map(|p| p.segments.iter())
-        .find(|s| s.id == ids[2])
-        .expect("cau 3 phai co mat tren day");
+#[test]
+fn an_omitted_sentence_inside_an_untranslated_stretch_neither_counts_nor_splits_it() {
+    let (opened, ids) =
+        open_reading_fixture_with_blanks("5-19-omitted-inside-run", &[(1, ""), (3, "")]);
+    set_target_directly(&opened, ids[1], "");
+    set_omitted(&opened, &[ids[1]]);
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     assert_eq!(
-        third.target_text, "",
-        "cau chua dich mang chuoi RONG, khong mot noi dung bia ra"
+        block_shapes(&ids, &run.chapters[0]),
+        vec![('U', vec![1, 3]), ('P', vec![4]), ('P', vec![5])],
+        "U, O, U gop thanh mot khoi hai id; cau cat bo khong co mat"
     );
+    finish_reading_fixture(opened);
+}
 
-    let fourth = chapter
-        .paragraphs
-        .iter()
-        .flat_map(|p| p.segments.iter())
-        .find(|s| s.id == ids[3])
-        .expect("cau 4 phai co mat tren day");
+#[test]
+fn a_paragraph_interrupted_by_an_untranslated_stretch_splits_into_two_paragraph_blocks() {
+    let (opened, ids) = open_reading_fixture_with_blanks("5-19-split-paragraph", &[(4, "")]);
+    set_target_directly(&opened, ids[1], " \n ");
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     assert_eq!(
-        fourth.target_text, "Bon.",
-        "cau da dich mang dung ban dich da ghi"
+        block_shapes(&ids, &run.chapters[0]),
+        vec![
+            ('P', vec![1]),
+            ('U', vec![2]),
+            ('P', vec![3]),
+            ('U', vec![4]),
+            ('P', vec![5]),
+        ],
+        "khoang trang la chua dich; mot doan bi chen giua tach thanh hai khoi doan"
     );
+    finish_reading_fixture(opened);
+}
 
-    let dir = opened.dir.clone();
-    drop(opened);
-    cleanup(&dir);
+#[test]
+fn a_chapter_whose_every_sentence_is_untranslated_reads_as_a_single_untranslated_block() {
+    let (opened, ids) = open_reading_fixture_with_blanks(
+        "5-19-all-blank",
+        &[(1, ""), (2, ""), (3, ""), (4, ""), (5, "")],
+    );
+    let chapter_id = opened.chapter_id;
+    set_chapter_status_raw(&opened, chapter_id, "in_progress");
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    assert_eq!(
+        block_shapes(&ids, &run.chapters[0]),
+        vec![('U', vec![1, 2, 3, 4, 5])]
+    );
+    finish_reading_fixture(opened);
+}
+
+#[test]
+fn the_serialized_run_never_carries_the_source_text_of_an_untranslated_sentence() {
+    let (opened, ids) = open_reading_fixture_with_blanks("5-19-no-source", &[(2, ""), (3, "")]);
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    let json = serde_json::to_string(&run).expect("serialize ReadingRun");
+    let source_of = |index: usize| -> String {
+        let id = ids[index - 1];
+        opened
+            .store
+            .read(move |conn| {
+                conn.query_row("SELECT source_text FROM segment WHERE id = ?1", [id], |r| {
+                    r.get::<_, String>(0)
+                })
+            })
+            .expect("doc source_text")
+    };
+    for index in [2, 3] {
+        let source = source_of(index);
+        assert!(!source.is_empty());
+        assert!(
+            !json.contains(&source),
+            "nguyen van {source:?} cua cau chua dich khong duoc nam tren day: {json}"
+        );
+    }
+    assert!(
+        json.contains(&source_of(1)),
+        "cau da dich van mang nguyen van o hai dau"
+    );
+    finish_reading_fixture(opened);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -8487,8 +8627,8 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
     make_done(&mut opened, chapter_a);
     make_done(&mut opened, chapter_b);
     make_done(&mut opened, chapter_c);
-    set_chapter_status(Some(&mut opened), chapter_d, "in_progress")
-        .expect("dat in_progress that bai");
+    set_chapter_status(Some(&mut opened), chapter_d, "not_started")
+        .expect("dat not_started that bai");
 
     opened.chapter_id = chapter_a;
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
@@ -8506,17 +8646,72 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
         vec![chapter_a, chapter_b, chapter_c],
         "day phai theo dung thu tu (ord, id), bat dau TAI Chuong dang mo"
     );
-    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextUnreadable);
     let frontier_chapter = run
         .frontier
         .chapter
         .as_ref()
-        .expect("kind == NextNotDone ⇒ chapter phai Some");
+        .expect("kind == NextUnreadable ⇒ chapter phai Some");
     assert_eq!(
         frontier_chapter.chapter_id, chapter_d,
         "moc bien phai neu dich danh Chuong thu tu"
     );
-    assert_eq!(frontier_chapter.status, "in_progress");
+    assert_eq!(frontier_chapter.status, "not_started");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+/// §I/O Matrix "Đọc qua" — Done, InProgress và Paused đều đọc được; mốc biên chỉ ở Chương
+/// `not_started`.
+#[test]
+fn a_run_reads_through_done_in_progress_and_paused_chapters_and_stops_at_not_started() {
+    let root = temp_dir("5-19-read-through");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.19 Doc qua",
+        "zh",
+        "",
+        "一。\n二。\n三。\n四。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
+    let ids = ordered_ids(&opened);
+    let mut chapters = vec![opened.chapter_id];
+    for &id in &ids[1..] {
+        split_chapter_at_segment(Some(&mut opened), id).expect("tach that bai");
+        let next: i64 = opened
+            .store
+            .read(move |conn| {
+                conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id], |r| {
+                    r.get(0)
+                })
+            })
+            .expect("doc chapter_id");
+        opened.chapter_id = next;
+        chapters.push(next);
+    }
+    translate_every_segment(&opened);
+    for (chapter, status) in chapters
+        .iter()
+        .zip(["done", "in_progress", "paused", "not_started"])
+    {
+        set_chapter_status(Some(&mut opened), *chapter, status).expect("dat trang thai");
+    }
+    opened.chapter_id = chapters[0];
+
+    let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
+    assert_eq!(
+        run.chapters
+            .iter()
+            .map(|c| c.chapter_id)
+            .collect::<Vec<_>>(),
+        chapters[..3].to_vec()
+    );
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextUnreadable);
+    let frontier_chapter = run.frontier.chapter.as_ref().expect("chapter phai Some");
+    assert_eq!(frontier_chapter.chapter_id, chapters[3]);
+    assert_eq!(frontier_chapter.status, "not_started");
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -8526,31 +8721,31 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
 /// §I/O Matrix "Chạm biên ngay" — Chương đang mở CHƯA `done` ⇒ `chapters` rỗng, mốc biên trỏ
 /// vào CHÍNH Chương đang mở.
 #[test]
-fn opening_a_not_done_chapter_yields_an_empty_run_with_the_frontier_on_itself() {
+fn opening_a_not_started_chapter_yields_an_empty_run_with_the_frontier_on_itself() {
     let root = temp_dir("5-12-frontier-on-self");
     let mut opened =
         create_work_from_text(&root, "5.12 Cham bien", "zh", "", "一。二。".to_owned())
             .expect("tao tac pham that bai");
     let chapter_id = opened.chapter_id;
-    set_chapter_status(Some(&mut opened), chapter_id, "in_progress")
-        .expect("dat in_progress that bai");
+    set_chapter_status(Some(&mut opened), chapter_id, "not_started")
+        .expect("dat not_started that bai");
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     assert!(
         run.chapters.is_empty(),
-        "Chuong dang mo chua done ⇒ khong Chuong nao vao day"
+        "Chuong dang mo chua bat dau ⇒ khong Chuong nao vao day"
     );
-    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextUnreadable);
     let frontier_chapter = run
         .frontier
         .chapter
         .as_ref()
-        .expect("kind == NextNotDone ⇒ chapter phai Some");
+        .expect("kind == NextUnreadable ⇒ chapter phai Some");
     assert_eq!(
         frontier_chapter.chapter_id, chapter_id,
         "moc bien phai tro vao CHINH Chuong dang mo"
     );
-    assert_eq!(frontier_chapter.status, "in_progress");
+    assert_eq!(frontier_chapter.status, "not_started");
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -8642,12 +8837,12 @@ fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier()
         1,
         "day phai dung truoc Chuong mang gia tri la"
     );
-    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+    assert_eq!(run.frontier.kind, ReadingFrontierKind::NextUnreadable);
     let frontier_chapter = run
         .frontier
         .chapter
         .as_ref()
-        .expect("kind == NextNotDone ⇒ chapter phai Some");
+        .expect("kind == NextUnreadable ⇒ chapter phai Some");
     assert_eq!(frontier_chapter.chapter_id, chapter_b);
     assert_eq!(
         frontier_chapter.status, "finished",
@@ -8684,10 +8879,9 @@ fn unconfirmed_sentences_in_a_done_chapter_carry_is_confirmed_false() {
     set_segment_status_directly(&opened, ids[4], SEGMENT_STATUS_CONFIRMED);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
-    let all_segments: Vec<_> = run.chapters[0]
-        .paragraphs
-        .iter()
-        .flat_map(|p| p.segments.iter())
+    let all_segments: Vec<_> = paragraph_blocks(&run.chapters[0])
+        .into_iter()
+        .flatten()
         .collect();
     assert_eq!(all_segments.len(), 5);
     for segment in &all_segments {
@@ -8738,11 +8932,7 @@ fn omitted_and_unconfirmed_sentences_coexist_correctly_in_the_same_done_chapter(
         "segment_count dem CA cau da cat bo"
     );
 
-    let all_segments: Vec<_> = chapter
-        .paragraphs
-        .iter()
-        .flat_map(|p| p.segments.iter())
-        .collect();
+    let all_segments: Vec<_> = paragraph_blocks(chapter).into_iter().flatten().collect();
     let surviving_ids: Vec<i64> = all_segments.iter().map(|s| s.id).collect();
     assert_eq!(
         surviving_ids,
@@ -8801,10 +8991,9 @@ fn manually_marking_a_chapter_done_behaves_identically_to_any_other_done_chapter
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
-    let all_segments: Vec<_> = run.chapters[0]
-        .paragraphs
-        .iter()
-        .flat_map(|p| p.segments.iter())
+    let all_segments: Vec<_> = paragraph_blocks(&run.chapters[0])
+        .into_iter()
+        .flatten()
         .collect();
     assert_eq!(
         all_segments.len(),
@@ -8837,10 +9026,7 @@ fn a_done_chapter_with_no_segments_reads_as_zero_paragraphs_and_zero_segment_cou
     let run = read_reading_run(Some(&opened)).expect("Chuong rong khong duoc la mot loi");
     let chapter = &run.chapters[0];
     assert_eq!(chapter.chapter_id, opened.chapter_id);
-    assert!(
-        chapter.paragraphs.is_empty(),
-        "Chuong rong ⇒ paragraphs rong"
-    );
+    assert!(chapter.blocks.is_empty(), "Chuong rong ⇒ blocks rong");
     assert_eq!(chapter.segment_count, 0, "Chuong rong ⇒ segment_count = 0");
 
     let dir = opened.dir.clone();
@@ -8872,8 +9058,8 @@ fn a_chapter_where_every_sentence_is_omitted_reads_as_zero_paragraphs_but_positi
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     let chapter = &run.chapters[0];
     assert!(
-        chapter.paragraphs.is_empty(),
-        "moi cau da cat bo ⇒ paragraphs rong, dung khuon Chuong rong nhung tu MOT du kien khac"
+        chapter.blocks.is_empty(),
+        "moi cau da cat bo ⇒ blocks rong, dung khuon Chuong rong nhung tu MOT du kien khac"
     );
     assert_eq!(
         chapter.segment_count, 4,
@@ -8994,7 +9180,7 @@ fn bench_reading_run_over_five_thousand_chapters() {
             run.chapters.is_empty(),
             "Chương đầu chưa done ⇒ không nạp dãy segment"
         );
-        assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+        assert_eq!(run.frontier.kind, ReadingFrontierKind::NextUnreadable);
         assert_eq!(
             run.frontier.chapter.as_ref().map(|c| c.chapter_id),
             Some(current_chapter_id)
@@ -9009,7 +9195,7 @@ fn bench_reading_run_over_five_thousand_chapters() {
             run.chapters.is_empty(),
             "frontier không được lẫn output full-run"
         );
-        assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
+        assert_eq!(run.frontier.kind, ReadingFrontierKind::NextUnreadable);
         frontier_samples.push(elapsed_ms);
     }
     print_elapsed("frontier_5000_chapters_0_segments", frontier_samples);
@@ -9104,8 +9290,15 @@ fn bench_reading_run_over_five_thousand_chapters() {
         let returned_segments: usize = run
             .chapters
             .iter()
-            .flat_map(|chapter| &chapter.paragraphs)
-            .map(|paragraph| paragraph.segments.len())
+            .flat_map(|chapter| &chapter.blocks)
+            .map(|block| match block {
+                auratranslate_lib::commands::segment::ReadingBlock::Paragraph { segments } => {
+                    segments.len()
+                }
+                auratranslate_lib::commands::segment::ReadingBlock::Untranslated {
+                    segment_ids,
+                } => segment_ids.len(),
+            })
             .sum();
         assert_eq!(run.chapters.len(), CHAPTERS, "full-run phải trả đủ Chương");
         assert_eq!(

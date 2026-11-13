@@ -59,21 +59,26 @@ export type ListReadingMarksResult = {
   error: IpcError | null
 }
 
-/**
- * Một đoạn — khớp `commands::segment::ReadingParagraph`. Không đoạn nào rỗng: nếu mọi câu
- * của một đoạn đều đã bị cắt bỏ, đoạn đó không xuất hiện trong `paragraphs` (Rust quyết,
- * xem doc-comment của `paragraphs_in_translation`).
- */
-export type ReadingParagraph = {
+/** Khối đoạn đã dịch — khớp `commands::segment::ReadingBlock::Paragraph`. Không bao giờ rỗng. */
+export type ReadingParagraphBlock = {
+  kind: 'paragraph'
   segments: ReadingSegment[]
 }
+
+/** Dãy câu liền nhau chưa có bản dịch; tuyệt đối không mang chữ nào của câu. */
+export type ReadingUntranslatedBlock = {
+  kind: 'untranslated'
+  segment_ids: number[]
+}
+
+export type ReadingBlock = ReadingParagraphBlock | ReadingUntranslatedBlock
 
 /**
  * Một ảnh đã phân giải vị trí, cho CHẾ ĐỘ ĐỌC — khớp `commands::segment::ReadingImage`,
  * `snake_case` trên dây. Story 6.14, FR42/FR43.
  *
  * ⚠️ `after_segment_id` LUÔN khớp `id` của một [`ReadingSegment`] THẬT SỰ có mặt trong
- * `ReadingChapter.paragraphs` (hoặc `null` ⇒ trước đoạn ĐẦU TIÊN) — Rust đã loại segment cắt
+ * `ReadingChapter.blocks` (hoặc nằm trong một khối `untranslated`; `null` ⇒ trước khối ĐẦU TIÊN) — Rust đã loại segment cắt
  * bỏ VÀ segment mang vai khỏi tập "đủ điều kiện làm neo" trước khi tính giá trị này, nên
  * webview không bao giờ cần tra một `id` không tồn tại trên trang.
  */
@@ -94,8 +99,8 @@ export type ReadingImage = {
  *
  * `segment_count` — **THÊM Story 5.12**: số hàng `segment` còn sống của Chương này, đếm ở
  * Rust trong CÙNG lượt đọc. Đây là dữ kiện GỠ nhánh `'empty-unknown'` cũ (xem
- * `readingState.ts`): `paragraphs.length === 0` cùng `segment_count === 0` ⇒ Chương thật sự
- * rỗng; `paragraphs.length === 0` cùng `segment_count > 0` ⇒ mọi câu đã cắt bỏ.
+ * `readingState.ts`): `blocks.length === 0` cùng `segment_count === 0` ⇒ Chương thật sự
+ * rỗng; `blocks.length === 0` cùng `segment_count > 0` ⇒ mọi câu đã cắt bỏ.
  *
  * `images` — **THÊM Story 6.14**: ảnh của Chương này, đã phân giải vị trí.
  */
@@ -110,7 +115,7 @@ export type ReadingChapter = {
   chapter_ord: number
   /** `null` ⇒ Chương chưa đặt tên — cùng ngữ nghĩa `ChapterRow::title` (Story 5.7). */
   chapter_title: string | null
-  paragraphs: ReadingParagraph[]
+  blocks: ReadingBlock[]
   segment_count: number
   images: ReadingImage[]
   translation_origin_counts: ReadingTranslationOriginCounts
@@ -120,7 +125,7 @@ export type ReadingChapter = {
  * Vì sao dãy đọc dừng — khớp `commands::segment::ReadingFrontierKind`. Hai chuỗi trên dây
  * ĐÓNG BĂNG, cùng khuôn `ChapterSwitchOutcome`/`ChapterSwitch` phía Rust.
  */
-export type ReadingFrontierKind = 'next-not-done' | 'end-of-work'
+export type ReadingFrontierKind = 'next-unreadable' | 'end-of-work'
 
 /**
  * Chương đứng CHẶN dãy đọc — khớp `commands::segment::ReadingFrontierChapter`.
@@ -140,7 +145,7 @@ export type ReadingFrontierChapter = {
 /**
  * Mốc biên giới của một lượt đọc — khớp `commands::segment::ReadingFrontier`.
  *
- * 🔴 `chapter` là `Some` (khác `null`) **khi và chỉ khi** `kind === 'next-not-done'`.
+ * 🔴 `chapter` là `Some` (khác `null`) **khi và chỉ khi** `kind === 'next-unreadable'`.
  */
 export type ReadingFrontier = {
   kind: ReadingFrontierKind
@@ -216,14 +221,18 @@ function isReadingSegmentArray(value: unknown): value is ReadingSegment[] {
   return Array.isArray(value) && value.every(isReadingSegment)
 }
 
-function isReadingParagraph(value: unknown): value is ReadingParagraph {
+function isReadingBlock(value: unknown): value is ReadingBlock {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as Partial<ReadingParagraph>
-  return isReadingSegmentArray(v.segments)
+  const v = value as Record<string, unknown>
+  if (v.kind === 'paragraph') return isReadingSegmentArray(v.segments)
+  if (v.kind === 'untranslated') {
+    return Array.isArray(v.segment_ids) && v.segment_ids.length > 0 && v.segment_ids.every((id) => typeof id === 'number')
+  }
+  return false
 }
 
-function isReadingParagraphArray(value: unknown): value is ReadingParagraph[] {
-  return Array.isArray(value) && value.every(isReadingParagraph)
+function isReadingBlockArray(value: unknown): value is ReadingBlock[] {
+  return Array.isArray(value) && value.every(isReadingBlock)
 }
 
 /** 🔵 **THÊM Story 6.14** — vị từ kiểm kiểu LÚC CHẠY cho `ReadingImage`. */
@@ -267,7 +276,7 @@ function isReadingChapter(value: unknown): value is ReadingChapter {
     typeof v.chapter_id === 'number' &&
     typeof v.chapter_ord === 'number' &&
     (typeof v.chapter_title === 'string' || v.chapter_title === null) &&
-    isReadingParagraphArray(v.paragraphs) &&
+    isReadingBlockArray(v.blocks) &&
     typeof v.segment_count === 'number' &&
     isReadingImageArray(v.images) &&
     isTranslationOriginCounts(v.translation_origin_counts)
@@ -280,7 +289,7 @@ function isReadingChapterArray(value: unknown): value is ReadingChapter[] {
 
 /** Chốt ĐÚNG hai chuỗi trên dây — một biến thể thứ ba là một hình dạng chưa ai ký. */
 function isReadingFrontierKind(value: unknown): value is ReadingFrontierKind {
-  return value === 'next-not-done' || value === 'end-of-work'
+  return value === 'next-unreadable' || value === 'end-of-work'
 }
 
 function isReadingFrontierChapter(value: unknown): value is ReadingFrontierChapter {
@@ -295,7 +304,7 @@ function isReadingFrontierChapter(value: unknown): value is ReadingFrontierChapt
 }
 
 /**
- * Kiểm CẢ bất biến *"`chapter` non-null khi và chỉ khi `kind === 'next-not-done'`"* — không
+ * Kiểm CẢ bất biến *"`chapter` non-null khi và chỉ khi `kind === 'next-unreadable'`"* — không
  * chỉ hình dạng từng trường. Một `run` vi phạm bất biến này bị TỪ CHỐI toàn bộ, không được
  * vá tại chỗ: một cài đặt "vá cho khớp" sẽ giấu đúng lỗi mà hợp đồng này tồn tại để bắt.
  */
@@ -303,7 +312,7 @@ function isReadingFrontier(value: unknown): value is ReadingFrontier {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ReadingFrontier>
   if (!isReadingFrontierKind(v.kind)) return false
-  if (v.kind === 'next-not-done') return isReadingFrontierChapter(v.chapter)
+  if (v.kind === 'next-unreadable') return isReadingFrontierChapter(v.chapter)
   return v.chapter === null
 }
 

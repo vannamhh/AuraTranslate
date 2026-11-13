@@ -2635,6 +2635,9 @@ const HANDLER_TABLE = {
   'src/modes/ReadingMode.vue::onSegmentTextMouseDown': {
     nonCommand: 'records where the pointer pressed so the mark chip sits under that line — view state, no dispatch',
   },
+  'src/modes/ReadingMode.vue::setReadingUntranslatedAim': {
+    nonCommand: 'aims the untranslated block from a press so the click that follows opens it — view state, no dispatch',
+  },
   'src/modes/ReadingMode.vue::onMarksEscape': { ids: ['reading.marks_clear_cancel', 'reading.marks_close'] },
   'src/modes/ReadingMarksList.vue::onMarksKeydown': {
     ids: ['reading.marks_next', 'reading.marks_prev', 'reading.marks_open', 'reading.marks_unmark'],

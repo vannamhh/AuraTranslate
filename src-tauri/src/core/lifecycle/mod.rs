@@ -95,6 +95,16 @@ lifecycle_statuses! {
     Done => "done" : "lifecycle.done",
 }
 
+impl LifecycleStatus {
+    /// Reading Mode reads through a Chapter in this status; an unknown wire status is never readable.
+    pub const fn is_readable(self) -> bool {
+        match self {
+            LifecycleStatus::Done | LifecycleStatus::InProgress | LifecycleStatus::Paused => true,
+            LifecycleStatus::NotStarted => false,
+        }
+    }
+}
+
 /// Bảng suy ra trạng thái Tác phẩm từ tập trạng thái Chương — §Always của story 5.4, đúng
 /// bốn hàng: 0 Chương ⇒ `NotStarted`; mọi Chương `Done` ⇒ `Done`; mọi Chương `NotStarted` ⇒
 /// `NotStarted`; **mọi ca còn lại** ⇒ `InProgress`.

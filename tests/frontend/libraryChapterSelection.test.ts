@@ -183,6 +183,12 @@ describe('chapterActionRules', () => {
     expect(rules).toMatchObject({ rename: true, moveUp: true, moveDown: true, open: true, split: true, status: true, export: true })
   })
 
+  it('read is on for done, in_progress and paused, off for not_started and unknown statuses', () => {
+    const rows = [row(1, 'done'), row(2, 'in_progress'), row(3, 'paused'), row(4, 'not_started'), row(5, 'finished')]
+    const read = (id: number) => chapterActionRules(rows, new Set([id])).read
+    expect([1, 2, 3, 4, 5].map(read)).toEqual([true, true, true, false, false])
+  })
+
   it('split is off for a one-sentence Chapter', () => {
     const rows = [row(1, 'done', { segment_count: 1 })]
     expect(chapterActionRules(rows, new Set([1])).split).toBe(false)

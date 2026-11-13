@@ -3,6 +3,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { dispatch } from '../commands'
 import { commandTitle } from '../config/shortcutsState'
+import { isReadableChapterStatus } from '../config/lifecycle'
 import ChapterOrigin from '../ChapterOrigin.vue'
 import { t, tError } from '../i18n'
 import type { ChapterRow } from '../config/chapter'
@@ -690,7 +691,7 @@ onBeforeUnmount(() => {
                   {{ t('library.work_page.row_translate') }}
                 </button>
                 <button
-                  v-if="item.row.status === 'done'"
+                  v-if="isReadableChapterStatus(item.row.status)"
                   type="button"
                   class="ui-btn ui-btn--quiet"
                   data-library-row-read

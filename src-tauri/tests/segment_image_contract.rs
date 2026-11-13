@@ -142,12 +142,17 @@ fn reading_image_of(
 }
 
 /// Chương phải `Done` để `read_reading_run` trả nội dung (FR120, Story 5.12) — không liên
-/// quan tới ảnh, nhưng bắt buộc để tới được nhánh có ảnh.
+/// quan tới ảnh, nhưng bắt buộc để tới được nhánh có ảnh. Cũng điền bản dịch cho mọi câu để
+/// chúng đọc thành đoạn chứ không thành khối chưa dịch.
 fn mark_chapter_done(opened: &auratranslate_lib::commands::project::OpenWork) {
     let chapter_id = opened.chapter_id;
     opened
         .store
         .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = 'Dich ' || id WHERE trim(target_text) = ''",
+                [],
+            )?;
             tx.execute(
                 "UPDATE chapter SET status = 'done' WHERE id = ?1",
                 [chapter_id],
@@ -370,7 +375,13 @@ fn an_untranslated_caption_segment_still_returns_its_raw_empty_target_text() {
     let (root, opened) = work_with_five_segments("caption-chua-dich");
     mark_chapter_done(&opened);
     let seg2 = segment_id_at(&opened, 2);
-    set_role(&opened, seg2, "caption"); // target_text mac dinh la '' (chua dich).
+    set_role(&opened, seg2, "caption");
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE segment SET target_text = '' WHERE id = ?1", [seg2])
+        })
+        .expect("xoa ban dich that bai");
     insert_asset(&opened, 922, "caption-rong.jpg", None, 1);
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
@@ -421,7 +432,12 @@ fn a_chapter_with_zero_assets_renders_identically_to_before_this_story_on_both_s
     let run = read_reading_run(Some(&opened)).expect("nap luot doc that bai");
     assert_eq!(run.chapters[0].images, Vec::new());
     assert_eq!(
-        run.chapters[0].paragraphs[0].segments.len(),
+        match &run.chapters[0].blocks[0] {
+            auratranslate_lib::commands::segment::ReadingBlock::Paragraph { segments } => {
+                segments.len()
+            }
+            other => panic!("khoi dau phai la doan: {other:?}"),
+        },
         5,
         "van dung nam cau nhu truoc story nay -- khong segment nao bi anh huong boi tinh nang anh"
     );
@@ -456,11 +472,7 @@ fn a_role_bearing_segment_never_reaches_the_reading_page_as_prose() {
 
     let run = read_reading_run(Some(&opened)).expect("nap luot doc that bai");
 
-    let on_page: Vec<i64> = run.chapters[0]
-        .paragraphs
-        .iter()
-        .flat_map(|p| p.segments.iter().map(|s| s.id))
-        .collect();
+    let on_page = on_page_ids(&run.chapters[0]);
     assert!(
         !on_page.contains(&seg2),
         "segment role='alt' LEN TRANG doc nhu van xuoi -- chot loc vai da bi go khoi `read_reading_run`. \
@@ -472,6 +484,45 @@ fn a_role_bearing_segment_never_reaches_the_reading_page_as_prose() {
          khong vao dong van. Tren trang: {on_page:?}, caption la {seg3}"
     );
     assert_eq!(on_page.len(), 3, "ba cau van xuoi con lai van len trang du");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
+fn on_page_ids(chapter: &auratranslate_lib::commands::segment::ReadingChapter) -> Vec<i64> {
+    use auratranslate_lib::commands::segment::ReadingBlock;
+    chapter
+        .blocks
+        .iter()
+        .flat_map(|block| match block {
+            ReadingBlock::Paragraph { segments } => segments.iter().map(|s| s.id).collect(),
+            ReadingBlock::Untranslated { segment_ids } => segment_ids.clone(),
+        })
+        .collect()
+}
+
+#[test]
+fn an_image_anchored_after_an_untranslated_sentence_keeps_that_sentence_as_its_anchor() {
+    let (root, opened) = work_with_five_segments("anh-sau-cau-chua-dich");
+    mark_chapter_done(&opened);
+    let seg3 = segment_id_at(&opened, 3);
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE segment SET target_text = '' WHERE id = ?1", [seg3])
+        })
+        .expect("xoa ban dich that bai");
+    insert_asset(&opened, 940, "u.jpg", None, 3);
+
+    let run = read_reading_run(Some(&opened)).expect("nap luot doc that bai");
+    let chapter = &run.chapters[0];
+    assert!(
+        on_page_ids(chapter).contains(&seg3),
+        "cau chua dich nam trong khoi Untranslated"
+    );
+    assert_eq!(reading_image_of(&run, 940).after_segment_id, Some(seg3));
 
     let dir = opened.dir.clone();
     drop(opened);

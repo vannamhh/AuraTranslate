@@ -7,6 +7,7 @@
 import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import type { ChapterRow } from '../config/chapter'
+import { isReadableChapterStatus } from '../config/lifecycle'
 
 export type ChapterGroupKey = 'in_progress' | 'paused' | 'done' | 'not_started' | 'unknown'
 export type ChapterFilter = 'all' | Exclude<ChapterGroupKey, 'unknown'>
@@ -170,7 +171,7 @@ export function chapterActionRules(rows: readonly ChapterRow[], selected: Readon
     moveUp: only !== null,
     moveDown: only !== null,
     open: only !== null,
-    read: only !== null && only.status === 'done',
+    read: only !== null && isReadableChapterStatus(only.status),
     status: count >= 1,
     export: count >= 1,
   }

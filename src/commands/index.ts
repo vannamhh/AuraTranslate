@@ -1371,6 +1371,7 @@ export type CommandDeps = {
   markAimedReadingSegment?: () => void
   /** Mở câu đang aim vào Workspace. Chỉ được dispatch từ Enter cục bộ trên wrapper. */
   openAimedReadingSegment?: () => void
+  openUntranslatedReadingBlock?: () => void
   /** Mở/đóng/điều hướng danh sách marker của Tác phẩm. */
   openReadingMarks?: () => void
   closeReadingMarks?: () => void
@@ -2910,6 +2911,15 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.openAimedReadingSegment === undefined) return portMissing('reading.open_aimed', 'openAimedReadingSegment')
       deps.openAimedReadingSegment()
+    },
+  })
+  target.register({
+    id: 'reading.open_untranslated',
+    labelKey: 'command.reading.open_untranslated',
+    keys: undefined,
+    run: () => {
+      if (deps.openUntranslatedReadingBlock === undefined) return portMissing('reading.open_untranslated', 'openUntranslatedReadingBlock')
+      deps.openUntranslatedReadingBlock()
     },
   })
   target.register({

@@ -27,6 +27,7 @@ import { computed, nextTick, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
 import { listChapters } from '../config/chapter'
+import { isReadableChapterStatus } from '../config/lifecycle'
 import type { ChapterRow } from '../config/chapter'
 import { KEY_READING_PREFERENCES, SCOPE_APP_CONFIG, putConfig } from '../config/bootstrap'
 import { createWriteSchedule } from '../layout/writeSchedule'
@@ -55,6 +56,7 @@ const pending = ref(false)
 const loadError = shallowRef<IpcError | null>(null)
 const aimedSegmentId = ref<number | null>(null)
 const anchorSegmentId = ref<number | null>(null)
+const aimedUntranslatedFirstId = ref<number | null>(null)
 const markerError = shallowRef<IpcError | null>(null)
 const chaptersDone = ref<number | null>(null)
 let sequence = 0
@@ -68,7 +70,8 @@ export const readingLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loa
 export const readingAimedSegmentId: DeepReadonly<Ref<number | null>> = readonly(aimedSegmentId)
 export const readingAnchorSegmentId: DeepReadonly<Ref<number | null>> = readonly(anchorSegmentId)
 export const readingMarkerError: DeepReadonly<Ref<IpcError | null>> = readonly(markerError)
-/** Chapters of the open Work whose status is `done`; null until `list_chapters` answered. */
+export const readingAimedUntranslatedFirstId: DeepReadonly<Ref<number | null>> = readonly(aimedUntranslatedFirstId)
+/** Readable Chapters (done, in progress, paused) of the open Work; null until `list_chapters` answered. */
 export const readingChaptersDone: DeepReadonly<Ref<number | null>> = readonly(chaptersDone)
 
 /** The Chapter holding the aimed sentence, else the anchor sentence, else the first Chapter of the run. */
@@ -86,7 +89,7 @@ async function loadReadingChapterProgress(): Promise<void> {
   const mine = ++progressSequence
   const { chapters } = await listChapters()
   if (mine !== progressSequence) return
-  chaptersDone.value = chapters === null ? null : chapters.filter((row) => row.status === 'done').length
+  chaptersDone.value = chapters === null ? null : chapters.filter((row) => isReadableChapterStatus(row.status)).length
 }
 
 /**
@@ -96,7 +99,7 @@ async function loadReadingChapterProgress(): Promise<void> {
  *
  * - `'content'` — CẢ dãy có ít nhất một đoạn ở BẤT KỲ Chương nào trong nó.
  * - `'frontier-only'` — dãy RỖNG (`chapters.length === 0`, §I/O Matrix "Chạm biên ngay":
- *   Chương đang mở chưa `done`) — trang chỉ có mốc biên.
+ *   Chương đang mở chưa bắt đầu hoặc trạng thái lạ) — trang chỉ có mốc biên.
  * - `'all-omitted'` — dãy có Chương, KHÔNG đoạn nào, nhưng tổng `segment_count` toàn dãy
  *   dương — mọi câu của mọi Chương trong dãy đều đã cắt bỏ.
  * - `'empty-chapters'` — dãy có Chương, KHÔNG đoạn nào, tổng `segment_count` toàn dãy
@@ -122,7 +125,7 @@ export const readingStatusKind: ComputedRef<ReadingStatusKind> = computed(() => 
   // vẫn lên `true` để tránh khoá màn hình, và ta không có gì để nói ngoài "lỗi").
   if (loaded === null) return 'error'
   if (loaded.chapters.length === 0) return 'frontier-only'
-  if (loaded.chapters.some((c) => c.paragraphs.length > 0)) return 'content'
+  if (loaded.chapters.some((c) => c.blocks.length > 0)) return 'content'
   const totalSegments = loaded.chapters.reduce((sum, c) => sum + c.segment_count, 0)
   return totalSegments > 0 ? 'all-omitted' : 'empty-chapters'
 })
@@ -176,6 +179,7 @@ export function resetReading(options: { preserveAnchor?: boolean; keepMarks?: bo
   pending.value = false
   loadError.value = null
   aimedSegmentId.value = null
+  aimedUntranslatedFirstId.value = null
   markerError.value = null
   chaptersDone.value = null
   progressSequence += 1
@@ -188,12 +192,31 @@ export function resetReading(options: { preserveAnchor?: boolean; keepMarks?: bo
 
 function findReadingSegment(segmentId: number): { chapterId: number; segment: ReadingSegment } | null {
   for (const chapter of run.value?.chapters ?? []) {
-    for (const paragraph of chapter.paragraphs) {
-      const segment = paragraph.segments.find((row) => row.id === segmentId)
+    for (const block of chapter.blocks) {
+      if (block.kind !== 'paragraph') continue
+      const segment = block.segments.find((row) => row.id === segmentId)
       if (segment !== undefined) return { chapterId: chapter.chapter_id, segment }
     }
   }
   return null
+}
+
+function findUntranslatedBlock(firstSegmentId: number): { chapterId: number } | null {
+  for (const chapter of run.value?.chapters ?? []) {
+    for (const block of chapter.blocks) {
+      if (block.kind === 'untranslated' && block.segment_ids[0] === firstSegmentId) return { chapterId: chapter.chapter_id }
+    }
+  }
+  return null
+}
+
+/** The untranslated block's aim is separate from the sentence aim, so `reading.mark_aimed` never reaches it. */
+export function setReadingUntranslatedAim(segmentIds: readonly number[]): void {
+  aimedUntranslatedFirstId.value = segmentIds[0] ?? null
+}
+
+export function clearReadingUntranslatedAim(segmentIds?: readonly number[]): void {
+  if (segmentIds === undefined || aimedUntranslatedFirstId.value === (segmentIds[0] ?? null)) aimedUntranslatedFirstId.value = null
 }
 
 /** Aim chỉ là state tương tác; không một lượt ghi nào xảy ra khi hover/focus. */
@@ -236,12 +259,16 @@ function setRunMarked(matches: (segmentId: number) => boolean, marked: boolean):
     ...current,
     chapters: current.chapters.map((chapter) => ({
       ...chapter,
-      paragraphs: chapter.paragraphs.map((paragraph) => ({
-        ...paragraph,
-        segments: paragraph.segments.map((segment) =>
-          matches(segment.id) ? { ...segment, is_marked: marked } : segment,
-        ),
-      })),
+      blocks: chapter.blocks.map((block) =>
+        block.kind === 'paragraph'
+          ? {
+              ...block,
+              segments: block.segments.map((segment) =>
+                matches(segment.id) ? { ...segment, is_marked: marked } : segment,
+              ),
+            }
+          : block,
+      ),
     })),
   }
 }
@@ -255,6 +282,23 @@ export async function openAimedReadingSegment(): Promise<void> {
   const moved = await openChapterById(found.chapterId, segmentId)
   if (!moved) return
   anchorSegmentId.value = segmentId
+  resetReading({ preserveAnchor: true })
+  resetReadingToc()
+  setMode('workspace')
+  await nextTick()
+  requestCurrentEditorCaretPlacement()
+  await nextTick()
+}
+
+/** Handler of `reading.open_untranslated`: opens the Workspace on the first sentence of the aimed run. */
+export async function openUntranslatedReadingBlock(): Promise<void> {
+  const firstSegmentId = aimedUntranslatedFirstId.value
+  if (firstSegmentId === null) return
+  const found = findUntranslatedBlock(firstSegmentId)
+  if (found === null) return
+  const moved = await openChapterById(found.chapterId, firstSegmentId)
+  if (!moved) return
+  anchorSegmentId.value = firstSegmentId
   resetReading({ preserveAnchor: true })
   resetReadingToc()
   setMode('workspace')
@@ -499,7 +543,7 @@ export function resetReadingMarks(): void {
  * `frontier.chapter === null` (mốc `end-of-work`, không Chương nào chặn) ⇒ ghi chẩn đoán
  * và trả — **không ném**: hàm này chạy từ một `dispatch()`, cùng luật "hàm chạy từ một
  * hợp âm/lệnh KHÔNG BAO GIỜ ném" (`src/AGENTS.md`). Nút trên `.frontier` vốn chỉ hiện khi
- * `kind === 'next-not-done'` nên nhánh này không nên tới được từ chuột — nó phòng thủ cho
+ * `kind === 'next-unreadable'` nên nhánh này không nên tới được từ chuột — nó phòng thủ cho
  * đường bàn phím/lệnh gọi thẳng.
  *
  * `openChapterById` trả `false` (flush chặn, lỗi IPC…) ⇒ **không đổi chế độ**: người dùng

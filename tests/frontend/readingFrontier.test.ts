@@ -3,7 +3,7 @@
  * Story 5.12, FR120.
  *
  * 🔴 Đối chứng trung tâm: một hợp đồng *"`chapter` là `Some` khi và chỉ khi `kind ===
- * 'next-not-done'"* chỉ có nghĩa nếu có ai TỪ CHỐI cả hai chiều của trường hợp ngược —
+ * 'next-unreadable'"* chỉ có nghĩa nếu có ai TỪ CHỐI cả hai chiều của trường hợp ngược —
  * không chỉ chấp nhận ca đúng. `isReadingRun` (qua `readReadingRun`) là chỗ đó.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -39,7 +39,7 @@ function chapter(overrides: Partial<{ chapter_id: number; chapter_ord: number; c
     chapter_id: 1,
     chapter_ord: 1,
     chapter_title: null,
-    paragraphs: [{ segments: [segment()] }],
+    blocks: [{ kind: 'paragraph', segments: [segment()] }],
     segment_count: 1,
     translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
     images: [],
@@ -48,7 +48,7 @@ function chapter(overrides: Partial<{ chapter_id: number; chapter_ord: number; c
 }
 
 function frontierChapter(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; status: string }> = {}) {
-  return { chapter_id: 9, chapter_ord: 9, chapter_title: null, status: 'in_progress', ...overrides }
+  return { chapter_id: 9, chapter_ord: 9, chapter_title: null, status: 'not_started', ...overrides }
 }
 
 beforeEach(async () => {
@@ -65,10 +65,10 @@ beforeEach(async () => {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 describe('readReadingRun → readingStatusKind — bốn hình dạng ReadingRun', () => {
-  it('dãy BA Chương + mốc "next-not-done" ⇒ "content"', async () => {
+  it('dãy BA Chương + mốc "next-unreadable" ⇒ "content"', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapter({ chapter_id: 1 }), chapter({ chapter_id: 2, chapter_ord: 2 }), chapter({ chapter_id: 3, chapter_ord: 3 })],
-      frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 4, chapter_ord: 4 }) },
+      frontier: { kind: 'next-unreadable', chapter: frontierChapter({ chapter_id: 4, chapter_ord: 4 }) },
       assets_dir: '',
     })
     const state = await import('../../src/modes/readingState')
@@ -79,10 +79,10 @@ describe('readReadingRun → readingStatusKind — bốn hình dạng ReadingRun
     expect(state.readingRun.value?.frontier.chapter?.chapter_id).toBe(4)
   })
 
-  it('dãy RỖNG + mốc "next-not-done" (Chạm biên ngay) ⇒ "frontier-only"', async () => {
+  it('dãy RỖNG + mốc "next-unreadable" (Chạm biên ngay) ⇒ "frontier-only"', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
-      frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 1, chapter_ord: 1 }) },
+      frontier: { kind: 'next-unreadable', chapter: frontierChapter({ chapter_id: 1, chapter_ord: 1 }) },
       assets_dir: '',
     })
     const state = await import('../../src/modes/readingState')
@@ -138,7 +138,7 @@ describe('modes/readingState::openFrontierInWorkspace', () => {
   it('`openChapterById` trả `false` (flush chặn) ⇒ không đổi chế độ, state đọc GIỮ NGUYÊN', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
-      frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 9 }) },
+      frontier: { kind: 'next-unreadable', chapter: frontierChapter({ chapter_id: 9 }) },
       assets_dir: '',
     })
     mockOpenChapterById.mockResolvedValueOnce(false)
@@ -155,7 +155,7 @@ describe('modes/readingState::openFrontierInWorkspace', () => {
   it('`openChapterById` trả `true` ⇒ vứt TOÀN BỘ state đọc rồi chuyển Workspace', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
-      frontier: { kind: 'next-not-done', chapter: frontierChapter({ chapter_id: 9 }) },
+      frontier: { kind: 'next-unreadable', chapter: frontierChapter({ chapter_id: 9 }) },
       assets_dir: '',
     })
     mockOpenChapterById.mockResolvedValueOnce(true)
@@ -174,7 +174,7 @@ describe('modes/readingState::openFrontierInWorkspace', () => {
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // `isReadingRun` (qua `readReadingRun`) — TỪ CHỐI cả hai chiều của bất biến
-// *"`chapter` là `Some` khi và chỉ khi `kind === 'next-not-done'`"*.
+// *"`chapter` là `Some` khi và chỉ khi `kind === 'next-unreadable'`"*.
 // ═════════════════════════════════════════════════════════════════════════════════
 
 describe('config/reading.ts::readReadingRun — bất biến kind ↔ chapter của ReadingFrontier', () => {
@@ -191,10 +191,10 @@ describe('config/reading.ts::readReadingRun — bất biến kind ↔ chapter c�
     expect(result.error?.code).toBe('ipc.unknown')
   })
 
-  it('`kind = "next-not-done"` kèm `chapter = null` ⇒ từ chối CẢ lượt trả về', async () => {
+  it('`kind = "next-unreadable"` kèm `chapter = null` ⇒ từ chối CẢ lượt trả về', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [],
-      frontier: { kind: 'next-not-done', chapter: null },
+      frontier: { kind: 'next-unreadable', chapter: null },
       assets_dir: '',
     })
     const { readReadingRun } = await import('../../src/config/reading')

@@ -34,7 +34,8 @@ function chapterFixture(
     chapter_id: chapterId,
     chapter_ord: ord,
     chapter_title: null,
-    paragraphs: paragraphs.map((segments) => ({
+    blocks: paragraphs.map((segments) => ({
+      kind: 'paragraph' as const,
       segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
@@ -44,10 +45,10 @@ function chapterFixture(
   }
 }
 
-function nextNotDoneFrontier(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; status: string }> = {}) {
+function nextUnreadableFrontier(overrides: Partial<{ chapter_id: number; chapter_ord: number; chapter_title: string | null; status: string }> = {}) {
   return {
-    kind: 'next-not-done' as const,
-    chapter: { chapter_id: 9, chapter_ord: 9, chapter_title: null, status: 'in_progress', ...overrides },
+    kind: 'next-unreadable' as const,
+    chapter: { chapter_id: 9, chapter_ord: 9, chapter_title: null, status: 'not_started', ...overrides },
   }
 }
 
@@ -75,10 +76,10 @@ describe('modes/ReadingMode.vue — khối .frontier render đúng chữ theo `k
     wrapper = null
   })
 
-  it('kind = "next-not-done": nêu đích danh Chương chặn + nhãn trạng thái, nút "Dịch tiếp" CÓ mặt', async () => {
+  it('kind = "next-unreadable": nêu đích danh Chương chặn + nhãn trạng thái, nút "Dịch tiếp" CÓ mặt', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
-      frontier: nextNotDoneFrontier({ chapter_ord: 2 }),
+      frontier: nextUnreadableFrontier({ chapter_ord: 2 }),
       assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
@@ -87,15 +88,15 @@ describe('modes/ReadingMode.vue — khối .frontier render đúng chữ theo `k
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    const blocked = wrapper.find('[data-reading-frontier-kind="next-not-done"]')
+    const blocked = wrapper.find('[data-reading-frontier-kind="next-unreadable"]')
     expect(blocked.exists()).toBe(true)
     expect(blocked.text()).toContain(t('mode.reading.chapter_untitled', { ord: '2' }))
-    expect(blocked.text()).toContain(t('lifecycle.in_progress'))
+    expect(blocked.text()).toContain(t('lifecycle.not_started'))
     expect(wrapper.find('[data-reading-frontier-kind="end-of-work"]').exists()).toBe(false)
     expect(wrapper.find('[data-reading-frontier-continue]').exists()).toBe(true)
   })
 
-  it('kind = "end-of-work": câu KHÁC câu "next-not-done", nút "Dịch tiếp" KHÔNG có mặt', async () => {
+  it('kind = "end-of-work": câu KHÁC câu "next-unreadable", nút "Dịch tiếp" KHÔNG có mặt', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
       frontier: endOfWorkFrontier(),
@@ -110,14 +111,14 @@ describe('modes/ReadingMode.vue — khối .frontier render đúng chữ theo `k
     const endOfWork = wrapper.find('[data-reading-frontier-kind="end-of-work"]')
     expect(endOfWork.exists()).toBe(true)
     expect(endOfWork.text()).toBe(t('mode.reading.frontier_end_of_work'))
-    expect(wrapper.find('[data-reading-frontier-kind="next-not-done"]').exists()).toBe(false)
+    expect(wrapper.find('[data-reading-frontier-kind="next-unreadable"]').exists()).toBe(false)
     expect(wrapper.find('[data-reading-frontier-continue]').exists()).toBe(false)
   })
 
   it('`status = "finished"` (giá trị lạ) hiện CHUỖI THÔ, không một nhãn bốn trạng thái đã tra', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
-      frontier: nextNotDoneFrontier({ status: 'finished' }),
+      frontier: nextUnreadableFrontier({ status: 'finished' }),
       assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
@@ -126,7 +127,7 @@ describe('modes/ReadingMode.vue — khối .frontier render đúng chữ theo `k
     await state.ensureReadingLoaded()
     await wrapper.vm.$nextTick()
 
-    const blocked = wrapper.find('[data-reading-frontier-kind="next-not-done"]')
+    const blocked = wrapper.find('[data-reading-frontier-kind="next-unreadable"]')
     expect(blocked.text()).toContain('finished')
     for (const status of ['not_started', 'in_progress', 'paused', 'done']) {
       expect(blocked.text()).not.toContain(t(`lifecycle.${status}`))
@@ -187,7 +188,7 @@ describe('modes/ReadingMode.vue — nút "Dịch tiếp" là một <button> th�
   it('là <button type="button">, không disabled, không tabindex="-1"', async () => {
     mockInvoke.mockResolvedValueOnce({
       chapters: [chapterFixture(1, 1, [[{ id: 1, source_text: 'a', target_text: 'b' }]])],
-      frontier: nextNotDoneFrontier(),
+      frontier: nextUnreadableFrontier(),
       assets_dir: '',
     })
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')

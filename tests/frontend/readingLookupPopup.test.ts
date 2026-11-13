@@ -50,8 +50,8 @@ const RUN = {
       chapter_id: 1,
       chapter_ord: 1,
       chapter_title: 'Chuong Mot',
-      paragraphs: [
-        { segments: [{ id: 1, source_text: SOURCE_TEXT, target_text: TARGET_TEXT, is_confirmed: true, is_marked: false }] },
+      blocks: [
+        { kind: 'paragraph', segments: [{ id: 1, source_text: SOURCE_TEXT, target_text: TARGET_TEXT, is_confirmed: true, is_marked: false }] },
       ],
       segment_count: 1,
       translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
