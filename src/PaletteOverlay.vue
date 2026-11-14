@@ -188,6 +188,7 @@ function trapTab(event: KeyboardEvent): void {
   justify-content: center;
   align-items: flex-start;
   padding: calc(var(--space-unit) * 16) var(--space-panel-inline) var(--space-panel-inline);
+  backdrop-filter: brightness(0.82);
 }
 
 .pal-panel {
@@ -196,7 +197,6 @@ function trapTab(event: KeyboardEvent): void {
   width: min(637px, 100%);
   max-height: 60vh;
   overflow: hidden;
-  border: 1px solid var(--color-control-rule);
   border-radius: var(--radius-default);
   background: var(--color-surface);
   color: var(--color-on-surface);
@@ -204,8 +204,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .pal-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+  outline: 1px solid var(--color-primary);
 }
 
 .pal-search {

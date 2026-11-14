@@ -14180,6 +14180,7 @@ chính nó.
 
 - Chưa ai dùng bảng Mod+K trong app thật. Ice: đặt con trỏ trong ô dịch, bấm `Mod+K`, gõ không dấu một phần tên Tác phẩm, Enter thì vào Workspace đúng Chương và vị trí đọc cuối; mở lại, Esc thì con trỏ về đúng ô cũ; bấm một dòng lệnh bằng chuột thì lệnh chạy.
   Quan trọng vì test chỉ dùng `textarea` trong jsdom, không phải ô Editor trong WKWebView. Chủ: Ice. Trỏ: `plan-bang-mod-k-mo-tac-pham-va-chay-lenh.md`.
+  → 🔵 2026-11-14: thêm vào lượt dùng thật: nền phía sau bảng tối đi (`backdrop-filter: brightness(0.82)`) ở cả hai theme; Playwright WebKit không vẽ `backdrop-filter` nên chỉ Chromium đã thấy. Chủ: Ice. Trỏ: `plan-bang-mod-k-noi-hon-bo-vien.md`.
 - Mọi `*Overlay.vue` (Settings, TM, nay cả bảng Mod+K) gắn `@keydown.esc` trên scrim; bấm chuột vào vùng scrim ngoài khung có thể đưa tiêu điểm về `body`, khi đó Esc và Tab không tới lớp phủ mà `isBlocked` vẫn nuốt phím toàn cục. Chưa đo trong WKWebView.
   Quan trọng vì người dùng chỉ còn nút đóng để thoát. Chủ: Ice. Trỏ: `plan-bang-mod-k-mo-tac-pham-va-chay-lenh.md` §Review Triage Log.
   → 🔵 2026-11-14: bảng Mod+K nay đóng khi bấm ra ngoài và chặn mousedown trên scrim, nên không còn mắc; Settings và TM vẫn như cũ. Chủ: Ice.
