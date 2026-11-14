@@ -847,6 +847,47 @@ onBeforeUnmount(() => {
               >
                 {{ t('command.export.reviewer_import.open') }}
               </button>
+              <button
+                v-if="libraryChapterDeleteAsk === null"
+                type="button"
+                class="ui-btn"
+                data-library-chapter-delete-begin
+                :disabled="writesBlocked"
+                @click="dispatch('library.chapter_delete.begin')"
+              >
+                {{ t('command.library.chapter_delete.begin') }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="libraryChapterDeleteAsk !== null" class="wp-sect" data-library-chapter-delete-section>
+            <p
+              class="error"
+              role="status"
+              data-library-chapter-delete-question
+              :data-library-chapter-delete-path="deleteAskPath"
+            >
+              <!-- aura-allow-text: KẾT QUẢ của t(). -->
+              {{ deleteAskText }}
+            </p>
+            <div class="wp-grid2">
+              <button
+                type="button"
+                class="ui-btn ui-btn--danger"
+                data-library-chapter-delete-confirm
+                :disabled="writesBlocked"
+                @click="dispatch('library.chapter_delete.confirm')"
+              >
+                {{ t('command.library.chapter_delete.confirm') }}
+              </button>
+              <button
+                type="button"
+                class="ui-btn"
+                data-library-chapter-delete-cancel
+                @click="dispatch('library.chapter_delete.cancel')"
+              >
+                {{ t('command.library.chapter_delete.cancel') }}
+              </button>
             </div>
           </div>
 
@@ -936,49 +977,6 @@ onBeforeUnmount(() => {
             </p>
           </div>
 
-          <div class="wp-sect" data-library-chapter-delete-section>
-            <p
-              v-if="libraryChapterDeleteAsk !== null"
-              class="error"
-              role="status"
-              data-library-chapter-delete-question
-              :data-library-chapter-delete-path="deleteAskPath"
-            >
-              <!-- aura-allow-text: KẾT QUẢ của t(). -->
-              {{ deleteAskText }}
-            </p>
-            <div class="wp-grid2">
-              <button
-                v-if="libraryChapterDeleteAsk === null"
-                type="button"
-                class="ui-btn"
-                data-library-chapter-delete-begin
-                :disabled="writesBlocked"
-                @click="dispatch('library.chapter_delete.begin')"
-              >
-                {{ t('command.library.chapter_delete.begin') }}
-              </button>
-              <template v-else>
-                <button
-                  type="button"
-                  class="ui-btn ui-btn--danger"
-                  data-library-chapter-delete-confirm
-                  :disabled="writesBlocked"
-                  @click="dispatch('library.chapter_delete.confirm')"
-                >
-                  {{ t('command.library.chapter_delete.confirm') }}
-                </button>
-                <button
-                  type="button"
-                  class="ui-btn"
-                  data-library-chapter-delete-cancel
-                  @click="dispatch('library.chapter_delete.cancel')"
-                >
-                  {{ t('command.library.chapter_delete.cancel') }}
-                </button>
-              </template>
-            </div>
-          </div>
         </div>
 
         <div v-else-if="batchSummary !== null" class="wp-card" data-library-chapter-panel data-library-chapter-panel-batch>
