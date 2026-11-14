@@ -1,7 +1,7 @@
 ---
 type: change
 title: "Sprint Change Proposal — 2026-11-14 · Tra nhanh một từ ở bảng Mod+K"
-status: proposed
+status: done
 created: 2026-11-14
 skill: bmad-correct-course
 ---
@@ -10,7 +10,7 @@ skill: bmad-correct-course
 **Người soạn:** `bmad-correct-course`, chế độ Batch · **Người duyệt:** Ice
 **Baseline:** `98a73f75` (master; cây có hai tệp chưa theo dõi là plan và handoff của chính thay đổi này)
 **Nguồn:** `plan-tra-tu-nhanh-trong-bang-mod-k.md` §Intent, quyết định của Ice 2026-11-14
-**Trạng thái:** đã viết AD-69 và FR161; chờ Ice ký.
+**Trạng thái:** đã viết AD-69 và FR161. 🔵 2026-11-14: Ice ký AD-69, FR161 và cả năm điểm Winston tự đề xuất ở mục 3.
 
 ---
 
