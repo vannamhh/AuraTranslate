@@ -12,6 +12,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import PanelFrame from './PanelFrame.vue'
 import LookupRecord from './LookupRecord.vue'
+import LookupCharPopup from './LookupCharPopup.vue'
 import LookupSourcesMenu from './LookupSourcesMenu.vue'
 import AppIcon from '../AppIcon.vue'
 import type { DockviewPanelProps } from '../layout/panelProps'
@@ -37,6 +38,7 @@ import {
   someLayerFailed,
   someLayerTruncated,
 } from './lookupPanelState'
+import { lookupCharPopupChar } from './lookupCharPopupState'
 import { historyTimeLabel } from './segmentHistoryTime'
 import type { TmConcordanceHit } from '../config/segment'
 // ── Story 1.20 — dải tab, lịch sử trong phiên, bộ ghim ──────────────────────────────
@@ -515,6 +517,7 @@ onBeforeUnmount(() => {
         <p v-if="pinWriteError !== null" class="lookup-banner">{{ tError(pinWriteError) }}</p>
 
         <template v-if="lookupTab === 'record'">
+        <LookupCharPopup v-if="lookupCharPopupChar !== null" :host="scroller" />
         <!-- 🔴 AC6 — một lượt tra TRƯỢT phải nói ra, không để lại một vùng trắng câm. -->
         <p v-if="lookupBody === 'error'" class="lookup-empty">{{ t('panel.lookup.lookup_failed') }}</p>
 
@@ -565,6 +568,7 @@ onBeforeUnmount(() => {
                 type="button"
                 class="lookup-char"
                 :data-lookup-char="char"
+                :aria-expanded="lookupCharPopupChar === char"
                 @click="dispatch('lookup.lookup_char')"
               >
                 <!-- aura-allow-text: a character of the query — user DATA. -->
@@ -807,6 +811,7 @@ onBeforeUnmount(() => {
  * canh. Story 2.10 nhận nó làm tiền đề cho AC8 của `GridPanel.vue` và ghi rõ chỗ hở đó tại chỗ.
  */
 .lookup-scroll {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: auto;

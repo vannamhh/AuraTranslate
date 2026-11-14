@@ -765,7 +765,7 @@ export type CommandDeps = {
   toggleLookupSourcesMenu?: () => void
   /** Collapses or expands the aimed source block. Handler of `lookup.toggle_source_collapse`. */
   toggleLookupSourceCollapse?: () => void
-  /** Looks up the aimed single character of a failed query. Handler of `lookup.lookup_char`. */
+  /** Handler of `lookup.lookup_char`: looks the aimed character up in place inside the reading popup, else opens the Lookup panel's character popup. */
   lookupAimedChar?: () => void
   /** Handler of `lookup.history_scope_session` / `lookup.history_scope_chapter`. */
   selectLookupHistoryScope?: (scope: 'session' | 'chapter') => void

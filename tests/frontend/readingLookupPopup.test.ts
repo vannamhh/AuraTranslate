@@ -11,7 +11,7 @@ import ReadingMode from '../../src/modes/ReadingMode.vue'
 import { dispatch, installCommands } from '../../src/commands'
 import type { CommandDeps } from '../../src/commands'
 import { attachSelectionWatcher, currentSelectionText } from '../../src/panels/selectionContract'
-import { lookupAimedChar, resetLookupPanel, runLookup } from '../../src/panels/lookupPanelState'
+import { activateAimedLookupChar, resetLookupPanel, runLookup } from '../../src/panels/lookupPanelState'
 import {
   loadPinnedEntries,
   lookupHistory,
@@ -113,7 +113,7 @@ beforeAll(() => {
     closeReadingLookup: resetReadingLookup,
     openReadingLookupConcordance,
     toggleLookupPin,
-    lookupAimedChar,
+    lookupAimedChar: activateAimedLookupChar,
   } as CommandDeps)
 })
 
@@ -305,6 +305,7 @@ describe('opening the popup', () => {
     await flushPromises()
     expect(lookups()).toEqual(['控制住', '控'])
     expect(popup()).not.toBeNull()
+    expect(popup()!.querySelector('[data-reading-lookup-headword]')?.textContent).toBe('控')
   })
 
   it('an IPC failure shows the Lookup panel failure sentence, not an empty popup', async () => {

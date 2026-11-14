@@ -15,7 +15,7 @@
  * `lookup.lookup_selection` ở `src/main.ts` — cùng cửa mà `selectSourceTab`/
  * `toggleHanVietView` đã đi qua.
  */
-import { computed, readonly, ref, shallowRef } from 'vue'
+import { computed, readonly, ref, shallowRef, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { lookupDictionary } from '../config/dict'
 import type {
@@ -31,6 +31,7 @@ import type {
 import { recordLookup, resetLookupHistory } from './lookupHistoryState'
 import type { IpcError } from '../i18n'
 import { resetConcordance } from './concordanceState'
+import { closeLookupCharPopup, toggleLookupCharPopup } from './lookupCharPopupState'
 
 /**
  * 🔴 **Số nghĩa của một nguồn có phải một CẬN DƯỚI không** (AC12, Quyết định #4 §hệ quả ③).
@@ -104,7 +105,7 @@ export function singleCharsOf(text: string): string[] {
 
 const collapsed = ref<ReadonlySet<string>>(new Set())
 let aimedCollapseCode: string | null = null
-let aimedChar: string | null = null
+let aimedCharButton: HTMLElement | null = null
 
 export function sourceIsCollapsed(code: string): boolean {
   return collapsed.value.has(code)
@@ -116,7 +117,7 @@ export function aimSourceCollapseFrom(event: Event): void {
   aimedCollapseCode = target.closest<HTMLElement>('[data-collapse-code]')?.dataset.collapseCode ?? null
 }
 
-function datasetOfFocus(key: 'collapseCode' | 'lookupChar'): string | null {
+function datasetOfFocus(key: 'collapseCode'): string | null {
   if (typeof document === 'undefined') return null
   const active = document.activeElement
   return active instanceof HTMLElement ? (active.dataset[key] ?? null) : null
@@ -135,15 +136,26 @@ export function toggleAimedSourceCollapse(): void {
 export function aimLookupCharFrom(event: Event): void {
   const target = event.target
   if (!(target instanceof Element)) return
-  aimedChar = target.closest<HTMLElement>('[data-lookup-char]')?.dataset.lookupChar ?? null
+  aimedCharButton = target.closest<HTMLElement>('[data-lookup-char]')
 }
 
-/** Handler of `lookup.lookup_char`: looks up the aimed character of a failed multi-character query. */
-export function lookupAimedChar(): void {
-  const char = aimedChar ?? datasetOfFocus('lookupChar')
-  aimedChar = null
-  if (char === null) return
-  void runLookup(char)
+/**
+ * Handler of `lookup.lookup_char`: the aimed (else focused) character button of a failed
+ * multi-character query. Inside the reading popup it looks the character up in place; in the
+ * Lookup panel it toggles the character popup and leaves the panel's query alone.
+ */
+export function activateAimedLookupChar(): void {
+  const focused = typeof document === 'undefined' ? null : document.activeElement
+  const button =
+    aimedCharButton ?? (focused instanceof Element ? focused.closest<HTMLElement>('[data-lookup-char]') : null)
+  aimedCharButton = null
+  const char = button?.dataset.lookupChar
+  if (button === null || char === undefined) return
+  if (button.closest('[data-reading-lookup]') !== null) {
+    void runLookup(char)
+    return
+  }
+  toggleLookupCharPopup(button, char)
 }
 
 const query = shallowRef<string | null>(null)
@@ -168,6 +180,14 @@ const resolvedQuery = shallowRef<string | null>(null)
  * IPC sẽ nháy sang chuỗi *"không tìm thấy"* rồi lại đổi — đúng bẫy đã bắt ở 1.16.
  */
 const pending = ref(false)
+
+watch(
+  pending,
+  (isPending) => {
+    if (isPending) closeLookupCharPopup()
+  },
+  { flush: 'sync' },
+)
 
 /**
  * 🔴 Số thứ tự lượt tra — xem [`runLookup`]. Tăng ở **mỗi** lượt phát đi VÀ ở
@@ -226,13 +246,20 @@ export const neverLookedUp = computed(() => query.value === null)
 /** Trạng thái 2 — đã tra mà không tìm thấy gì (`groups` rỗng, `branch ≠ query_too_short`). */
 export const notFound = computed(() => {
   if (!lookupResolved.value || response.value === null) return false
-  const g = response.value.grouped
-  return g.layers_loaded && g.branch !== 'query_too_short' && g.groups.length === 0
+  return notFoundOf(response.value.grouped)
 })
+
+export function notFoundOf(grouped: GroupedLookup): boolean {
+  return grouped.layers_loaded && grouped.branch !== 'query_too_short' && grouped.groups.length === 0
+}
+
+export function queryTooShortOf(grouped: GroupedLookup): boolean {
+  return grouped.branch === 'query_too_short'
+}
 
 /** Trạng thái 3 — `branch === 'query_too_short'` (AD-44 ④, không phải "không tìm thấy"). */
 export const queryTooShort = computed(
-  () => lookupResolved.value && response.value?.grouped.branch === 'query_too_short',
+  () => lookupResolved.value && response.value !== null && queryTooShortOf(response.value.grouped),
 )
 
 /**
@@ -390,7 +417,8 @@ export function resetLookupPanel(): void {
   // để thấy hàm đó vứt đúng cái gì và cố ý giữ lại cái gì.
   collapsed.value = new Set()
   aimedCollapseCode = null
-  aimedChar = null
+  aimedCharButton = null
+  closeLookupCharPopup()
   resetLookupHistory()
   resetConcordance()
 }

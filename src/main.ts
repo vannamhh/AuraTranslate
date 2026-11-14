@@ -203,7 +203,7 @@ import { selectSourceTab, sourceChapter, toggleHanVietView } from './panels/sour
 //
 // ⚠️ Cùng lý do và cùng cửa với `sourcePanelState.ts`: `lookupPanelState.ts` dùng
 // `ref`/`computed` của Vue.
-import { lookupAimedChar, runLookup, toggleAimedSourceCollapse } from './panels/lookupPanelState'
+import { activateAimedLookupChar, runLookup, toggleAimedSourceCollapse } from './panels/lookupPanelState'
 // ── Story 1.18 — hợp đồng vùng chọn dùng chung ──────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `lookupPanelState.ts`: `selectionContract.ts` dùng
@@ -982,7 +982,7 @@ async function boot(): Promise<void> {
       clearLookupHistory,
       toggleLookupSourcesMenu: toggleSourcesMenu,
       toggleLookupSourceCollapse: toggleAimedSourceCollapse,
-      lookupAimedChar,
+      lookupAimedChar: activateAimedLookupChar,
       selectLookupHistoryScope,
       // Story 1.21 · AC1 · AC2 · AC8 — bốn handler tĩnh; hàng đang nhắm đọc lúc chạy.
       openShortcuts: () => openSettingsToSection('shortcuts'),

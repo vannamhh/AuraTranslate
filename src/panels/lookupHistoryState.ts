@@ -148,6 +148,14 @@ const pinNotice = shallowRef<string | null>(null)
  */
 let currentTargets: readonly PinTarget[] = []
 
+/** Pin targets of the single-character popup; kept apart so the popup never writes history. */
+let popupTargets: readonly PinTarget[] = []
+
+/** Sets (or, with `null`, clears) the targets the character popup's pin buttons resolve against. */
+export function setPopupPinTargets(response: LookupResponse | null): void {
+  popupTargets = response === null ? [] : targetsOf(response)
+}
+
 /**
  * Mục từ vừa bị **bấm chuột**, giữ đúng một lượt.
  *
@@ -403,6 +411,7 @@ export function resetLookupHistory(): void {
   scope.value = 'session'
   openChapter.value = null
   currentTargets = []
+  popupTargets = []
   aimedKey = null
   pinNotice.value = null
   pinWriteErr.value = null
@@ -464,7 +473,8 @@ function resolvePinTarget(): PinTarget | null {
   aimedKey = null
 
   if (aimed !== null) {
-    const inResults = currentTargets.find((t) => entryKey(t.source_code, t.entry_id) === aimed)
+    const matches = (t: PinTarget): boolean => entryKey(t.source_code, t.entry_id) === aimed
+    const inResults = currentTargets.find(matches) ?? popupTargets.find(matches)
     if (inResults !== undefined) return inResults
 
     // Hàng ĐÃ GHIM — nguồn duy nhất khi người dùng bỏ ghim từ chính tab Lịch sử, nơi

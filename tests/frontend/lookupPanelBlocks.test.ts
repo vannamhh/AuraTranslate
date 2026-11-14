@@ -11,7 +11,7 @@ import type { CommandDeps } from '../../src/commands'
 import { loadDictSources, resetDictSources, toggleDictSource, toggleFocusedDictSource } from '../../src/panels/dictSourcesState'
 import {
   computeSpine,
-  lookupAimedChar,
+  activateAimedLookupChar,
   resetLookupPanel,
   runLookup,
   singleCharsOf,
@@ -71,7 +71,7 @@ beforeAll(() => {
     toggleDictSource: toggleFocusedDictSource,
     toggleLookupPin,
     toggleLookupSourceCollapse: toggleAimedSourceCollapse,
-    lookupAimedChar,
+    lookupAimedChar: activateAimedLookupChar,
   } as CommandDeps)
 })
 
@@ -339,7 +339,7 @@ describe('empty states', () => {
     expect(panel.get('.lookup-empty').text()).toBe(`Chọn một từ trong Nguyên văn rồi bấm ${chord} để tra cứu.`)
   })
 
-  it('not found: title, checked count and one "Tra riêng" button per character; clicking looks that character up', async () => {
+  it('not found: title, checked count and one "Tra riêng" button per character; clicking opens a popup and leaves the panel query alone', async () => {
     h.answers.set('鐵', DA)
     const w = await lookedUp('鐵鏽', NOT_FOUND)
     expect(w.get('.lookup-empty-title').text()).toBe('Không nguồn nào có 鐵鏽')
@@ -352,6 +352,8 @@ describe('empty states', () => {
     await chars[0]!.trigger('click')
     await flushPromises()
     expect(h.lookups).toEqual(['鐵'])
+    expect(w.find('[data-lookup-char-popup]').exists()).toBe(true)
+    expect(w.get('.lookup-empty-title').text()).toBe('Không nguồn nào có 鐵鏽')
   })
 
   it('a one-character query has no "Tra riêng"', async () => {

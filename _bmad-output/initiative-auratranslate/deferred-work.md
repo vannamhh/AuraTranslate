@@ -14185,3 +14185,8 @@ chính nó.
   Quan trọng vì người dùng chỉ còn nút đóng để thoát. Chủ: Ice. Trỏ: `plan-bang-mod-k-mo-tac-pham-va-chay-lenh.md` §Review Triage Log.
   → 🔵 2026-11-14: bảng Mod+K nay đóng khi bấm ra ngoài và chặn mousedown trên scrim, nên không còn mắc; Settings và TM vẫn như cũ. Chủ: Ice.
   → 🟡 2026-11-14: cả 26 `*Overlay.vue` nay chặn mousedown trên phần tử gốc (`tests/frontend/overlayScrimFocus.test.ts`); Playwright WebKit 2370 xác nhận tiêu điểm ở lại ô đang gõ và Esc tới lớp phủ. Còn: bấm nền rồi Esc trong app thật (WKWebView). Chủ: Ice.
+
+## Deferred from: bấm "Tra riêng" ở panel Lookup mở popup tra cứu (2026-11-14)
+
+- Chưa ai dùng popup "Tra riêng" trong app thật. Ice: tra một câu không có trong từ điển, bấm vài chữ ở dải "Tra riêng", popup hiện dưới chữ và panel giữ câu; chữ ở hàng cuối thì popup lật lên trên, không tràn khỏi vùng cuộn (AC3); bấm vùng trống hoặc Esc thì con trỏ về chữ (AC2); ghim một mục trong popup.
+  Quan trọng vì happy-dom không đo hình học và không chuyển tiêu điểm khi bấm. Chủ: Ice. Trỏ: `plan-tra-rieng-mo-popup-tra-cuu.md`.

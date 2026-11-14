@@ -1746,6 +1746,7 @@
   "panel.lookup.all_sources_off": "Mọi nguồn từ điển đang tắt — bật lại ít nhất một nguồn ở nút Nguồn phía trên để có kết quả.",
   "panel.lookup.status_chord": "Chọn một từ trong Nguyên văn rồi bấm {chord} để tra cứu.",
   "panel.lookup.not_found_checked": "Đã tra {n} nguồn đang bật.",
+  "panel.lookup.char_dialog": "Tra riêng một chữ",
   "panel.lookup.lookup_each": "Tra riêng:",
   "panel.lookup.sources_button": "Nguồn {n}/{m}",
   "panel.lookup.sources_menu": "Nguồn từ điển",
