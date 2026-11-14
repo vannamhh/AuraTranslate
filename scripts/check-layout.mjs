@@ -509,7 +509,7 @@ const ALLOWED_GLOBAL_MEMBERS = new Set([
   'window.getComputedStyle',
 ])
 
-const GLOBAL_MEMBER_RE = /\b(window|document|globalThis|self|top|parent)\s*\.\s*([A-Za-z_$][A-Za-z0-9_$]*)/g
+const GLOBAL_MEMBER_RE = /(?<![.\w$])\b(window|document|globalThis|self|top|parent)\s*\.\s*([A-Za-z_$][A-Za-z0-9_$]*)/g
 
 /**
  * ⚠️ Truy cập bằng CHỈ SỐ (`window['open']`, `globalThis[x]`) không đọc tĩnh được thành
@@ -631,6 +631,7 @@ const CASES = [
   ['dấu nháy lẻ trong văn xuôi', "// don't call window.open\nconst a = 1", false],
   ['thành viên hợp lệ', 'window.addEventListener("keydown", h)', false],
   ['thành viên hợp lệ #2', 'document.activeElement === document.body', false],
+  ['modifier `.self` của Vue sau dấu chấm', '<div @mousedown.self.prevent>', false],
   ['tên chỉ GIỐNG chứ không phải', 'const localStorageNote = 1', true],
 ]
 

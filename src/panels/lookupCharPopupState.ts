@@ -31,6 +31,10 @@ export function closeLookupCharPopup(): void {
   setPopupPinTargets(null)
 }
 
+export function resetLookupCharPopup(): void {
+  closeLookupCharPopup()
+}
+
 /** Opens the popup under `button` for `char`; the same button again closes it. */
 export function toggleLookupCharPopup(button: HTMLElement, char: string): void {
   if (openChar.value === char && anchorButton.value === button) {

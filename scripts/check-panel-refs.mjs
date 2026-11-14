@@ -128,6 +128,17 @@ function walk(dir, out = [], seen = new Set()) {
  *      chống: một miễn trừ hết cần mà ở lại là một luật đã tắt mà không ai biết.
  */
 const EXEMPT = new Map([
+  ...['open', 'query', 'cursor'].map((cell) => [
+    `src/paletteState.ts::${cell}`,
+    'Screen state of the Mod+K palette, not Work data: every open starts from an empty box and a closed palette holds nothing a Work change could leak.',
+  ]),
+  ...[
+    'active', 'response', 'error', 'pending', 'asked', 'cursor',
+    'previewHeadword', 'previewResponse', 'previewError', 'previewPending', 'sequence', 'previewSequence',
+  ].map((cell) => [
+    `src/paletteLookupState.ts::${cell}`,
+    'Dictionary results of the palette lookup mode, not Work data; `leavePaletteLookup` clears every cell on each palette open and close.',
+  ]),
   [
     'src/genreState.ts::genreRows',
     'Global genre list read from `global.db`, not Work data; clearing it on a Work change would empty every genre menu until the next reload.',
@@ -775,7 +786,7 @@ try {
  * Sàn là cận dưới: nó không đỏ oan khi thêm tệp, nhưng một sàn cũ là một sàn vô nghĩa —
  * thêm tệp vào `src/**` thì xét lại số này.
  */
-const FILE_FLOOR = 140
+const FILE_FLOOR = 151
 {
   const v = judgeFloor(FILE_FLOOR, files.length, 'FILE_FLOOR', 'tệp `.ts` dưới `src/**`')
   if (!v.ok) abort('cây nguồn `src/**`', new Error(v.message))

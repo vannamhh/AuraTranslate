@@ -31,7 +31,7 @@ import type {
 import { recordLookup, resetLookupHistory } from './lookupHistoryState'
 import type { IpcError } from '../i18n'
 import { resetConcordance } from './concordanceState'
-import { closeLookupCharPopup, toggleLookupCharPopup } from './lookupCharPopupState'
+import { closeLookupCharPopup, resetLookupCharPopup, toggleLookupCharPopup } from './lookupCharPopupState'
 
 /**
  * 🔴 **Số nghĩa của một nguồn có phải một CẬN DƯỚI không** (AC12, Quyết định #4 §hệ quả ③).
@@ -418,7 +418,7 @@ export function resetLookupPanel(): void {
   collapsed.value = new Set()
   aimedCollapseCode = null
   aimedCharButton = null
-  closeLookupCharPopup()
+  resetLookupCharPopup()
   resetLookupHistory()
   resetConcordance()
 }
