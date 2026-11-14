@@ -1464,10 +1464,7 @@ pub fn delete_chapter_in_app<R: tauri::Runtime>(
         delete_chapter(&mut guard, chapter_id)
     };
     if matches!(&deleted, Ok((_, Some(_)))) {
-        crate::commands::project::clear_per_work_state(app);
-        if let Some(records) = app.try_state::<crate::commands::aiprompt::AiCallRecordsState>() {
-            crate::commands::aiprompt::clear_call_records_on_work_close(&records);
-        }
+        crate::commands::project::clear_closed_work_state(app);
     }
     let store = app.try_state::<Store>();
     let root = crate::commands::project::resolve_library_root(app, store.as_deref())

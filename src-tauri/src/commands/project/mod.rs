@@ -3710,6 +3710,17 @@ pub fn clear_per_work_state<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     }
 }
 
+/// [`clear_per_work_state`] plus the AI call records, for a close that is not a switch (a Chapter
+/// delete that removes the Work); keeps the `commands::aiprompt` call inside this approved seam.
+pub fn clear_closed_work_state<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri::Manager as _;
+
+    clear_per_work_state(app);
+    if let Some(records) = app.try_state::<crate::commands::aiprompt::AiCallRecordsState>() {
+        crate::commands::aiprompt::clear_call_records_on_work_close(&records);
+    }
+}
+
 /// Thay Tác phẩm đang mở (nếu có) bằng `new_work` — **Store cũ tự đóng qua `Drop`**.
 ///
 /// ⚠️ Nếu `OpenWorkState` chưa từng được `app.manage(...)` (lỗi cấu hình `setup()`, không
