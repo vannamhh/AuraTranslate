@@ -133,6 +133,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="proofreadMemoryIsOpen"
     class="pfmem-scrim"
+    @mousedown.self.prevent
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >

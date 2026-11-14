@@ -1121,7 +1121,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 </script>
 
 <template>
-  <div v-if="importPreviewIsOpen" class="ip-screen" @keydown.esc="onEscapeCancel" @keydown="onScrimKeydown">
+  <div v-if="importPreviewIsOpen" class="ip-screen" @mousedown.self.prevent @keydown.esc="onEscapeCancel" @keydown="onScrimKeydown">
     <section ref="panel" class="ip-panel" tabindex="-1" aria-labelledby="ip-title">
       <header class="ip-head">
         <h2 id="ip-title" class="ip-title">{{ t('mode.library.preview.title') }}</h2>

@@ -335,6 +335,7 @@ function onDeleteAiConfigKey(): void {
   <div
     v-if="settingsOverlayIsOpen"
     class="set-scrim"
+    @mousedown.self.prevent
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >

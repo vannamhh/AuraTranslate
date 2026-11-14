@@ -75,6 +75,7 @@ function trapTab(event: KeyboardEvent): void {
     v-if="chapterSplitOverlayIsOpen"
     class="cs-scrim"
     data-library-chapter-split-overlay
+    @mousedown.self.prevent
     @keydown.esc="dispatch('library.chapter_split.close')"
     @keydown.tab="trapTab($event)"
   >

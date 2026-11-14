@@ -73,6 +73,7 @@ function trapTab(event: KeyboardEvent): void {
     v-if="chapterMergeOverlayIsOpen"
     class="cm-scrim"
     data-library-chapter-merge-overlay
+    @mousedown.self.prevent
     @keydown.esc="dispatch('library.chapter_merge.close')"
     @keydown.tab="trapTab($event)"
   >

@@ -73,6 +73,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="reviewerImportOverlayIsOpen"
     class="ri-scrim"
+    @mousedown.self.prevent
     @keydown.esc="dispatch('export.reviewer_import.cancel')"
     @keydown.tab="trapTab($event)"
   >

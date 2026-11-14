@@ -188,6 +188,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="attributionIsOpen"
     class="attr-screen"
+    @mousedown.self.prevent
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >

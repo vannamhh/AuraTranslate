@@ -734,6 +734,7 @@ function onEscape(): void {
     v-if="promptLibraryOverlayIsOpen"
     class="pl-scrim"
     :class="{ 'pl-scrim-above': promptLibraryOverInspector }"
+    @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
   >

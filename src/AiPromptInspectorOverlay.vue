@@ -268,6 +268,7 @@ const resultUsage = computed(() => {
   <div
     v-if="aiPromptInspectorIsOpen"
     class="aip-scrim"
+    @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
   >

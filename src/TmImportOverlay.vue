@@ -73,6 +73,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="tmImportOverlayIsOpen"
     class="ti-scrim"
+    @mousedown.self.prevent
     @keydown.esc="dispatch('tm.import.cancel')"
     @keydown.tab="trapTab($event)"
   >

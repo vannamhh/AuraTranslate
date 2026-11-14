@@ -320,6 +320,7 @@ function onKeydown(event: KeyboardEvent): void {
   <div
     v-if="queueOverlayIsOpen"
     class="gq-scrim"
+    @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"

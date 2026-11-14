@@ -59,6 +59,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="proofreadScopeIsOpen"
     class="pfscope-scrim"
+    @mousedown.self.prevent
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >

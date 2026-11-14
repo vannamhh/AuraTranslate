@@ -88,6 +88,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="conventionImportIsOpen"
     class="cvi-scrim"
+    @mousedown.self.prevent
     @keydown.esc="dispatch('convention.import.cancel')"
     @keydown.tab="trapTab($event)"
   >

@@ -123,6 +123,7 @@ function onKeydown(event: KeyboardEvent): void {
   <div
     v-if="harvestOverlayIsOpen"
     class="gh-scrim"
+    @mousedown.self.prevent
     @keydown.esc="dispatch('glossary.harvest.close')"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"

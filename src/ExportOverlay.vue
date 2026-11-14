@@ -206,7 +206,7 @@ function trapTab(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div v-if="exportOverlayIsOpen" class="ex-scrim" @keydown.esc="dispatch('export.close')" @keydown.enter="runShortcut($event)" @keydown.tab="trapTab($event)">
+  <div v-if="exportOverlayIsOpen" class="ex-scrim" @mousedown.self.prevent @keydown.esc="dispatch('export.close')" @keydown.enter="runShortcut($event)" @keydown.tab="trapTab($event)">
     <section ref="panel" class="ex-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ex-title">
       <header class="ex-head">
         <h2 id="ex-title" class="ex-title">{{ t('export.title') }}</h2>

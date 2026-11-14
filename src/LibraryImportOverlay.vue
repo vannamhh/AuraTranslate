@@ -123,6 +123,7 @@ function trapTab(event: KeyboardEvent): void {
     v-if="libraryImportOverlayIsOpen"
     v-show="!(libraryUrlImportScreenIsOpen || importPreviewIsOpen || bilingualImportPreviewIsOpen)"
     class="li-scrim"
+    @mousedown.self.prevent
     @keydown.esc="dispatch('library.import.close')"
     @keydown.tab="trapTab($event)"
   >

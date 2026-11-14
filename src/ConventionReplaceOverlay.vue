@@ -228,6 +228,7 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="conventionReplaceIsOpen"
     class="crv-scrim"
+    @mousedown.self.prevent
     @keydown.esc.stop.prevent="onEscape()"
     @keydown.tab="trapTab($event)"
   >

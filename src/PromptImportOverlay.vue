@@ -106,6 +106,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   <div
     v-if="promptImportOverlayIsOpen"
     class="pi-scrim"
+    @mousedown.self.prevent
     @keydown.esc="dispatch('prompt.import.cancel')"
     @keydown.tab="trapTab($event)"
   >

@@ -412,6 +412,7 @@ function onKeydown(event: KeyboardEvent): void {
   <div
     v-if="manageOverlayIsOpen"
     class="gm-scrim"
+    @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"

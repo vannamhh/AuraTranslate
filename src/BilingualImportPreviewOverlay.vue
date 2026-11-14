@@ -387,6 +387,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 <template>
   <div v-if="bilingualImportPreviewIsOpen" class="bip-screen"
+    @mousedown.self.prevent
     @keydown.capture="disarmBilingualCutHold"
     @keydown.esc="onEscapeCancel"
     @keydown="onScrimKeydown">

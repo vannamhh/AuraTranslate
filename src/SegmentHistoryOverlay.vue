@@ -188,6 +188,7 @@ function aimRow(id: number): void {
   <div
     v-if="historyIsOpen"
     class="hist-scrim"
+    @mousedown.self.prevent
     @keydown.esc="closeSegmentHistory()"
     @keydown.up.prevent="moveHistoryAim(-1)"
     @keydown.down.prevent="moveHistoryAim(1)"

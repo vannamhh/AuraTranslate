@@ -106,6 +106,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   <div
     v-if="importOverlayIsOpen"
     class="gi-scrim"
+    @mousedown.self.prevent
     @keydown.esc="dispatch('glossary.import.cancel')"
     @keydown.tab="trapTab($event)"
   >
