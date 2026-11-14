@@ -33,6 +33,7 @@ context: []
 **Always:**
 - Mở, đóng, chọn và chạy đều là command trong registry, có nhãn `command.<id>` (AD-34 §1). Lệnh mở có phím mặc định `Mod+K`, gán lại được (FR22).
 - Lớp phủ nằm trong cửa sổ `main`, không phải chế độ thứ tư (AD-24). Nó theo khuôn của các `*Overlay.vue` hiện có: scrim, `role="dialog"`, giữ Tab trong lớp phủ, Esc đóng, `focusReturnTargetOnOpen`, đệm thanh tiêu đề trên mac, có tên trong cổng `isBlocked`.
+  🔵 2026-11-14 (Ice, xem app thật): bảng là khung nổi kiểu Spotlight trên scrim trong suốt, bấm ra ngoài thì đóng, không tiêu đề, không nút đóng; ô trống chỉ liệt kê Lệnh, Tác phẩm và trạng thái nạp chỉ hiện khi đã gõ.
 - Mở Tác phẩm đi qua `openWorkById` để lượt flush Editor vẫn chặn trước khi đổi Tác phẩm. Không gọi IPC `openWork` trực tiếp.
 - Danh sách chưa nạp hoặc nạp lỗi phải hiện trạng thái riêng, không hiện "không có kết quả" (lỗi im lặng). Hỏi qua `libraryWorksHaveLoaded`.
 - Chạy lệnh thì đóng lớp phủ và trả tiêu điểm trước, rồi mới `dispatch` ở `nextTick`, để lệnh nhắm tiêu điểm chạy trên đúng chỗ người dùng đứng.
@@ -109,6 +110,7 @@ Gập dấu làm ở webview vì danh sách Works nhỏ và đã nằm trong b�
 - Ngoài plan, Ice duyệt: `libraryWorks` mang bộ lọc của Library, nên khi `matched < total` bảng hiện dòng `palette.works_filtered` thay vì ẩn Tác phẩm không báo.
 - `paletteWorksState` xét lỗi trước `libraryWorksHaveLoaded`: một lượt nạp lại hỏng sau lần nạp đầu hiện lỗi, không hiện danh sách cũ.
 - Thông báo chặn mở Tác phẩm (`still-dirty`, `flush-failed`) đã hiện ở `StatusBar.vue` ở mọi chế độ, nên bảng không cần dòng riêng.
+- Khung nổi theo khuôn `ui-menu`: viền `control-rule`, bo 3px, `--shadow-popover`, dòng `ui-menu-item` 28px; dòng đang chọn tô `outline` như rê chuột. Đệm trên 112px cho cả hai nền tảng vì `check:tokens` Kiểm K không đọc được `titlebar-height + 16 × unit`. `@mousedown.self.prevent` trên scrim giữ tiêu điểm ở ô gõ cho tới khi lệnh đóng chạy.
 - `COMMAND_FLOOR` 329 → 340 = ceil(0.85 × 400 command đang đăng ký); sàn cũ đã trôi trước story này.
 - Dòng Matrix "Lớp phủ khác đang mở" chỉ được kiểm qua cổng `isBlocked` giả trong test; danh sách thật ở `main.ts` chưa có test canh, giống mọi lớp phủ khác.
 

@@ -55,11 +55,13 @@ export const paletteWorksAreFiltered = computed<boolean>(
   () => libraryWorksHaveLoaded.value && libraryWorksMatched.value < libraryWorksTotal.value,
 )
 
+export const paletteIsSearching = computed<boolean>(() => query.value.trim() !== '')
+
 export const paletteWorkItems = computed<readonly PaletteItem[]>(() => {
-  if (paletteWorksState.value !== 'ready') return []
+  if (paletteWorksState.value !== 'ready' || !paletteIsSearching.value) return []
   const needle = foldVietnamese(query.value.trim())
   return libraryWorks.value
-    .filter((work) => needle === '' || foldVietnamese(work.name).includes(needle))
+    .filter((work) => foldVietnamese(work.name).includes(needle))
     .map((work) => ({
       kind: 'work',
       key: `work:${work.work_id}`,

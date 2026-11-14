@@ -8,6 +8,7 @@ import {
   paletteCommandItems,
   paletteCursor,
   paletteIsOpen,
+  paletteIsSearching,
   paletteItems,
   paletteQuery,
   paletteWorkItems,
@@ -40,7 +41,15 @@ watch(paletteIsOpen, (open) => {
 })
 
 const activeId = computed(() => (paletteItems.value.length === 0 ? undefined : optionId(paletteCursor.value)))
-const noResults = computed(() => paletteItems.value.length === 0 && paletteWorksState.value === 'ready')
+const noResults = computed(
+  () => paletteItems.value.length === 0 && (!paletteIsSearching.value || paletteWorksState.value === 'ready'),
+)
+const worksNotice = computed(() => {
+  if (!paletteIsSearching.value) return null
+  if (paletteWorksState.value === 'ready') return paletteWorksAreFiltered.value ? 'filtered' : null
+  return paletteWorksState.value
+})
+const bodyShown = computed(() => paletteItems.value.length > 0 || worksNotice.value !== null || noResults.value)
 
 function optionId(index: number): string {
   return `palette-option-${String(index)}`
@@ -69,7 +78,7 @@ function trapTab(event: KeyboardEvent): void {
   if (root === null) return
 
   event.preventDefault()
-  const stops = Array.from(root.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'))
+  const stops = Array.from(root.querySelectorAll<HTMLElement>('input:not([disabled])'))
   if (stops.length === 0) {
     root.focus()
     return
@@ -86,85 +95,85 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="paletteIsOpen"
     class="pal-scrim"
+    @mousedown.self.prevent
+    @click.self="dispatch('palette.close')"
     @keydown.esc="dispatch('palette.close')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="pal-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="palette-title">
-      <header class="pal-head">
-        <h2 id="palette-title" class="pal-title">{{ t('palette.title') }}</h2>
-        <button type="button" class="pal-close ui-btn ui-btn--quiet" @click="dispatch('palette.close')">
-          {{ t('command.palette.close') }}
-        </button>
-      </header>
-      <input
-        ref="input"
-        class="pal-input ui-field ui-field--full"
-        type="text"
-        role="combobox"
-        aria-controls="palette-list"
-        aria-expanded="true"
-        aria-autocomplete="list"
-        :aria-activedescendant="activeId"
-        :aria-label="t('palette.input_label')"
-        :placeholder="t('palette.input_placeholder')"
-        :value="paletteQuery"
-        autocomplete="off"
-        @input="onInput($event)"
-        @keydown="onInputKeydown($event)"
-      />
-      <p v-if="paletteWorksState === 'loading'" class="pal-status" role="status">{{ t('palette.works_loading') }}</p>
-      <p v-else-if="paletteWorksState === 'error'" class="pal-status" role="alert">
-        {{ t('palette.works_error') }}
-        <!-- aura-allow-text: result of tError() on the Library load failure. -->
-        <span>{{ paletteWorksErrorText }}</span>
-      </p>
-      <p v-else-if="paletteWorksAreFiltered" class="pal-status" role="status">
-        {{ t('palette.works_filtered', { matched_count: String(libraryWorksMatched), total_count: String(libraryWorksTotal) }) }}
-      </p>
-      <div id="palette-list" class="pal-list" role="listbox" :aria-label="t('palette.title')">
-        <div v-if="paletteWorkItems.length > 0" class="pal-group" role="group" aria-labelledby="palette-group-works">
-          <h3 id="palette-group-works" class="pal-group-title">{{ t('palette.group_works') }}</h3>
-          <div
-            v-for="(item, i) in paletteWorkItems"
-            :id="optionId(i)"
-            :key="item.key"
-            class="pal-option"
-            :class="{ 'pal-option-current': i === paletteCursor }"
-            role="option"
-            :aria-selected="i === paletteCursor"
-            data-palette-kind="work"
-            @mousedown.prevent="aimPaletteItem(i)"
-            @click="dispatch('palette.run_selected')"
-          >
-            <!-- aura-allow-text: Work name typed by the user. -->
-            <span class="pal-label">{{ item.label }}</span>
-            <span v-if="item.kind === 'work' && item.doneCount !== null" class="pal-hint">{{
-              t('palette.work_progress', { done_count: String(item.doneCount), chapter_count: String(item.chapterCount) })
-            }}</span>
-          </div>
-        </div>
-        <div v-if="paletteCommandItems.length > 0" class="pal-group" role="group" aria-labelledby="palette-group-commands">
-          <h3 id="palette-group-commands" class="pal-group-title">{{ t('palette.group_commands') }}</h3>
-          <div
-            v-for="(item, i) in paletteCommandItems"
-            :id="optionId(paletteWorkItems.length + i)"
-            :key="item.key"
-            class="pal-option"
-            :class="{ 'pal-option-current': paletteWorkItems.length + i === paletteCursor }"
-            role="option"
-            :aria-selected="paletteWorkItems.length + i === paletteCursor"
-            data-palette-kind="command"
-            @mousedown.prevent="aimPaletteItem(paletteWorkItems.length + i)"
-            @click="dispatch('palette.run_selected')"
-          >
-            <!-- aura-allow-text: label already resolved through t(). -->
-            <span class="pal-label">{{ item.label }}</span>
-            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-            <span v-if="item.kind === 'command'" class="pal-hint">{{ item.chords.join(' · ') }}</span>
-          </div>
-        </div>
+    <section ref="panel" class="pal-panel" tabindex="-1" role="dialog" aria-modal="true" :aria-label="t('palette.title')">
+      <div class="pal-search">
+        <input
+          ref="input"
+          class="ui-field ui-field--lg ui-field--full"
+          type="text"
+          role="combobox"
+          aria-controls="palette-list"
+          :aria-expanded="paletteItems.length > 0"
+          aria-autocomplete="list"
+          :aria-activedescendant="activeId"
+          :aria-label="t('palette.input_label')"
+          :placeholder="t('palette.input_placeholder')"
+          :value="paletteQuery"
+          autocomplete="off"
+          @input="onInput($event)"
+          @keydown="onInputKeydown($event)"
+        />
       </div>
-      <p v-if="noResults" class="pal-status" role="status">{{ t('palette.no_results') }}</p>
+      <div class="pal-body" :class="{ 'pal-body--shown': bodyShown }">
+        <p v-if="worksNotice === 'loading'" class="pal-status" role="status">{{ t('palette.works_loading') }}</p>
+        <p v-else-if="worksNotice === 'error'" class="pal-status pal-status--error" role="alert">
+          {{ t('palette.works_error') }}
+          <!-- aura-allow-text: result of tError() on the Library load failure. -->
+          <span>{{ paletteWorksErrorText }}</span>
+        </p>
+        <p v-else-if="worksNotice === 'filtered'" class="pal-status" role="status">
+          {{ t('palette.works_filtered', { matched_count: String(libraryWorksMatched), total_count: String(libraryWorksTotal) }) }}
+        </p>
+        <div id="palette-list" class="pal-list" role="listbox" :aria-label="t('palette.title')">
+          <div v-if="paletteWorkItems.length > 0" class="pal-group" role="group" aria-labelledby="palette-group-works">
+            <h3 id="palette-group-works" class="pal-group-title">{{ t('palette.group_works') }}</h3>
+            <div
+              v-for="(item, i) in paletteWorkItems"
+              :id="optionId(i)"
+              :key="item.key"
+              class="ui-menu-item pal-option"
+              :class="{ 'pal-option-current': i === paletteCursor }"
+              role="option"
+              :aria-selected="i === paletteCursor"
+              data-palette-kind="work"
+              @mousedown.prevent="aimPaletteItem(i)"
+              @click="dispatch('palette.run_selected')"
+            >
+              <!-- aura-allow-text: Work name typed by the user. -->
+              <span class="pal-label">{{ item.label }}</span>
+              <span v-if="item.kind === 'work' && item.doneCount !== null" class="pal-hint">{{
+                t('palette.work_progress', { done_count: String(item.doneCount), chapter_count: String(item.chapterCount) })
+              }}</span>
+            </div>
+          </div>
+          <div v-if="paletteCommandItems.length > 0" class="pal-group" role="group" aria-labelledby="palette-group-commands">
+            <h3 id="palette-group-commands" class="pal-group-title">{{ t('palette.group_commands') }}</h3>
+            <div
+              v-for="(item, i) in paletteCommandItems"
+              :id="optionId(paletteWorkItems.length + i)"
+              :key="item.key"
+              class="ui-menu-item pal-option"
+              :class="{ 'pal-option-current': paletteWorkItems.length + i === paletteCursor }"
+              role="option"
+              :aria-selected="paletteWorkItems.length + i === paletteCursor"
+              data-palette-kind="command"
+              @mousedown.prevent="aimPaletteItem(paletteWorkItems.length + i)"
+              @click="dispatch('palette.run_selected')"
+            >
+              <!-- aura-allow-text: label already resolved through t(). -->
+              <span class="pal-label">{{ item.label }}</span>
+              <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+              <span v-if="item.kind === 'command'" class="pal-hint">{{ item.chords.join(' · ') }}</span>
+            </div>
+          </div>
+        </div>
+        <p v-if="noResults" class="pal-status" role="status">{{ t('palette.no_results') }}</p>
+      </div>
     </section>
   </div>
 </template>
@@ -178,25 +187,20 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .pal-scrim {
-  padding-top: var(--space-titlebar-height);
+  padding: calc(var(--space-unit) * 16) var(--space-panel-inline) var(--space-panel-inline);
 }
 
 .pal-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-panel-block);
-  width: 100%;
-  max-width: 637px;
-  max-height: 100%;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
+  width: min(637px, 100%);
+  max-height: 60vh;
+  overflow: hidden;
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-default);
   background: var(--color-surface);
   color: var(--color-on-surface);
+  box-shadow: var(--shadow-popover);
 }
 
 .pal-panel:focus-visible {
@@ -204,39 +208,37 @@ function trapTab(event: KeyboardEvent): void {
   border-color: var(--color-primary);
 }
 
-.pal-head {
+.pal-search {
+  flex: none;
+  padding: calc(var(--space-unit) * 1);
+}
+
+.pal-body {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-panel-inline);
+  flex-direction: column;
+  min-height: 0;
 }
 
-.pal-title {
-  margin: 0;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  font-weight: var(--weight-ui-md-strong);
-  line-height: var(--leading-ui-md);
-}
-
-.pal-status {
-  margin: 0;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
+.pal-body--shown {
+  padding-bottom: calc(var(--space-unit) * 1);
+  border-top: 1px solid var(--color-outline-faint);
 }
 
 .pal-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-panel-block);
   min-height: 0;
   overflow-y: auto;
 }
 
+.pal-group {
+  padding-top: calc(var(--space-unit) * 1);
+}
+
 .pal-group-title {
+  display: flex;
+  align-items: center;
+  height: 28px;
   margin: 0;
+  padding: 0 calc(var(--space-unit) * 2);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   font-weight: var(--weight-ui-md-strong);
@@ -245,19 +247,17 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .pal-option {
-  display: flex;
-  align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-panel-inline);
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
 }
 
 .pal-option-current {
-  background: var(--color-surface-accent);
+  background: var(--color-outline);
+}
+
+.pal-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pal-hint {
@@ -266,5 +266,18 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.pal-status {
+  margin: 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.pal-status--error {
+  color: var(--color-error);
 }
 </style>
