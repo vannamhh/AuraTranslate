@@ -321,6 +321,7 @@ import {
   openLibraryUrlImportScreen,
 } from './modes/libraryImportOverlayState'
 import { tmManageCommandDeps } from './tmManageCommandDeps'
+import { paletteCommandDeps, paletteIsOpen } from './paletteState'
 import { tmImportOverlayIsOpen } from './tmImportState'
 import { tmManageOverlayIsOpen } from './tmManageState'
 // ── Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55) ───────────────────────
@@ -1038,6 +1039,7 @@ async function boot(): Promise<void> {
       ...tmFuzzyCommandDeps(),
       ...tmConcordanceCommandDeps(),
       ...tmManageCommandDeps(),
+      ...paletteCommandDeps(),
       ...exportCommandDeps(),
       ...libraryWorkPageCommandDeps(),
       ...reviewerImportCommandDeps(),
@@ -1199,6 +1201,7 @@ async function boot(): Promise<void> {
         queueOverlayIsOpen.value ||
         harvestOverlayIsOpen.value ||
         manageOverlayIsOpen.value ||
+        paletteIsOpen.value ||
         tmManageOverlayIsOpen.value ||
         tmImportOverlayIsOpen.value ||
         exportOverlayIsOpen.value ||

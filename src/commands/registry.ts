@@ -95,6 +95,8 @@ export type CommandSpec = {
   /** A user-assigned `Shift+Enter` fires inside a typing zone instead of inserting a line break. */
   shiftEnterWhileTyping?: boolean
   pointer?: CommandPointer
+  /** Listed in the Mod+K palette. Set only on an entry point that runs correctly with no selected item or open overlay. */
+  palette?: true
 }
 
 export type Registry = {
@@ -152,6 +154,7 @@ const frozen = (spec: CommandSpec): CommandSpec =>
     // một bản sau sẽ viết `!spec.repeatable` rồi tự hỏi `undefined` nghĩa là gì.
     repeatable: spec.repeatable === true,
     shiftEnterWhileTyping: spec.shiftEnterWhileTyping === true,
+    ...(spec.palette === true ? { palette: true as const } : {}),
     ...(spec.pointer === undefined ? {} : { pointer: Object.freeze({ ...spec.pointer }) as CommandPointer }),
   })
 

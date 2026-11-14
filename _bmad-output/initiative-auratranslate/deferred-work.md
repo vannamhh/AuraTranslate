@@ -14175,3 +14175,10 @@ chính nó.
 - WebView2 chưa đo: `index.html` nay đặt `spellcheck="false"` ở `<html>` để mọi ô nhập kế thừa; mới đo kế thừa bằng Playwright Chromium 156 và WebKit 27.2, chưa trong app Windows đã cài.
   Cần: gõ sai chính tả vào ô tìm Lookup, ô Editor và một ô trong Settings, không hiện gạch đỏ, menu chuột phải không gợi ý sửa.
   Chủ: B7. Trỏ: `tests/frontend/spellcheckRoot.test.ts`.
+
+## Deferred from: bảng Mod+K mở Tác phẩm và chạy lệnh (2026-11-14)
+
+- Chưa ai dùng bảng Mod+K trong app thật. Ice: đặt con trỏ trong ô dịch, bấm `Mod+K`, gõ không dấu một phần tên Tác phẩm, Enter thì vào Workspace đúng Chương và vị trí đọc cuối; mở lại, Esc thì con trỏ về đúng ô cũ; bấm một dòng lệnh bằng chuột thì lệnh chạy.
+  Quan trọng vì test chỉ dùng `textarea` trong jsdom, không phải ô Editor trong WKWebView. Chủ: Ice. Trỏ: `plan-bang-mod-k-mo-tac-pham-va-chay-lenh.md`.
+- Mọi `*Overlay.vue` (Settings, TM, nay cả bảng Mod+K) gắn `@keydown.esc` trên scrim; bấm chuột vào vùng scrim ngoài khung có thể đưa tiêu điểm về `body`, khi đó Esc và Tab không tới lớp phủ mà `isBlocked` vẫn nuốt phím toàn cục. Chưa đo trong WKWebView.
+  Quan trọng vì người dùng chỉ còn nút đóng để thoát. Chủ: Ice. Trỏ: `plan-bang-mod-k-mo-tac-pham-va-chay-lenh.md` §Review Triage Log.

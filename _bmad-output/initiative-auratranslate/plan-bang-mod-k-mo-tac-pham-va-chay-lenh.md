@@ -3,14 +3,14 @@ title: 'Bảng Mod+K: tìm mở Tác phẩm và chạy lệnh'
 type: 'feature'
 ticket: ''
 created: '2026-11-14'
-status: 'in-progress'
+status: 'built'
 baseline_revision: '0a76018144e1a0bc827a82b954b83d2bebd40296'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: []
 ---
@@ -105,6 +105,27 @@ Gập dấu làm ở webview vì danh sách Works nhỏ và đã nằm trong b�
 
 ## Implementation Notes
 
+- Nhóm Lệnh gồm 14 command đánh dấu `palette`: ba `mode.*`, `glossary.manage.open`, `glossary.settings.open`, `tm.manage.open`, `settings.open`, `settings.privacy.open`, `settings.ai_config.open`, `shortcuts.open`, `prompt.library.open`, `convention.manage.open`, `ai.proofread.memory.open`. Bỏ `library.import.open` vì nó nhảy vào form chỉ có ở Library. Ice duyệt 2026-11-14.
+- Ngoài plan, Ice duyệt: `libraryWorks` mang bộ lọc của Library, nên khi `matched < total` bảng hiện dòng `palette.works_filtered` thay vì ẩn Tác phẩm không báo.
+- `paletteWorksState` xét lỗi trước `libraryWorksHaveLoaded`: một lượt nạp lại hỏng sau lần nạp đầu hiện lỗi, không hiện danh sách cũ.
+- Thông báo chặn mở Tác phẩm (`still-dirty`, `flush-failed`) đã hiện ở `StatusBar.vue` ở mọi chế độ, nên bảng không cần dòng riêng.
+- `COMMAND_FLOOR` 329 → 340 = ceil(0.85 × 400 command đang đăng ký); sàn cũ đã trôi trước story này.
+- Dòng Matrix "Lớp phủ khác đang mở" chỉ được kiểm qua cổng `isBlocked` giả trong test; danh sách thật ở `main.ts` chưa có test canh, giống mọi lớp phủ khác.
+
 ## Plan Change Log
 
 ## Review Triage Log
+- Q1 · `palette.test.ts` thiếu ca AC4 (gán lại `palette.open`) · low · patch: thêm ca đè chord qua đường Settings dùng.
+- Q2 · Mục nợ lượt dùng thật `Chủ: Ice` chưa ghi · medium · patch: đã ghi vào `deferred-work.md`.
+- Q3 · `COMMAND_FLOOR` 340 không theo `ceil(0.85 × live)` · false: đếm thật 400 command, ceil(340) đúng; sàn cũ 329 đã trôi.
+- Q4 · Enter ngay khi mở chạy Tác phẩm đầu · false: dòng đầu đã tô và trỏ qua `aria-activedescendant`, đúng khuôn combobox.
+- Q5 · Con trỏ không đặt lại khi Works nạp xong · low · loại: nạp cục bộ vài ms, vá cần thêm watch.
+- Q6a · Kẹt "đang tải" khi không có cầu IPC · false: app đóng gói luôn có cầu IPC.
+- Q6b · Nạp lại lỗi sau lần nạp đầu vẫn hiện danh sách cũ, không báo lỗi · low · patch: xét `libraryWorksError` trước `HaveLoaded`.
+- Q7 · "Không có kết quả" hiện cạnh câu lỗi · low · patch: `noResults` chỉ khi trạng thái `ready`.
+- Q8 · Esc không tới lớp phủ sau khi bấm vào scrim · medium chưa đo · defer: khuôn có sẵn ở Settings và TM, ghi nợ `Chủ: Ice`.
+- Q9 · `resetPalette` xuất ra mà không ai gọi · low · patch: xoá.
+- Q10 · Chú thích `aura-allow-z-index` tiếng Việt và dài · low · patch: một dòng tiếng Anh. Doc trên `palette?` là bất biến không hiển nhiên, giữ.
+- Q11 · Khoá `palette.*` chèn giữa nhóm `proofread.*` của `vi.json` · low · patch: dời ra khỏi nhóm.
+- Q12 · Tập lệnh đánh dấu chưa đối chiếu tiêu chí · false: Ice duyệt danh sách 14 lệnh ngày 2026-11-14.
+- Q13 · `pointer: aim` của `select_next/prev` coi dòng là điểm chuột · false: dòng chạy `palette.run_selected` qua `@click` literal; `aim` là khuôn `onRowMouseDown` sẵn có, Kiểm M xanh.

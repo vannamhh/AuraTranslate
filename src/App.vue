@@ -60,6 +60,7 @@ import GlossaryQueueOverlay from './GlossaryQueueOverlay.vue'
 import GlossaryHarvestOverlay from './GlossaryHarvestOverlay.vue'
 import GlossaryManageOverlay from './GlossaryManageOverlay.vue'
 import TmManageOverlay from './TmManageOverlay.vue'
+import PaletteOverlay from './PaletteOverlay.vue'
 import TmImportOverlay from './TmImportOverlay.vue'
 // Story 3.10b — lớp phủ "Xem trước lượt nhập Glossary" (AD-48), lớp phủ THỨ BẢY. Mở TỪ
 // BÊN TRONG `GlossaryManageOverlay`, nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác —
@@ -367,6 +368,8 @@ onMounted(async () => {
     <GlossaryManageOverlay />
 
     <TmManageOverlay />
+
+    <PaletteOverlay />
 
     <TmImportOverlay />
 

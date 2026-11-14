@@ -109,6 +109,7 @@ onBeforeUnmount(() => {
       data-reviewer-import-open
       data-alignment-open
       data-glossary-harvest-open
+      data-palette-open
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('titlebar.tools.toggle')"
     >
@@ -242,6 +243,15 @@ onBeforeUnmount(() => {
             <span>{{ t('command.glossary.harvest.open') }}</span>
             <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
             <span class="tools-chord">{{ chordOf('glossary.harvest.open') }}</span>
+          </span>
+        </button>
+      </li>
+      <li role="none">
+        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="palette.open" @click="dispatch('palette.open')">
+          <span class="ui-row">
+            <span>{{ t('command.palette.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('palette.open') }}</span>
           </span>
         </button>
       </li>

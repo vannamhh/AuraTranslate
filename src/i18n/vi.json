@@ -2501,5 +2501,20 @@
   "command.settings.quick_ai.key_save": "Lưu khoá API Dịch nhanh",
   "command.settings.quick_ai.key_delete": "Xoá khoá API Dịch nhanh",
   "command.settings.quick_ai.test": "Thử kết nối Dịch nhanh",
-  "command.settings.quick_ai.test_cancel": "Huỷ thử kết nối Dịch nhanh"
+  "command.settings.quick_ai.test_cancel": "Huỷ thử kết nối Dịch nhanh",
+  "palette.title": "Bảng lệnh",
+  "palette.input_label": "Tìm Tác phẩm hoặc lệnh",
+  "palette.input_placeholder": "Gõ tên Tác phẩm hoặc tên lệnh",
+  "palette.group_works": "Tác phẩm",
+  "palette.group_commands": "Lệnh",
+  "palette.works_loading": "Đang tải danh sách Tác phẩm…",
+  "palette.works_error": "Không nạp được danh sách Tác phẩm.",
+  "palette.works_filtered": "Library đang lọc: chỉ {matched_count} trong {total_count} Tác phẩm được tìm ở đây.",
+  "palette.work_progress": "{done_count}/{chapter_count} Chương xong",
+  "palette.no_results": "Không có kết quả.",
+  "command.palette.open": "Mở bảng lệnh",
+  "command.palette.close": "Đóng bảng lệnh",
+  "command.palette.select_next": "Chọn mục kế tiếp trong bảng lệnh",
+  "command.palette.select_prev": "Chọn mục trước trong bảng lệnh",
+  "command.palette.run_selected": "Mở hoặc chạy mục đang chọn trong bảng lệnh"
 }

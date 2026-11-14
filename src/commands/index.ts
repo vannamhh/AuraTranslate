@@ -1016,6 +1016,18 @@ export type CommandDeps = {
   /** Drops the held-back accept and keeps my text. Handler of `review.accept_keep`. */
   reviewCancelAccept?: () => void
 
+  // ── Mod+K palette ──
+  /** Opens the palette. Handler of `palette.open`. */
+  openPalette?: () => void
+  /** Closes the palette. Handler of `palette.close`. */
+  closePalette?: () => void
+  /** Moves the palette cursor down. Handler of `palette.select_next`. */
+  selectNextPaletteItem?: () => void
+  /** Moves the palette cursor up. Handler of `palette.select_prev`. */
+  selectPrevPaletteItem?: () => void
+  /** Opens the Work or runs the command under the palette cursor. Handler of `palette.run_selected`. */
+  runSelectedPaletteItem?: () => void
+
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
   openTmManage?: () => void
@@ -1446,6 +1458,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   for (const mode of MODE_IDS) {
     target.register({
       id: `mode.${mode}`,
+      palette: true,
       // §Quyết định thiết kế #4 — tiền tố `command.` là bắt buộc, không dùng thẳng id
       // làm khoá: `command.mode.library` cho nhãn hôm nay, `command.mode.library.hint`
       // cho mô tả ở màn hình gán phím của Story 1.21, và một lượt grep `"command."`
@@ -4032,6 +4045,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    */
   target.register({
     id: 'glossary.settings.open',
+    palette: true,
     labelKey: 'command.glossary.settings.open',
     keys: ['Mod+Alt+T'],
     run: () => {
@@ -4429,9 +4443,58 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     },
   })
 
+  target.register({
+    id: 'palette.open',
+    labelKey: 'command.palette.open',
+    keys: ['Mod+K'],
+    run: () => {
+      if (deps.openPalette === undefined) return portMissing('palette.open', 'openPalette')
+      deps.openPalette()
+    },
+  })
+  target.register({
+    id: 'palette.close',
+    labelKey: 'command.palette.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closePalette === undefined) return portMissing('palette.close', 'closePalette')
+      deps.closePalette()
+    },
+  })
+  target.register({
+    id: 'palette.select_next',
+    labelKey: 'command.palette.select_next',
+    pointer: { kind: 'aim', reason: 'The mouse aims at each row directly.', at: 'src/PaletteOverlay.vue' },
+    keys: undefined,
+    run: () => {
+      if (deps.selectNextPaletteItem === undefined) return portMissing('palette.select_next', 'selectNextPaletteItem')
+      deps.selectNextPaletteItem()
+    },
+  })
+  target.register({
+    id: 'palette.select_prev',
+    labelKey: 'command.palette.select_prev',
+    pointer: { kind: 'aim', reason: 'The mouse aims at each row directly.', at: 'src/PaletteOverlay.vue' },
+    keys: undefined,
+    run: () => {
+      if (deps.selectPrevPaletteItem === undefined) return portMissing('palette.select_prev', 'selectPrevPaletteItem')
+      deps.selectPrevPaletteItem()
+    },
+  })
+  target.register({
+    id: 'palette.run_selected',
+    labelKey: 'command.palette.run_selected',
+    keys: undefined,
+    run: () => {
+      if (deps.runSelectedPaletteItem === undefined) return portMissing('palette.run_selected', 'runSelectedPaletteItem')
+      deps.runSelectedPaletteItem()
+    },
+  })
+
   // TM management: `tm.manage.open` is reached from the title-bar `Công cụ ▾` list and by chord. The rest back the overlay's buttons.
   target.register({
     id: 'tm.manage.open',
+    palette: true,
     labelKey: 'command.tm.manage.open',
     keys: ['Mod+Alt+B'],
     run: () => {
@@ -4789,6 +4852,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    */
   target.register({
     id: 'glossary.manage.open',
+    palette: true,
     labelKey: 'command.glossary.manage.open',
     keys: ['Mod+Alt+M'],
     run: () => {
@@ -4967,6 +5031,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    */
   target.register({
     id: 'settings.open',
+    palette: true,
     labelKey: 'command.settings.open',
     keys: ['Mod+Comma'],
     run: () => {
@@ -4978,6 +5043,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   })
   target.register({
     id: 'settings.privacy.open',
+    palette: true,
     labelKey: 'command.settings.privacy.open',
     keys: undefined,
     run: () => {
@@ -4989,6 +5055,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   })
   target.register({
     id: 'settings.ai_config.open',
+    palette: true,
     labelKey: 'command.settings.ai_config.open',
     keys: ['Mod+T'],
     run: () => {
@@ -5071,6 +5138,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    */
   target.register({
     id: 'prompt.library.open',
+    palette: true,
     labelKey: 'command.prompt.library.open',
     keys: undefined,
     run: () => {
@@ -5426,6 +5494,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   })
   target.register({
     id: 'ai.proofread.memory.open',
+    palette: true,
     labelKey: 'command.ai.proofread.memory.open',
     keys: undefined,
     run: () => {
@@ -5591,6 +5660,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   })
   target.register({
     id: 'convention.manage.open',
+    palette: true,
     labelKey: 'command.convention.manage.open',
     keys: ['Mod+Alt+A'],
     run: () => {
@@ -6055,6 +6125,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   // `check-commands.mjs` bắt đầu "AC6 — `unbound()` phải có phần tử THẬT".
   target.register({
     id: 'shortcuts.open',
+    palette: true,
     labelKey: 'command.shortcuts.open',
     pointer: { kind: 'via', reason: 'Cài đặt mở ra có mục Phím tắt.', via: 'settings.open' },
     keys: undefined,
