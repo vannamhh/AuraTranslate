@@ -90,6 +90,7 @@ pub mod pinyin;
 mod query;
 mod quick;
 mod senses;
+pub mod syllables;
 
 pub use query::{char_idx_one_sql, char_idx_two_sql, exact_sql};
 

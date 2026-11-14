@@ -174,6 +174,7 @@ fn base_sources() -> Vec<Source> {
                 entry("zh", "平安", Some("píng ān"), "bình an"),
                 entry("zh", "女", Some("nǚ (nü³)"), "con gái"),
                 entry("zh", "奴", Some("nú"), "nô lệ"),
+                entry("zh", "哈囉", Some("hā luō"), "hello (từ mượn)"),
             ],
         },
         Source {
@@ -389,7 +390,7 @@ fn a_query_without_any_hit_is_named_empty_in_every_group() {
 #[test]
 fn a_v3_file_reports_outdated_for_pinyin_and_vietnamese_but_still_answers_english() {
     let (dir, layers) = open_base("v3", 3, &base_sources());
-    let response = run(&layers, "hello");
+    let response = run(&layers, "an");
     assert_eq!(
         group(&response, QuickGroupId::Pinyin).status,
         QuickStatus::OutdatedDictionary
@@ -400,7 +401,7 @@ fn a_v3_file_reports_outdated_for_pinyin_and_vietnamese_but_still_answers_englis
     );
     let english = group(&response, QuickGroupId::EnglishToVietnamese);
     assert_eq!(english.status, QuickStatus::Rows);
-    assert_eq!(headwords(english), vec!["hello"]);
+    assert_eq!(headwords(english), vec!["an"]);
     assert!(response.skipped.is_empty(), "a v3 file still loads");
     let han = run(&layers, "你好");
     assert_eq!(
@@ -508,7 +509,7 @@ fn no_layers_at_all_is_flagged_instead_of_looking_like_an_empty_answer() {
 fn a_layer_that_breaks_at_query_time_is_a_named_error_not_an_empty_group() {
     let (dir, layers) = open_base("closed", 4, &base_sources());
     layers.close();
-    let response = run(&layers, "nihao");
+    let response = run(&layers, "an");
     let pinyin = group(&response, QuickGroupId::Pinyin);
     assert_eq!(pinyin.status, QuickStatus::Error);
     assert!(pinyin.error.is_some());
@@ -700,4 +701,86 @@ fn bench_quick_lookup_on_the_real_dictionaries() {
     }
     assert!(p95.0 < 100_000, "NFR1: p95 {} us", p95.0);
     layers.close();
+}
+
+#[test]
+fn an_english_word_opens_only_the_english_group_even_when_a_vietnamese_gloss_contains_it() {
+    let (dir, layers) = open_base("english-only", 4, &base_sources());
+    for query in ["hello", "earth", "water", "book"] {
+        let response = run(&layers, query);
+        assert_eq!(
+            group(&response, QuickGroupId::Pinyin).status,
+            QuickStatus::Empty,
+            "{query}"
+        );
+        assert_eq!(
+            group(&response, QuickGroupId::VietnameseToChinese).status,
+            QuickStatus::Empty,
+            "{query}: 哈囉 carries the gloss `hello (từ mượn)` but the query is not Vietnamese"
+        );
+    }
+    let english = run(&layers, "hello");
+    assert_eq!(
+        headwords(group(&english, QuickGroupId::EnglishToVietnamese)),
+        vec!["hello"]
+    );
+    finish(dir, layers);
+}
+
+#[test]
+fn a_v3_file_names_no_outdated_vietnamese_group_for_an_english_word() {
+    let (dir, layers) = open_base("v3-english", 3, &base_sources());
+    let response = run(&layers, "hello");
+    assert_eq!(
+        group(&response, QuickGroupId::VietnameseToChinese).status,
+        QuickStatus::Empty
+    );
+    finish(dir, layers);
+}
+
+#[test]
+fn a_query_that_is_pinyin_and_vietnamese_keeps_every_group() {
+    let (dir, layers) = open_base("ambiguous", 4, &base_sources());
+    let response = run(&layers, "an");
+    assert!(headwords(group(&response, QuickGroupId::Pinyin)).contains(&"安"));
+    assert!(headwords(group(&response, QuickGroupId::VietnameseToChinese)).contains(&"安"));
+    assert_eq!(
+        headwords(group(&response, QuickGroupId::EnglishToVietnamese)),
+        vec!["an"]
+    );
+    for spelling in ["nihao", "ni3hao3", "nǐ hǎo", "niha"] {
+        assert!(
+            headwords(group(&run(&layers, spelling), QuickGroupId::Pinyin)).contains(&"你好"),
+            "{spelling}"
+        );
+    }
+    finish(dir, layers);
+}
+
+#[test]
+fn vietnamese_syllables_pass_the_gate_and_english_words_do_not() {
+    use auratranslate_lib::core::dict::syllables::could_be_vietnamese;
+    for query in [
+        "an",
+        "ma",
+        "xin chào",
+        "ăn",
+        "nguoi",
+        "người",
+        "đám đông",
+        "nghi",
+        "ng",
+        "khuy",
+    ] {
+        assert!(
+            could_be_vietnamese(query),
+            "{query} should read as Vietnamese"
+        );
+    }
+    for query in ["earth", "hello", "water", "book", "see", "nihao", "", "x1"] {
+        assert!(
+            !could_be_vietnamese(query),
+            "{query} should not read as Vietnamese"
+        );
+    }
 }

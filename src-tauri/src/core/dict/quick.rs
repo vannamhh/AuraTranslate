@@ -11,6 +11,7 @@ use crate::core::store::{ReadHandle, SqlResult, ToSql};
 
 use super::DictLayers;
 use super::pinyin::pinyin_key;
+use super::syllables::could_be_vietnamese;
 
 pub const QUICK_GROUP_ROWS: usize = 20;
 
@@ -351,6 +352,9 @@ pub fn vietnamese_to_chinese_group(
     let id = QuickGroupId::VietnameseToChinese;
     let trimmed = query.trim();
     if trimmed.is_empty() {
+        return QuickGroup::from_rows(id, Vec::new(), false);
+    }
+    if !could_be_vietnamese(trimmed) {
         return QuickGroup::from_rows(id, Vec::new(), false);
     }
     let mode = classify_query(trimmed);

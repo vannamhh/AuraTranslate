@@ -33,7 +33,7 @@ use boundary_scan::is_inside;
 const DICT_DIR: &str = "core/dict";
 
 /// Số tệp `.rs` tối thiểu dưới `src/core/dict/**` để phép quét là thật.
-const DICT_FLOOR: usize = 6;
+const DICT_FLOOR: usize = 7;
 
 /// Ba token bị cấm ở **vị trí mã** dưới `core/dict/**`.
 ///

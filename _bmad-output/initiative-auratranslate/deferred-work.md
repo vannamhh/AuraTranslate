@@ -14195,5 +14195,7 @@ chính nó.
 
 - Bốn `.db` dict-v4 mới chỉ có ở máy dựng; `dict-manifest.toml` đã trỏ `dict-v4` nhưng GitHub Release chưa có. Ice: tải bốn tệp lên Release `dict-v4` (sha256 trong manifest), rồi chạy `node scripts/fetch-dicts.mjs`; hash lệch thì dựng lại và sửa manifest.
   Quan trọng vì `fetch-dicts.mjs` và `release.yml` không tải được cho tới lúc đó, và bản cài NFR6 (trần 500.000.000, macOS 432.363.050) chưa đo với bốn tệp v4 (393.674.752 byte thô). Chủ: Ice. Trỏ: `plan-tra-tu-nhanh-trong-bang-mod-k.md`.
+  → 🟡 2026-11-15: Release `dict-v4` đã lên; `fetch-dicts.mjs` tải lại đủ bốn tệp, khớp sha256 của manifest. Còn lại: đo bản cài NFR6 với bốn tệp v4. Chủ: Ice.
 - Chưa ai dùng chế độ "Tra từ" của Mod+K trong app thật. Ice: Mod+K, gõ `/nihao` (dòng đầu 你好, khung xem trước có nghĩa cvdict kèm nguồn), gõ `xin chào`, gõ `你好`; mũi tên đổi xem trước, Enter mở panel Lookup đúng từ và lịch sử thêm một mục; bấm lệnh "Tra từ" bằng chuột; xem hình học khung, cuộn danh sách; kiểm `runLookup` có hiện panel Lookup khi panel đang ẩn.
   Quan trọng vì vitest chỉ dùng happy-dom, không đo hình học, tiêu điểm thật hay WKWebView. Chủ: Ice. Trỏ: `plan-tra-tu-nhanh-trong-bang-mod-k.md`.
+  → ✅ ĐÃ ĐÓNG 2026-11-15 (plan tra nhanh Mod+K): Ice thử ở app thật, đạt. Ice góp ý thêm: từ tiếng Anh không nên mở nhóm pinyin và Việt→Trung; đã làm cùng ngày (AD-69, dòng 🔵 2026-11-15).
