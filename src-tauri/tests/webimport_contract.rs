@@ -1640,7 +1640,7 @@ fn chapter_origin_url_after_a_real_redirect_is_the_requested_url_not_the_redirec
     )
     .expect("tao tac pham qua chuyen huong that bai");
 
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     let origin_url: Option<String> = opened
         .store
         .read(move |conn| {

@@ -314,7 +314,7 @@ function isWorkListReport(value: unknown): value is WorkListReport {
 export type OpenedWork = {
   meta: import('./project').WorkMeta
   folder: string
-  chapter_id: number
+  chapter_id: number | null
 }
 
 /** Ba trạng thái, cùng khuôn [`WorkListResult`]. */
@@ -341,7 +341,7 @@ function isOpenedWork(value: unknown): value is OpenedWork {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- xem chú thích ngay trên
     v.meta !== null &&
     typeof v.folder === 'string' &&
-    typeof v.chapter_id === 'number'
+    (v.chapter_id === null || typeof v.chapter_id === 'number')
   )
 }
 

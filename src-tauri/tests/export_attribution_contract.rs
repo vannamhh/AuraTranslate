@@ -74,7 +74,7 @@ fn fixture(tag: &str) -> Fixture {
     open.store
         .write(|tx: &Transaction<'_>| tx.execute("DELETE FROM segment", []))
         .expect("xoa segment");
-    let first = open.chapter_id;
+    let first = open.chapter_id.expect("open chapter");
     let second = open
         .store
         .write(|tx: &Transaction<'_>| {
@@ -100,7 +100,11 @@ fn fixture(tag: &str) -> Fixture {
 }
 
 fn set_origin(f: &mut Fixture, second: bool, author: &str, site: &str, url: &str, published: &str) {
-    let chapter_id = if second { f.second } else { f.open.chapter_id };
+    let chapter_id = if second {
+        f.second
+    } else {
+        f.open.chapter_id.expect("open chapter")
+    };
     update_chapter_origin(
         Some(&mut f.open),
         chapter_id,

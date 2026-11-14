@@ -211,7 +211,7 @@ fn an_image_with_alt_and_a_following_caption_get_role_segments_right_after_the_a
     )
     .expect("tao Tac pham that bai");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     // h1, doan1, doan2 (neo=3) -- ROLE:alt -- ROLE:caption -- doan3.
     assert_eq!(
         rows.len(),
@@ -346,7 +346,7 @@ fn two_adjacent_kept_images_the_second_anchor_shifts_by_the_first_alt() {
          mang gia tri 3"
     );
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     let alt_rows: Vec<_> = rows
         .iter()
         .filter(|(_, r, _)| r.as_deref() == Some("alt"))
@@ -401,7 +401,7 @@ fn an_image_whose_asset_fetch_fails_still_gets_its_alt_segment() {
     );
     assert_eq!(opened.images_failed, 1);
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     let alt_rows: Vec<_> = rows
         .iter()
         .filter(|(_, r, _)| r.as_deref() == Some("alt"))
@@ -451,7 +451,7 @@ fn a_whitespace_only_alt_generates_no_role_segment() {
     )
     .expect("tao Tac pham that bai");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     assert!(
         rows.iter().all(|(_, r, _)| r.is_none()),
         "alt chi khoang trang -- 0 segment vai nao: {rows:?}"
@@ -495,7 +495,7 @@ fn an_image_with_no_alt_attribute_generates_no_role_segment_and_does_not_shift_a
     )
     .expect("tao Tac pham that bai");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     assert!(rows.iter().all(|(_, r, _)| r.is_none()));
     assert_eq!(rows.len(), 4);
 
@@ -540,7 +540,7 @@ fn a_three_sentence_figcaption_with_an_owning_image_becomes_exactly_one_caption_
     )
     .expect("tao Tac pham that bai");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     let caption_rows: Vec<_> = rows
         .iter()
         .filter(|(_, r, _)| r.as_deref() == Some("caption"))
@@ -600,7 +600,7 @@ fn a_caption_with_no_preceding_kept_image_gets_no_role_and_the_chapter_still_imp
     )
     .expect("Chuong van phai nhap duoc du caption khong co anh so huu");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     assert!(
         rows.iter().all(|(_, r, _)| r.is_none()),
         "khong anh nao truoc no -- 0 hang mang vai: {rows:?}"
@@ -625,7 +625,7 @@ fn a_plain_text_import_with_no_images_leaves_every_role_null() {
     let opened = create_work_from_text(&root, "Khong anh", "zh", "", "一。二。\n三。".to_owned())
         .expect("tao tac pham that bai");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     assert_eq!(rows.len(), 3);
     assert!(
         rows.iter().all(|(_, r, _)| r.is_none()),
@@ -679,19 +679,19 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
         .read(move |conn| {
             let caption: i64 = conn.query_row(
                 "SELECT id FROM segment WHERE chapter_id = ?1 AND role = 'caption'",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )?;
             let prose: i64 = conn.query_row(
                 "SELECT id FROM segment WHERE chapter_id = ?1 AND role IS NULL ORDER BY ord LIMIT 1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )?;
             Ok((caption, prose))
         })
         .expect("doc id segment that bai");
 
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     save_segment_targets(
         Some(&opened),
         chapter_id,
@@ -863,7 +863,7 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
     // the latest target of `PROJECT_MIGRATIONS` and moves with it.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)"
     );
 
@@ -926,7 +926,7 @@ fn merging_a_role_bearing_segment_is_refused_and_writes_nothing() {
     // Khong co dong nay, mot thay doi tuong lai lam caption thoi mang vai se bien ca nay
     // thanh mot phep gop hai cau van xuoi -- xanh, va khong canh gi (dung cai bay ma ca o
     // `segment_contract.rs` da dinh).
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     let truoc = read_role_rows(&opened.store, chapter_id);
     let (cap_ord, _, _) = truoc
         .iter()
@@ -1012,7 +1012,7 @@ fn two_adjacent_figcaptions_for_one_image_produce_exactly_one_caption_role_row()
     )
     .expect("tao Tac pham that bai");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     let caption_rows: Vec<_> = rows
         .iter()
         .filter(|(_, r, _)| r.as_deref() == Some("caption"))
@@ -1087,7 +1087,7 @@ fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose
     )
     .expect("tao Tac pham that bai");
 
-    let rows = read_role_rows(&opened.store, opened.chapter_id);
+    let rows = read_role_rows(&opened.store, opened.chapter_id.expect("open chapter"));
     assert!(
         !rows.iter().any(|(_, _, t)| t.contains("Chu thich")),
         "van ban caption phai THAT SU bi luat lam sach xoa trang, khong con segment nao mang \
@@ -1152,7 +1152,7 @@ fn splitting_a_role_bearing_segment_is_refused_and_writes_nothing() {
     )
     .expect("tao Tac pham that bai");
 
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     let cap_id: i64 = opened
         .store
         .read(move |conn| {
@@ -1227,7 +1227,7 @@ fn block_overrides_only_apply_to_chapter_zero_on_the_weave_path() {
     )
     .expect("tao Tac pham that bai");
 
-    let chapter_a_id = opened.chapter_id;
+    let chapter_a_id = opened.chapter_id.expect("open chapter");
     let chapter_b_id: i64 = opened
         .store
         .read(|conn| conn.query_row("SELECT id FROM chapter WHERE ord = 2", [], |r| r.get(0)))

@@ -379,7 +379,7 @@ pub fn promote_inner(
         Row(String, String, String, bool, bool),
     }
 
-    let open_chapter_id = open.chapter_id;
+    let open_chapter_id = crate::commands::chapter::require_open_chapter(open)?;
     let payload = target_text.to_owned();
     let expected_hash = expected_source_hash.map(str::to_owned);
     let outcome = open.store.write(move |tx: &Transaction<'_>| {

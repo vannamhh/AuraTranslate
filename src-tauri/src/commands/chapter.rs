@@ -106,6 +106,11 @@ pub(crate) fn chapter_not_found(chapter_id: i64) -> IpcError {
     )
 }
 
+/// The open Chapter id, or `work.none_open` for a Work that has no Chapter left.
+pub(crate) fn require_open_chapter(open: &OpenWork) -> Result<i64, IpcError> {
+    open.chapter_id.ok_or_else(no_work_open)
+}
+
 /// Đặt CẢ HAI: con trỏ Chương đang mở trong bộ nhớ (`OpenWork::chapter_id`) VÀ
 /// `work.last_chapter_id` trên đĩa — MỘT hàm cho cả hai để không có đường nào đổi cái này mà
 /// quên đổi cái kia. Ghi ngay lập tức (một thao tác RỜI RẠC, không
@@ -114,7 +119,10 @@ pub(crate) fn chapter_not_found(chapter_id: i64) -> IpcError {
 /// Gọi SAU khi mọi kiểm tra khác (hàng `chapter` tồn tại, …) đã qua — cùng luật đã ghi ở
 /// [`open_adjacent_chapter`]/[`open_chapter`]: con trỏ chỉ đổi SAU một lượt xác nhận thành
 /// công, không trước.
-pub(crate) fn set_open_chapter(open: &mut OpenWork, chapter_id: i64) -> Result<(), IpcError> {
+pub(crate) fn set_open_chapter(
+    open: &mut OpenWork,
+    chapter_id: Option<i64>,
+) -> Result<(), IpcError> {
     open.store.write(move |tx: &Transaction<'_>| {
         tx.execute("UPDATE work SET last_chapter_id = ?1", [chapter_id])
     })?;
@@ -141,7 +149,7 @@ pub fn read_open_chapter(open: Option<&OpenWork>) -> Result<OpenChapter, IpcErro
     // thu nhat van dung ve mat du lieu (khong duong san pham nao sinh Chuong thu hai, mon no
     // co chu: Epic 6), nhung no khong con la mot tien de cua ma nay.
     let open = open.ok_or_else(no_work_open)?;
-    let chapter_id = open.chapter_id;
+    let chapter_id = require_open_chapter(open)?;
 
     // 🔵 THEM 2026-08-21 (Story 3.4) — day la duong MO CHUONG ma deferred-work.md §*Deferred from: 1-11-ba-nhanh-truy-van-tieng-trung (2026-08-05)* cho
     // ham Jieba vao: khoi tao lanh vuot tran NFR2, va lan goi dau tien khong duoc phep roi
@@ -262,7 +270,7 @@ pub fn open_adjacent_chapter(
     direction: ChapterDirection,
 ) -> Result<ChapterSwitch, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
-    let current = open.chapter_id;
+    let current = require_open_chapter(open)?;
 
     // 🔵 THEM 2026-08-21 (Story 3.4) — cung ly do da ghi o `read_open_chapter`: day cung la
     // mot duong MO CHUONG. Goi lap voi `read_open_chapter` khong ton gi (LazyLock chi chay
@@ -323,7 +331,7 @@ pub fn open_adjacent_chapter(
 
     // 🔴 Con tro doi SAU khi truy van thanh cong, khong truoc. Dat truoc roi truy van truot
     // la de `OpenWork` tro vao mot Chuong ma webview chua bao gio nap.
-    set_open_chapter(open, chapter_id)?;
+    set_open_chapter(open, Some(chapter_id))?;
 
     Ok(ChapterSwitch {
         outcome: ChapterSwitchOutcome::Moved,
@@ -472,7 +480,7 @@ pub fn open_chapter(open: Option<&mut OpenWork>, chapter_id: i64) -> Result<Open
     crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);
 
     // Con tro doi SAU khi truy van thanh cong — xem doc-comment cua ham nay.
-    set_open_chapter(open, chapter_id)?;
+    set_open_chapter(open, Some(chapter_id))?;
 
     Ok(OpenChapter {
         chapter_id,
@@ -574,7 +582,7 @@ fn chapter_split_leaves_empty(chapter_id: i64) -> IpcError {
 /// không nhảy oan. Chuẩn hoá là một phép SẮP LẠI, không phải một phép ghi nội dung — cùng
 /// triết lý `ord` dời bằng phép tịnh tiến của segment (§Design Notes): nó không đổi
 /// `updated_at`.
-fn normalize_chapter_ord(tx: &Transaction<'_>) -> SqlResult<()> {
+pub(crate) fn normalize_chapter_ord(tx: &Transaction<'_>) -> SqlResult<()> {
     let ids: Vec<i64> = {
         let mut stmt = tx.prepare("SELECT id FROM chapter ORDER BY ord, id")?;
         let rows = stmt.query_map([], |row| row.get::<_, i64>(0))?;
@@ -926,8 +934,8 @@ pub fn merge_chapters(
         Outcome::Merged { first } => first,
     };
 
-    if wanted.contains(&open.chapter_id) {
-        set_open_chapter(open, first)?;
+    if open.chapter_id.is_some_and(|id| wanted.contains(&id)) {
+        set_open_chapter(open, Some(first))?;
     }
 
     crate::commands::lifecycle::write_lifecycle_after_change(open)?;
@@ -1071,7 +1079,7 @@ pub fn split_chapter_at_segment(
     segment_id: i64,
 ) -> Result<(), IpcError> {
     let open = open.ok_or_else(no_work_open)?;
-    let chapter_a = open.chapter_id;
+    let chapter_a = require_open_chapter(open)?;
 
     #[derive(Clone, Copy)]
     enum SplitRefusal {
@@ -1303,6 +1311,190 @@ pub fn split_chapter_at_segment_indexed(
     )
 }
 
+/// Result of [`delete_chapter`] as the webview sees it.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ChapterDeleted {
+    pub disposition: crate::core::chapter_delete::Disposition,
+    /// The `.atproj` folder is gone and the Work left the Library; no Work is open any more.
+    pub work_removed: bool,
+    /// Chapter the open pointer now rests on; `None` when no live Chapter is left.
+    pub open_chapter_id: Option<i64>,
+    /// Remaining Chapters in order; empty when the Work was removed.
+    pub chapters: Vec<ChapterRow>,
+}
+
+/// A Work whose last Chapter is gone, taken out of `OpenWorkState` with its `Store` still open so
+/// the caller can close it outside the lock.
+#[derive(Debug)]
+pub struct RemovedWork {
+    pub open: OpenWork,
+}
+
+type DeleteStep = (ChapterDeleted, Option<RemovedWork>);
+
+fn chapter_not_found_for_delete(chapter_id: i64) -> IpcError {
+    IpcError::new(
+        "chapter.not_found",
+        MessageKey::ChapterNotFound,
+        BTreeMap::from([("chapter_id".to_owned(), chapter_id.to_string())]),
+        false,
+    )
+}
+
+/// What [`delete_chapter`] would do to `chapter_id`, decided by the test it runs. Writes nothing.
+///
+/// # Errors
+/// - no Work open => `work.none_open`;
+/// - `chapter_id` not a `chapter` row => `err.chapter.not_found`.
+pub fn delete_chapter_preview(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+) -> Result<crate::core::chapter_delete::DeletePreview, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    open.store
+        .read(move |conn| crate::core::chapter_delete::preview(conn, chapter_id))?
+        .ok_or_else(|| chapter_not_found_for_delete(chapter_id))
+}
+
+/// Deletes one Chapter in a single write: outright when nothing in it is worth keeping, else soft
+/// (moved to `chapter_deleted`, segments retired). Rust decides, never the webview. When neither
+/// `chapter` nor `chapter_deleted` has a row left, the Work leaves `state` as a [`RemovedWork`]
+/// for [`complete_chapter_delete`].
+///
+/// # Errors
+/// - no Work open => `work.none_open`;
+/// - `chapter_id` not a `chapter` row => `err.chapter.not_found`, no row touched.
+pub fn delete_chapter(
+    state: &mut Option<OpenWork>,
+    chapter_id: i64,
+) -> Result<DeleteStep, IpcError> {
+    let open = state.as_mut().ok_or_else(no_work_open)?;
+    let open_chapter_id = open.chapter_id;
+
+    let outcome = open.store.write(move |tx: &Transaction<'_>| {
+        crate::core::chapter_delete::delete_chapter_tx(tx, chapter_id, open_chapter_id)
+    })?;
+    let Some(outcome) = outcome else {
+        return Err(chapter_not_found_for_delete(chapter_id));
+    };
+
+    if outcome.work_empty {
+        let open = state.take().ok_or_else(no_work_open)?;
+        return Ok((
+            ChapterDeleted {
+                disposition: outcome.disposition,
+                work_removed: true,
+                open_chapter_id: None,
+                chapters: Vec::new(),
+            },
+            Some(RemovedWork { open }),
+        ));
+    }
+
+    if outcome.next_open_chapter_id != open.chapter_id {
+        set_open_chapter(open, outcome.next_open_chapter_id)?;
+    }
+    crate::commands::lifecycle::write_lifecycle_after_change(open)?;
+    let chapters = fetch_chapter_rows(&open.store)?;
+    Ok((
+        ChapterDeleted {
+            disposition: outcome.disposition,
+            work_removed: false,
+            open_chapter_id: open.chapter_id,
+            chapters,
+        },
+        None,
+    ))
+}
+
+/// Step 4 of [`delete_chapter`]. For a removed Work: close its `Store` (the caller has released
+/// the `OpenWorkState` lock), delete the `.atproj` folder, then rebuild the index and forget the
+/// orphan entry the rebuild writes for the vanished folder (FR99). A folder that cannot be
+/// deleted is an error, never `work_removed`.
+pub fn complete_chapter_delete(
+    deleted: Result<DeleteStep, IpcError>,
+    indexer: Option<&crate::core::library::indexer::Indexer>,
+    global: Option<&Store>,
+    root: Option<&std::path::Path>,
+) -> Result<ChapterDeleted, IpcError> {
+    let reindex = || {
+        if let Some(root) = root {
+            crate::commands::lifecycle::reindex_after_lifecycle_write(indexer, global, root);
+        }
+    };
+    let (result, removed) = deleted?;
+    let Some(RemovedWork { open }) = removed else {
+        reindex();
+        return Ok(result);
+    };
+
+    let dir = open.dir.clone();
+    let work_id = open.meta.work_id.clone();
+    let name = open.meta.name.clone();
+    open.store.close();
+    drop(open);
+
+    let folder = crate::core::library::delete_work_folder(&dir, &name);
+    reindex();
+    folder?;
+    if let Some(global) = global
+        && let Err(err) = crate::core::library::orphan_store::forget(global, &work_id)
+    {
+        eprintln!("chapter[delete] orphan_store::forget failed: {err}");
+    }
+    Ok(result)
+}
+
+/// [`delete_chapter`] against the managed states of a running app: the write under the
+/// `OpenWorkState` lock, then, outside it, the per-Work cleanup and the `Store` close when the
+/// Work is removed (AC10), the folder deletion and the index rebuild.
+pub fn delete_chapter_in_app<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    chapter_id: i64,
+) -> Result<ChapterDeleted, IpcError> {
+    use tauri::Manager as _;
+
+    let Some(state) = app.try_state::<crate::commands::project::OpenWorkState>() else {
+        return delete_chapter(&mut None, chapter_id).map(|(result, _)| result);
+    };
+    let deleted = {
+        let mut guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        delete_chapter(&mut guard, chapter_id)
+    };
+    if matches!(&deleted, Ok((_, Some(_)))) {
+        crate::commands::project::clear_per_work_state(app);
+        if let Some(records) = app.try_state::<crate::commands::aiprompt::AiCallRecordsState>() {
+            crate::commands::aiprompt::clear_call_records_on_work_close(&records);
+        }
+    }
+    let store = app.try_state::<Store>();
+    let root = crate::commands::project::resolve_library_root(app, store.as_deref())
+        .map_err(|err| {
+            eprintln!("chapter[reindex] khong giai quyet duoc thu muc goc Library: {err:?}");
+        })
+        .ok();
+    let indexer = app.try_state::<crate::core::library::indexer::Indexer>();
+    complete_chapter_delete(
+        deleted,
+        indexer.as_deref(),
+        store.as_deref(),
+        root.as_deref(),
+    )
+}
+
+/// [`delete_chapter`] plus step 4.
+pub fn delete_chapter_indexed(
+    state: &mut Option<OpenWork>,
+    indexer: Option<&crate::core::library::indexer::Indexer>,
+    global: Option<&Store>,
+    root: Option<&std::path::Path>,
+    chapter_id: i64,
+) -> Result<ChapterDeleted, IpcError> {
+    complete_chapter_delete(delete_chapter(state, chapter_id), indexer, global, root)
+}
+
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
     use super::{ChapterDirection, ChapterRow, ChapterSwitch, IpcError, OpenChapter};
@@ -1506,6 +1698,33 @@ pub mod wire {
             super::merge_chapters(guard.as_mut(), &chapter_ids)
         };
         finish_with_reindex(&app, result)
+    }
+
+    /// Read-only preview of [`super::delete_chapter`]. Wire parameter: `chapterId`.
+    #[tauri::command]
+    pub fn delete_chapter_preview(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+    ) -> Result<crate::core::chapter_delete::DeletePreview, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::delete_chapter_preview(None, chapter_id);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::delete_chapter_preview(guard.as_ref(), chapter_id)
+    }
+
+    /// IPC shell of [`super::delete_chapter`]. Wire parameter: `chapterId`. When the Work is
+    /// removed, its per-Work state is cleared and its `Store` closed outside the lock (AC10).
+    #[tauri::command(async)]
+    pub fn delete_chapter(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+    ) -> Result<super::ChapterDeleted, IpcError> {
+        super::delete_chapter_in_app(&app, chapter_id)
     }
 
     /// Vỏ IPC của [`super::split_chapter_at_segment`]. Story 5.8.

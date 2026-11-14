@@ -127,7 +127,7 @@ fn splice_convention_range(
     replacement: &str,
 ) -> Result<ConventionWriteOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-    let open_chapter_id = open.chapter_id;
+    let open_chapter_id = crate::commands::chapter::require_open_chapter(open)?;
     let (expected_text, expected_phrase, replacement) = (
         expected_text.to_owned(),
         expected_phrase.to_owned(),
@@ -455,7 +455,7 @@ pub fn convention_replace_chapter(
             chapter_started: false,
         });
     }
-    let open_chapter_id = open.chapter_id;
+    let open_chapter_id = crate::commands::chapter::require_open_chapter(open)?;
     let groups = groups.to_vec();
     let global_rows = global_rows.to_vec();
     let reject: Arc<Mutex<Option<IpcError>>> = Arc::new(Mutex::new(None));

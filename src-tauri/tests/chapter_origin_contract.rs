@@ -173,7 +173,7 @@ fn an_import_with_a_fully_declared_page_fills_all_four_columns_on_disk() {
     .expect("tao tac pham that bai");
 
     let (author, site_name, url, published_at) =
-        read_chapter_origin(&opened.store, opened.chapter_id);
+        read_chapter_origin(&opened.store, opened.chapter_id.expect("open chapter"));
     assert_eq!(author.as_deref(), Some("Nguyen Van A"));
     assert_eq!(site_name.as_deref(), Some("Bao Thi Du"));
     assert_eq!(
@@ -223,7 +223,7 @@ fn a_page_missing_the_author_tag_leaves_only_that_column_null() {
     .expect("tao tac pham that bai");
 
     let (author, site_name, url, published_at) =
-        read_chapter_origin(&opened.store, opened.chapter_id);
+        read_chapter_origin(&opened.store, opened.chapter_id.expect("open chapter"));
     assert_eq!(
         author, None,
         "khong the tac gia nao ⇒ NULL, khong phai mot chuoi bia"
@@ -273,7 +273,7 @@ fn a_syntactically_broken_json_ld_block_does_not_fail_the_import_and_the_next_si
     .expect("mot khoi JSON-LD sai cu phap KHONG duoc lam trot ca luot nhap");
 
     let (author, site_name, _url, _published_at) =
-        read_chapter_origin(&opened.store, opened.chapter_id);
+        read_chapter_origin(&opened.store, opened.chapter_id.expect("open chapter"));
     assert_eq!(
         author.as_deref(),
         Some("Tac Gia That"),
@@ -304,7 +304,7 @@ fn importing_from_pasted_text_leaves_all_four_origin_columns_null_not_empty_stri
     .expect("tao tac pham that bai");
 
     let (author, site_name, url, published_at) =
-        read_chapter_origin(&opened.store, opened.chapter_id);
+        read_chapter_origin(&opened.store, opened.chapter_id.expect("open chapter"));
     assert_eq!(author, None);
     assert_eq!(site_name, None);
     assert_eq!(url, None);
@@ -418,7 +418,7 @@ fn a_hand_typed_override_at_preview_time_wins_over_the_machine_extracted_value()
     .expect("tao tac pham that bai");
 
     let (author, site_name, _url, _published_at) =
-        read_chapter_origin(&opened.store, opened.chapter_id);
+        read_chapter_origin(&opened.store, opened.chapter_id.expect("open chapter"));
     assert_eq!(
         author.as_deref(),
         Some("Nguoi Dung Go Tay"),
@@ -519,7 +519,7 @@ fn an_override_cleared_to_whitespace_only_values_matches_the_io_matrix() {
         .expect("tao tac pham that bai");
 
         let (author, _site_name, _url, _published_at) =
-            read_chapter_origin(&opened.store, opened.chapter_id);
+            read_chapter_origin(&opened.store, opened.chapter_id.expect("open chapter"));
         if author.as_deref() != *expected {
             failures.push(format!(
                 "hang '{label}' (input {input:?}): duoc {author:?}, ky vong {expected:?}"
@@ -670,7 +670,7 @@ fn a_leftover_override_from_a_cancelled_url_preview_never_reaches_a_pasted_text_
     .expect("tao tac pham that bai");
 
     let (author, site_name, url, published_at) =
-        read_chapter_origin(&opened.store, opened.chapter_id);
+        read_chapter_origin(&opened.store, opened.chapter_id.expect("open chapter"));
     assert_eq!(
         author, None,
         "override CON TREO cua lot URL da huy khong duoc ro ri sang Chuong cua lot dan tay MOI"
@@ -696,7 +696,7 @@ fn updating_chapter_origin_from_the_chapter_list_writes_exactly_the_four_columns
     let mut opened =
         create_work_from_text(&root, "Sua Tu Danh Sach", "en", "", "Noi dung.".to_owned())
             .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     let updated_at_before = read_chapter_updated_at(&opened.store, chapter_id);
 
     std::thread::sleep(std::time::Duration::from_millis(5));
@@ -739,7 +739,7 @@ fn updating_origin_with_an_unknown_chapter_id_reuses_the_named_error_and_touches
     let root = temp_dir("update-unknown-id");
     let mut opened = create_work_from_text(&root, "Id La", "en", "", "Noi dung.".to_owned())
         .expect("tao tac pham that bai");
-    let real_id = opened.chapter_id;
+    let real_id = opened.chapter_id.expect("open chapter");
     let updated_at_before = read_chapter_updated_at(&opened.store, real_id);
 
     let err = update_chapter_origin(Some(&mut opened), real_id + 999, "A", "B", "C", "D", None)
@@ -809,7 +809,7 @@ fn clearing_a_field_to_whitespace_only_values_from_the_chapter_list_matches_the_
             "Noi dung.".to_owned(),
         )
         .expect("tao tac pham that bai");
-        let chapter_id = opened.chapter_id;
+        let chapter_id = opened.chapter_id.expect("open chapter");
 
         update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia", "", "", "", None)
             .expect("dat tac gia lan dau that bai");
@@ -1039,7 +1039,7 @@ fn range_applying_origin_with_an_unknown_chapter_id_reuses_the_named_error_and_t
     let root = temp_dir("range-apply-unknown-id");
     let mut opened = create_work_from_text(&root, "Range Id La", "en", "", "Noi dung.".to_owned())
         .expect("tao tac pham that bai");
-    let real_id = opened.chapter_id;
+    let real_id = opened.chapter_id.expect("open chapter");
     let updated_at_before = read_chapter_updated_at(&opened.store, real_id);
 
     let err = update_chapter_origin(
@@ -1145,7 +1145,7 @@ fn a_version_21_project_database_migrates_to_22_with_all_origin_columns_null_and
     // latest target of `PROJECT_MIGRATIONS` and moves with it.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "di tru phai chay het toi dich moi nhat (qua ca buoc 22 chapter.origin_*)"
     );
 
@@ -1189,7 +1189,7 @@ fn updating_chapter_origin_refreshes_the_cached_work_meta_updated_at() {
     let mut opened =
         create_work_from_text(&root, "Xuat Xu Lifecycle", "en", "", "Noi dung.".to_owned())
             .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     let before = opened.meta.updated_at.clone();
 
     // Do phan giai `strftime('%f')` la mili-giay -- doi it nhat 5ms de dam bao dau thoi gian

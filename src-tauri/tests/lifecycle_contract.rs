@@ -107,7 +107,7 @@ fn a_freshly_imported_chapter_starts_not_started_with_no_override() {
 fn setting_the_only_chapter_to_done_derives_the_work_as_done() {
     let root = temp_dir("single-chapter-done");
     let mut opened = open_work(&root, "Single Chapter");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     let lifecycle = set_chapter_status(Some(&mut opened), chapter_id, "done")
         .unwrap_or_else(|e| panic!("set_chapter_status: {e:?}"));
@@ -128,7 +128,7 @@ fn setting_the_only_chapter_to_done_derives_the_work_as_done() {
 fn a_mixed_set_of_chapter_statuses_derives_in_progress_never_paused() {
     let root = temp_dir("mixed-chapters");
     let mut opened = open_work(&root, "Mixed");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     // Chương thứ nhất (đã tồn tại từ `create_work_from_text`) thành `done`.
     let lifecycle = set_chapter_status(Some(&mut opened), chapter_id, "done")
@@ -171,7 +171,7 @@ fn a_mixed_set_of_chapter_statuses_derives_in_progress_never_paused() {
 fn setting_an_unknown_chapter_status_writes_nothing_and_names_the_bad_value() {
     let root = temp_dir("unknown-chapter-status");
     let mut opened = open_work(&root, "Unknown Status");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     let before = read_meta_from_disk(&opened.dir);
 
@@ -222,7 +222,7 @@ fn overriding_the_work_status_wins_over_the_derived_value() {
     add_chapter(&opened, 2, "not_started"); // Chuong 1 (not_started) + Chuong 2 (not_started)
 
     // Dung mot Chuong thanh done -> suy ra in_progress.
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     let before = set_chapter_status(Some(&mut opened), chapter_id, "done")
         .unwrap_or_else(|e| panic!("set_chapter_status: {e:?}"));
     assert_eq!(before.status.as_deref(), Some("in_progress"));
@@ -251,7 +251,7 @@ fn overriding_the_work_status_never_changes_the_real_chapter_progress() {
     let mut opened = open_work(&root, "OverrideProgress");
     add_chapter(&opened, 2, "not_started"); // Chuong 1 (not_started) + Chuong 2 (not_started)
 
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     set_chapter_status(Some(&mut opened), chapter_id, "done")
         .unwrap_or_else(|e| panic!("set_chapter_status: {e:?}"));
 
@@ -281,7 +281,7 @@ fn overriding_the_work_status_never_changes_the_real_chapter_progress() {
 fn chapters_changing_after_an_override_does_not_disturb_the_override() {
     let root = temp_dir("override-survives-chapter-change");
     let mut opened = open_work(&root, "Survives");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     set_work_status_override(Some(&mut opened), Some("paused"))
         .unwrap_or_else(|e| panic!("set_work_status_override: {e:?}"));
@@ -305,7 +305,7 @@ fn chapters_changing_after_an_override_does_not_disturb_the_override() {
 fn clearing_the_override_falls_back_to_the_derived_value() {
     let root = temp_dir("clear-override");
     let mut opened = open_work(&root, "Clear Override");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     set_chapter_status(Some(&mut opened), chapter_id, "done")
         .unwrap_or_else(|e| panic!("set_chapter_status: {e:?}"));
@@ -429,7 +429,7 @@ fn every_lifecycle_status_label_key_exists_in_vi_json() {
 fn no_combination_of_two_chapters_ever_derives_a_paused_work_through_the_command_layer() {
     let root = temp_dir("exhaustive-never-paused");
     let mut opened = open_work(&root, "Exhaustive");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     // Chương thứ hai chèn ĐÚNG MỘT LẦN, trước vòng lặp -- vòng lặp chỉ UPDATE đúng hàng này
     // theo `id`, không chèn thêm hàng mới mỗi lượt (`chapter.ord` KHÔNG có ràng buộc UNIQUE,
     // xem `schema.rs::CHAPTER_DDL`, nên một `INSERT` mỗi vòng sẽ chồng chất hàng rác).
@@ -520,7 +520,7 @@ fn setting_a_chapter_status_leaves_the_new_value_in_the_library_index() {
     let global = open_global(&side);
     let mut opened = open_work(&root, "Tac pham chi muc");
     let work_id = opened.meta.work_id.clone();
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     // Trạng thái ban đầu phải có mặt trong chỉ mục TRƯỚC khi ca này chứng minh được gì —
     // một chỉ mục rỗng làm khẳng định dưới đây đúng vì lý do sai.
@@ -567,7 +567,7 @@ fn marking_a_chapter_done_leaves_the_done_count_in_the_library_index() {
     let global = open_global(&side);
     let mut opened = open_work(&root, "Tac pham tien do");
     let work_id = opened.meta.work_id.clone();
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     let done_count = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
         indexer
@@ -675,7 +675,7 @@ fn overriding_the_work_status_leaves_both_the_value_and_the_override_flag_in_the
 fn setting_several_chapters_status_is_one_transaction_that_refuses_an_unknown_id() {
     let root = temp_dir("bulk-status");
     let mut opened = open_work(&root, "Bulk");
-    let first = opened.chapter_id;
+    let first = opened.chapter_id.expect("open chapter");
     let second = add_chapter(&opened, 2, "not_started");
     let third = add_chapter(&opened, 3, "not_started");
 
@@ -706,7 +706,7 @@ fn setting_several_chapters_status_is_one_transaction_that_refuses_an_unknown_id
 fn an_overridden_work_still_reports_the_derived_status() {
     let root = temp_dir("derived-under-override");
     let mut opened = open_work(&root, "Derived");
-    let first = opened.chapter_id;
+    let first = opened.chapter_id.expect("open chapter");
 
     set_chapter_status(Some(&mut opened), first, "done").expect("set_chapter_status");
     let lifecycle = set_work_status_override(Some(&mut opened), Some("paused"))
@@ -779,7 +779,10 @@ fn sql(open: &OpenWork, statement: &'static str) {
 fn the_first_flush_moves_the_chapter_to_in_progress_and_reports_it() {
     let root = temp_dir("flush-starts");
     let opened = open_work(&root, "Flush bat dau");
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
 
     assert!(flush_one(&opened, chapter, segment, "Xin chao"));
 
@@ -792,7 +795,10 @@ fn the_first_flush_moves_the_chapter_to_in_progress_and_reports_it() {
 fn a_later_flush_reports_nothing_and_leaves_the_chapter_row_alone() {
     let root = temp_dir("flush-later");
     let opened = open_work(&root, "Flush sau");
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
     assert!(flush_one(&opened, chapter, segment, "Xin chao"));
     sql(
         &opened,
@@ -816,7 +822,10 @@ fn a_later_flush_reports_nothing_and_leaves_the_chapter_row_alone() {
 fn a_flush_that_leaves_the_translation_blank_keeps_the_chapter_not_started() {
     let root = temp_dir("flush-blank");
     let opened = open_work(&root, "Flush trong");
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
 
     for blank in ["", "   ", "\u{3000}\t\u{2009}\n"] {
         assert!(!flush_one(&opened, chapter, segment, blank), "{blank:?}");
@@ -830,7 +839,10 @@ fn a_flush_that_leaves_the_translation_blank_keeps_the_chapter_not_started() {
 fn a_flush_never_moves_a_paused_or_done_chapter() {
     let root = temp_dir("flush-paused-done");
     let mut opened = open_work(&root, "Flush tam ngung");
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
 
     for status in ["paused", "done"] {
         set_chapter_status(Some(&mut opened), chapter, status).expect("dat trang thai");
@@ -845,7 +857,10 @@ fn a_flush_never_moves_a_paused_or_done_chapter() {
 fn text_on_an_omitted_or_retired_segment_does_not_start_the_chapter() {
     let root = temp_dir("flush-omitted");
     let opened = open_work(&root, "Flush cat bo");
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
 
     sql(&opened, "UPDATE segment SET is_omitted = 1");
     assert!(!flush_one(&opened, chapter, segment, "Xin chao"));
@@ -866,7 +881,10 @@ fn text_on_an_omitted_or_retired_segment_does_not_start_the_chapter() {
 fn promoting_an_ai_translation_starts_the_chapter() {
     let root = temp_dir("promote-starts");
     let opened = open_work(&root, "Promote bat dau");
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
 
     let outcome =
         promote_ai_translation(Some(&opened), segment, "Ban dich AI", false).expect("promote");
@@ -885,7 +903,10 @@ fn refreshing_after_a_start_rewrites_meta_and_reaches_the_library_index() {
     let global = open_global(&side);
     let mut opened = open_work(&root, "Lam moi sau khi bat dau");
     let work_id = opened.meta.work_id.clone();
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
     auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(
         Some(&indexer),
         Some(&global),
@@ -924,7 +945,10 @@ fn refreshing_after_a_start_rewrites_meta_and_reaches_the_library_index() {
 fn confirming_a_prefilled_sentence_starts_the_chapter_once() {
     let root = temp_dir("confirm-starts");
     let opened = open_work(&root, "Confirm bat dau");
-    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (chapter, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
     sql(
         &opened,
         "UPDATE segment SET target_text = 'Ban dich dien san' WHERE id = (SELECT id FROM segment ORDER BY ord LIMIT 1)",
@@ -947,7 +971,10 @@ fn confirming_a_prefilled_sentence_starts_the_chapter_once() {
 fn migration_42_starts_only_chapters_that_hold_a_translation_and_opening_refreshes_meta() {
     let root = temp_dir("migration-42");
     let opened = open_work(&root, "Di tru 42");
-    let (translated, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let (translated, segment) = (
+        opened.chapter_id.expect("open chapter"),
+        first_segment(&opened, opened.chapter_id.expect("open chapter")),
+    );
     let omitted_only = add_chapter(&opened, 2, "not_started");
     let empty = add_chapter(&opened, 3, "not_started");
     let paused = add_chapter(&opened, 4, "paused");
@@ -960,7 +987,7 @@ fn migration_42_starts_only_chapters_that_hold_a_translation_and_opening_refresh
     sql(
         &opened,
         "UPDATE chapter SET status = 'not_started' WHERE id = 1; \
-         DROP INDEX idx_prompt_set_kind_name; CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name); ALTER TABLE prompt_set DROP COLUMN kind; ALTER TABLE work DROP COLUMN chosen_proofread_prompt_set_name; ALTER TABLE work DROP COLUMN proofread_instruction_off; ALTER TABLE proof_scan DROP COLUMN instruction_set_name; ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; DROP TABLE convention_ignore; DROP TABLE convention_rule; DELETE FROM schema_migration_log WHERE version IN (42, 43, 44, 45); PRAGMA user_version = 41;",
+         DROP INDEX idx_prompt_set_kind_name; CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name); ALTER TABLE prompt_set DROP COLUMN kind; ALTER TABLE work DROP COLUMN chosen_proofread_prompt_set_name; ALTER TABLE work DROP COLUMN proofread_instruction_off; ALTER TABLE proof_scan DROP COLUMN instruction_set_name; ALTER TABLE proof_scan DROP COLUMN instruction_set_tier; DROP TABLE chapter_deleted; DROP TABLE convention_ignore; DROP TABLE convention_rule; DELETE FROM schema_migration_log WHERE version IN (42, 43, 44, 45, 46); PRAGMA user_version = 41;",
     );
     assert_eq!(
         read_meta_from_disk(&opened.dir).status.as_deref(),

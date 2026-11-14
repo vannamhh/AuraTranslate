@@ -65,6 +65,20 @@ macro_rules! segment_has_translation_sql {
 }
 pub(crate) use segment_has_translation_sql;
 
+/// Predicate over a `segment` row aliased `s`: the segment holds anything a Chapter delete must
+/// not destroy. Unlike [`segment_has_translation_sql`] it ignores `is_omitted` and `retired_at`,
+/// and a `segment_version` row alone is enough.
+macro_rules! segment_has_keepable_sql {
+    () => {
+        concat!(
+            "(trim(s.target_text, ",
+            $crate::core::store::schema::unicode_white_space_sql!(),
+            ") <> '' OR EXISTS (SELECT 1 FROM segment_version v WHERE v.segment_id = s.id))"
+        )
+    };
+}
+pub(crate) use segment_has_keepable_sql;
+
 /// Moves a `not_started` Chapter that already holds a translation to `in_progress`; the same
 /// rule `commands::lifecycle::mark_chapter_started` applies per write.
 pub const CHAPTER_STARTED_BACKFILL_DDL: &str = concat!(
@@ -1559,6 +1573,9 @@ CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name);";
 /// `asset` nào có lý do phải đổi theo. ⇒ Không còn đường sản phẩm nào tạo ra một hàng `asset`
 /// mồ côi hay trỏ quá cuối Chương sau một lượt tổ chức lại.
 ///
+/// A soft Chapter delete keeps its `asset` rows although `chapter_id` then points at a
+/// `chapter_deleted` row: the orphan-image sweep deletes files that have no row.
+///
 /// Không `FOREIGN KEY` tới `chapter` — cùng lý do [`CHAPTER_POSITION_DDL`]/[`READING_MARK_DDL`]:
 /// `PRAGMA foreign_keys` của kho cố ý tắt, một khoá ngoại khai ra mà không bật pragma là một
 /// lời hứa không ai giữ.
@@ -2199,7 +2216,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Bốn mươi bốn bước, và đích là phiên bản 45.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Bốn mươi lăm bước, và đích là phiên bản 46.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2610,7 +2627,31 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
         to_version: 45,
         sql: CONVENTION_IGNORE_DDL,
     },
+    Migration {
+        to_version: 46,
+        sql: CHAPTER_DELETED_DDL,
+    },
 ];
+
+/// Soft-deleted Chapters (step 46): the `chapter` row moves here whole, so `chapter` keeps meaning
+/// "the Chapters of this Work" and no Chapter-listing query needs a filter. Columns mirror
+/// `chapter` ([`CHAPTER_DDL`] + [`CHAPTER_ORIGIN_DDL`]) plus `deleted_at`; the Chapter's segments
+/// stay in `segment` with `retired_at` set. `ord` is the position held at deletion time.
+pub const CHAPTER_DELETED_DDL: &str = "\
+CREATE TABLE chapter_deleted (
+  id                    INTEGER PRIMARY KEY,
+  ord                   INTEGER NOT NULL,
+  title                 TEXT,
+  source_text           TEXT NOT NULL,
+  status                TEXT NOT NULL,
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL,
+  origin_author         TEXT,
+  origin_site_name      TEXT,
+  origin_url            TEXT,
+  origin_published_at   TEXT,
+  deleted_at            TEXT NOT NULL
+);";
 
 /// Lược đồ bảng `library_work` — **bước 1, VÀ DUY NHẤT, MÃI MÃI, của `library-index.db`** —
 /// Story 5.2, AD-8.

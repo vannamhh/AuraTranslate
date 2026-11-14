@@ -941,7 +941,7 @@ fn opened_work_wire_struct_keeps_snake_case_field_names() {
     let opened = auratranslate_lib::commands::project::wire::OpenedWork {
         meta,
         folder: "/tmp/x.atproj".to_owned(),
-        chapter_id: 7,
+        chapter_id: Some(7),
     };
     let value = serde_json::to_value(&opened).expect("OpenedWork phải serialize được");
     let mut keys: Vec<&str> = value
@@ -2436,6 +2436,19 @@ fn the_ai_prompt_wires_are_registered_and_keep_their_parameter_names() {
     }
 }
 
+fn per_work_state_body(src: &str) -> &str {
+    let start_marker =
+        "pub fn clear_per_work_state<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {";
+    let start = src
+        .find(start_marker)
+        .unwrap_or_else(|| panic!("khong tim thay `{start_marker}`"));
+    let end = src[start..]
+        .find("\n}\n")
+        .map(|rel| start + rel)
+        .expect("het than ham");
+    &src[start..end]
+}
+
 /// 🔴 Story 4.7 loop 2, finding P5 — song sinh của
 /// `project_contract.rs::replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblings`,
 /// nhưng cho nhánh CÒN LẠI: `lib.rs::close_open_work` (không `pub`, `RunEvent::Exit` gọi khi
@@ -2470,6 +2483,14 @@ fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblin
         .map(|rel| start + rel)
         .unwrap_or_else(|| panic!("khong tim thay moc ket `{end_marker}` sau `close_open_work`"));
     let body = &lib_src[start..end];
+    assert!(
+        body.contains("clear_per_work_state("),
+        "than `close_open_work` phai goi `clear_per_work_state`:\n{body}"
+    );
+    let project_mod = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/commands/project/mod.rs");
+    let project_src = fs::read_to_string(&project_mod)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", project_mod.display()));
+    let body = per_work_state_body(&project_src);
 
     assert!(
         body.contains("crate::commands::aiprompt::LastAssembledPromptState")
@@ -2519,6 +2540,11 @@ fn replace_open_work_clears_a_pending_tmx_plan_beside_the_glossary_sibling() {
         .map(|rel| start + rel)
         .expect("het than ham");
     let body = &src[start..end];
+    assert!(
+        body.contains("clear_per_work_state("),
+        "than `replace_open_work` phai goi `clear_per_work_state`:\n{body}"
+    );
+    let body = per_work_state_body(&src);
 
     assert!(
         body.contains("crate::commands::glossary::PendingImportState")

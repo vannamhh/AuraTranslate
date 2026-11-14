@@ -48,7 +48,7 @@ fn measure_export_preview_on_a_2000_segment_chapter() {
     let root = scratch("preview");
     let open = create_work_from_text(&root, "Tac Pham", "zh", "", "Chuong mot.".to_owned())
         .expect("create Work");
-    let chapter_id = open.chapter_id;
+    let chapter_id = open.chapter_id.expect("open chapter");
     open.store
         .write(move |tx: &Transaction<'_>| {
             tx.execute("DELETE FROM segment", [])?;

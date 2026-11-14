@@ -1621,7 +1621,7 @@ fn a_neighbour_never_comes_from_another_chapter() {
         let mut guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        guard.as_mut().expect("open work").chapter_id = second_chapter;
+        guard.as_mut().expect("open work").chapter_id = Some(second_chapter);
     }
     assert!(run_single(&h, h.ids[3]).result.is_ok());
     assert!(run_single(&h, h.ids[4]).result.is_ok());

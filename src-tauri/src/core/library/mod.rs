@@ -25,7 +25,7 @@ pub mod indexer;
 pub mod meta;
 pub mod orphan_store;
 
-pub use atproj::{create_work_folder, remove_folder, sanitize_name};
+pub use atproj::{create_work_folder, delete_work_folder, remove_folder, sanitize_name};
 pub use meta::{META_SCHEMA_VERSION, MetaError, WorkMeta};
 
 use crate::core::i18n::{IpcError, MessageKey};
@@ -66,6 +66,13 @@ pub enum WorkError {
         /// Lỗi thô, chỉ để chẩn đoán.
         detail: String,
     },
+    /// Deleting a Work's `.atproj` folder failed; the Work stays on disk.
+    DeleteFailed {
+        /// Display name of the Work, for the message.
+        name: String,
+        /// Raw error, for diagnostics only.
+        detail: String,
+    },
 }
 
 // 🔵 **SỬA 2026-08-29 (Story 5.7) — khối comment dưới đây đã HẾT ĐÚNG, giữ lại kèm gạch
@@ -94,6 +101,9 @@ impl std::fmt::Display for WorkError {
             }
             WorkError::OpenFailed { name, detail } => {
                 write!(f, "work open failed for {name}: {detail}")
+            }
+            WorkError::DeleteFailed { name, detail } => {
+                write!(f, "work delete failed for {name}: {detail}")
             }
         }
     }
@@ -147,6 +157,16 @@ impl From<WorkError> for IpcError {
                 IpcError::new(
                     "work.open_failed",
                     MessageKey::WorkOpenFailed,
+                    params,
+                    false,
+                )
+            }
+            WorkError::DeleteFailed { name, .. } => {
+                let mut params = BTreeMap::new();
+                params.insert("name".to_owned(), name);
+                IpcError::new(
+                    "work.delete_failed",
+                    MessageKey::WorkDeleteFailed,
                     params,
                     false,
                 )

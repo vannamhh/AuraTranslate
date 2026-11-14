@@ -219,7 +219,9 @@ async function installChapterCommandsOnce(openReviewerImportPreview?: () => void
   if (commandsInstalled) return
   const commands = await import('../../src/commands')
   const state = await import('../../src/modes/libraryChapters')
+  const { libraryWorkPageCommandDeps } = await import('../../src/libraryWorkPageCommandDeps')
   commands.installCommands({
+    ...libraryWorkPageCommandDeps(),
     openReviewerImportPreview,
     openLibraryChapterPanel: state.openLibraryChapterPanel,
     closeLibraryChapterPanel: state.closeLibraryChapterPanel,
@@ -1305,6 +1307,72 @@ describe('modes/LibraryWorkPage.vue — khung phải chỉ mở bằng nút ⋯'
     await wrapper.get('[data-library-chapter-clear-selection]').trigger('click')
     await wrapper.vm.$nextTick()
     expect(document.activeElement).toBe(wrapper.get('[data-library-chapters-list]').element)
+    wrapper.unmount()
+  })
+})
+
+describe('modes/LibraryWorkPage.vue — nút xoá Chương hai bước (bấm thật)', () => {
+  async function mountWithDelete(preview: unknown, deletedResult?: unknown) {
+    ketQuaFlush.value = 'clean'
+    const base = mockInvokeForChaptersMount
+    base([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const fallback = mockInvoke.getMockImplementation()!
+    mockInvoke.mockImplementation((cmd: string, args?: unknown) => {
+      if (cmd === 'delete_chapter_preview') return Promise.resolve(preview)
+      if (cmd === 'delete_chapter') return Promise.resolve(deletedResult)
+      return fallback(cmd, args)
+    })
+    await installChapterCommandsOnce()
+    const state = await import('../../src/modes/libraryChapters')
+    const { default: Page } = await import('../../src/modes/LibraryWorkPage.vue')
+    const wrapper = mount(Page)
+    await state.loadChapters()
+    await chonHang(1)
+    await wrapper.vm.$nextTick()
+    return { wrapper, state }
+  }
+
+  async function settle(wrapper: ReturnType<typeof mount>) {
+    for (let i = 0; i < 6; i++) await wrapper.vm.$nextTick()
+  }
+
+  it.each([
+    ['hard', false, 'bỏ hẳn Chương'],
+    ['soft', false, 'vẫn nằm trong tệp'],
+    ['hard', true, 'xoá cả Tác phẩm'],
+  ])('first click writes nothing and names the %s path (removes_work %s)', async (disposition, removesWork, phrase) => {
+    const { wrapper } = await mountWithDelete({ disposition, removes_work: removesWork })
+    await wrapper.get('[data-library-chapter-delete-begin]').trigger('click')
+    await settle(wrapper)
+
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'delete_chapter')).toBe(false)
+    expect(wrapper.find('[data-library-chapter-delete-begin]').exists()).toBe(false)
+    const question = wrapper.get('[data-library-chapter-delete-question]')
+    expect(question.text()).toContain(phrase)
+    expect(question.text()).toContain('không hoàn tác được')
+    expect(wrapper.get('[data-library-chapter-delete-confirm]').classes()).toContain('ui-btn--danger')
+    wrapper.unmount()
+  })
+
+  it('cancel restores the first button without a delete; confirm deletes the chosen Chapter', async () => {
+    const { wrapper, state } = await mountWithDelete(
+      { disposition: 'hard', removes_work: false },
+      { disposition: 'hard', work_removed: false, open_chapter_id: 1, chapters: [CHAPTER_ROW_A] },
+    )
+    await wrapper.get('[data-library-chapter-delete-begin]').trigger('click')
+    await settle(wrapper)
+    await wrapper.get('[data-library-chapter-delete-cancel]').trigger('click')
+    await settle(wrapper)
+    expect(wrapper.find('[data-library-chapter-delete-begin]').exists()).toBe(true)
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'delete_chapter')).toBe(false)
+
+    await wrapper.get('[data-library-chapter-delete-begin]').trigger('click')
+    await settle(wrapper)
+    await wrapper.get('[data-library-chapter-delete-confirm]').trigger('click')
+    await settle(wrapper)
+
+    expect(mockInvoke).toHaveBeenCalledWith('delete_chapter', { chapterId: 2 })
+    expect(state.libraryChapters.value.map((r) => r.chapter_id)).toEqual([1])
     wrapper.unmount()
   })
 })

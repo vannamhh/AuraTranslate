@@ -112,7 +112,7 @@ fn build_with_roles(
     let mut ids = Vec::new();
     for (i, (title, segs)) in chapters.iter().enumerate() {
         let id = if i == 0 {
-            open.chapter_id
+            open.chapter_id.expect("open chapter")
         } else {
             let ord = i64::try_from(i).unwrap_or(0) + 1;
             open.store

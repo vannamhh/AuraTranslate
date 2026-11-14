@@ -14162,3 +14162,10 @@ chính nó.
 
 - Chưa ai đọc một Chương Đang dịch trong app thật. Ice: mở Tác phẩm "test", vào Chế độ đọc, thấy bản dịch của Chương 1 cùng dòng mờ "… N câu chưa dịch", bấm dòng mờ để vào Workspace đúng câu, bật Song ngữ thì không thấy chữ Trung của câu chưa dịch; nút "Đọc" ở trang Tác phẩm có mặt cho Chương Đang dịch.
   Quan trọng vì e2e chỉ đi qua driver, không phải chuột và mắt người. 🔵 2026-11-13: e2e 5-12 đã xanh trên tệp thật sau khi tắt `tauri dev`. Chủ: Epic 5. Trỏ: `story-che-o-oc-oc-ca-chuong-ang-dich-va-tam-ngung-plan.md` §Implementation Notes.
+
+## Deferred from: xoá Chương hẳn và mềm (2026-11-14)
+
+- PRD chưa có FR nào cho xoá Chương và xoá Tác phẩm (FR cao nhất hiện là FR160), trong khi lệnh `delete_chapter` đã có, gồm cả đường xoá thư mục `.atproj` khi Chương cuối không còn gì để giữ.
+  Quan trọng vì một hành vi phá dữ liệu (AD-49 lớp iii) đang chạy mà không có yêu cầu nào để đối chiếu. Cần một FR mới qua correct-course. Chủ: Sofia. Trỏ: `plan-xoa-chuong-cung-va-mem.md`.
+- Tác phẩm giữ lại sau khi xoá mềm Chương hiện cuối (0 Chương hiện ra, còn hàng `chapter_deleted`) không còn đường xoá nào trong UI: nút xoá cần một Chương được chọn, và plan cấm nút xoá Tác phẩm độc lập lẫn màn khôi phục.
+  Quan trọng vì Tác phẩm ấy nằm mãi trong Library với thẻ 0/0. Cần quyết định sản phẩm (xoá Tác phẩm hay khôi phục Chương) cùng FR mới ở mục ngay trên. Chủ: Sofia. Trỏ: `plan-xoa-chuong-cung-va-mem.md` §Review Triage Log Q5.

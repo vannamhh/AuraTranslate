@@ -840,7 +840,7 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
         "chuoi prompt phai lap dung khoi hai cap + cau nguon, khong noi giua dong"
     );
     assert_eq!(wire.segment_id, segment_id);
-    assert_eq!(wire.chapter_id, open.chapter_id);
+    assert_eq!(wire.chapter_id, open.chapter_id.expect("open chapter"));
     assert_eq!(wire.prompt_set_name, "Happy");
     assert_eq!(wire.prompt_set_tier, PromptSetTierWire::Global);
 
@@ -1307,7 +1307,7 @@ fn a_segment_id_absent_from_the_open_chapter_returns_its_own_key() {
     );
     assert_eq!(
         err.params().get("chapter_id").map(String::as_str),
-        Some(open.chapter_id.to_string().as_str())
+        Some(open.chapter_id.expect("open chapter").to_string().as_str())
     );
 
     drop(open);

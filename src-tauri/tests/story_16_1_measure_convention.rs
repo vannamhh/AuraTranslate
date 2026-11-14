@@ -167,7 +167,7 @@ fn measure_convention_matcher_and_chapter_scan() {
         })
         .expect("seed rules");
     let open = create_work_from_text(&dir, "Tac Pham", "en", "", "One.".to_owned()).expect("work");
-    let chapter_id = open.chapter_id;
+    let chapter_id = open.chapter_id.expect("open chapter");
     let seeded = texts.clone();
     open.store
         .write(move |tx: &Transaction<'_>| {

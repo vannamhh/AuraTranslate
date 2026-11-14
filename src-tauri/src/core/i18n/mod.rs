@@ -548,6 +548,9 @@ message_keys! {
     /// Mở lại một `.atproj` đã có trên đĩa thất bại vì một lý do KHÁC `meta.json` quá mới
     /// (thư mục biến mất, quyền đọc, …) — [`crate::core::library::WorkError::OpenFailed`].
     WorkOpenFailed => "err.work.open_failed" ["name"],
+    /// Deleting the `.atproj` folder of a Work whose last Chapter was just deleted failed; the
+    /// Work stays closed and on disk.
+    WorkDeleteFailed => "err.work.delete_failed" ["name"],
     /// `open_work` nhận một `work_id` không có hàng trong `library-index.db`
     /// (`Indexer::find_work` trả `None`). `OpenWorkState` không đổi.
     LibraryWorkNotIndexed => "err.library.work_not_indexed" ["work_id"],
@@ -574,6 +577,8 @@ message_keys! {
     /// Gộp nhiều Chương với dưới hai Chương, hoặc các Chương không liền nhau theo `(ord, id)`.
     /// **0 hàng bị chạm.**
     ChapterMergeNotContiguous => "err.chapter.merge_not_contiguous" [],
+    /// Deleting a Chapter whose `chapter_id` is no longer a `chapter` row. **0 rows touched.**
+    ChapterNotFound => "err.chapter.not_found" ["chapter_id"],
 
     // ── Story 6.5 (FR124 · AD-18) — bốn khoá, luật làm sạch lúc nhập ────────────────
     //

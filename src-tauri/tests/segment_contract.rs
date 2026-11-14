@@ -104,7 +104,7 @@ fn marking_a_live_reading_segment_is_idempotent_and_the_same_reading_snapshot_re
         .expect("dem marker");
     assert_eq!(rows, 1, "INSERT idempotent phai giu dung mot hang");
 
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     translate_every_segment(&opened);
     set_chapter_status(Some(&mut opened), chapter_id, "done").expect("dat Chuong done");
     let reading = read_reading_run(Some(&opened)).expect("doc ReadingRun");
@@ -293,7 +293,7 @@ fn a_mark_list_follows_the_live_anchor_to_its_new_chapter_and_never_crosses_work
     mark_reading_segment(Some(&a), moving).expect("danh dau A");
     assert!(list_reading_marks(Some(&b)).expect("liet ke B").is_empty());
 
-    let old_chapter = a.chapter_id;
+    let old_chapter = a.chapter_id.expect("open chapter");
     split_chapter_at_segment(Some(&mut a), moving).expect("tach Chuong tai marker");
     let mark = list_reading_marks(Some(&a)).expect("liet ke A").remove(0);
     assert_ne!(
@@ -935,11 +935,11 @@ fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
         versions,
         vec![
             1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
+            26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46
         ],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
          -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 -> 25 \
-         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37 -> 38 -> 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 (4 la so da chay)"
+         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37 -> 38 -> 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46 (4 la so da chay)"
     );
 }
 
@@ -1015,7 +1015,7 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // Target moved 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "buoc 5..25 phai da chay tren mot tep dung o phien ban 4"
     );
 
@@ -1184,7 +1184,7 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "buoc 6..25 phai chay tren mot tep dung o phien ban 5"
     );
 
@@ -1265,7 +1265,7 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers step), then 25 -> 26 (work.last_chapter_id). Assertion unchanged.
     assert_eq!(
         opened.store.schema_version(),
-        45,
+        46,
         "mot `project.db` moi phai dung o phien ban 45"
     );
 
@@ -1400,7 +1400,7 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "buoc 7..25 phai chay tren mot tep dung o phien ban 6"
     );
 
@@ -1725,7 +1725,7 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "buoc 10..25 phai chay tren mot tep dung o phien ban 9"
     );
 
@@ -1837,7 +1837,7 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "buoc 8..25 phai chay tren mot tep dung o phien ban 7"
     );
 
@@ -2051,7 +2051,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "buoc 9..25 phai chay tren mot tep dung o phien ban 8"
     );
 
@@ -2198,7 +2198,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// `[Migration; 29]`, fake step `to_version: 30`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_THIRTYFOUR: [Migration; 45] = [
+    static STEP_THIRTYFOUR: [Migration; 46] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -2243,8 +2243,9 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[41],
         PROJECT_MIGRATIONS[42],
         PROJECT_MIGRATIONS[43],
+        PROJECT_MIGRATIONS[44],
         Migration {
-            to_version: 46,
+            to_version: 47,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -2256,15 +2257,15 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         migrations: &STEP_THIRTYFOUR,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 46");
-    assert_eq!(future.schema_version(), 46);
+    .expect("dung fixture o phien ban 47");
+    assert_eq!(future.schema_version(), 47);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.expect_err(
-        "mot `project.db` o phien ban 46 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 47 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -6454,7 +6455,7 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        45,
+        46,
         "buoc 11..25 phai chay tren mot tep dung o phien ban 10"
     );
 
@@ -7859,7 +7860,7 @@ fn an_empty_chapter_reports_no_caret_segment() {
     let opened = create_work_from_text(&root, "5.7 chuong rong", "en", "", "One.".to_owned())
         .expect("tao tac pham that bai");
 
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     opened
         .store
         .write(move |tx: &Transaction<'_>| {
@@ -7888,7 +7889,7 @@ fn saving_a_chapter_position_for_an_unknown_chapter_is_refused_and_writes_nothin
     let opened = create_work_from_text(&root, "5.7 chuong la", "en", "", "One.".to_owned())
         .expect("tao tac pham that bai");
 
-    let bogus_chapter_id = opened.chapter_id + 999;
+    let bogus_chapter_id = opened.chapter_id.expect("open chapter") + 999;
     let err = save_chapter_position(Some(&opened), bogus_chapter_id, 1)
         .expect_err("chapter_id la phai la mot loi");
     assert_eq!(err.code(), "segment.chapter_not_found");
@@ -7931,7 +7932,7 @@ fn saving_a_position_whose_segment_belongs_to_another_chapter_writes_nothing() {
     let root = temp_dir("5-8-position-cross-chapter");
     let opened = create_work_from_text(&root, "5.8 cap lech", "zh", "", "一。".to_owned())
         .expect("tao tac pham that bai");
-    let chapter_a = opened.chapter_id;
+    let chapter_a = opened.chapter_id.expect("open chapter");
 
     // Chương thứ hai, cùng khuôn `a_segment_id_from_another_chapter_is_refused_and_never_crosses_over`.
     let chapter_b: i64 = opened
@@ -8004,7 +8005,7 @@ fn a_split_moves_the_remembered_position_row_to_the_new_chapter() {
         "Cau mot。Cau hai。Cau ba。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_a = opened.chapter_id;
+    let chapter_a = opened.chapter_id.expect("open chapter");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     assert_eq!(loaded.segments.len(), 3, "fixture phai co dung ba cau");
@@ -8258,7 +8259,7 @@ fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
         "一。二。\n三。四。\n五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -8271,7 +8272,7 @@ fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
         "mot Tac pham mot Chuong done ⇒ dung mot Chuong trong day"
     );
     let chapter = &run.chapters[0];
-    assert_eq!(chapter.chapter_id, opened.chapter_id);
+    assert_eq!(chapter.chapter_id, opened.chapter_id.expect("open chapter"));
     assert_eq!(
         chapter.chapter_ord, 1,
         "Chuong duy nhat cua mot Tac pham moi tao mang ord = 1"
@@ -8304,7 +8305,7 @@ fn an_omitted_sentence_leaves_no_trace_in_the_reading_paragraphs() {
         "一。二。\n三。四。\n五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -8344,7 +8345,7 @@ fn a_paragraph_end_flag_on_an_omitted_sentence_still_closes_the_paragraph() {
         "一。二。\n三。四。\n五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -8377,7 +8378,7 @@ fn an_entirely_omitted_paragraph_produces_no_empty_paragraph() {
         "一。二。\n三。四。\n五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -8424,7 +8425,7 @@ fn open_reading_fixture_with_blanks(
         "一。二。\n三。四。\n五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id);
     let ids = ordered_ids(&opened);
     for &(index, target) in blank {
@@ -8450,7 +8451,7 @@ fn a_trailing_untranslated_stretch_across_two_paragraphs_becomes_one_block_of_si
         "一。二。三。四。五。\n六。七。八。九。十。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id);
     let ids = ordered_ids(&opened);
     assert_eq!(ids.len(), 10);
@@ -8511,7 +8512,7 @@ fn a_chapter_whose_every_sentence_is_untranslated_reads_as_a_single_untranslated
         "5-19-all-blank",
         &[(1, ""), (2, ""), (3, ""), (4, ""), (5, "")],
     );
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     set_chapter_status_raw(&opened, chapter_id, "in_progress");
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
@@ -8564,7 +8565,7 @@ fn the_serialized_run_never_carries_the_source_text_of_an_untranslated_sentence(
 /// thứ tư.
 ///
 /// Dựng bốn Chương một-câu-mỗi-Chương bằng BA lượt `split_chapter_at_segment` liên tiếp,
-/// dời con trỏ `opened.chapter_id` sang nửa SAU sau mỗi lượt (`split_chapter_at_segment` GIỮ
+/// dời con trỏ `opened.chapter_id.expect("open chapter")` sang nửa SAU sau mỗi lượt (`split_chapter_at_segment` GIỮ
 /// NGUYÊN con trỏ ở nửa TRƯỚC — xem doc-comment của nó — nên phải tự dời để lượt tách kế tiếp
 /// nhắm đúng Chương chứa segment cần cắt).
 #[test]
@@ -8578,7 +8579,7 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
         "一。\n二。\n三。\n四。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_a = opened.chapter_id;
+    let chapter_a = opened.chapter_id.expect("open chapter");
 
     let ids = ordered_ids(&opened);
     assert_eq!(
@@ -8599,7 +8600,7 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
             })
         })
         .expect("doc chapter_id cua cau 2 sau tach lan 1");
-    opened.chapter_id = chapter_b;
+    opened.chapter_id = Some(chapter_b);
 
     // Tach lan 2: B = [cau 2], moi = [cau 3, cau 4].
     split_chapter_at_segment(Some(&mut opened), id3).expect("tach lan 2 that bai");
@@ -8611,7 +8612,7 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
             })
         })
         .expect("doc chapter_id cua cau 3 sau tach lan 2");
-    opened.chapter_id = chapter_c;
+    opened.chapter_id = Some(chapter_c);
 
     // Tach lan 3: C = [cau 3], moi = [cau 4].
     split_chapter_at_segment(Some(&mut opened), id4).expect("tach lan 3 that bai");
@@ -8630,7 +8631,7 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
     set_chapter_status(Some(&mut opened), chapter_d, "not_started")
         .expect("dat not_started that bai");
 
-    opened.chapter_id = chapter_a;
+    opened.chapter_id = Some(chapter_a);
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
 
     assert_eq!(
@@ -8677,7 +8678,7 @@ fn a_run_reads_through_done_in_progress_and_paused_chapters_and_stops_at_not_sta
     )
     .expect("tao tac pham that bai");
     let ids = ordered_ids(&opened);
-    let mut chapters = vec![opened.chapter_id];
+    let mut chapters = vec![opened.chapter_id.expect("open chapter")];
     for &id in &ids[1..] {
         split_chapter_at_segment(Some(&mut opened), id).expect("tach that bai");
         let next: i64 = opened
@@ -8688,7 +8689,7 @@ fn a_run_reads_through_done_in_progress_and_paused_chapters_and_stops_at_not_sta
                 })
             })
             .expect("doc chapter_id");
-        opened.chapter_id = next;
+        opened.chapter_id = Some(next);
         chapters.push(next);
     }
     translate_every_segment(&opened);
@@ -8698,7 +8699,7 @@ fn a_run_reads_through_done_in_progress_and_paused_chapters_and_stops_at_not_sta
     {
         set_chapter_status(Some(&mut opened), *chapter, status).expect("dat trang thai");
     }
-    opened.chapter_id = chapters[0];
+    opened.chapter_id = Some(chapters[0]);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     assert_eq!(
@@ -8726,7 +8727,7 @@ fn opening_a_not_started_chapter_yields_an_empty_run_with_the_frontier_on_itself
     let mut opened =
         create_work_from_text(&root, "5.12 Cham bien", "zh", "", "一。二。".to_owned())
             .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     set_chapter_status(Some(&mut opened), chapter_id, "not_started")
         .expect("dat not_started that bai");
 
@@ -8765,7 +8766,7 @@ fn every_remaining_chapter_being_done_yields_an_end_of_work_frontier() {
         "一。\n二。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_a = opened.chapter_id;
+    let chapter_a = opened.chapter_id.expect("open chapter");
 
     let ids = ordered_ids(&opened);
     split_chapter_at_segment(Some(&mut opened), ids[1]).expect("tach that bai");
@@ -8782,7 +8783,7 @@ fn every_remaining_chapter_being_done_yields_an_end_of_work_frontier() {
 
     make_done(&mut opened, chapter_a);
     make_done(&mut opened, chapter_b);
-    opened.chapter_id = chapter_a;
+    opened.chapter_id = Some(chapter_a);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     assert_eq!(run.chapters.len(), 2, "ca hai Chuong done deu phai vao day");
@@ -8811,7 +8812,7 @@ fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier()
         "一。\n二。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_a = opened.chapter_id;
+    let chapter_a = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_a);
 
     let ids = ordered_ids(&opened);
@@ -8829,7 +8830,7 @@ fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier()
     // "finished" NGOAI bon gia tri cua LifecycleStatus -- set_chapter_status se tu choi no,
     // nen day la ca DUY NHAT trong khoi nay phai dat status bang SQL truc tiep.
     set_chapter_status_raw(&opened, chapter_b, "finished");
-    opened.chapter_id = chapter_a;
+    opened.chapter_id = Some(chapter_a);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     assert_eq!(
@@ -8868,7 +8869,7 @@ fn unconfirmed_sentences_in_a_done_chapter_carry_is_confirmed_false() {
         "一。二。三。四。五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -8916,7 +8917,7 @@ fn omitted_and_unconfirmed_sentences_coexist_correctly_in_the_same_done_chapter(
         "一。二。三。四。五。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -8987,7 +8988,7 @@ fn manually_marking_a_chapter_done_behaves_identically_to_any_other_done_chapter
     );
 
     // Dat done THU CONG trong khi ca ba cau van 'draft' -- khong xac nhan cau nao truoc.
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
@@ -9017,7 +9018,7 @@ fn a_done_chapter_with_no_segments_reads_as_zero_paragraphs_and_zero_segment_cou
     let root = temp_dir("5-12-empty-chapter");
     let mut opened = create_work_from_text(&root, "5.12 Rong", "zh", "", "   \n  ".to_owned())
         .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -9025,7 +9026,7 @@ fn a_done_chapter_with_no_segments_reads_as_zero_paragraphs_and_zero_segment_cou
 
     let run = read_reading_run(Some(&opened)).expect("Chuong rong khong duoc la mot loi");
     let chapter = &run.chapters[0];
-    assert_eq!(chapter.chapter_id, opened.chapter_id);
+    assert_eq!(chapter.chapter_id, opened.chapter_id.expect("open chapter"));
     assert!(chapter.blocks.is_empty(), "Chuong rong ⇒ blocks rong");
     assert_eq!(chapter.segment_count, 0, "Chuong rong ⇒ segment_count = 0");
 
@@ -9048,7 +9049,7 @@ fn a_chapter_where_every_sentence_is_omitted_reads_as_zero_paragraphs_but_positi
         "一。二。\n三。四。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id_to_mark_done = opened.chapter_id;
+    let chapter_id_to_mark_done = opened.chapter_id.expect("open chapter");
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let ids = ordered_ids(&opened);
@@ -9078,7 +9079,7 @@ fn a_vanished_open_chapter_row_fails_with_chapter_not_found() {
     let root = temp_dir("5-12-vanished-chapter");
     let opened = create_work_from_text(&root, "5.12 Bien mat", "zh", "", "一。".to_owned())
         .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     delete_chapter_row_directly(&opened, chapter_id);
 
     let err = read_reading_run(Some(&opened)).expect_err("hang Chuong da bien mat phai bi tu choi");
@@ -9135,7 +9136,7 @@ fn bench_reading_run_over_five_thousand_chapters() {
     let root = temp_dir("5-14-reading-run-bench");
     let opened = create_work_from_text(&root, "5.14 Fixture", "zh", "bench", "   ".to_owned())
         .expect("tạo Work fixture");
-    let current_chapter_id = opened.chapter_id;
+    let current_chapter_id = opened.chapter_id.expect("open chapter");
 
     // `create_work_from_text` đã dựng Chương thứ nhất. Thêm 4.999 Chương trong MỘT giao
     // dịch để thời gian dựng fixture không trộn vào elapsed cần đo.
@@ -10398,7 +10399,8 @@ fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
     )
     .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
 
-    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    let source_text =
+        read_chapter_source_text_6_3(&opened, opened.chapter_id.expect("open chapter"));
     assert_eq!(source_text, TEXT, "van ban doc lai phai DUNG chu Han nguon");
 
     drop(opened.store);
@@ -10539,7 +10541,8 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     )
     .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
 
-    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    let source_text =
+        read_chapter_source_text_6_3(&opened, opened.chapter_id.expect("open chapter"));
     assert_eq!(
         source_text, TEXT,
         "chu phai doc duoc, KHONG phai chu dao byte"
@@ -10645,7 +10648,8 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
         &std::sync::Mutex::new(Vec::new()),
     )
     .unwrap_or_else(|e| panic!("xac nhan lai voi GBK phai thanh cong: {e:?}"));
-    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    let source_text =
+        read_chapter_source_text_6_3(&opened, opened.chapter_id.expect("open chapter"));
     assert_eq!(source_text, TEXT);
 
     drop(opened.store);
@@ -10838,7 +10842,8 @@ fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default()
     )
     .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
 
-    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    let source_text =
+        read_chapter_source_text_6_3(&opened, opened.chapter_id.expect("open chapter"));
     assert_eq!(source_text, "khong doi hanh vi");
 
     drop(opened.store);
@@ -11435,7 +11440,8 @@ fn a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read
     )
     .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
-    let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
+    let source_text =
+        read_chapter_source_text_6_3(&opened, opened.chapter_id.expect("open chapter"));
     assert!(
         !source_text.contains('\r'),
         "chapter.source_text van con `\\r` sau khi doc lai tu project.db: {source_text:?}"

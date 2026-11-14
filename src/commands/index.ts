@@ -963,6 +963,10 @@ export type CommandDeps = {
   openLibraryChapterSplit?: () => void
   closeLibraryChapterSplit?: () => void
   confirmLibraryChapterSplit?: () => void
+  /** Handlers of `library.chapter_delete.begin|confirm|cancel`. */
+  beginLibraryChapterDelete?: () => void
+  confirmLibraryChapterDelete?: () => void
+  cancelLibraryChapterDelete?: () => void
 
   // ── Export screen (FR89) ──
   /** Opens the export screen. Handler of `export.open`. */
@@ -2624,6 +2628,33 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.confirmLibraryChapterSplit === undefined) return portMissing('library.chapter_split.confirm', 'confirmLibraryChapterSplit')
       deps.confirmLibraryChapterSplit()
+    },
+  })
+  target.register({
+    id: 'library.chapter_delete.begin',
+    labelKey: 'command.library.chapter_delete.begin',
+    keys: undefined,
+    run: () => {
+      if (deps.beginLibraryChapterDelete === undefined) return portMissing('library.chapter_delete.begin', 'beginLibraryChapterDelete')
+      deps.beginLibraryChapterDelete()
+    },
+  })
+  target.register({
+    id: 'library.chapter_delete.confirm',
+    labelKey: 'command.library.chapter_delete.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmLibraryChapterDelete === undefined) return portMissing('library.chapter_delete.confirm', 'confirmLibraryChapterDelete')
+      deps.confirmLibraryChapterDelete()
+    },
+  })
+  target.register({
+    id: 'library.chapter_delete.cancel',
+    labelKey: 'command.library.chapter_delete.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelLibraryChapterDelete === undefined) return portMissing('library.chapter_delete.cancel', 'cancelLibraryChapterDelete')
+      deps.cancelLibraryChapterDelete()
     },
   })
 

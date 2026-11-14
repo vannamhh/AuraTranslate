@@ -3,9 +3,12 @@ import { closeChapterMerge, confirmChapterMerge, openChapterMerge } from './chap
 import { closeChapterSplit, confirmChapterSplit, openChapterSplit } from './chapterSplitState'
 import {
   beginChapterRename,
+  beginSelectedChapterDelete,
   cancelChapterRename,
+  cancelSelectedChapterDelete,
   clearLibraryChapterSelection,
   closeLibraryWorkPage,
+  confirmSelectedChapterDelete,
   setSelectedChaptersStatus,
 } from './modes/libraryChapters'
 import { setChapterFilter, toggleChapterStatusMenu, toggleNotStartedGroup } from './modes/libraryChapterSelection'
@@ -25,6 +28,9 @@ type WorkPageKeys =
   | 'openLibraryChapterSplit'
   | 'closeLibraryChapterSplit'
   | 'confirmLibraryChapterSplit'
+  | 'beginLibraryChapterDelete'
+  | 'confirmLibraryChapterDelete'
+  | 'cancelLibraryChapterDelete'
 
 /** The `CommandDeps` handlers of the Work page and its two screens; `main.ts` spreads these. */
 export function libraryWorkPageCommandDeps(): Pick<CommandDeps, WorkPageKeys> {
@@ -51,5 +57,12 @@ export function libraryWorkPageCommandDeps(): Pick<CommandDeps, WorkPageKeys> {
     confirmLibraryChapterSplit: () => {
       void confirmChapterSplit()
     },
+    beginLibraryChapterDelete: () => {
+      void beginSelectedChapterDelete()
+    },
+    confirmLibraryChapterDelete: () => {
+      void confirmSelectedChapterDelete()
+    },
+    cancelLibraryChapterDelete: cancelSelectedChapterDelete,
   }
 }

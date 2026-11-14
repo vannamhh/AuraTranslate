@@ -280,7 +280,7 @@ struct ScanInput {
 /// unknown, retired or in another Chapter is skipped.
 fn read_scan_input(open: Option<&OpenWork>, only: Option<&[i64]>) -> Result<ScanInput, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-    let chapter_id = open.chapter_id;
+    let chapter_id = crate::commands::chapter::require_open_chapter(open)?;
     let rows: Vec<(i64, String, String, bool)> = open.store.read(|conn| match only {
         None => select_chapter_segments(conn, chapter_id).map(|rows| {
             rows.into_iter()
@@ -344,7 +344,7 @@ fn load_glossary(
     open: Option<&OpenWork>,
     chapter_id: i64,
 ) -> Result<Option<GlossarySnapshot>, IpcError> {
-    let Some(open) = open.filter(|open| open.chapter_id == chapter_id) else {
+    let Some(open) = open.filter(|open| open.chapter_id == Some(chapter_id)) else {
         return Ok(None);
     };
     Ok(Some(GlossarySnapshot::load(
@@ -599,7 +599,9 @@ pub fn convention_scan_suggestions(
     let (chapter_id, source_lang, matcher, remembered) = {
         let guard = lock();
         let open = guard.as_deref().and_then(Option::as_ref);
-        let Some(open) = open else {
+        let Some((open, chapter_id)) =
+            open.and_then(|open| open.chapter_id.map(|chapter_id| (open, chapter_id)))
+        else {
             return Ok(ConventionSuggestionScanWire {
                 generation,
                 chapter_id: None,
@@ -610,7 +612,7 @@ pub fn convention_scan_suggestions(
             });
         };
         (
-            open.chapter_id,
+            chapter_id,
             open.meta.source_lang.clone(),
             cache.matcher(global, Some(open))?,
             list_ignores(&open.store)?,
@@ -637,7 +639,7 @@ pub fn convention_scan_suggestions(
             let guard = lock();
             let open = guard.as_deref().and_then(Option::as_ref);
             let sources: std::collections::HashMap<i64, String> = match open {
-                Some(open) if open.chapter_id == chapter_id => open
+                Some(open) if open.chapter_id == Some(chapter_id) => open
                     .store
                     .read(|conn| select_segments_by_id(conn, chapter_id, &ids))?
                     .into_iter()
@@ -710,7 +712,9 @@ pub fn convention_ignore_add(
     key: &str,
 ) -> Result<(), IpcError> {
     let store = work_store(open)?;
-    let open_chapter_id = open.map(|open| open.chapter_id).unwrap_or_default();
+    let open_chapter_id = crate::commands::chapter::require_open_chapter(
+        open.ok_or_else(crate::commands::chapter::no_work_open)?,
+    )?;
     if rule_key(expected_phrase) != key {
         return Err(crate::commands::segment::rule_unavailable());
     }

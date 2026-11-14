@@ -76,7 +76,7 @@ fn fixture_with(tag: &str, segments_per_chapter: &[usize], one_paragraph: bool) 
         .expect("xoa segment");
     for (i, &count) in segments_per_chapter.iter().enumerate() {
         let chapter = if i == 0 {
-            open.chapter_id
+            open.chapter_id.expect("open chapter")
         } else {
             insert_chapter(&open, i64::try_from(i).unwrap_or(0) + 1)
         };
@@ -191,7 +191,7 @@ fn a_real_two_column_export_passes() {
 }
 
 fn insert_linked_image(open: &OpenWork, anchor: i64) {
-    let chapter_id = open.chapter_id;
+    let chapter_id = open.chapter_id.expect("open chapter");
     open.store
         .write(move |tx: &Transaction<'_>| {
             tx.execute(

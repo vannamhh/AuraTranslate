@@ -107,7 +107,7 @@ fn fixture_in(tag: &str, lang: &str, first_title: Option<&str>, segs: Vec<Seg>) 
     open.store
         .write(|tx: &Transaction<'_>| tx.execute("DELETE FROM segment", []))
         .expect("xoa segment");
-    let first = open.chapter_id;
+    let first = open.chapter_id.expect("open chapter");
     let title = first_title.map(str::to_owned);
     open.store
         .write(move |tx: &Transaction<'_>| {

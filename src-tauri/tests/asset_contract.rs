@@ -213,7 +213,8 @@ fn a_kept_image_gets_a_real_file_on_disk_and_an_asset_row_with_the_right_anchor(
     assert_eq!(rows.len(), 1, "dung mot hang asset: {rows:?}");
     let (chapter_id, file_name, source_url, anchor, byte_len, content_type) = &rows[0];
     assert_eq!(
-        *chapter_id, opened.chapter_id,
+        *chapter_id,
+        opened.chapter_id.expect("open chapter"),
         "hang asset phai thuoc Chuong duy nhat vua tao"
     );
     assert!(
@@ -374,7 +375,7 @@ fn an_svg_response_is_rejected_writes_no_file_and_the_chapter_text_survives_inta
         .read(|conn| {
             conn.query_row(
                 "SELECT source_text FROM chapter WHERE id = ?1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )
         })
@@ -545,7 +546,7 @@ fn a_failed_image_fetch_does_not_fail_the_whole_import() {
         .read(|conn| {
             conn.query_row(
                 "SELECT source_text FROM chapter WHERE id = ?1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )
         })
@@ -773,7 +774,7 @@ fn asset_source_url_allows_null_and_file_name_rejects_every_white_space_code_poi
     let root = temp_dir("asset-ddl-invariants");
     let opened = create_work_from_text(&root, "DDL Asset", "en", "", "Cau mot.".to_owned())
         .expect("tao Tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     opened
         .store
@@ -806,7 +807,7 @@ fn asset_source_url_allows_null_and_file_name_rejects_every_white_space_code_poi
     // D7 (vòng rà đối kháng 3 lớp) — `source_url = ''` (chuoi RONG, khac NULL) phai bi CHAN:
     // truoc sua ca nay bang co BA trang thai phan biet duoc (NULL / '' / URL that) trong khi
     // Y NGHIA chi co hai. U+3000 cung phai bi chan (cung rao 25 diem ma nhu file_name).
-    let chapter_id_2 = opened.chapter_id;
+    let chapter_id_2 = opened.chapter_id.expect("open chapter");
     let empty_source_url_rejected = opened.store.write(move |tx: &Transaction<'_>| {
         tx.execute(
             "INSERT INTO asset (chapter_id, file_name, source_url, anchor_after_segment_ord, \
@@ -850,7 +851,7 @@ fn asset_source_url_allows_null_and_file_name_rejects_every_white_space_code_poi
 
     // R4 (vòng rà đối kháng 3, lớp 3) — `content_type` phai chiu CUNG rao rong 25 diem ma
     // voi file_name/source_url, khong duoc bo sot ngay canh hai cot vua sua.
-    let chapter_id_3 = opened.chapter_id;
+    let chapter_id_3 = opened.chapter_id.expect("open chapter");
     let empty_content_type_rejected = opened.store.write(move |tx: &Transaction<'_>| {
         tx.execute(
             "INSERT INTO asset (chapter_id, file_name, source_url, anchor_after_segment_ord, \
@@ -991,7 +992,7 @@ fn an_oversized_image_response_is_cut_off_with_a_too_large_outcome_no_file_and_t
         .read(|conn| {
             conn.query_row(
                 "SELECT source_text FROM chapter WHERE id = ?1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )
         })
@@ -1378,7 +1379,7 @@ fn create_work_computes_the_anchor_with_a_real_enabled_cleanup_rule_not_an_empty
         .read(|conn| {
             conn.query_row(
                 "SELECT source_text FROM chapter WHERE id = ?1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )
         })
@@ -1794,7 +1795,7 @@ fn an_image_at_the_end_of_the_chapter_anchors_after_every_segment() {
         .read(|conn| {
             conn.query_row(
                 "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )
         })

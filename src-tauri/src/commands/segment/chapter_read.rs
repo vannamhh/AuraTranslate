@@ -390,7 +390,7 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     // mo, doc lap voi cau thu nhat o `commands::chapter::read_open_chapter`. Hai cho suy ra
     // cung mot du kien la hai nguon su that; ngay khi Chuong thu hai ton tai, ca hai tra ve
     // Chuong DAU mai mai va khong cong nao do. Nay ca hai deu HOI `OpenWork::chapter_id`.
-    let chapter_id = open.chapter_id;
+    let chapter_id = crate::commands::chapter::require_open_chapter(open)?;
     // **THÊM Story 6.14** — cấu tạo NGOÀI closure ghi: `assets_dir` không phụ thuộc ảnh chụp
     // đọc, và `open.dir` không sống được bên trong closure `Store::read` (nó mượn `conn`,
     // không `open`). `move` mang `PathBuf` này vào closure như một giá trị đã cấu tạo sẵn.
@@ -535,7 +535,9 @@ pub(super) fn fill_exact_tm_matches(
 ) -> Result<(Vec<TmFilledSegment>, usize), IpcError> {
     let policy = crate::core::tm::TmSidePolicy::from_work(Some(&open.store))
         .map_err(|e| tm_lookup_failed(&e))?;
-    let chapter_id = open.chapter_id;
+    let Some(chapter_id) = open.chapter_id else {
+        return Ok((Vec::new(), 0));
+    };
     let candidates: Vec<(i64, String)> = open.store.read(move |conn| {
         let mut stmt = conn.prepare(&format!(
             "SELECT id, source_text FROM segment \

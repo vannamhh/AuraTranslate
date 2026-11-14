@@ -405,6 +405,108 @@ export async function mergeChapters(chapterIds: number[]): Promise<MergeChapters
   }
 }
 
+const CMD_DELETE_CHAPTER = 'delete_chapter'
+const CMD_DELETE_CHAPTER_PREVIEW = 'delete_chapter_preview'
+
+export type DeleteDisposition = 'hard' | 'soft'
+
+/** Wire shape of `delete_chapter_preview`: the path Rust will take, from the test `delete_chapter` runs. */
+export type ChapterDeletePreview = {
+  disposition: DeleteDisposition
+  removes_work: boolean
+}
+
+/** Wire shape of `delete_chapter`. */
+export type ChapterDeleted = {
+  disposition: DeleteDisposition
+  work_removed: boolean
+  open_chapter_id: number | null
+  chapters: ChapterRow[]
+}
+
+export type ChapterDeletePreviewResult = {
+  preview: ChapterDeletePreview | null
+  error: IpcError | null
+}
+
+export type DeleteChapterResult = {
+  deleted: ChapterDeleted | null
+  error: IpcError | null
+}
+
+function isDisposition(value: unknown): value is DeleteDisposition {
+  return value === 'hard' || value === 'soft'
+}
+
+function isChapterDeletePreview(value: unknown): value is ChapterDeletePreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterDeletePreview>
+  return isDisposition(v.disposition) && typeof v.removes_work === 'boolean'
+}
+
+function isChapterDeleted(value: unknown): value is ChapterDeleted {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ChapterDeleted>
+  return (
+    isDisposition(v.disposition) &&
+    typeof v.work_removed === 'boolean' &&
+    (v.open_chapter_id === null || typeof v.open_chapter_id === 'number') &&
+    isChapterRowArray(v.chapters)
+  )
+}
+
+/**
+ * What `deleteChapter` would do to one Chapter. Read-only; never throws.
+ *
+ * ⚠️ `invoke()` sends camelCase: `chapterId`.
+ */
+export async function previewChapterDelete(chapterId: number): Promise<ChapterDeletePreviewResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_DELETE_CHAPTER_PREVIEW, { chapterId })
+    if (!isChapterDeletePreview(raw)) {
+      console.error(`[chapter] \`${CMD_DELETE_CHAPTER_PREVIEW}\` trả một hình dạng không phải ChapterDeletePreview: ${String(raw)}`)
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { preview: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { preview: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[chapter] \`${CMD_DELETE_CHAPTER_PREVIEW}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[chapter] không gọi được \`${CMD_DELETE_CHAPTER_PREVIEW}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { preview: null, error: null }
+  }
+}
+
+/**
+ * Deletes one Chapter; Rust decides hard or soft and whether the Work goes with it. Never throws.
+ *
+ * ⚠️ `invoke()` sends camelCase: `chapterId`.
+ */
+export async function deleteChapter(chapterId: number): Promise<DeleteChapterResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_DELETE_CHAPTER, { chapterId })
+    if (!isChapterDeleted(raw)) {
+      console.error(`[chapter] \`${CMD_DELETE_CHAPTER}\` trả một hình dạng không phải ChapterDeleted: ${String(raw)}`)
+      return { deleted: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { deleted: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { deleted: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[chapter] \`${CMD_DELETE_CHAPTER}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { deleted: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[chapter] không gọi được \`${CMD_DELETE_CHAPTER}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { deleted: null, error: null }
+  }
+}
+
 /**
  * **Tách Chương đang mở tại một câu.** Story 5.8. Không ném. Điểm tách sống ở Editor — hàm
  * này KHÔNG nhận `chapterId`, chỉ `segmentId` (câu đang có caret); Chương làm việc trên là

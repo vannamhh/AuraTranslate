@@ -95,7 +95,7 @@ fn fixture(tag: &str, chapters: &[Vec<Seg>]) -> Fixture {
     for (i, segs) in chapters.iter().enumerate() {
         let ord = i64::try_from(i).unwrap_or(0) + 1;
         let id = if i == 0 {
-            open.chapter_id
+            open.chapter_id.expect("open chapter")
         } else {
             open.store
                 .write(move |tx: &Transaction<'_>| {

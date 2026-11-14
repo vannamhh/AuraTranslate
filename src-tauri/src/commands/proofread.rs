@@ -480,7 +480,7 @@ pub fn proofread_ignore_add(
     kind: ProofreadKind,
 ) -> Result<(), IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-    let open_chapter_id = open.chapter_id;
+    let open_chapter_id = crate::commands::chapter::require_open_chapter(open)?;
     let (expected_text, expected_phrase) = (expected_text.to_owned(), expected_phrase.to_owned());
 
     open.store.write(move |tx| {

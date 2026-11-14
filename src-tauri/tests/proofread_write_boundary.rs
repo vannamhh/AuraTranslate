@@ -543,7 +543,7 @@ fn every_check_error_writes_nothing_and_carries_its_code() {
 fn a_segment_outside_the_open_chapter_is_refused_before_the_text_is_compared() {
     let f = fixture(SCANNED, SCANNED, "other", "other", "confirmed");
     let id = f.segment_id;
-    let other_chapter = f.open.chapter_id + 1_000;
+    let other_chapter = f.open.chapter_id.expect("open chapter") + 1_000;
     f.open
         .store
         .write(move |tx: &Transaction<'_>| {

@@ -394,7 +394,7 @@ fn a_docx_with_an_embedded_image_writes_a_real_file_and_a_null_source_url_asset_
     let rows = read_asset_rows(&opened.store);
     assert_eq!(rows.len(), 1, "dung mot hang asset");
     let (chapter_id, file_name, source_url, anchor, byte_len, content_type) = &rows[0];
-    assert_eq!(*chapter_id, opened.chapter_id);
+    assert_eq!(*chapter_id, opened.chapter_id.expect("open chapter"));
     assert_eq!(
         source_url, &None,
         "anh .docx khong den tu mang -- source_url PHAI la NULL"
@@ -435,7 +435,7 @@ fn no_segment_crosses_a_table_cell_boundary_after_writing_the_whole_document() {
     let opened = create_work_from_file(&root, "Docx Bang", "en", "", &path)
         .expect("tao Tac pham tu .docx bang that bai");
 
-    let segments = read_segment_texts(&opened.store, opened.chapter_id);
+    let segments = read_segment_texts(&opened.store, opened.chapter_id.expect("open chapter"));
     assert!(
         segments.len() >= 4,
         "it nhat bon cau rieng biet phai duoc tach (hai cau cua o dau + ba o don cau)"
@@ -564,7 +564,8 @@ fn an_embedded_image_with_a_mime_outside_the_closed_four_is_dropped_and_the_chap
         "thu muc assets/ phai RONG -- 0 tep duoc ghi cho mot MIME bi tu choi"
     );
 
-    let texts = read_segment_texts(&opened.store, opened.chapter_id).join(" ");
+    let texts =
+        read_segment_texts(&opened.store, opened.chapter_id.expect("open chapter")).join(" ");
     assert!(
         texts.contains("Doan truoc anh bmp"),
         "doan TRUOC anh phai vao du: {texts:?}"

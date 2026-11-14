@@ -2469,7 +2469,7 @@ fn promoting_into_a_segment_outside_the_open_chapter_is_refused_and_writes_nothi
     let work_dir = temp_dir("promote-other-chapter");
     let mut open = open_work(&work_dir, "PromoteOtherChapter", "en", "A dragon roared.");
     let segment_id = first_segment_id(&open);
-    let first_chapter = open.chapter_id;
+    let first_chapter = open.chapter_id.expect("open chapter");
 
     let second_chapter = open
         .store
@@ -2483,7 +2483,7 @@ fn promoting_into_a_segment_outside_the_open_chapter_is_refused_and_writes_nothi
             Ok(tx.last_insert_rowid())
         })
         .expect("chen Chuong thu hai that bai");
-    open.chapter_id = second_chapter;
+    open.chapter_id = Some(second_chapter);
 
     let (text_before, origin_before) = read_text_and_origin(&open, segment_id);
 

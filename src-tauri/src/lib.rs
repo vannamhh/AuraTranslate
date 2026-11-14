@@ -1259,6 +1259,8 @@ pub fn run() {
             crate::commands::chapter::wire::rename_chapter,
             crate::commands::chapter::wire::move_chapter,
             crate::commands::chapter::wire::merge_chapters,
+            crate::commands::chapter::wire::delete_chapter,
+            crate::commands::chapter::wire::delete_chapter_preview,
             crate::commands::chapter::wire::split_chapter_at_segment,
             // Story 6.15 (FR128/AD-43) -- sua bon o xuat xu tu danh sach Chuong. `(async)`,
             // cung khuon bon vo Story 5.8 ngay tren -- di qua finish_with_reindex.
@@ -1909,51 +1911,7 @@ fn open_library_index(app: &tauri::App) {
 fn close_open_work(handle: &tauri::AppHandle) {
     use tauri::Manager as _;
 
-    // Story 3.10b (AD-48) -- mot lo nhap Glossary dang TREO o tang Work tro toi `project.db`
-    // sap dong; du "id" cua no khong con nghia gi sau khi kho dong. Don TRUOC khi `take()`
-    // kho, dung khuon `clear_pending_import_for_tier`.
-    if let Some(pending) = handle.try_state::<crate::commands::glossary::PendingImportState>() {
-        crate::commands::glossary::clear_pending_import_for_tier(
-            &pending,
-            crate::core::glossary::GlossaryTier::Work,
-        );
-    }
-    if let Some(pending) =
-        handle.try_state::<crate::commands::convention::ConventionPendingImportState>()
-    {
-        crate::commands::convention::clear_pending_convention_import_for_work(&pending);
-    }
-    if let Some(pending) = handle.try_state::<crate::commands::tm::PendingTmxImportState>() {
-        crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
-    }
-    if let Some(pending) = handle.try_state::<crate::commands::export::PendingReviewerImportState>()
-    {
-        crate::commands::export::reviewer_import_cancel(&pending);
-    }
-    // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt: chi ha `work_kind` ve `None`
-    // (khong xoa TRON lo -- nua Toan cuc, neu co, van con dung duoc doc lap voi Tac pham).
-    if let Some(pending) =
-        handle.try_state::<crate::commands::promptset::PendingPromptImportState>()
-    {
-        crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
-    }
-    // Story 4.7 -- mot ban ghi da lap tu Tac pham DANG DONG mang segment_id/chapter_id la
-    // khoa hang CUA CHINH project.db do; mo mot Tac pham KHAC co the trung so do NGAU NHIEN
-    // (hai .atproj khac nhau tu danh so lai tu 1). De ban ghi song qua lan mo se doc sai
-    // "dung Chuong/segment nay" cho mot Tac pham no chua bao gio thay -- xoa TRUOC khi dong
-    // kho, cung ly do lo nhap Glossary/bo prompt bi don o hai nhanh ngay tren.
-    //
-    // SUA 2026-09-18 (luot ra soat build) -- goi XUONG mot `pub fn` rieng
-    // (`clear_last_assembled_prompt_on_work_close`), dung khuon hai nhanh NGAY TREN
-    // (`clear_pending_prompt_import_work_tier`/`clear_pending_import_for_tier`), thay vi viet
-    // tay ba dong tai cho -- ham `pub` do co ca don vi rieng
-    // (`ai_prompt_contract.rs::the_record_is_cleared_when_the_open_work_closes`), con ba dong
-    // cu nam THANG trong `close_open_work` (khong `pub`) thi khong cach nao goi duoc tu
-    // `src-tauri/tests/*.rs`.
-    if let Some(record) = handle.try_state::<crate::commands::aiprompt::LastAssembledPromptState>()
-    {
-        crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
-    }
+    crate::commands::project::clear_per_work_state(handle);
     if let Some(records) = handle.try_state::<crate::commands::aiprompt::AiCallRecordsState>() {
         crate::commands::aiprompt::clear_call_records_on_work_close(&records);
     }

@@ -6,6 +6,7 @@
 pub mod ai;
 pub mod aiconfig;
 pub mod attribution;
+pub mod chapter_delete;
 pub mod cleanup;
 pub mod convention;
 pub mod delimited_text;

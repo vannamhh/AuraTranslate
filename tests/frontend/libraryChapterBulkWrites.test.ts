@@ -220,6 +220,253 @@ describe('mergeSelectedChapters', () => {
   })
 })
 
+const ERR_CHAPTER_NOT_FOUND = {
+  code: 'chapter.not_found',
+  message_key: 'err.chapter.not_found',
+  params: { chapter_id: '2' },
+  retryable: false,
+}
+
+function deleted(over: Record<string, unknown> = {}) {
+  return {
+    disposition: 'hard',
+    work_removed: false,
+    open_chapter_id: 1,
+    chapters: [row(1), row(3, 'done', { ord: 2 }), row(4, 'not_started', { ord: 3 })],
+    ...over,
+  }
+}
+
+function calls(cmd: string) {
+  return mockInvoke.mock.calls.filter((c) => c[0] === cmd)
+}
+
+describe('deleting the selected Chapter (two steps)', () => {
+  it('first press asks Rust and touches nothing; the answer is kept for the question', async () => {
+    const state = await loadList()
+    await select([2])
+    mockInvoke.mockClear()
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'delete_chapter_preview'
+        ? Promise.resolve({ disposition: 'soft', removes_work: false })
+        : Promise.resolve(null),
+    )
+
+    await state.beginSelectedChapterDelete()
+
+    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    expect(mockInvoke).toHaveBeenCalledWith('delete_chapter_preview', { chapterId: 2 })
+    expect(state.libraryChapterDeleteAsk.value).toEqual({ chapterId: 2, disposition: 'soft', removes_work: false })
+    expect(state.libraryChapters.value).toHaveLength(4)
+  })
+
+  it('a malformed preview is an error, not a question', async () => {
+    const state = await loadList()
+    await select([2])
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'delete_chapter_preview' ? Promise.resolve({ disposition: 'maybe' }) : Promise.resolve(null),
+    )
+    await state.beginSelectedChapterDelete()
+    expect(state.libraryChapterDeleteAsk.value).toBeNull()
+    expect(state.libraryChapterReorgError.value).not.toBeNull()
+  })
+
+  it('changing the selection drops the question; confirm with no question never reaches Rust', async () => {
+    const state = await loadList()
+    await select([2])
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'delete_chapter_preview'
+        ? Promise.resolve({ disposition: 'hard', removes_work: false })
+        : Promise.resolve(null),
+    )
+    await state.beginSelectedChapterDelete()
+    await select([3])
+    expect(state.libraryChapterDeleteAsk.value).toBeNull()
+
+    mockInvoke.mockClear()
+    expect(await state.confirmSelectedChapterDelete()).toBe('refused')
+    expect(mockInvoke).not.toHaveBeenCalled()
+  })
+
+  it('confirm sends the id the question was asked about and replaces the list with the rebuilt one', async () => {
+    const state = await loadList()
+    await select([2])
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'delete_chapter_preview') return Promise.resolve({ disposition: 'hard', removes_work: false })
+      if (cmd === 'delete_chapter') return Promise.resolve(deleted())
+      return Promise.resolve(null)
+    })
+    await state.beginSelectedChapterDelete()
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('deleted')
+
+    expect(mockInvoke).toHaveBeenCalledWith('delete_chapter', { chapterId: 2 })
+    expect(state.libraryChapters.value.map((r) => r.chapter_id)).toEqual([1, 3, 4])
+    expect(state.libraryChapterDeleteAsk.value).toBeNull()
+    expect(state.libraryChapterReorgBusy.value).toBe(false)
+  })
+
+  it('flush failed blocks the delete: no delete_chapter call, question kept', async () => {
+    const state = await loadList()
+    await select([2])
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'delete_chapter_preview'
+        ? Promise.resolve({ disposition: 'hard', removes_work: false })
+        : Promise.resolve(null),
+    )
+    await state.beginSelectedChapterDelete()
+    flushResult.value = 'failed'
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('blocked')
+
+    expect(calls('delete_chapter')).toHaveLength(0)
+    expect(state.libraryChapterReorgNotice.value).toBe('flush-failed')
+    expect(state.libraryChapterDeleteAsk.value).not.toBeNull()
+  })
+
+  it('an unknown Chapter is refused with its error and the list stays as it was', async () => {
+    const state = await loadList()
+    await select([2])
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'delete_chapter_preview') return Promise.resolve({ disposition: 'hard', removes_work: false })
+      if (cmd === 'delete_chapter') return Promise.reject(ERR_CHAPTER_NOT_FOUND)
+      return Promise.resolve(null)
+    })
+    await state.beginSelectedChapterDelete()
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('refused')
+
+    expect(state.libraryChapterReorgError.value?.message_key).toBe('err.chapter.not_found')
+    expect(state.libraryChapters.value).toHaveLength(4)
+  })
+
+  async function askAndOpenEditorOn(chapterId: number, result: unknown) {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'list_chapters') return Promise.resolve(ROWS)
+      if (cmd === 'read_open_chapter_segments') return Promise.resolve(chapterSegments(chapterId))
+      if (cmd === 'read_open_chapter') return Promise.resolve({ chapter_id: 1, source_text: 's', source_lang: 'zh' })
+      if (cmd === 'delete_chapter_preview') return Promise.resolve({ disposition: 'soft', removes_work: false })
+      if (cmd === 'delete_chapter') return Promise.resolve(result)
+      return Promise.resolve(null)
+    })
+    const state = await import('../../src/modes/libraryChapters')
+    const editor = await import('../../src/panels/editorPanelState')
+    await state.loadChapters()
+    await editor.ensureSegmentsLoaded()
+    expect(editor.editorChapterId.value).toBe(chapterId)
+    await select([chapterId])
+    await state.beginSelectedChapterDelete()
+    return { state, editor }
+  }
+
+  it('the Editor moves to the Chapter Rust points at when its open Chapter was deleted', async () => {
+    const { state } = await askAndOpenEditorOn(2, deleted({ disposition: 'soft', open_chapter_id: 1 }))
+    const before = calls('read_open_chapter_segments').length
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('deleted')
+
+    expect(calls('read_open_chapter_segments').length).toBe(before + 1)
+  })
+
+  it('no live Chapter left: the Editor is emptied and nothing is loaded', async () => {
+    const { state, editor } = await askAndOpenEditorOn(2, deleted({ disposition: 'soft', open_chapter_id: null, chapters: [] }))
+    const before = calls('read_open_chapter_segments').length
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('deleted')
+
+    expect(calls('read_open_chapter_segments').length).toBe(before)
+    expect(editor.editorChapterId.value).toBeNull()
+    expect(state.libraryChapters.value).toHaveLength(0)
+  })
+
+  it('the Editor is left alone when the open Chapter is unchanged', async () => {
+    const { state } = await askAndOpenEditorOn(4, deleted({ open_chapter_id: 4 }))
+    const before = calls('read_open_chapter_segments').length
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('deleted')
+
+    expect(calls('read_open_chapter_segments').length).toBe(before)
+  })
+
+  it('work.delete_failed: Rust already closed the Work, so the webview leaves it and shows the error on the grid', async () => {
+    const state = await loadList()
+    const identity = await import('../../src/openWorkIdentity')
+    identity.setOpenWork('w-1', 'Tac pham')
+    await select([2])
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'delete_chapter_preview') return Promise.resolve({ disposition: 'hard', removes_work: true })
+      if (cmd === 'delete_chapter') {
+        return Promise.reject({
+          code: 'work.delete_failed',
+          message_key: 'err.work.delete_failed',
+          params: { name: 'Tac pham' },
+          retryable: false,
+        })
+      }
+      return Promise.resolve(null)
+    })
+    await state.beginSelectedChapterDelete()
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('refused')
+
+    expect(identity.openWorkId.value).toBeNull()
+    expect(state.libraryChapters.value).toHaveLength(0)
+    expect(state.libraryWorkPageIsOpen.value).toBe(false)
+    expect(state.libraryOpenWorkError.value?.code).toBe('work.delete_failed')
+    expect(state.libraryChapterReorgError.value).toBeNull()
+  })
+
+  it('a removed Work drops the open identity, empties the list and returns to the Library', async () => {
+    const state = await loadList()
+    const identity = await import('../../src/openWorkIdentity')
+    const modes = await import('../../src/modes/modeState')
+    identity.setOpenWork('w-1', 'Tac pham')
+    modes.setMode('workspace')
+    await select([2])
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'delete_chapter_preview') return Promise.resolve({ disposition: 'hard', removes_work: true })
+      if (cmd === 'delete_chapter') {
+        return Promise.resolve(deleted({ work_removed: true, open_chapter_id: null, chapters: [] }))
+      }
+      return Promise.resolve(null)
+    })
+    await state.beginSelectedChapterDelete()
+    expect(state.libraryChapterDeleteAsk.value?.removes_work).toBe(true)
+
+    expect(await state.confirmSelectedChapterDelete()).toBe('work_removed')
+
+    expect(identity.openWorkId.value).toBeNull()
+    expect(modes.currentMode.value).toBe('library')
+    expect(state.libraryChapters.value).toHaveLength(0)
+    expect(state.libraryWorkPageIsOpen.value).toBe(false)
+    expect(calls('library_list_works').length).toBeGreaterThan(0)
+  })
+})
+
+describe('openWorkById on a Work with no live Chapter', () => {
+  it('opens it and loads no Chapter', async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'open_work') {
+        return Promise.resolve({
+          meta: { work_id: 'w-0', name: 'Rong', genre: '' },
+          folder: '/tmp/w-0.atproj',
+          chapter_id: null,
+        })
+      }
+      if (cmd === 'list_chapters') return Promise.resolve([])
+      return Promise.resolve(null)
+    })
+    const state = await import('../../src/modes/libraryChapters')
+
+    expect(await state.openWorkById('w-0')).toBe(true)
+
+    expect(calls('read_open_chapter')).toHaveLength(0)
+    expect(calls('read_open_chapter_segments')).toHaveLength(0)
+    expect(state.libraryChapters.value).toHaveLength(0)
+    expect(state.libraryChaptersHaveLoaded.value).toBe(true)
+  })
+})
+
 describe('selection follows the visible rows', () => {
   it('a status filter, a search and the fold each drop the selected rows they hide', async () => {
     const many = [row(1), row(2), row(3, 'done'), row(4, 'not_started'), row(5, 'not_started'), row(6, 'not_started')]

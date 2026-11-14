@@ -78,7 +78,7 @@ fn insert_asset(
     source_url: Option<&str>,
     anchor_after_segment_ord: i64,
 ) {
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     let file_name = file_name.to_owned();
     let source_url = source_url.map(str::to_owned);
     opened
@@ -145,7 +145,7 @@ fn reading_image_of(
 /// quan tới ảnh, nhưng bắt buộc để tới được nhánh có ảnh. Cũng điền bản dịch cho mọi câu để
 /// chúng đọc thành đoạn chứ không thành khối chưa dịch.
 fn mark_chapter_done(opened: &auratranslate_lib::commands::project::OpenWork) {
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
     opened
         .store
         .write(move |tx: &Transaction<'_>| {

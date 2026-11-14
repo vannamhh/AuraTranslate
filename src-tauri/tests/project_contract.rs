@@ -768,7 +768,8 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
 
     // OpenWork.chapter_id phai chot vao Chuong DAU TIEN (ord = 1), khong phai Chuong cuoi.
     assert_eq!(
-        opened.chapter_id, rows[0].0,
+        opened.chapter_id.expect("open chapter"),
+        rows[0].0,
         "OpenWork::chapter_id phai tro dung Chuong ord = 1, khong phai Chuong duoc chen sau cung"
     );
     // `new_chapter_ids` phai mang DU CA BA id, dung thu tu ord,
@@ -1819,7 +1820,7 @@ fn moving_to_the_next_chapter_opens_the_following_row_and_remembers_the_move() {
         create_work_from_text(&root, "Chuyen Chuong", "zh", "", "Chuong mot.".to_owned())
             .expect("tao tac pham that bai");
 
-    let first = opened.chapter_id;
+    let first = opened.chapter_id.expect("open chapter");
     let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
     let third = insert_chapter_directly(&opened, 3, "Chuong ba.");
 
@@ -1832,7 +1833,8 @@ fn moving_to_the_next_chapter_opens_the_following_row_and_remembers_the_move() {
     assert_eq!(chapter.chapter_id, second);
     assert_eq!(chapter.source_text, "Chuong hai.");
     assert_eq!(
-        opened.chapter_id, second,
+        opened.chapter_id.expect("open chapter"),
+        second,
         "con tro Chuong tren OpenWork phai doi — neu khong, luot goi ke tiep tra lai cung mot Chuong"
     );
 
@@ -1857,16 +1859,16 @@ fn moving_to_the_previous_chapter_opens_the_row_immediately_before() {
         create_work_from_text(&root, "Chuong Truoc", "zh", "", "Chuong mot.".to_owned())
             .expect("tao tac pham that bai");
 
-    let first = opened.chapter_id;
+    let first = opened.chapter_id.expect("open chapter");
     let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
 
-    opened.chapter_id = second;
+    opened.chapter_id = Some(second);
 
     let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Prev)
         .expect("chuyen ve Chuong truoc that bai");
     assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
     assert_eq!(moved.chapter.expect("phai co Chuong").chapter_id, first);
-    assert_eq!(opened.chapter_id, first);
+    assert_eq!(opened.chapter_id.expect("open chapter"), first);
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -1885,7 +1887,7 @@ fn the_last_chapter_reports_the_boundary_instead_of_wrapping_around() {
         create_work_from_text(&root, "Bien Cuoi", "zh", "", "Chuong duy nhat.".to_owned())
             .expect("tao tac pham that bai");
 
-    let only = opened.chapter_id;
+    let only = opened.chapter_id.expect("open chapter");
 
     let stopped = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
         .expect("vuot bien KHONG duoc la mot Err — do khong phai mot loi");
@@ -1895,7 +1897,11 @@ fn the_last_chapter_reports_the_boundary_instead_of_wrapping_around() {
         "khong doi Chuong thi khong mang mot Chuong nao ve — mot khoi source_text thua o day \
          la mot loi moi de webview thay Chuong da doi"
     );
-    assert_eq!(opened.chapter_id, only, "KHONG quay vong ve dau");
+    assert_eq!(
+        opened.chapter_id.expect("open chapter"),
+        only,
+        "KHONG quay vong ve dau"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -1913,13 +1919,17 @@ fn the_first_chapter_reports_the_boundary_instead_of_wrapping_around() {
         create_work_from_text(&root, "Bien Dau", "zh", "", "Chuong duy nhat.".to_owned())
             .expect("tao tac pham that bai");
 
-    let only = opened.chapter_id;
+    let only = opened.chapter_id.expect("open chapter");
 
     let stopped = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Prev)
         .expect("vuot bien KHONG duoc la mot Err");
     assert_eq!(stopped.outcome, ChapterSwitchOutcome::AtFirst);
     assert!(stopped.chapter.is_none());
-    assert_eq!(opened.chapter_id, only, "KHONG quay vong ve cuoi");
+    assert_eq!(
+        opened.chapter_id.expect("open chapter"),
+        only,
+        "KHONG quay vong ve cuoi"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -1942,7 +1952,7 @@ fn adjacent_chapters_break_ord_ties_by_id_never_by_arithmetic() {
     let mut opened = create_work_from_text(&root, "Ord Trung", "zh", "", "Chuong mot.".to_owned())
         .expect("tao tac pham that bai");
 
-    let first = opened.chapter_id;
+    let first = opened.chapter_id.expect("open chapter");
     let second = insert_chapter_directly(&opened, 1, "Chuong hai.");
     let third = insert_chapter_directly(&opened, 1, "Chuong ba.");
 
@@ -2022,7 +2032,7 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
     let opened = create_work_from_text(&root, "Chuong Bien Mat", "zh", "", "Noi dung.".to_owned())
         .expect("tao tac pham that bai");
 
-    let gone = opened.chapter_id;
+    let gone = opened.chapter_id.expect("open chapter");
     opened
         .store
         .write(move |tx: &Transaction<'_>| {
@@ -2076,7 +2086,7 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
 /// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
 /// container giữa Work và Chapter).
-const NON_ENTITY_DETAIL_TABLES: [&str; 24] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 25] = [
     // Story 6.11 (FR127) -- moi hang la MOT ANH cua MOT Chuong (chapter_id, khong work_id --
     // xem doc-comment ASSET_DDL: "project.db la kho cua DUNG mot Tac pham nen chapter_id da
     // xac dinh no"), cung vai voi `segment`/`chapter_position` -- mot chi tiet VE tren mot
@@ -2086,6 +2096,8 @@ const NON_ENTITY_DETAIL_TABLES: [&str; 24] = [
     // voi `import_cleanup_rule`: mot bang cau hinh khoa-gia-tri phang, khong tham chieu
     // chapter_id/work_id nao va khong phai mot container giua Work va Chapter.
     "ai_config",
+    // Soft-deleted Chapters: the `chapter` row moved whole, so it is a Chapter, not a container.
+    "chapter_deleted",
     // AD-52 rule 7: grouping of one reviewer copy's rows with segments, keyed by `review_chapter_id`.
     "alignment_group",
     "alignment_member",
@@ -2838,7 +2850,7 @@ fn opening_the_same_work_twice_in_a_row_succeeds() {
 }
 
 /// `open_work` mở lại đúng `work.last_chapter_id`, không luôn Chương đầu. Đối chứng: gỡ lời
-/// gọi `set_open_chapter` khỏi `open_adjacent_chapter` (quay lại gán thẳng `open.chapter_id`)
+/// gọi `set_open_chapter` khỏi `open_adjacent_chapter` (quay lại gán thẳng `open.chapter_id.expect("open chapter")`)
 /// -- ca này phải đỏ vì `work.last_chapter_id` không còn được ghi.
 #[test]
 fn open_work_reopens_the_last_chapter_after_a_switch() {
@@ -2850,14 +2862,15 @@ fn open_work_reopens_the_last_chapter_after_a_switch() {
     let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
         .expect("chuyen sang Chuong ke that bai");
     assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
-    let second_chapter_id = opened.chapter_id;
+    let second_chapter_id = opened.chapter_id.expect("open chapter");
     drop(opened);
 
     let reopened =
         auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
             .expect("mo lai Tac pham that bai");
     assert_eq!(
-        reopened.chapter_id, second_chapter_id,
+        reopened.chapter_id.expect("open chapter"),
+        second_chapter_id,
         "mo lai phai tro dung Chuong da roi di, khong roi ve Chuong dau"
     );
 
@@ -2873,18 +2886,19 @@ fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_aw
     let mut opened = create_destination_work(&root, "Chuong Cuoi Da Mat", 2);
     let indexed = indexed_work_from(&opened);
     let dir = opened.dir.clone();
-    let first_chapter_id = opened.chapter_id;
+    let first_chapter_id = opened.chapter_id.expect("open chapter");
 
     let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
         .expect("chuyen sang Chuong ke that bai");
     assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
-    let second_chapter_id = opened.chapter_id;
+    let second_chapter_id = opened.chapter_id.expect("open chapter");
     assert_ne!(first_chapter_id, second_chapter_id);
 
     merge_chapters(Some(&mut opened), &[first_chapter_id, second_chapter_id])
         .expect("gop Chuong that bai");
     assert_eq!(
-        opened.chapter_id, first_chapter_id,
+        opened.chapter_id.expect("open chapter"),
+        first_chapter_id,
         "con tro trong bo nho phai doi theo lan gop"
     );
     // Gan tay `last_chapter_id` ve id da gop mat: lan gop tu ghi lai no, nen phai dung fixture
@@ -2902,7 +2916,8 @@ fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_aw
         auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
             .expect("mo lai Tac pham that bai");
     assert_eq!(
-        reopened.chapter_id, first_chapter_id,
+        reopened.chapter_id.expect("open chapter"),
+        first_chapter_id,
         "last_chapter_id cu (da gop mat) phai roi ve Chuong dau, khong phai loi kho"
     );
 
@@ -2919,18 +2934,18 @@ fn merging_the_open_chapter_into_the_previous_one_persists_the_receiving_chapter
     let mut opened = create_destination_work(&root, "Gop Nho Chuong Nhan", 3);
     let indexed = indexed_work_from(&opened);
     let dir = opened.dir.clone();
-    let first_chapter_id = opened.chapter_id;
+    let first_chapter_id = opened.chapter_id.expect("open chapter");
 
     open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 2");
-    let second_chapter_id = opened.chapter_id;
+    let second_chapter_id = opened.chapter_id.expect("open chapter");
     open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 3");
-    let third_chapter_id = opened.chapter_id;
+    let third_chapter_id = opened.chapter_id.expect("open chapter");
     assert_ne!(first_chapter_id, second_chapter_id);
     assert_ne!(second_chapter_id, third_chapter_id);
 
     merge_chapters(Some(&mut opened), &[second_chapter_id, third_chapter_id])
         .expect("gop Chuong 3");
-    assert_eq!(opened.chapter_id, second_chapter_id);
+    assert_eq!(opened.chapter_id.expect("open chapter"), second_chapter_id);
     let on_disk: i64 = opened
         .store
         .read(|conn| conn.query_row("SELECT last_chapter_id FROM work", [], |r| r.get(0)))
@@ -2945,7 +2960,8 @@ fn merging_the_open_chapter_into_the_previous_one_persists_the_receiving_chapter
         auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
             .expect("mo lai Tac pham that bai");
     assert_eq!(
-        reopened.chapter_id, second_chapter_id,
+        reopened.chapter_id.expect("open chapter"),
+        second_chapter_id,
         "mo lai phai vao Chuong 2, khong phai Chuong dau"
     );
     drop(reopened);
@@ -2958,16 +2974,16 @@ fn merging_a_chapter_that_is_not_open_leaves_last_chapter_id_alone() {
     let root = temp_dir("merge-closed-chapter-last-chapter");
     let mut opened = create_destination_work(&root, "Gop Chuong Khong Mo", 3);
     let dir = opened.dir.clone();
-    let first_chapter_id = opened.chapter_id;
+    let first_chapter_id = opened.chapter_id.expect("open chapter");
 
     open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 2");
-    let second_chapter_id = opened.chapter_id;
+    let second_chapter_id = opened.chapter_id.expect("open chapter");
     open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 3");
-    let third_chapter_id = opened.chapter_id;
+    let third_chapter_id = opened.chapter_id.expect("open chapter");
 
     merge_chapters(Some(&mut opened), &[first_chapter_id, second_chapter_id])
         .expect("gop Chuong 2 vao Chuong 1");
-    assert_eq!(opened.chapter_id, third_chapter_id);
+    assert_eq!(opened.chapter_id.expect("open chapter"), third_chapter_id);
     let on_disk: i64 = opened
         .store
         .read(|conn| conn.query_row("SELECT last_chapter_id FROM work", [], |r| r.get(0)))
@@ -2994,14 +3010,16 @@ fn open_work_reopens_the_chapter_switched_to_via_open_chapter() {
         .expect("liet ke Chuong that bai");
     let target = chapters.get(2).expect("phai co Chuong thu ba").chapter_id;
     assert_ne!(
-        target, opened.chapter_id,
+        target,
+        opened.chapter_id.expect("open chapter"),
         "tien de: Chuong dich phai KHAC Chuong dang mo"
     );
 
     auratranslate_lib::commands::chapter::open_chapter(Some(&mut opened), target)
         .expect("open_chapter that bai");
     assert_eq!(
-        opened.chapter_id, target,
+        opened.chapter_id.expect("open chapter"),
+        target,
         "tien de: con tro trong bo nho phai doi ngay"
     );
     drop(opened);
@@ -3010,7 +3028,8 @@ fn open_work_reopens_the_chapter_switched_to_via_open_chapter() {
         auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
             .expect("mo lai Tac pham that bai");
     assert_eq!(
-        reopened.chapter_id, target,
+        reopened.chapter_id.expect("open chapter"),
+        target,
         "mo lai phai tro dung Chuong da mo qua open_chapter, khong roi ve Chuong dau"
     );
 
@@ -3187,18 +3206,15 @@ fn opening_a_work_whose_project_db_is_missing_is_refused_and_creates_no_file() {
     cleanup(&dir);
 }
 
-/// 🔴 **`project.db` lành nhưng KHÔNG hàng `chapter` nào ⇒ một lỗi CÓ TÊN, không phải lỗi kho.**
-///
-/// Cùng lớp *"một câu SAI VỀ LOẠI"* mà Story 2.11 đã sửa ở `chapter_not_found`: không tệp nào
-/// hỏng, nên *"khong mo duoc kho du lieu"* là một câu nói dối về nguyên nhân.
+/// A `project.db` with no `chapter` row (every Chapter deleted, some softly) opens: the Work
+/// stays reachable with an empty Chapter list and no open Chapter (D1 of the Chapter delete plan).
 #[test]
-fn opening_a_work_with_no_chapter_rows_is_a_named_error_not_a_store_error() {
+fn opening_a_work_with_no_chapter_rows_succeeds_with_no_open_chapter() {
     let root = temp_dir("open-no-chapters");
     let opened = create_work_from_text(&root, "Khong Chuong", "zh", "", "Noi dung.".to_owned())
         .expect("tao tac pham that bai");
     let indexed = indexed_work_from(&opened);
     let dir = opened.dir.clone();
-    // Xoa het hang `chapter` NGAY TREN kho dang mo, roi tha no de dong tep.
     opened
         .store
         .write(|tx: &Transaction<'_>| {
@@ -3208,16 +3224,18 @@ fn opening_a_work_with_no_chapter_rows_is_a_named_error_not_a_store_error() {
         .expect("xoa hang chapter that bai");
     drop(opened);
 
-    let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
-        .expect_err("mot project.db khong hang chapter nao PHAI bi tu choi mo");
+    let reopened =
+        auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+            .expect("mot project.db khong hang chapter nao mo duoc");
 
-    assert_eq!(
-        err.message_key(),
-        MessageKey::WorkOpenFailed,
-        "phai la mot loi TANG TAC PHAM co ten, khong phai `store.read_failed`"
+    assert_eq!(reopened.chapter_id, None);
+    assert!(
+        auratranslate_lib::commands::chapter::list_chapters(Some(&reopened))
+            .expect("liet ke")
+            .is_empty()
     );
-    assert_eq!(err.code(), "work.open_failed");
 
+    drop(reopened);
     cleanup(&dir);
 }
 
@@ -3236,7 +3254,7 @@ fn list_chapters_returns_rows_in_ord_id_order_without_source_text() {
     let ids: Vec<i64> = rows.iter().map(|r| r.chapter_id).collect();
     assert_eq!(
         ids,
-        vec![opened.chapter_id, third, second],
+        vec![opened.chapter_id.expect("open chapter"), third, second],
         "thu tu phai la (ord, id) tang dan: ord=1 (Chuong mo dau), ord=2 (third), ord=5 (second)"
     );
     assert_eq!(rows.len(), 3);
@@ -3300,7 +3318,8 @@ fn opening_a_named_chapter_moves_the_cursor_only_after_a_successful_lookup() {
         .expect("mo Chuong dich danh that bai");
     assert_eq!(switched.chapter_id, second);
     assert_eq!(
-        opened.chapter_id, second,
+        opened.chapter_id.expect("open chapter"),
+        second,
         "con tro Chuong phai doi sang dung Chuong vua mo"
     );
 
@@ -3315,14 +3334,15 @@ fn opening_an_unknown_chapter_id_does_not_move_the_cursor() {
     let root = temp_dir("open-chapter-unknown");
     let mut opened = create_work_from_text(&root, "Chuong La", "zh", "", "Chuong mot.".to_owned())
         .expect("tao tac pham that bai");
-    let original = opened.chapter_id;
+    let original = opened.chapter_id.expect("open chapter");
 
     let err = auratranslate_lib::commands::chapter::open_chapter(Some(&mut opened), original + 999)
         .expect_err("chapter_id la phai la mot loi");
     assert_eq!(err.code(), "segment.chapter_not_found");
     assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
     assert_eq!(
-        opened.chapter_id, original,
+        opened.chapter_id.expect("open chapter"),
+        original,
         "con tro Chuong KHONG duoc doi khi truy van that bai"
     );
 
@@ -3606,7 +3626,7 @@ fn merging_two_chapters_changes_only_chapter_id_and_ord_on_every_segment_column(
     let root = temp_dir("merge-full-columns");
     let mut opened = create_work_from_text(&root, "Gop Chuong", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
 
     // A: ba câu -- ord 1 (sống), ord 2 (VỀ HƯU), ord 3 (sống). Một lịch sử phiên bản gắn
     // vào câu 1 -- phải sống sót nguyên vẹn qua lượt gộp.
@@ -3687,7 +3707,7 @@ fn splitting_a_chapter_changes_only_chapter_id_and_ord_on_every_segment_column()
     let root = temp_dir("split-full-columns");
     let mut opened = create_work_from_text(&root, "Tach Chuong", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     set_chapter_status_directly(&opened, a_id, "in_progress");
 
     let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
@@ -3753,7 +3773,8 @@ fn splitting_a_chapter_changes_only_chapter_id_and_ord_on_every_segment_column()
     assert_eq!(by_id(s4).ord, 2);
 
     assert_eq!(
-        opened.chapter_id, a_id,
+        opened.chapter_id.expect("open chapter"),
+        a_id,
         "con tro Chuong dang mo giu nguyen A sau lot tach"
     );
     assert_eq!(
@@ -3796,7 +3817,7 @@ fn no_segment_is_ever_retired_by_a_chapter_reorganisation() {
     let root = temp_dir("no-new-retirement");
     let mut opened = create_work_from_text(&root, "Khong Ve Huu", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
     let s2 = insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
     let b_id = insert_chapter_directly(&opened, 2, "");
@@ -3837,7 +3858,7 @@ fn merging_a_chapter_moves_its_asset_rows_to_the_target_chapter_with_the_anchor_
     let root = temp_dir("merge-asset-rows");
     let mut opened = create_work_from_text(&root, "Gop Anh", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     insert_segment_directly(&opened, a_id, 1, "A cau mot.", false);
     insert_segment_directly(&opened, a_id, 2, "A cau hai.", false);
     insert_segment_directly(&opened, a_id, 3, "A cau ba.", false);
@@ -3888,7 +3909,7 @@ fn splitting_a_chapter_moves_each_asset_row_to_the_half_that_contains_its_anchor
     let root = temp_dir("split-asset-rows");
     let mut opened = create_work_from_text(&root, "Tach Anh", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
     let _s2 = insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
     let s3 = insert_segment_directly(&opened, a_id, 3, "Cau ba.", false);
@@ -3957,7 +3978,7 @@ fn merging_two_sentences_rebases_every_asset_anchor_in_the_chapter_by_the_same_r
     let root = temp_dir("regroup-merge-asset");
     let opened = create_work_from_text(&root, "Gom Nhom", "zh", "", "一。二。三。".to_owned())
         .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     // Bon anh, phu ca bon mien: truoc nhom (neo 0), TAI DAU nhom (neo 1, seg 1), TAI BIEN
     // nhom (neo 2, ngay sau seg 2 -- seg cuoi cua nhom bi gop), sau nhom (neo 3).
@@ -4035,7 +4056,7 @@ fn splitting_a_sentence_into_three_pieces_rebases_asset_anchors_across_all_three
         "AAAA. BBBB.".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     // Bon anh, phu ca ba mien: truoc nhom (neo 0), TAI/TRONG nhom (neo 1 -- K=1 nen mien nay
     // CHI co dung mot gia tri, khong mo ho), sau nhom (neo 2, sau ca hai cau goc).
@@ -4119,7 +4140,7 @@ fn no_reorganisation_ever_leaves_an_asset_row_pointing_at_a_nonexistent_chapter(
         "一。二。三。四。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
 
     insert_asset_directly(&opened, a_id, 0, "x0.jpg");
     insert_asset_directly(&opened, a_id, 2, "x2.jpg");
@@ -4178,7 +4199,7 @@ fn splitting_one_chapter_never_touches_the_asset_rows_of_an_unrelated_chapter() 
     let root = temp_dir("p0-split-isolation");
     let mut opened = create_work_from_text(&root, "Cach Ly Tach", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let c1 = opened.chapter_id;
+    let c1 = opened.chapter_id.expect("open chapter");
     let s1 = insert_segment_directly(&opened, c1, 1, "C1 cau mot.", false);
     let _s2 = insert_segment_directly(&opened, c1, 2, "C1 cau hai.", false);
     let s3 = insert_segment_directly(&opened, c1, 3, "C1 cau ba.", false);
@@ -4246,7 +4267,7 @@ fn regrouping_a_sentence_in_one_chapter_never_touches_the_asset_rows_of_an_unrel
         "一。二。三。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let c1 = opened.chapter_id;
+    let c1 = opened.chapter_id.expect("open chapter");
     let asset_c1 = insert_asset_directly(&opened, c1, 1, "c1.jpg");
 
     let c2 = insert_chapter_directly(&opened, 2, "");
@@ -4306,7 +4327,7 @@ fn merging_two_chapters_never_touches_the_asset_rows_of_a_third_unrelated_chapte
     let root = temp_dir("p0-merge-isolation");
     let mut opened = create_work_from_text(&root, "Cach Ly Gop", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let c1 = opened.chapter_id;
+    let c1 = opened.chapter_id.expect("open chapter");
     insert_segment_directly(&opened, c1, 1, "C1 cau mot.", false);
     insert_segment_directly(&opened, c1, 2, "C1 cau hai.", false);
 
@@ -4361,7 +4382,7 @@ fn a_retired_segment_tied_at_the_split_boundary_does_not_confuse_which_side_an_a
     let root = temp_dir("m1-retired-tie-at-split-boundary");
     let mut opened = create_work_from_text(&root, "M1 Tie Break", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
 
     insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
     insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
@@ -4428,7 +4449,7 @@ fn merging_a_chapter_that_has_a_retired_segment_still_moves_its_asset_rows_corre
     let root = temp_dir("m2-merge-with-retired");
     let mut opened = create_work_from_text(&root, "M2 Gop Co Ve Huu", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     insert_segment_directly(&opened, a_id, 1, "A cau mot.", false);
     insert_segment_directly(&opened, a_id, 2, "A cau hai.", false);
 
@@ -4479,7 +4500,7 @@ fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_r
         "一。二。三。四。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     // Lượt gộp THỨ NHẤT (tạo lịch sử VỀ HƯU) -- gộp câu 1 với câu 2 (segment id=1, id=2).
     auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2)
@@ -4583,7 +4604,7 @@ fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_
         "一。二。三。四。".to_owned(),
     )
     .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
 
     insert_asset_directly(&opened, a_id, 0, "x0.jpg");
     insert_asset_directly(&opened, a_id, 2, "x2.jpg");
@@ -4634,7 +4655,7 @@ fn moving_a_chapter_up_or_down_never_touches_any_asset_row_byte_for_byte() {
     let root = temp_dir("t8-move-chapter-asset-untouched");
     let mut opened = create_work_from_text(&root, "T8 Doi Cho Chuong", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let c1 = opened.chapter_id;
+    let c1 = opened.chapter_id.expect("open chapter");
     insert_segment_directly(&opened, c1, 1, "C1 cau mot.", false);
     insert_segment_directly(&opened, c1, 2, "C1 cau hai.", false);
     let asset_c1 = insert_asset_directly(&opened, c1, 1, "c1.jpg");
@@ -4670,7 +4691,7 @@ fn a_merged_chapter_never_claims_done_when_one_half_was_not_done() {
     let root = temp_dir("merge-status-half-done");
     let mut opened = create_work_from_text(&root, "Trang Thai Gop Nua", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     set_chapter_status_directly(&opened, a_id, "done");
     let b_id = insert_chapter_directly(&opened, 2, "");
     // B mac dinh 'not_started' tu `insert_chapter_directly`.
@@ -4690,7 +4711,7 @@ fn a_merged_chapter_never_claims_done_when_one_half_was_not_done() {
     let mut opened2 =
         create_work_from_text(&root2, "Trang Thai Gop Ca Hai", "zh", "", String::new())
             .expect("tao tac pham that bai");
-    let a2_id = opened2.chapter_id;
+    let a2_id = opened2.chapter_id.expect("open chapter");
     set_chapter_status_directly(&opened2, a2_id, "done");
     let b2_id = insert_chapter_directly(&opened2, 2, "");
     set_chapter_status_directly(&opened2, b2_id, "done");
@@ -4712,7 +4733,7 @@ fn moving_the_first_chapter_up_touches_no_row_and_is_a_named_error() {
     let root = temp_dir("move-up-at-first");
     let mut opened = create_work_from_text(&root, "Doi Bien Len", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     insert_chapter_directly(&opened, 2, "");
 
     let before = read_all_chapter_ord(&opened);
@@ -4754,7 +4775,7 @@ fn splitting_at_the_first_segment_is_refused_before_any_write() {
     let root = temp_dir("split-at-first-segment");
     let mut opened = create_work_from_text(&root, "Tach O Dau", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
     insert_segment_directly(&opened, a_id, 2, "Cau hai.", false);
 
@@ -4789,7 +4810,7 @@ fn renaming_to_an_ideographic_space_stores_null_not_a_blank_title() {
     let root = temp_dir("rename-ideographic-space");
     let mut opened = create_work_from_text(&root, "Doi Ten Rong", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
 
     let rows = rename_chapter(Some(&mut opened), a_id, "\u{3000}").expect("doi ten that bai");
     let row = rows
@@ -4813,7 +4834,7 @@ fn renaming_a_chapter_updates_only_its_own_row_and_leaves_every_segment_untouche
     let root = temp_dir("rename-touches-nothing-else");
     let mut opened = create_work_from_text(&root, "Doi Ten Sach", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     let s1 = insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
     insert_segment_version_directly(&opened, s1, "ban dich cu");
 
@@ -4849,7 +4870,7 @@ fn renaming_an_unknown_chapter_id_reuses_the_named_error() {
     let root = temp_dir("rename-unknown-chapter");
     let mut opened = create_work_from_text(&root, "Doi Ten Chuong La", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let original = opened.chapter_id;
+    let original = opened.chapter_id.expect("open chapter");
 
     let err = rename_chapter(Some(&mut opened), original + 999, "Hoi Moi")
         .expect_err("chapter_id la phai la mot loi");
@@ -4874,7 +4895,7 @@ fn chapter_ord_stays_dense_from_one_after_a_move_on_a_sparse_ord_sequence() {
     let root = temp_dir("move-sparse-ord");
     let opened_bootstrap = create_work_from_text(&root, "Ord Thua", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let default_id = opened_bootstrap.chapter_id;
+    let default_id = opened_bootstrap.chapter_id.expect("open chapter");
     // Xoá Chương mặc định (0 segment -- văn bản rỗng) để dựng TRỌN ba Chương `ord` thưa/trùng
     // do chính story này chỉ ra: `(5, 5, 9)`.
     opened_bootstrap
@@ -4890,7 +4911,7 @@ fn chapter_ord_stays_dense_from_one_after_a_move_on_a_sparse_ord_sequence() {
     let c3 = insert_chapter_directly(&opened, 9, "Chuong ba.");
     // Chuẩn hoá theo `(ord, id)`: c1 (ord=5, id nhỏ hơn) -> 1; c2 (ord=5, id lớn hơn) -> 2;
     // c3 (ord=9) -> 3. c2 là Chương GIỮA sau chuẩn hoá.
-    opened.chapter_id = c2;
+    opened.chapter_id = Some(c2);
 
     move_chapter(Some(&mut opened), c2, ChapterDirection::Prev).expect("doi len that bai");
 
@@ -4923,7 +4944,7 @@ fn a_reorganisation_moves_retired_segments_with_their_living_neighbours() {
     let root = temp_dir("retired-moves-with-neighbours");
     let mut opened = create_work_from_text(&root, "Ve Huu Di Cung", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     let a1 = insert_segment_directly(&opened, a_id, 1, "A mot.", false);
 
     let b_id = insert_chapter_directly(&opened, 2, "");
@@ -4973,14 +4994,15 @@ fn the_open_chapter_cursor_follows_the_surviving_chapter_after_a_merge() {
     let root = temp_dir("cursor-follows-merge");
     let mut opened = create_work_from_text(&root, "Con Tro Theo Gop", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     let b_id = insert_chapter_directly(&opened, 2, "");
-    opened.chapter_id = b_id; // B ĐANG MỞ.
+    opened.chapter_id = Some(b_id); // B ĐANG MỞ.
 
     merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
 
     assert_eq!(
-        opened.chapter_id, a_id,
+        opened.chapter_id.expect("open chapter"),
+        a_id,
         "B bi xoa -- con tro phai doi sang A SAU khi giao dich commit"
     );
 
@@ -5001,7 +5023,7 @@ fn merging_concatenates_raw_source_text_with_a_blank_line_between() {
     let root = temp_dir("merge-source-text-concat");
     let mut opened = create_work_from_text(&root, "Noi Van Ban Tho", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     set_chapter_source_text_directly(&opened, a_id, "Van ban A.");
     let b_id = insert_chapter_directly(&opened, 2, "Van ban B.");
 
@@ -5024,7 +5046,7 @@ fn splitting_rebuilds_source_text_from_living_segments_joined_by_newline() {
     let root = temp_dir("split-source-text-rebuild");
     let mut opened = create_work_from_text(&root, "Dung Lai Van Ban", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
     insert_segment_directly(&opened, a_id, 2, "Cau ve huu khong duoc dem.", true);
     let s3 = insert_segment_directly(&opened, a_id, 3, "Cau ba.", false);
@@ -5067,7 +5089,7 @@ fn merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index() 
     let mut opened = create_work_from_text(&root, "Gop Chi Muc", "zh", "", String::new())
         .expect("tao tac pham that bai");
     let work_id = opened.meta.work_id.clone();
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     let b_id = insert_chapter_directly(&opened, 2, "");
 
     // `insert_chapter_directly` ghi thẳng bằng SQL, KHÔNG đi qua khuôn bốn bước -- `meta.json`
@@ -5137,7 +5159,7 @@ fn moving_a_chapter_changes_ord_only_and_leaves_titles_status_and_every_segment_
     let root = temp_dir("move-touches-ord-only");
     let mut opened = create_work_from_text(&root, "Doi Chi Ord", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     rename_chapter(Some(&mut opened), a_id, "Chuong A").expect("dat ten A that bai");
     set_chapter_status_directly(&opened, a_id, "done");
     insert_segment_directly(&opened, a_id, 1, "A mot.", false);
@@ -5208,7 +5230,7 @@ fn splitting_on_a_segment_of_another_chapter_is_refused_before_any_write() {
     let root = temp_dir("split-foreign-segment");
     let mut opened = create_work_from_text(&root, "Tach Nham Chuong", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     insert_segment_directly(&opened, a_id, 1, "A mot.", false);
     insert_segment_directly(&opened, a_id, 2, "A hai.", false);
 
@@ -5285,7 +5307,7 @@ fn moving_or_merging_an_unknown_chapter_id_reuses_the_named_error_not_a_store_er
     let root = temp_dir("unknown-id-move-merge");
     let mut opened = create_work_from_text(&root, "Id La", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     insert_segment_directly(&opened, a_id, 1, "A mot.", false);
     insert_chapter_directly(&opened, 2, "");
 
@@ -5344,7 +5366,7 @@ fn moving_or_merging_an_unknown_chapter_id_never_renumbers_a_sparse_ord_sequence
     let root = temp_dir("unknown-id-sparse-ord");
     let mut opened = create_work_from_text(&root, "Id La Thua", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id;
+    let a_id = opened.chapter_id.expect("open chapter");
     insert_chapter_directly(&opened, 5, "");
 
     let chapters_before = read_all_chapter_ord(&opened);
@@ -5399,7 +5421,7 @@ fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too()
     let root = temp_dir("merge-sparse-ord");
     let opened_bootstrap = create_work_from_text(&root, "Gop Ord Thua", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let default_id = opened_bootstrap.chapter_id;
+    let default_id = opened_bootstrap.chapter_id.expect("open chapter");
     opened_bootstrap
         .store
         .write(move |tx: &Transaction<'_>| {
@@ -5414,7 +5436,7 @@ fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too()
     let s1 = insert_segment_directly(&opened, c1, 1, "Mot.", false);
     let s2 = insert_segment_directly(&opened, c2, 1, "Hai.", false);
     let s3 = insert_segment_directly(&opened, c3, 1, "Ba.", false);
-    opened.chapter_id = c1;
+    opened.chapter_id = Some(c1);
 
     // Sau chuẩn hoá: c1 → 1, c2 → 2, c3 → 3. Gộp c2 vào c1.
     merge_chapters(Some(&mut opened), &[c1, c2]).expect("gop that bai");
@@ -6049,7 +6071,7 @@ fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_
     let root = temp_dir("append-into-open-work-state");
     let opened = create_destination_work(&root, "Dang Mo San", 2);
     let work_id = opened.meta.work_id.clone();
-    let original_chapter_id = opened.chapter_id;
+    let original_chapter_id = opened.chapter_id.expect("open chapter");
 
     // W là Tác phẩm ĐANG MỞ — `OpenWorkState` thật (chỉ một `Mutex` trần, không cần
     // `AppHandle` — xem doc-comment kiểu này ở `mod.rs`), giữ đúng MỘT `OpenWork`.
@@ -6094,7 +6116,8 @@ fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_
         "van dung W -- khong Tac pham nao khac duoc mo len"
     );
     assert_eq!(
-        open.chapter_id, original_chapter_id,
+        open.chapter_id.expect("open chapter"),
+        original_chapter_id,
         "Chuong dang mo trong trinh bien soan khong duoc doi boi mot luot append"
     );
     let chapter_count: i64 = open
@@ -6631,6 +6654,19 @@ fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_mea
 /// đọc `src/commands/project/mod.rs`, cắt đúng THÂN của `fn replace_open_work`, rồi khẳng định
 /// LỜI GỌI dọn ba trạng thái đều nằm TRONG thân đó (không phải đâu đó khác trong tệp — ca âm
 /// đối kháng bên dưới chứng minh việc chỉ tìm chuỗi con trên CẢ TỆP sẽ không phân biệt được).
+fn per_work_state_body(src: &str) -> &str {
+    let start_marker =
+        "pub fn clear_per_work_state<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {";
+    let start = src
+        .find(start_marker)
+        .unwrap_or_else(|| panic!("khong tim thay `{start_marker}`"));
+    let end = src[start..]
+        .find("\n}\n")
+        .map(|rel| start + rel)
+        .expect("het than ham");
+    &src[start..end]
+}
+
 #[test]
 fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblings() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -6656,6 +6692,11 @@ fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_sibl
         .map(|rel| start + rel)
         .unwrap_or_else(|| panic!("khong tim thay moc ket `{end_marker}` sau `replace_open_work`"));
     let body = &src[start..end];
+    assert!(
+        body.contains("clear_per_work_state("),
+        "than `replace_open_work` phai goi `clear_per_work_state`:\n{body}"
+    );
+    let body = per_work_state_body(&src);
 
     assert!(
         body.contains("crate::commands::aiprompt::LastAssembledPromptState")
@@ -7014,7 +7055,7 @@ fn merging_three_adjacent_chapters_leaves_one_chapter_holding_every_segment() {
     let root = temp_dir("merge-three");
     let mut opened = create_work_from_text(&root, "Gop Ba", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a = opened.chapter_id;
+    let a = opened.chapter_id.expect("open chapter");
     let b = insert_chapter_directly(&opened, 2, "");
     let c = insert_chapter_directly(&opened, 3, "");
     let d = insert_chapter_directly(&opened, 4, "");
@@ -7071,7 +7112,7 @@ fn merging_non_adjacent_chapters_is_refused_and_changes_nothing() {
     let root = temp_dir("merge-gap");
     let mut opened = create_work_from_text(&root, "Gop Cach", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a = opened.chapter_id;
+    let a = opened.chapter_id.expect("open chapter");
     let b = insert_chapter_directly(&opened, 2, "");
     let c = insert_chapter_directly(&opened, 3, "");
     insert_segment_directly(&opened, a, 1, "A1", false);
@@ -7106,7 +7147,7 @@ fn a_failure_midway_through_a_multi_chapter_merge_rolls_every_chapter_back() {
     let root = temp_dir("merge-midway");
     let mut opened = create_work_from_text(&root, "Gop Giua Chung", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a = opened.chapter_id;
+    let a = opened.chapter_id.expect("open chapter");
     let b = insert_chapter_directly(&opened, 2, "");
     let c = insert_chapter_directly(&opened, 3, "");
     insert_segment_directly(&opened, a, 1, "A1", false);
@@ -7142,7 +7183,7 @@ fn chapter_rows_count_translated_and_unconfirmed_segments_without_the_omitted_on
     let root = temp_dir("row-counts");
     let opened = create_work_from_text(&root, "Dem Cau", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a = opened.chapter_id;
+    let a = opened.chapter_id.expect("open chapter");
     let s1 = insert_segment_directly(&opened, a, 1, "S1", false);
     let s2 = insert_segment_directly(&opened, a, 2, "S2", false);
     let s3 = insert_segment_directly(&opened, a, 3, "S3", false);
@@ -7192,7 +7233,7 @@ fn chapter_row_updated_at_moves_with_the_last_sentence_confirmation_not_with_dra
     let root = temp_dir("row-updated-at");
     let opened = create_work_from_text(&root, "Moc Sua", "zh", "", String::new())
         .expect("tao tac pham that bai");
-    let a = opened.chapter_id;
+    let a = opened.chapter_id.expect("open chapter");
     let s1 = insert_segment_directly(&opened, a, 1, "S1", false);
     let s2 = insert_segment_directly(&opened, a, 2, "S2", false);
     opened

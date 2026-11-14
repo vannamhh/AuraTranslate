@@ -79,7 +79,7 @@ fn fixture(tag: &str) -> Fixture {
     let open = create_work_from_text(&root, "Pham Vi Xuat", "zh", "", "Chuong mot.".to_owned())
         .expect("tao tac pham that bai");
     clear_segments(&open);
-    let first = open.chapter_id;
+    let first = open.chapter_id.expect("open chapter");
     let second = insert_chapter(&open, 2);
     insert_segments(
         &open,

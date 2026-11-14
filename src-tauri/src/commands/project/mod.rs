@@ -99,7 +99,7 @@ pub struct OpenWork {
     /// trong cửa sổ giữa lượt `invoke` và lượt `resetEditorPanel()`, rồi `flush.reset()` vứt
     /// chữ ấy vô điều kiện — nằm cách đó sáu dòng và không lượt rà nội bộ nào nhìn. Nó được
     /// đóng ở `panels/editorPanelState.ts::noteEditorEdit`, bằng một cửa khoá gõ.
-    pub chapter_id: i64,
+    pub chapter_id: Option<i64>,
     /// **THÊM 2026-09-08 (Story 6.11, FR127)** — số HÀNG `asset` đã chèn lúc [`create_work`]
     /// chạy (đúng bằng `saved_assets.len()`, và đúng bằng số lời gọi `INSERT INTO asset`
     /// thực hiện — hai con số này khoá lẫn nhau bằng cấu trúc, không cần một cổng riêng).
@@ -3482,30 +3482,8 @@ pub fn open_work(
     // xem doc-comment `WORK_LAST_CHAPTER_ID_DDL`); `NULL` hoặc cũ ⇒ rơi về Chương đầu theo
     // `(ord, id)`, hành vi gốc trước khi cột này tồn tại.
     //
-    // 🔵 **SỬA 2026-08-29 (lượt review)** — `query_row` biến "0 hàng" thành
-    // `QueryReturnedNoRows`, tức một **lỗi KHO**, và người dùng đọc *"khong mo duoc kho du
-    // lieu"* cho một `.atproj` mà tệp không hỏng gì cả. Đây là nguyên văn lớp lỗi mà Story
-    // 2.11 đã sửa ở `commands/chapter.rs::chapter_not_found` (xem doc-comment hàm đó). Một
-    // Tác phẩm **không Chương nào** là một trạng thái của DỮ LIỆU, không của kho ⇒ nó đi ra
-    // bằng `work.open_failed`, mang TÊN Tác phẩm để người dùng nhận ra mình đang nói về cái
-    // nào.
-    //
-    // ⚠️ **Vì sao TÁI DÙNG `OpenFailed` chứ không đúc một `MessageKey` thứ tư.** Hôm nay
-    // **0** đường sản phẩm nào tạo được một Tác phẩm không Chương: `create_work` luôn chèn
-    // đúng một hàng `chapter` trong cùng giao dịch, và **0** đường nào xoá Chương (FR15 là
-    // Story 5.8). Ca này chỉ tới được từ một `project.db` bị sửa tay hoặc hỏng. Một khoá
-    // riêng cho nó hôm nay là *"một khoá cho một nhánh không chỗ gọi nào đi qua"* — đúng thứ
-    // Story 1.7 §Completion Notes #3 cấm. ⇒ Khi **Story 5.8** mở đường xoá Chương, ca này có
-    // một chỗ gọi SẢN PHẨM và **lúc đó** nó đáng một khoá riêng.
-    // 🔴 `query_map().next()` chứ KHÔNG `query_row` — chép nguyên khuôn
-    // `commands/chapter.rs::read_open_chapter`, và vì đúng lý do đã ghi ở đó: `query_row`
-    // biến "0 hàng" thành một `QueryReturnedNoRows`, tức một lỗi KHO. `Option` ở đây là một
-    // trạng thái DỮ LIỆU bình thường, và tầng này đổi nó thành một lỗi CÓ TÊN.
-    //
-    // ⚠️ Và **không** bắt nó bằng cách so chuỗi trong `detail` của `StoreError`: `Store::read`
-    // gói mọi `Err` thành một `detail: String`, nên đoán lại lý do từ chuỗi đó là một chẩn
-    // đoán SAI cho hai ca khác hẳn nhau (0 hàng / kho hỏng thật) — cùng lý lẽ định lượng mà
-    // `commands/segment.rs::save_segment_targets` đã ghi cho ô CÓ KIỂU của nó.
+    // `query_map().next()`, not `query_row`: zero rows is a normal state (a Work with no Chapter
+    // left), not a store error.
     let found = match store.read(|conn| {
         let last_chapter_id: Option<i64> =
             conn.query_row("SELECT last_chapter_id FROM work WHERE id = 1", [], |row| {
@@ -3531,15 +3509,6 @@ pub fn open_work(
         }
     };
 
-    let Some(chapter_id) = found else {
-        store.close();
-        return Err(crate::core::library::WorkError::OpenFailed {
-            name: indexed.name.clone(),
-            detail: "project.db khong co hang chapter nao".to_owned(),
-        }
-        .into());
-    };
-
     let scope = crate::core::scope::ScopeResolver::with_work(crate::core::scope::WorkScope {
         work_id: meta.work_id.clone(),
     });
@@ -3554,7 +3523,7 @@ pub fn open_work(
         store,
         scope,
         meta,
-        chapter_id,
+        chapter_id: found,
         images_saved: 0,
         images_failed: 0,
         // Mở lại một Work đã có không ghi/thêm chữ mới -- không gì để mà so voi source_lang.
@@ -3710,6 +3679,37 @@ fn sweep_orphaned_asset_files(
     removed
 }
 
+/// Drops every pending import and cached record that is keyed on the open Work's `project.db`.
+/// Shared by the three ways a Work stops being the open one: a switch (`replace_open_work`), the
+/// app exit (`close_open_work`) and a Chapter delete that removes the Work.
+pub fn clear_per_work_state<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri::Manager as _;
+
+    if let Some(pending) = app.try_state::<crate::commands::glossary::PendingImportState>() {
+        crate::commands::glossary::clear_pending_import_for_tier(
+            &pending,
+            crate::core::glossary::GlossaryTier::Work,
+        );
+    }
+    if let Some(pending) =
+        app.try_state::<crate::commands::convention::ConventionPendingImportState>()
+    {
+        crate::commands::convention::clear_pending_convention_import_for_work(&pending);
+    }
+    if let Some(pending) = app.try_state::<crate::commands::tm::PendingTmxImportState>() {
+        crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
+    }
+    if let Some(pending) = app.try_state::<crate::commands::export::PendingReviewerImportState>() {
+        crate::commands::export::reviewer_import_cancel(&pending);
+    }
+    if let Some(pending) = app.try_state::<crate::commands::promptset::PendingPromptImportState>() {
+        crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
+    }
+    if let Some(record) = app.try_state::<crate::commands::aiprompt::LastAssembledPromptState>() {
+        crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
+    }
+}
+
 /// Thay Tác phẩm đang mở (nếu có) bằng `new_work` — **Store cũ tự đóng qua `Drop`**.
 ///
 /// ⚠️ Nếu `OpenWorkState` chưa từng được `app.manage(...)` (lỗi cấu hình `setup()`, không
@@ -3799,45 +3799,7 @@ fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: Ope
         },
     );
 
-    // Story 3.10b (AD-48) -- mo mot Tac pham KHAC lam `project.db` cua no doi hoan toan; mot
-    // lo nhap Glossary dang TREO o tang Work (neu co) tro toi kho CU, va `RowPlanKind::
-    // Conflict::existing_id` cua no khong con dung nghia o kho MOI. Don TRUOC khi swap, cung
-    // khuon `close_open_work` (`lib.rs`) -- ca hai duong deu lam mot `project.db` bien mat
-    // khoi tam voi cua lo dang treo.
-    if let Some(pending) = app.try_state::<crate::commands::glossary::PendingImportState>() {
-        crate::commands::glossary::clear_pending_import_for_tier(
-            &pending,
-            crate::core::glossary::GlossaryTier::Work,
-        );
-    }
-    if let Some(pending) =
-        app.try_state::<crate::commands::convention::ConventionPendingImportState>()
-    {
-        crate::commands::convention::clear_pending_convention_import_for_work(&pending);
-    }
-    if let Some(pending) = app.try_state::<crate::commands::tm::PendingTmxImportState>() {
-        crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
-    }
-    if let Some(pending) = app.try_state::<crate::commands::export::PendingReviewerImportState>() {
-        crate::commands::export::reviewer_import_cancel(&pending);
-    }
-    // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt dang treo (neu co): chi ha
-    // `work_kind` ve `None`, khong xoa TRON lo (`lib.rs::close_open_work` giai thich vi sao).
-    if let Some(pending) = app.try_state::<crate::commands::promptset::PendingPromptImportState>() {
-        crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
-    }
-    // 🔴 Story 4.7, finding V1 (loop 1) -- cung ly do BA nguoi lang gieng ngay tren, cho ban
-    // ghi prompt da lap cua Tac pham CU (neu co): `segment_id`/`chapter_id` la khoa hang cua
-    // CHINH `project.db` sap bi thay the boi `new_work`, va hai `.atproj` khac nhau deu danh
-    // so lai tu 1 -- de ban ghi song qua lan swap nay se doc sai "dung Chuong/segment nay" cho
-    // mot Tac pham no chua tung thay (xem doc-comment day du o
-    // `commands::aiprompt::clear_last_assembled_prompt_on_work_close`, cung mot ham, chi khac
-    // DIEM GOI: `close_open_work` la dong HAN TOAN khong con Tac pham nao mo; day la THAY THE
-    // mot Tac pham nay bang mot Tac pham KHAC ma khong di qua trang thai "khong Tac pham" o
-    // giua -- ca hai duong deu phai xoa ban ghi cu.
-    if let Some(record) = app.try_state::<crate::commands::aiprompt::LastAssembledPromptState>() {
-        crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
-    }
+    clear_per_work_state(app);
 
     if let Some(state) = app.try_state::<OpenWorkState>() {
         // The outgoing Work's `asset://` scope stays granted: `forbid_directory` has no inverse

@@ -398,9 +398,8 @@ pub struct OpenedWork {
     /// Đường dẫn **tuyệt đối** tới `<Tên>.atproj/` trên máy này — cùng lý do
     /// [`CreatedWork::folder`].
     pub folder: String,
-    /// `chapter.id` của Chương đầu theo `(ord, id)` — đúng nguồn sự thật
-    /// [`OpenWork::chapter_id`], không suy lại ở tầng vỏ.
-    pub chapter_id: i64,
+    /// [`OpenWork::chapter_id`] as is: `None` for a Work with no Chapter left.
+    pub chapter_id: Option<i64>,
 }
 
 impl OpenedWork {

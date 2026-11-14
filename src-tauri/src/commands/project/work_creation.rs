@@ -625,7 +625,7 @@ pub fn create_work_with_progress(
         store,
         scope,
         meta,
-        chapter_id,
+        chapter_id: Some(chapter_id),
         images_saved,
         images_failed,
         source_lang_mismatch,

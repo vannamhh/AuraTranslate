@@ -63,6 +63,34 @@ describe('config/chapter.ts ChapterRow guard', () => {
   })
 })
 
+describe('config/chapter.ts delete adapters', () => {
+  it('deleteChapter sends chapterId in camelCase and rejects a malformed answer', async () => {
+    mockInvoke.mockResolvedValue({ disposition: 'soft', work_removed: false, open_chapter_id: 'x', chapters: [] })
+    const { deleteChapter } = await import('../../src/config/chapter')
+    const out = await deleteChapter(7)
+    expect(mockInvoke).toHaveBeenCalledWith('delete_chapter', { chapterId: 7 })
+    expect(out.deleted).toBeNull()
+    expect(out.error).not.toBeNull()
+  })
+
+  it('deleteChapter accepts a null open_chapter_id', async () => {
+    mockInvoke.mockResolvedValue({ disposition: 'soft', work_removed: false, open_chapter_id: null, chapters: [] })
+    const { deleteChapter } = await import('../../src/config/chapter')
+    const out = await deleteChapter(7)
+    expect(out.error).toBeNull()
+    expect(out.deleted?.open_chapter_id).toBeNull()
+  })
+
+  it('previewChapterDelete sends chapterId and rejects an unknown disposition', async () => {
+    mockInvoke.mockResolvedValue({ disposition: 'maybe', removes_work: false })
+    const { previewChapterDelete } = await import('../../src/config/chapter')
+    const out = await previewChapterDelete(7)
+    expect(mockInvoke).toHaveBeenCalledWith('delete_chapter_preview', { chapterId: 7 })
+    expect(out.preview).toBeNull()
+    expect(out.error).not.toBeNull()
+  })
+})
+
 describe('config/lifecycle.ts WorkLifecycle guard', () => {
   it('accepts status, override flag and derived status', async () => {
     mockInvoke.mockResolvedValue({ status: 'paused', status_is_override: true, derived_status: 'in_progress' })

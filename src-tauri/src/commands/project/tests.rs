@@ -268,7 +268,7 @@ fn a_spawn_failure_after_commit_preserves_the_import_and_returns_normally() {
     )
     .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
     let project_dir = opened.dir.clone();
-    let chapter_id = opened.chapter_id;
+    let chapter_id = opened.chapter_id.expect("open chapter");
 
     let opened = keep_committed_import_when_scan_spawn_fails(opened, || {
         Err(std::io::Error::other("injected thread spawn failure"))
@@ -351,7 +351,8 @@ fn guarded_open_store_returns_the_store_and_a_normal_scan_runs_to_completion_and
     // Lần khoá THỨ NHẤT (đọc segment) -- cùng `work_id` đã chốt lúc spawn.
     let store = guarded_open_store(Some(&opened), &work_id)
         .expect("work_id khop o lan khoa thu nhat -- phai tra Some(&store)");
-    let segments = read_chapter_segment_texts(store, opened.chapter_id).expect("doc segment");
+    let segments = read_chapter_segment_texts(store, opened.chapter_id.expect("open chapter"))
+        .expect("doc segment");
     let segment_refs: Vec<&str> = segments.iter().map(String::as_str).collect();
 
     let mut is_known = |_: &str| false;

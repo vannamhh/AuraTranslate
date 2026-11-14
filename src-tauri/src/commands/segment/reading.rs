@@ -373,7 +373,7 @@ pub struct ReadingRun {
 /// - đường đọc trượt (kho hỏng) ⇒ `store.read_failed` (qua `From<StoreError>`).
 pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
-    let current_chapter_id = open.chapter_id;
+    let current_chapter_id = crate::commands::chapter::require_open_chapter(open)?;
     // **THÊM Story 6.14** — cùng lý do `read_open_chapter_segments`: cấu tạo NGOÀI closure,
     // `move` mang giá trị đã sẵn sàng vào trong. Same UTF-8 check as there, before the closure.
     let assets_dir = open.dir.join("assets");

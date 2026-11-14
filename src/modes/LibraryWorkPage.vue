@@ -12,6 +12,7 @@ import {
   chapterWindow,
   libraryChapterCursor,
   libraryChapterCursorFlatIndex,
+  libraryChapterDeleteAsk,
   libraryChapterGroupCounts,
   libraryChapterOriginApplyThroughOrd,
   libraryChapterOriginBusy,
@@ -142,6 +143,16 @@ const originApplyEffect = computed(() => {
 const writesBlocked = computed(
   () => libraryChapterReorgBusy.value || libraryChaptersBusy.value || libraryOpenWorkBusy.value,
 )
+const deleteAskPath = computed<'work' | 'soft' | 'hard' | null>(() => {
+  const ask = libraryChapterDeleteAsk.value
+  if (ask === null) return null
+  return ask.removes_work ? 'work' : ask.disposition
+})
+const deleteAskText = computed(() => {
+  if (deleteAskPath.value === 'work') return t('library.chapter_delete.work')
+  if (deleteAskPath.value === 'soft') return t('library.chapter_delete.soft')
+  return t('library.chapter_delete.hard')
+})
 const foldToggleVisible = computed(
   () =>
     libraryChapterFilter.value === 'all' &&
@@ -923,6 +934,50 @@ onBeforeUnmount(() => {
               <!-- aura-allow-text: KẾT QUẢ của tError(). -->
               {{ tError(libraryChapterOriginError) }}
             </p>
+          </div>
+
+          <div class="wp-sect" data-library-chapter-delete-section>
+            <p
+              v-if="libraryChapterDeleteAsk !== null"
+              class="error"
+              role="status"
+              data-library-chapter-delete-question
+              :data-library-chapter-delete-path="deleteAskPath"
+            >
+              <!-- aura-allow-text: KẾT QUẢ của t(). -->
+              {{ deleteAskText }}
+            </p>
+            <div class="wp-grid2">
+              <button
+                v-if="libraryChapterDeleteAsk === null"
+                type="button"
+                class="ui-btn"
+                data-library-chapter-delete-begin
+                :disabled="writesBlocked"
+                @click="dispatch('library.chapter_delete.begin')"
+              >
+                {{ t('command.library.chapter_delete.begin') }}
+              </button>
+              <template v-else>
+                <button
+                  type="button"
+                  class="ui-btn ui-btn--danger"
+                  data-library-chapter-delete-confirm
+                  :disabled="writesBlocked"
+                  @click="dispatch('library.chapter_delete.confirm')"
+                >
+                  {{ t('command.library.chapter_delete.confirm') }}
+                </button>
+                <button
+                  type="button"
+                  class="ui-btn"
+                  data-library-chapter-delete-cancel
+                  @click="dispatch('library.chapter_delete.cancel')"
+                >
+                  {{ t('command.library.chapter_delete.cancel') }}
+                </button>
+              </template>
+            </div>
           </div>
         </div>
 

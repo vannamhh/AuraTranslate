@@ -89,7 +89,7 @@ fn read_source_text(opened: &OpenWork) -> String {
         .read(|conn| {
             conn.query_row(
                 "SELECT source_text FROM chapter WHERE id = ?1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )
         })
@@ -887,7 +887,7 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
         .read(|conn| {
             conn.query_row(
                 "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
-                [opened.chapter_id],
+                [opened.chapter_id.expect("open chapter")],
                 |r| r.get(0),
             )
         })

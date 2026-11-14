@@ -215,3 +215,27 @@ pub fn create_work_folder(root: &Path, name: &str) -> Result<PathBuf, WorkError>
 pub fn remove_folder(dir: &Path) {
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// Deletes a Work's `.atproj` folder at the user's request and reports a failure, unlike
+/// [`remove_folder`]. A folder that is already gone counts as deleted; a path that is not a
+/// `.atproj` folder is refused before anything is touched.
+///
+/// # Errors
+/// [`WorkError::DeleteFailed`] for a path without the `.atproj` suffix or an I/O failure.
+pub fn delete_work_folder(dir: &Path, name: &str) -> Result<(), WorkError> {
+    let suffix = WORK_FOLDER_SUFFIX.trim_start_matches('.');
+    if dir.extension().and_then(|ext| ext.to_str()) != Some(suffix) {
+        return Err(WorkError::DeleteFailed {
+            name: name.to_owned(),
+            detail: format!("{} is not a work folder", dir.display()),
+        });
+    }
+    match std::fs::remove_dir_all(dir) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(WorkError::DeleteFailed {
+            name: name.to_owned(),
+            detail: format!("remove {}: {err}", dir.display()),
+        }),
+    }
+}

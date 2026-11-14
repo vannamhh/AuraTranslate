@@ -32,7 +32,7 @@ fn work(sentences: usize) -> (OpenWork, Vec<i64>) {
         .join("\n\n");
     let mut open =
         create_work_from_text(&temp_dir(), "Marks", "en", "", text).expect("create work");
-    let chapter_id = open.chapter_id;
+    let chapter_id = open.chapter_id.expect("open chapter");
     open.store
         .write(|tx: &Transaction<'_>| {
             tx.execute(

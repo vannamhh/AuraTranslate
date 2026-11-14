@@ -140,7 +140,7 @@ impl Drop for Harness {
 }
 
 fn add_asset_row(open: &OpenWork, file_name: &str) {
-    let chapter_id = open.chapter_id;
+    let chapter_id = open.chapter_id.expect("open chapter");
     let file_name = file_name.to_owned();
     open.store
         .write(move |tx: &Transaction<'_>| {

@@ -33,13 +33,15 @@ import { computed, nextTick, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { dispatch, enterFocus } from '../commands'
 import {
+  deleteChapter,
   listChapters,
   mergeChapters,
   moveChapter,
+  previewChapterDelete,
   renameChapter,
   updateChapterOrigin,
 } from '../config/chapter'
-import type { ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/chapter'
+import type { ChapterDeletePreview, ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/chapter'
 import type { ChapterOriginEditFields } from '../config/project'
 import { openWork } from '../config/library'
 import type { WorkRow } from '../config/library'
@@ -116,7 +118,7 @@ import { resetConventionManage } from '../conventionManageState'
 import { resetConventionImport } from '../conventionImportState'
 import { resetReviewerImport } from '../reviewerImportState'
 import type { IpcError } from '../i18n'
-import { setOpenWork } from '../openWorkIdentity'
+import { resetOpenWorkId, setOpenWork } from '../openWorkIdentity'
 import { restorePromptSetForWork } from '../promptSetState'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -157,6 +159,11 @@ const workPageWork = ref<WorkRow | null>(null)
 export type ChapterReorgNotice = 'flush-failed' | 'still-dirty'
 const chapterReorgNotice = ref<ChapterReorgNotice | null>(null)
 const chapterReorgError = ref<IpcError | null>(null)
+
+/** The two-step question of the delete button: which path Rust will take for `chapterId`. */
+export type ChapterDeleteAsk = { chapterId: number } & ChapterDeletePreview
+const chapterDeleteAsk = ref<ChapterDeleteAsk | null>(null)
+export const libraryChapterDeleteAsk: DeepReadonly<Ref<ChapterDeleteAsk | null>> = readonly(chapterDeleteAsk)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 🔴 STORY 6.15 — XUẤT XỨ TÀI LIỆU Ở TẦNG CHƯƠNG (FR128/AD-43)
@@ -247,6 +254,7 @@ watch(
     chapterRenameDraft.value = soleSelectedLibraryChapter.value?.title ?? ''
     chapterRenameEditing.value = false
     chapterOriginApplyThroughOrd.value = null
+    chapterDeleteAsk.value = null
   },
 )
 
@@ -311,6 +319,46 @@ export function nextChapter(): void {
 /** Chuyển con trỏ lên ô trước — không vòng. No-op trên danh sách rỗng. */
 export function prevChapter(): void {
   if (chapterCursor.value > 0) chapterCursor.value -= 1
+}
+
+/**
+ * Drops every cache that carries the identity of the Work that was open: panels, reading,
+ * prompt and translation results, selections. Shared by opening another Work and by a Work
+ * that vanished with its last Chapter.
+ */
+function resetWorkScopedState(): void {
+  resetSourcePanel()
+  resetLookupPanel()
+  resetEditorPanel()
+  resetSegmentHistory()
+  resetConventionManage()
+  resetConventionImport()
+  resetReading()
+  resetReadingToc()
+  resetAiPromptInspector()
+  resetAiTranslate()
+  resetAiTranslateBatch()
+  resetProofread()
+  resetSegmentSelection()
+  resetReviewMode()
+  resetGlossaryQueue()
+  resetAlignment()
+  resetReviewerImport()
+}
+
+/** Rust no longer holds this Work (removed, or its folder deletion failed after the Store closed). */
+async function leaveVanishedWork(): Promise<void> {
+  resetWorkScopedState()
+  resetOpenWorkId()
+  chapters.value = []
+  chaptersHaveLoaded.value = false
+  chapterCursor.value = 0
+  resetLibraryChapterSelection()
+  chapterPanelOpen.value = false
+  chapterRenameEditing.value = false
+  workPageWork.value = null
+  if (currentMode.value !== 'library') setMode('library')
+  await loadWorks()
 }
 
 /**
@@ -382,38 +430,7 @@ export async function openWorkById(workId: string): Promise<boolean> {
   chapterRenameEditing.value = false
   workPageWork.value = null
 
-  // 🔴 Tác phẩm MỚI ⇒ vứt state tầng TÁC PHẨM của Tác phẩm CŨ — nguyên văn bốn lượt vứt của
-  // `libraryImport.ts::finishSubmit` (Story 1.17), không một lời gọi thứ hai rải ra.
-  resetSourcePanel()
-  resetLookupPanel()
-  resetEditorPanel()
-  resetSegmentHistory()
-  resetConventionManage()
-  resetConventionImport()
-  // 🔵 THÊM Story 5.11 — Chế độ đọc mang cùng lớp cache module-level; Tác phẩm cũ bị thay
-  // thì Chương đang đọc của nó cũng phải bị vứt, cùng lượt với bốn dòng trên.
-  resetReading()
-  resetReadingToc()
-  // 🔴 THÊM Story 4.7 loop 2, finding P4 — bản ghi prompt đã lắp mang danh tính THEO TÁC PHẨM
-  // (segment_id/chapter_id), cùng lý lẽ bốn/sáu lượt vứt trên; xem doc-comment tại chỗ `import`.
-  resetAiPromptInspector()
-  // 🔴 THÊM Story 4.8 — cùng lý lẽ dòng trên, kết quả dịch cũng mang danh tính THEO TÁC PHẨM;
-  // xem doc-comment tại chỗ `import`.
-  resetAiTranslate()
-  // 🔴 THÊM Story 4.9, Phase 3 — cùng lý lẽ dòng trên, kết quả của một LÔ cũng mang danh tính
-  // THEO TÁC PHẨM; xem doc-comment tại chỗ `import`.
-  resetAiTranslateBatch()
-  resetProofread()
-  // 🔴 THÊM Story 4.9 — vùng chọn nhiều-segment mang `anchor`/`focus` là hai `segment.id`,
-  // cùng lý lẽ hai dòng trên: `AUTOINCREMENT` của `project.db` đếm RIÊNG mỗi Tác phẩm, nên
-  // hai id cũ tồn tại THẬT ở Tác phẩm mới và trỏ vào câu khác hẳn — xem doc-comment đầu
-  // `panels/segmentSelectionState.ts` cho lý do lượt đổi CHƯƠNG trong cùng Tác phẩm KHÔNG
-  // cần dòng này (tự lành qua `indexOf`).
-  resetSegmentSelection()
-  resetReviewMode()
-  resetGlossaryQueue()
-  resetAlignment()
-  resetReviewerImport()
+  resetWorkScopedState()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.
@@ -425,14 +442,17 @@ export async function openWorkById(workId: string): Promise<boolean> {
   // — chạy trên cùng state ấy. Một `void` để lại một cửa sổ mà hai lượt nạp còn đang bay, tức
   // một cuộc đua **phụ thuộc tốc độ máy**: đúng lớp lỗi mà một bàn đo sẽ báo là "chập chờn"
   // thay vì "hỏng". Chờ xong rồi mới trả về làm lượt mở kế tiếp TẤT ĐỊNH.
-  await ensureChapterLoaded()
-  await ensureSegmentsLoaded()
-  // 🔴 TIÊU ĐIỂM phải Ở LẠI trong lưới sau lượt nạp này, cùng khuôn đuôi
-  // `await nextTick(); enterFocus('panel.grid')` của
-  // `editorPanelState.ts::switchChapter`/`openChapterById` — Vue chưa vá DOM ngay khi lượt
-  // nạp segment về, và một `enterFocus` sớm hơn là no-op.
-  await nextTick()
-  enterFocus('panel.grid')
+  // A Work with no live Chapter left opens with nothing to load.
+  if (opened.chapter_id !== null) {
+    await ensureChapterLoaded()
+    await ensureSegmentsLoaded()
+    // 🔴 TIÊU ĐIỂM phải Ở LẠI trong lưới sau lượt nạp này, cùng khuôn đuôi
+    // `await nextTick(); enterFocus('panel.grid')` của
+    // `editorPanelState.ts::switchChapter`/`openChapterById` — Vue chưa vá DOM ngay khi lượt
+    // nạp segment về, và một `enterFocus` sớm hơn là no-op.
+    await nextTick()
+    enterFocus('panel.grid')
+  }
 
   // Danh sách Chương của Tác phẩm mới — bề mặt riêng của story này. (`chapterCursor` đã về 0
   // ở khối vứt phía trên, cùng lượt với `chapters`/`chaptersHaveLoaded`.)
@@ -759,6 +779,84 @@ export async function setSelectedChaptersStatus(status: string): Promise<void> {
   chapterReorgBusy.value = false
 }
 
+export type DeleteChapterOutcome = 'deleted' | 'work_removed' | 'blocked' | 'refused'
+
+/** First press: asks Rust what deleting the sole selected Chapter would do. Writes nothing. */
+export async function beginSelectedChapterDelete(): Promise<void> {
+  const row = soleSelectedLibraryChapter.value
+  if (row === null || chapterReorgBusy.value || chapterDeleteAsk.value !== null) return
+  chapterReorgBusy.value = true
+  chapterReorgError.value = null
+  chapterReorgNotice.value = null
+
+  const { preview, error } = await previewChapterDelete(row.chapter_id)
+  chapterReorgBusy.value = false
+  if (error !== null) {
+    chapterReorgError.value = error
+    return
+  }
+  if (preview === null) return
+  chapterDeleteAsk.value = { chapterId: row.chapter_id, ...preview }
+}
+
+export function cancelSelectedChapterDelete(): void {
+  chapterDeleteAsk.value = null
+}
+
+/**
+ * Second press: deletes the Chapter the question was asked about. Flushes the Editor first. When
+ * Rust removed the whole Work, the webview drops its identity and goes back to the Works grid.
+ */
+export async function confirmSelectedChapterDelete(): Promise<DeleteChapterOutcome> {
+  const ask = chapterDeleteAsk.value
+  if (ask === null) return 'refused'
+  if (!(await beginChapterReorg())) return 'blocked'
+
+  const openId = editorChapterId.value
+  const { deleted, error } = await deleteChapter(ask.chapterId)
+  chapterDeleteAsk.value = null
+  if (error !== null) {
+    if (error.code === 'work.delete_failed') {
+      await leaveVanishedWork()
+      openWorkError.value = error
+    } else {
+      chapterReorgError.value = error
+    }
+    chapterReorgBusy.value = false
+    return 'refused'
+  }
+  if (deleted === null) {
+    chapterReorgBusy.value = false
+    return 'refused'
+  }
+
+  if (deleted.work_removed) {
+    await leaveVanishedWork()
+    chapterReorgBusy.value = false
+    return 'work_removed'
+  }
+
+  chapters.value = deleted.chapters
+  chaptersHaveLoaded.value = true
+  pruneChapterSelection(deleted.chapters)
+  clampChapterCursor()
+  if (deleted.open_chapter_id !== openId) {
+    resetEditorPanel()
+    resetSourcePanel()
+    resetReading()
+    resetReadingToc()
+    if (deleted.open_chapter_id !== null) {
+      await ensureChapterLoaded()
+      await ensureSegmentsLoaded()
+      await nextTick()
+      enterFocus('panel.grid')
+    }
+  }
+  await loadOpenWorkLifecycle()
+  chapterReorgBusy.value = false
+  return 'deleted'
+}
+
 export type MergeChaptersOutcome = 'merged' | 'blocked' | 'refused'
 
 /**
@@ -827,6 +925,7 @@ export function resetLibraryChapters(): void {
   chapterReorgBusy.value = false
   chapterReorgNotice.value = null
   chapterReorgError.value = null
+  chapterDeleteAsk.value = null
   chapterOriginBusy.value = false
   chapterOriginError.value = null
   chapterOriginApplyThroughOrd.value = null
