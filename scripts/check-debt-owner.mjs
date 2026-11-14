@@ -182,7 +182,7 @@ const BLOCK_START_RE = /^## /
 // A vague owner ("một story kế tiếp chạm …", "chưa gán") names nobody, so only an allow-listed
 // name counts (Ice chốt 2026-09-23).
 const CONCRETE_OWNER_RE =
-  /^(?:(?:Ice|Winston|Sally|John|Amelia|Murat|Mary)\b|[Ss]tory\s+\d+\.\d+|[Ee]pic\s+\d+|[A-Z]\d+\b|\d+-\d+[a-z]?-)/u
+  /^(?:(?:Ice|Winston|Sally|John|Amelia|Murat|Mary|Sofia)\b|[Ss]tory\s+\d+\.\d+|[Ee]pic\s+\d+|[A-Z]\d+\b|\d+-\d+[a-z]?-)/u
 
 /** Mọi `Chủ:` (kể cả bọc `**`) trong văn bản một mục, theo thứ tự đọc: 60 ký tự sau nhãn. */
 /** @param {string} text */
@@ -439,6 +439,7 @@ const SELFTEST_CASES = [
   ['`Chủ: Epic 7` — chủ THẬT', '- Việc P. **(Chủ: Epic 7.)**', false],
   ['`Chủ: B7` — mục sprint-status, chủ THẬT', '- Việc O. **(Chủ: B7 — bảng nghiệm thu Windows.)**', false],
   ['`Chủ: Winston` trong ngoặc — chủ THẬT', '- Việc N. **(Chủ: Winston.)**', false],
+  ['`Chủ: Sofia` — persona Product Owner, chủ THẬT', '- Việc L. Chủ: Sofia. Trỏ: `plan-x.md`.', false],
   ['chủ mơ hồ cũ + chủ THẬT nối sau ⇒ có chủ', '- Việc M. **(Chủ: một story kế tiếp.)**\n  → 2026-09-23 (rà sổ nợ) — vẫn đúng. **Chủ: Story 7.3.**', false],
 ]
 
