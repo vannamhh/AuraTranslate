@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-11-04'
+updated: '2026-11-14'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -348,6 +348,8 @@ graph TD
 - **Prevents:** nguồn thô 1,13 GB hoặc `.db` lọt vào git; đồng thời giữ FR107 (build công khai, kiểm chứng được).
 - **Rule:** build tool chạy tay sinh các file `.db` và đẩy lên một GitHub Release riêng có phiên bản. Repo chứa **mã build tool** + `dict-manifest.toml` ghi URL, SHA-256 và phiên bản nguồn thô của từng file. CI tải theo manifest, đối chiếu checksum, rồi đóng gói. **Parser định dạng từ điển chỉ nằm trong build tool, không vào bản phát hành** — nên giấy phép parser không ràng buộc sản phẩm.
 
+- 🔵 2026-11-14: lược đồ lên v4 (`dict_entry.reading_key`, `dict_source.gloss_lang`), release `dict-v4`; `MINIMUM_SCHEMA_VERSION` giữ 3 nên tệp v3 vẫn nạp (AD-69 mục 2).
+
   → chi tiết & bằng chứng: `spine-evidence.md#AD-25`
 
 ### AD-26 — Ba nhánh truy vấn tiếng Trung `[ADOPTED]`
@@ -366,6 +368,7 @@ graph TD
 - **Prevents:** `unicode61` mặc định gộp `má / ma / mà / mả / mã / mạ` thành một kết quả — lỗi phá vỡ độ chính xác của toàn bộ tìm kiếm trong một công cụ dịch tiếng Việt.
 - **Rule:** chỉ mục FTS **chính** dùng `remove_diacritics 0`. Chỉ mục xoá dấu chỉ tồn tại như chỉ mục **phụ** cho chế độ khoan dung (FR9), **không bao giờ là mặc định**. Hệ thống thử chế độ chính xác trước, chỉ nới lỏng khi không có kết quả hoặc người dùng yêu cầu. Chi phí đã biết: ~17 MB mỗi chỉ mục.
 - 🔵 2026-10-28: ở tìm kiếm Library, "người dùng yêu cầu" nay là gõ một truy vấn không mang dấu nào, không còn nút chọn (AD-61). Quy tắc chỉ mục chính và phần C3 không đổi.
+- 🔵 2026-11-14: Việt→Trung của tra nhanh dùng cùng phép phân loại dấu của AD-61 để chọn `sense_fts` hay `sense_fts_nd`; gõ có dấu thì không tự nới (AD-69 mục 5).
 
 ### AD-28 — Tác phẩm mang UUID; Chương và Segment mang id cục bộ
 
@@ -657,6 +660,8 @@ graph TD
   | Hợp nhất kết quả `zh` với `en` | **Cấm** — cùng luật AD-19, không có bước hợp nhất nào ở bất kỳ đâu |
 
   **⑥ NFR1 đo TRÊN đường tiếng Anh, không suy ra từ số đo tiếng Trung.** Hai đường đi qua chỉ mục khác nhau trên phân bố dữ liệu khác nhau; một con số mượn là một con số không ai đo.
+
+- 🔵 2026-11-14: ở lối vào tra nhanh của bảng Mod+K, đường `En` chạy thêm hai nhóm kết quả (pinyin, Việt→Trung) cạnh nhóm Anh→Việt. Vị từ ① vẫn nhị phân, vẫn chạy đúng một lần ở tầng gom, và không nhóm nào được gộp với nhóm khác (AD-69 mục 1).
 
   → chi tiết & bằng chứng: `spine-evidence.md#AD-44`
 
@@ -1875,6 +1880,113 @@ graph TD
   - SQLite: `libsqlite3-sys` 0.38.1 đóng gói SQLite 3.53.2 (`sqlite3.h` trong registry). Hình `ALTER TABLE … ADD COLUMN kind … NOT NULL DEFAULT 'translate' CHECK (…)`, rồi đổi chỉ mục duy nhất sang `(kind, name)`, đã chạy thử trên bảng có hàng bằng SQLite 3.43.2 của máy.
   - Duyệt: `reviews/review-ad-68-{rubric,reality,adversary}-2026-11-04.md`.
 
+### AD-69 — Tra nhanh trong bảng Mod+K: một lệnh Rust trả các nhóm theo hình dạng câu tra; pinyin dò qua khoá `reading_key` ở schema v4, Việt→Trung dò FTS nghĩa lọc cả `lang` lẫn `gloss_lang`; xem trước không ghi lịch sử
+
+- **Binds:** C3, C10. Các chỗ trong mã:
+  - `tools/dict-build/src/schema.rs` (`SCHEMA_VERSION`, `DICT_ENTRY_DDL`, `DICT_SOURCE_DDL`, `ENTRY_INDEXES_DDL`), `sources_meta.rs` (`gloss_lang` mỗi nguồn), một hàm `pinyin_key` mới ở dict-build, `tests/fixtures/pinyin_key.tsv`.
+  - `dict-manifest.toml`: bốn sha256 mới, lịch sử dựng.
+  - `src-tauri/src/core/dict/layer.rs` (`SUPPORTED_SCHEMA_VERSION`; `MINIMUM_SCHEMA_VERSION` giữ nguyên), `core/dict/pinyin.rs` (`pinyin_key` bản thứ hai), `core/dict/query.rs` (SQL), `core/dict/mod.rs` (`quick_lookup`).
+  - `commands/dict.rs` và đăng ký ở `lib.rs`: một lệnh `quick_lookup` theo khuôn hai lớp của `src-tauri/AGENTS.md`.
+  - Frontend: `src/config/dict.ts` (`quickLookup`), `src/paletteLookupState.ts`, `src/paletteState.ts`, `src/PaletteOverlay.vue`, lệnh `palette.lookup_mode` trong `src/commands/index.ts`.
+- **Prevents:**
+  1. **Webview phân loại câu tra.** Tách âm tiết, đoán pinyin hay tiếng Việt, gấp dấu ở TypeScript thì Rust và Vue phân loại cùng một câu theo hai cách (cùng lớp lỗi AD-61 Prevents 3) và luật miền rơi khỏi AD-1.
+  2. **Dò pinyin bằng quét hay `LIKE`.** Quét cột `reading` mất 0,37 s trên 247.354 mục mang pinyin của cvdict và cc-cedict (đo 2026-11-14), gấp ba ngân sách NFR1. `LIKE` cấm trên đường nóng (AD-26).
+  3. **Hai bản `pinyin_key` lệch nhau.** dict-build ghi cột, `src-tauri` tính khoá của câu tra, hai workspace không chung crate. Lệch một ký tự thì `nihao` dò vào một cột chưa bao giờ chứa khoá đó và trả rỗng, không lỗi. Đây là `is_han` của AD-44 ① ở một chỗ khác.
+  4. **Coi cột `reading` là pinyin sạch.** Đo trên `dict-core.db` v3: 247.303 hàng mang số thanh ASCII (`ni3 hao3`), 2.404 hàng mang `u:`, 14.219 hàng có ngoặc đơn lặp lại âm bằng số thanh (`nǚ (nü³)`), 14.946 hàng mang số thanh chữ mũ (`hua¹ ban⁴ banr⁴⁻¹`), 3.284 hàng có dấu lược, 59.284 hàng có chữ hoa. Nối chuỗi tay thì `nǚ (nü³)` thành `nvnv`, và hàng đó không bao giờ tra ra.
+  5. **Việt→Trung lẫn tiếng Anh.** `sense_fts` phủ nghĩa của mọi nguồn. Lọc chỉ bằng `gloss_lang = 'vi'` lấy cả `viwiktionary-en` (190.543 nghĩa tiếng Việt gắn vào đầu mục tiếng Anh `lang = 'en'`); lọc chỉ bằng `lang = 'zh'` lấy cả cc-cedict và en-wiktionary (nghĩa tiếng Anh). Mỗi vế chỉ chặn một trong hai, và cả hai cho kết quả trông hợp lý.
+  6. **Tệp v3 gãy giữa đường.** `MINIMUM_SCHEMA_VERSION` giữ 3 nên tệp v3 vẫn được nạp, và `reading_key` không có trong đó. Câu SQL chạm cột mới ném `no such column`, đúng bẫy `layer.rs` đã ghi cho tệp v2.
+  7. **Rỗng im lặng ở bảng.** Nhóm 0 mục vì không khớp, nhóm không chạy được vì tệp cũ, vì lỗi hay vì chưa trả lời đều trông giống nhau nếu cùng bị ẩn. Người dùng thấy "không có nghĩa" cho một từ mà bộ từ điển có.
+  8. **Xem trước ghi lịch sử.** Mỗi lần mũi tên đổi dòng thêm một mục vào lịch sử (FR41), và lịch sử đầy các từ người dùng chưa từng chọn.
+  9. **Phản hồi cũ thay phản hồi mới; IME gửi nửa chữ.** Gõ nhanh hai phím cho hai phản hồi về sai thứ tự. Một composition đang mở gửi truy vấn cho âm tiết chưa gõ xong.
+  10. **Gộp nhóm thành một danh sách.** Cùng một đầu mục xuất hiện ở nhóm pinyin và nhóm Việt→Trung, và một nghĩa tiếng Anh trộn vào nghĩa tiếng Việt thì mất nguồn (AD-19).
+- **Rule:**
+
+  1. **Một lệnh Rust, một chỗ phân loại; vị từ AD-44 vẫn nhị phân.**
+     - `quick_lookup(query)` nằm ở `core/dict/`. Webview gửi chuỗi đã cắt khoảng trắng, không phân loại, không gấp dấu, không tách âm tiết.
+     - `pick_route` chạy đúng một lần, ở tầng gom (AD-44 ①). Route `Zh` trả đúng một nhóm Trung→Việt, cùng đường tra và cùng kết quả với panel Lookup. Route `En` trả ba nhóm, cố định thứ tự: pinyin, Việt→Trung, Anh→Việt.
+     - Ba nhóm là phần mở rộng của đường `En` ở lối vào này, không phải nhánh thứ ba của vị từ. Nhóm Anh→Việt là đường `En` có sẵn (AD-44 ②③), không đổi.
+     - Mỗi nhóm có một định danh trên dây (`pinyin`, `vi_zh`, `en_vi`, `zh_vi`) theo khuôn `QueryRoute`: `serde(rename)` từng biến thể, không `rename_all`.
+     - Không bước nào gộp hàng giữa các nhóm (AD-19, AD-44 ⑤). Một đầu mục có thể có mặt ở hai nhóm.
+  2. **Schema v4 thêm đúng hai cột.**
+     - `dict_entry.reading_key TEXT`, `NULL` khi `reading` là `NULL`; chỉ mục `idx_entry_reading_key`. Khoá tính cho mọi hàng có `reading`, bất kể `lang`; câu tra lọc `lang = 'zh'` trong SQL.
+     - `dict_source.gloss_lang TEXT`, một trong `'vi'`, `'en'`, hoặc `NULL` khi nguồn không có nghĩa (`en-wiktionary-vi`). Giá trị khai trong `SourceMeta` của từng nguồn, không đo lúc dựng: ngôn ngữ của nghĩa là thuộc tính của cách nguồn được viết, không suy ra bằng một truy vấn rẻ như `lang`. Đo mẫu 2026-11-14 trên bốn tệp v3 (bốn nghĩa ngẫu nhiên mỗi nguồn): `vi` cho cvdict, viwiktionary, viwiktionary-en, thieu-chuu, vietphrase, tran-van-chanh; `en` cho cc-cedict, en-wiktionary, unihan.
+     - `SCHEMA_VERSION` và `SUPPORTED_SCHEMA_VERSION` lên 4. 🔴 `MINIMUM_SCHEMA_VERSION` **giữ 3**, đây là ngoại lệ có chủ ý của quy tắc "nâng cả hai" ghi ở `layer.rs`: tệp v3 vẫn nạp, vẫn tra Trung→Việt và Anh→Việt, vẫn hiện bảng ghi công.
+     - Câu SQL nào chạm `reading_key` hay `gloss_lang` chỉ chạy sau khi phiên bản của chính tệp đó được đọc và so với 4. Tệp v3 cho nhóm cần cột mới một giá trị `OutdatedDictionary` có tên, không bao giờ một lỗi SQL và không bao giờ một nhóm rỗng.
+     - Lược đồ vẫn không di trú (AD-25): đổi lược đồ là dựng lại cả bốn `.db` bằng `--layer all`, bốn sha256 mới trong `dict-manifest.toml`, một release `dict-v4`. Agent dựng tệp, cập nhật manifest và đo; tải lên GitHub Release là việc của Ice. `.db` không vào git.
+  3. **`pinyin_key` là một hàm thuần có hai bản và một bảng đối chiếu chung.**
+     - Bản ở dict-build ghi cột; bản ở `src-tauri/src/core/dict/pinyin.rs` tính khoá của câu tra. Cả hai test đọc cùng `tools/dict-build/tests/fixtures/pinyin_key.tsv` bằng văn bản, không import chéo crate, theo khuôn `han_ranges_are_verbatim_from_dict_build_char_idx`.
+     - Quy tắc, theo thứ tự:
+       1. Cắt từ dấu `(` đầu tiên tới hết chuỗi: phần trong ngoặc lặp lại âm bằng số thanh.
+       2. Hạ chữ thường, không phụ thuộc locale (AD-44 ③).
+       3. Đổi nguyên âm mang dấu thanh về chữ gốc bằng **một bảng đóng** các chữ pinyin có dấu (bốn thanh của `a e i o u ü`, cộng `ḿ ń ň ǹ ê`). `ü`, `ǖ ǘ ǚ ǜ` và `u:` thành `v`. Không thêm crate chuẩn hoá Unicode vào dict-build (NFR15).
+       4. Bỏ chữ số thanh `0-5`, các chữ số mũ `⁰¹²³⁴⁵`, khoảng trắng và dấu câu (dấu lược, gạch nối, dấu phẩy, `·`, `^`, `→`, `⁻`).
+       5. Còn lại phải chỉ gồm `a-z`. Một ký tự ngoài bảng (ví dụ `ă`, `ơ`, chữ Hán) thì cả khoá là `NULL`: đó không phải một câu pinyin, nhóm pinyin không chạy.
+     - Số thanh trong câu tra bị bỏ qua khi dò. Cột pinyin của dòng kết quả vẫn hiện dấu thanh, nên người dùng phân biệt bằng mắt.
+     - 🔴 Một hàng có `reading` không rỗng mà `reading_key` `NULL` là một hàng không bao giờ tra ra bằng pinyin, và là rỗng im lặng. dict-build đếm các hàng đó; số đếm phải là 0, hoặc từng hàng ngoại lệ được kê tên trong test.
+     - ⚠️ Cắt ở `(` làm rơi phần chữ sau `)` ở hai hàng đo được (`靠背兒椅子`, `筷兒筒`) và để khoá của 47 hàng ngoặc không đóng. Test kê tên chúng.
+       🔵 2026-11-14: trên bản v4 dựng mới, đếm `(` và `)` theo từng hàng ra 0 hàng ngoặc không đóng; con số 47 không tái hiện được. 70 hàng của `dict-core.db` không ra khoá vì âm phương ngữ (`ȵ`, `ɡ`…) và dấu kết hợp NFD, khai trong `reading_key_real_data.rs`.
+  4. **Nhóm pinyin: hai lượt có `LIMIT`, không `LIKE`.**
+     - Lượt một: `reading_key = ?`. Lượt hai: khoảng B-tree `reading_key >= ?1 AND reading_key < ?1 || '{'` (khoá chỉ gồm `a-z`, `{` đứng ngay sau `z`), loại các hàng lượt một đã có. Khớp hẳn đứng trước, khớp tiền tố đứng sau.
+     - Một dòng là một đầu mục (`headword`) mang số nguồn có nó, không phải một nghĩa. Trong cùng hạng: đầu mục ngắn trước, rồi theo thứ tự điểm mã, để thứ tự không đổi giữa hai lần chạy.
+  5. **Nhóm Việt→Trung: lọc cả hai vế, chọn chỉ mục theo dấu, xếp ba hạng.**
+     - Điều kiện trong SQL, không sổ đăng ký (AD-44 ①): `dict_entry.lang = 'zh'` **và** `dict_source.gloss_lang = 'vi'`. Bỏ một vế thì rơi vào Prevents 5.
+     - Câu tra có dấu, hoặc không có chữ ASCII nào, dò `sense_fts`, phân biệt dấu (AD-27). Câu không mang dấu nào dò `sense_fts_nd` một lượt. Việc phân loại dùng **chính** `classify_query` và `fold_diacritics_case_preserving` của AD-61 mục 1, không bản chép; story thi hành dời chúng xuống một mô-đun trung lập mà `library` và `dict` cùng dùng, không để `dict` import `library`.
+     - Gõ có dấu thì không tự nới sang `_nd`: ở đây dấu là chủ ý, khác ô tìm Library (AD-61 mục 2).
+     - Hạng: ① toàn bộ nghĩa bằng câu tra (cắt khoảng trắng, hạ chữ, gấp dấu theo cùng chế độ) → ② nghĩa bắt đầu bằng câu tra, theo ranh giới từ → ③ còn lại. Hạng ①② lấy bằng truy vấn neo đầu `gloss : ^"câu tra"` (đã chạy thử trên SQLite 3.43.2 của máy), lấy đủ tập rồi phân hạng ở Rust; hạng ③ là khớp thường với `LIMIT` còn lại.
+     - Nguồn không bao giờ gộp: dòng mang nguồn của nghĩa đầu khớp (AD-19). Gỡ một lớp rời (FR36, FR112) thì nhóm chỉ mất hàng của lớp đó.
+  6. **Mỗi nhóm `LIMIT 20` và biết mình bị cắt.**
+     - Mỗi nhóm lấy 21 hàng, trả 20 và cờ `has_more`. Giao diện nói "còn nữa"; một nhóm bị cắt không bao giờ trông như một nhóm đủ.
+  7. **Bốn trạng thái có tên, theo nhóm.** Mỗi nhóm trả một trong: có hàng, rỗng thật, `OutdatedDictionary`, lỗi (`IpcError`, hiện qua `tError()`). Webview ẩn nhóm chỉ ở trạng thái rỗng thật. Cả ba nhóm cùng rỗng thật thì hiện một trạng thái "không có kết quả" có tên. Trạng thái đang tải có tên riêng ở webview.
+  8. **Bảng Mod+K.**
+     - Vào chế độ tra bằng `/` gõ ở ô trống; `/` không thuộc câu tra. Thoát bằng Backspace khi ô trống. Lệnh `palette.lookup_mode` (`palette: true`) có một nút trong khung (AD-62), nên dùng được bằng chuột.
+     - Composition đang mở thì không gửi truy vấn. Mỗi truy vấn mang một số thứ tự tăng dần; chỉ phản hồi của số lớn nhất được nhận.
+     - Dòng đang chọn được xem trước bằng `lookupDictionary(headword)` (đường không ghi lịch sử, cùng chỗ với `LookupCharPopup`), vẽ bằng `LookupRecord`. `LookupCharPopup.vue` không được mount ở bảng.
+     - 🔴 `recordLookup` chỉ được gọi từ `runLookup`, tức từ Enter. Enter đóng bảng, chờ `nextTick`, rồi gọi `runLookup(headword)`, cùng thứ tự với lệnh khác của bảng. Mở panel Lookup bằng đường khác không thêm mục lịch sử.
+  9. **NFR1 đo trên chính `quick_lookup`.** p95 < 100 ms trên `dict-core.db` v4 thật, 200 câu tra trộn bốn hình dạng (chữ Hán, pinyin, Việt có dấu, Latin không dấu), ghi kèm bản build và tải máy. Không suy từ số đo đường tra có sẵn (AD-44 ⑥). Đỏ thì quay lại AD này, không nới ngưỡng.
+     - Kích thước cũng đo, không đoán: thêm một cột và một chỉ mục cho 438.001 hàng có `reading` của `dict-core.db`. Story thi hành ghi kích thước bốn tệp v4 và của bản cài so với NFR6 (trần 500.000.000 byte; macOS 432.363.050 byte đo 2026-10-21). ⚠️ Chưa có số đo; không ước lượng nào ở đây là bằng chứng.
+  10. **Không đổi:** `MINIMUM_SCHEMA_VERSION`; ba nhánh AD-26 cho chữ Hán; hai nhánh AD-44 ② cho tiếng Anh; hai chỉ mục FTS và phép gấp dấu; port `DictionarySource` (không thêm port, AD-2); cổng `DictionarySource` vẫn một adapter mỗi tệp `.db`.
+  11. **Test canh.** Mỗi ca đỏ có đối chứng bằng phép GỠ thật, ghi trong ngoặc:
+      - (a) `pinyin_key` theo bảng đối chiếu, ở cả hai crate: `ni3 hao3`, `nǐ hǎo`, `nǐhǎo`, `NI3HAO3` cùng ra `nihao`; `nǚ (nü³)`, `nu:3` và `nǚ` cùng ra `nv`; `yuè'ěr` ra `yueer`; `hua¹ ban⁴ banr⁴⁻¹` ra `huabanbanr`. (Gỡ nhánh `ü → v` ở một crate: crate đó đỏ đúng các dòng `nv`.)
+      - (b) Đếm trên bốn tệp v4 dựng thật: số hàng có `reading` mà `reading_key` `NULL` bằng số hàng ngoại lệ đã kê; mọi nguồn có `dict_sense` đều có `gloss_lang` khác `NULL`; nghĩa của `你好` ở cvdict là tiếng Việt và ở cc-cedict là tiếng Anh. (Bỏ khai `gloss_lang` của một nguồn.)
+      - (c) Hình dạng nhóm: câu có chữ Hán ra đúng một nhóm `zh_vi`; câu Latin ra ba nhóm theo thứ tự cố định; `pick_route` được gọi một lần cho mỗi lượt. (Cho `quick_lookup` luôn chạy cả ba nhóm.)
+      - (d) Hàng của Matrix trong plan: `nihao`, `ni hao`, `ni3hao3`, `nǐhǎo` cùng một tập; `你好` đứng đầu; khớp hẳn trước khớp tiền tố; `an` ra ba nhóm, nhóm 0 mục bị ẩn, cả ba rỗng ra trạng thái "không có kết quả".
+      - (e) Hai vế của Prevents 5, mỗi vế một ca, fixture có **cả** một đầu mục `lang = 'en'` mang nghĩa tiếng Việt khớp **và** một đầu mục `lang = 'zh'` mang nghĩa tiếng Anh khớp: cả hai không có mặt. (Gỡ vế `lang = 'zh'`: ca thứ nhất đỏ. Gỡ vế `gloss_lang`: ca thứ hai đỏ.) ⚠️ Thiếu một trong hai hàng thì ca xanh ở cả hai nhánh và không canh gì.
+      - (f) Dấu: fixture có nghĩa `ăn` và nghĩa `an`. Truy vấn `ăn` ra riêng `ăn`; truy vấn `an` ra cả hai, nghĩa trùng khít `an` đứng trước. (Cho `ăn` đi qua `sense_fts_nd`.)
+      - (g) Tệp v3: pinyin và Việt→Trung ra `OutdatedDictionary`, Anh→Việt vẫn ra hàng, không lỗi SQL nào. (Bỏ phép so phiên bản: ca đỏ bằng `no such column`.)
+      - (h) Cờ `has_more`: 21 hàng khớp ra 20 hàng và `has_more = true`; đúng 20 hàng ra `false`. (Đổi lấy 20 thay vì 21.)
+      - (i) Xem trước không ghi: đổi dòng chọn n lần không gọi `recordLookup`; Enter gọi đúng một lần với đúng đầu mục. (Đổi đường xem trước sang đường có ghi.)
+      - (j) Phản hồi cũ và IME: hai truy vấn, phản hồi thứ nhất về sau thì không hiện; composition mở thì không có lời gọi IPC. (Bỏ phép so số thứ tự; bỏ cờ composition.)
+      - (k) Gỡ `dict-vietphrase.db`: các nhóm còn lại vẫn có hàng (FR36). (Cho nhóm đọc cứng tên tệp đó.)
+      - (l) Số đo NFR1 ở mục 9.
+  12. **Đổi gì.**
+      - AD-44 ①, AD-25, AD-27 và dòng `Tra cứu` của bảng Consistency nhận mỗi chỗ một dòng ghi chú cập nhật trỏ về đây. Map C3 và C10 thêm AD-69.
+      - PRD: §3.2 nhận tra ngược Việt→Trung trên dữ liệu Trung→Việt, và một FR mới (FR161). Hai việc này thuộc lượt correct-course của John.
+      - Giao diện của khung (dòng, nhóm, khung xem trước, nút "Tra từ") thuộc Sally; story thuộc Sofia.
+  13. **Giới hạn chấp nhận.**
+      - Gõ `nu` không ra `nǚ` (khoá `nv`): người gõ `ü` phải gõ `v` hoặc `u:`. Người gõ `nu` vẫn thấy `奴`, nên không rỗng, nhưng không thấy `女`.
+      - Câu có dấu tiếng Việt mà mọi chữ đều nằm trong bảng dấu pinyin (ví dụ `chào`) vẫn chạy nhóm pinyin, vì `à` là một dấu thanh hợp lệ. Nhóm có thể ra hàng không liên quan; người dùng thấy nhãn nhóm và bỏ qua.
+      - Bộ từ điển v3 trên máy người dùng mất hai nhóm tới khi họ cập nhật; không có đường nâng tự động ngoài release (AD-25).
+
+- **Phương án bị loại:**
+  - **Quét hoặc `LIKE` trên `reading`:** Prevents 2. Đo 0,37 s.
+  - **Dựng bảng khoá pinyin trong RAM lúc khởi động (Ice chọn cột và chỉ mục, 2026-11-14):** thêm nguồn sự thật thứ hai cho một dữ kiện đã nằm trong dữ liệu, cùng lý do AD-44 ① loại sổ đăng ký tệp; và mỗi lần mở app trả giá dựng lại.
+  - **Nâng `MINIMUM_SCHEMA_VERSION` lên 4:** tệp v3 bị từ chối cả lớp, mất cả Trung→Việt lẫn Anh→Việt chỉ vì thiếu một cột phụ. Ice chọn giữ 3 (plan, 2026-11-14).
+  - **Lọc Việt→Trung chỉ bằng `gloss_lang`, hoặc chỉ bằng `lang`:** Prevents 5.
+  - **Suy `gloss_lang` lúc dựng bằng cách nhận dạng chữ:** một bộ nhận dạng là một phụ thuộc và một nguồn sai số; khai trên `SourceMeta` rồi canh bằng mẫu dữ liệu (ca (b)) rẻ và kiểm được.
+  - **Một danh sách phẳng, không nhóm (Ice chọn nhóm, 2026-11-14):** Prevents 10.
+  - **Webview gửi riêng ba lời gọi, mỗi nhóm một lệnh:** webview phải biết nhóm nào chạy cho câu nào, tức phân loại ở TypeScript (Prevents 1).
+  - **Tách âm tiết để dò pinyin:** range B-tree trên khoá nối liền dưới 1 ms, nhóm 0 mục thì ẩn; tách âm tiết thêm một bảng âm tiết phải giữ đồng bộ với dữ liệu mà không mua thêm kết quả nào.
+  - **Xem trước bằng `LookupCharPopup`:** popup đó là bề mặt của Chế độ đọc và của "Tra riêng", có state riêng; mount nó trong bảng kéo theo hai đích ghim và hai đường đóng.
+
+  → bằng chứng:
+  - Đo 2026-11-14 trên `tools/dict-build/out/dict-core.db` (dict-v3, sqlite3 3.43.2, cache nóng, tải máy 4,2–6,5):
+    - 247.354 mục mang pinyin trong cvdict (122.596) và cc-cedict (124.758); 90.160 khoá bỏ thanh khác nhau; quét mất 0,37 s.
+    - Chuỗi `reading` bất thường: 14.219 hàng có `(`; 14.946 hàng có số thanh chữ mũ, 732 trong số đó không có ngoặc; 2.404 hàng `u:`; hai hàng có chữ sau `)`; 47 hàng `(` không đóng.
+    - `sense_fts` cho `"ăn"` ra 3.142 hàng, `^"ăn"` ra 474; sau khi lọc `lang = 'zh'` và hai nguồn `vi` của lớp nền là 1.267 và 194, trong 0,02 s. `"người"` ra 17.629 hàng, 6.865 sau lọc, 0,03 s; `^"người"` ra 10.016 hàng, 2.655 sau lọc. `^"xin chào"` ra 6 hàng.
+    - ⚠️ Các số này mới chỉ gồm `dict-core.db`; `dict-vietphrase.db` (679.302 nghĩa tiếng Việt) chưa đo. Ca (l) đo lại trên cả bốn tệp.
+  - Mã đọc: `tools/dict-build/src/schema.rs:34` (`SCHEMA_VERSION = 3`), `:94` (`DICT_ENTRY_DDL`), `:171-189` (FTS); `src-tauri/src/core/dict/layer.rs` (`SUPPORTED_SCHEMA_VERSION`, `MINIMUM_SCHEMA_VERSION`, cảnh báo tệp v2); `core/dict/mod.rs` (`pick_route`, `pick_branch`, `priority_order`); `core/library/indexer.rs` (`classify_query`, `fold_diacritics_case_preserving`); `sense_fts` hiện chỉ được dict-build ghi, chưa có dòng nào của `src-tauri/src` đọc nó.
+  - Quyết định của Ice 2026-11-14: ghi ở `plan-tra-tu-nhanh-trong-bang-mod-k.md` §Intent.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1897,7 +2009,7 @@ graph TD
 | **Hình dạng lỗi** | `{ code, message_key, params, retryable }` qua mọi ranh giới IPC. Không văn bản hiển thị trong Rust (AD-21) |
 | **Chuỗi giao diện** | Toàn bộ nằm trong file tài nguyên từ dòng code đầu tiên (NFR16). Không chuỗi tiếng Việt trong `.rs` hay `.vue` |
 | **Ghi dữ liệu** | Mọi ghi qua `store::Writer` của kho tương ứng (AD-11). `.atproj` ghi trước, `library-index.db` ghi sau (AD-8) |
-| **Tra cứu** | Kết quả luôn mang `source`; không hợp nhất giữa nguồn (AD-19). Đường zh hay en chọn theo **hình dạng chuỗi truy vấn**, không theo ngôn ngữ Tác phẩm; mọi nhánh lọc `dict_entry.lang` tường minh (AD-44) |
+| **Tra cứu** | Kết quả luôn mang `source`; không hợp nhất giữa nguồn (AD-19). Đường zh hay en chọn theo **hình dạng chuỗi truy vấn**, không theo ngôn ngữ Tác phẩm; mọi nhánh lọc `dict_entry.lang` tường minh (AD-44) 🔵 2026-11-14: tra nhanh trả các nhóm tách rời theo hình dạng câu tra; Việt→Trung lọc cả `lang = 'zh'` lẫn `gloss_lang = 'vi'` (AD-69) |
 | **Phân giải hai tầng** | Luôn qua `ScopeResolver`; ngữ nghĩa ghi đè hay hợp nhất tra ở AD-18 |
 | **Gọi AI** | Luôn qua prompt đã lắp bởi `RagInjector` (AD-14); luôn huỷ được; không bao giờ tự thử lại. Dịch lô chia thành các lượt tối đa 100 câu; chữ chỉ được nhận khi khối của nó đóng đúng, và thử lại chỉ gửi câu thiếu (AD-60). 🔵 2026-11-03: mọi lượt, kể cả dịch một câu, mang 3 câu đứng ngay trước dưới dạng khối ngữ cảnh (AD-65) |
 | **Nội dung ngoài** | Luôn phân tích thành mô hình dữ liệu trước khi render (AD-16) |
@@ -2188,14 +2300,14 @@ AuraTranslate/
 |---|---|---|
 | **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43, AD-58, AD-61 |
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55, AD-58 |
-| **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
+| **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44, AD-69 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/`, `core/convention/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63, AD-66, AD-67 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57, AD-63 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63, AD-64, AD-65, AD-66, AD-68 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56, AD-68 |
 | **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51, AD-52, AD-63 |
 | **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43, AD-54, AD-55, AD-56, AD-57, AD-68 |
-| **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41 |
+| **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41, AD-69 |
 
 ## Deferred
 

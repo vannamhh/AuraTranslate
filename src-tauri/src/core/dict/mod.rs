@@ -86,7 +86,9 @@
 
 mod han_viet;
 mod layer;
+pub mod pinyin;
 mod query;
+mod quick;
 mod senses;
 
 pub use query::{char_idx_one_sql, char_idx_two_sql, exact_sql};
@@ -101,6 +103,8 @@ pub use layer::{
     DictLayer, DictLayers, MINIMUM_SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSION, SkipReason,
     SkippedLayer,
 };
+pub use quick::{QUICK_GROUP_ROWS, QuickGroup, QuickGroupId, QuickRow, QuickStatus};
+pub use quick::{pinyin_group, vietnamese_to_chinese_group};
 pub use senses::SENSE_BATCH;
 
 /// Đường tra cứu — **đã quyết ở tầng trên**, adapter không tự quyết lại (AD-44 ①).

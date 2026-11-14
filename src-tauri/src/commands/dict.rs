@@ -21,8 +21,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::core::dict::{
-    DictLayers, GroupedLookup, HanVietLookup, LookupMode, SenseRecord, SourceAttributions,
-    list_source_attributions, lookup_grouped, lookup_han_viet, read_license_text,
+    DictLayers, GroupedLookup, HanVietLookup, LookupMode, QUICK_GROUP_ROWS, QueryRoute, QuickGroup,
+    QuickGroupId, QuickRow, SenseRecord, SourceAttributions, list_source_attributions,
+    lookup_grouped, lookup_han_viet, pinyin_group, read_license_text, vietnamese_to_chinese_group,
 };
 use crate::core::store::Store;
 use crate::ports::DictionarySource;
@@ -357,9 +358,111 @@ fn with_senses(
     (grouped, senses_by_layer, senses_failed)
 }
 
+/// The palette's quick lookup (AD-69). The route comes from the single `lookup_grouped` call
+/// inside [`lookup`]; a Han query answers one `zh_vi` group, anything else answers `pinyin`,
+/// `vi_zh` and `en_vi` in that order.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct QuickLookupResponse {
+    pub route: QueryRoute,
+    pub query_truncated: bool,
+    pub layers_loaded: bool,
+    pub skipped: Vec<&'static str>,
+    pub groups: Vec<QuickGroup>,
+}
+
+pub fn quick_lookup(
+    layers: Option<&DictLayers>,
+    query: &str,
+    disabled: &BTreeSet<String>,
+    order: &[String],
+) -> QuickLookupResponse {
+    let empty = DictLayers::empty();
+    let layers = layers.unwrap_or(&empty);
+    let query = query.trim();
+
+    let panel = lookup(Some(layers), query, disabled, order);
+    let route = panel.grouped.route;
+    let (rows, has_more) = rows_from_lookup(layers, &panel);
+
+    let groups = match route {
+        QueryRoute::Zh => vec![QuickGroup::from_rows(
+            QuickGroupId::ChineseToVietnamese,
+            rows,
+            has_more,
+        )],
+        QueryRoute::En => {
+            let capped: String = query.chars().take(QUERY_LENGTH_CEILING).collect();
+            vec![
+                pinyin_group(layers, &capped, disabled),
+                vietnamese_to_chinese_group(layers, &capped, disabled),
+                QuickGroup::from_rows(QuickGroupId::EnglishToVietnamese, rows, has_more),
+            ]
+        }
+    };
+
+    QuickLookupResponse {
+        route,
+        query_truncated: panel.query_truncated,
+        layers_loaded: panel.grouped.layers_loaded,
+        skipped: panel
+            .grouped
+            .skipped
+            .iter()
+            .map(|layer| layer.reason.wire_code())
+            .collect(),
+        groups,
+    }
+}
+
+fn rows_from_lookup(layers: &DictLayers, panel: &LookupResponse) -> (Vec<QuickRow>, bool) {
+    let mut rows: Vec<QuickRow> = Vec::new();
+    let mut sources: Vec<BTreeSet<String>> = Vec::new();
+    let is_vietnamese = |group: &crate::core::dict::SourceGroup| {
+        layers
+            .layer(&group.layer)
+            .and_then(|layer| layer.gloss_lang(&group.source.code))
+            == Some("vi")
+    };
+    let mut ordered: Vec<&crate::core::dict::SourceGroup> = panel.grouped.groups.iter().collect();
+    ordered.sort_by_key(|group| !is_vietnamese(group));
+    for group in ordered {
+        let senses = panel.senses_by_layer.get(&group.layer);
+        for hit in &group.entries {
+            if let Some(at) = rows.iter().position(|row| row.headword == hit.headword) {
+                sources[at].insert(group.source.code.clone());
+                continue;
+            }
+            let gloss = senses.and_then(|list| {
+                list.iter()
+                    .filter(|sense| sense.entry_id == hit.entry_id)
+                    .min_by_key(|sense| (sense.ord, sense.sense_id))
+                    .map(|sense| sense.gloss.clone())
+            });
+            rows.push(QuickRow {
+                headword: hit.headword.clone(),
+                headword_simp: hit.headword_simp.clone(),
+                reading: hit.reading.clone(),
+                gloss,
+                source_code: group.source.code.clone(),
+                source_name: group.source.display_name.clone(),
+                source_count: 1,
+            });
+            sources.push(BTreeSet::from([group.source.code.clone()]));
+        }
+    }
+    for (row, codes) in rows.iter_mut().zip(&sources) {
+        row.source_count = u32::try_from(codes.len()).unwrap_or(u32::MAX);
+    }
+    let has_more = rows.len() > QUICK_GROUP_ROWS || !panel.grouped.truncated_layers.is_empty();
+    rows.truncate(QUICK_GROUP_ROWS);
+    (rows, has_more)
+}
+
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{DictLayers, HanVietLookup, LookupResponse, SourceAttributions, Store};
+    use super::{
+        DictLayers, HanVietLookup, LookupResponse, QuickLookupResponse, SourceAttributions, Store,
+    };
 
     /// Vỏ IPC của [`super::read_han_viet`].
     ///
@@ -389,6 +492,17 @@ pub mod wire {
         let disabled = super::disabled_sources(store.as_deref());
         let order = super::source_order(store.as_deref());
         super::lookup(managed.as_deref(), &query, &disabled, &order)
+    }
+
+    #[tauri::command]
+    pub fn quick_lookup(app: tauri::AppHandle, query: String) -> QuickLookupResponse {
+        use tauri::Manager as _;
+
+        let managed = app.try_state::<DictLayers>();
+        let store = app.try_state::<Store>();
+        let disabled = super::disabled_sources(store.as_deref());
+        let order = super::source_order(store.as_deref());
+        super::quick_lookup(managed.as_deref(), &query, &disabled, &order)
     }
 
     /// Vỏ IPC của [`super::list_sources`] — Story 1.19, AC1 · AC7.

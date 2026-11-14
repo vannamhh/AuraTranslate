@@ -15,7 +15,7 @@ const FORBIDDEN: [&str; 2] = [
     "StoreSpec::quick_translation",
     "StoreKind::QuickTranslation",
 ];
-const RS_FLOOR: usize = 133;
+const RS_FLOOR: usize = 144;
 
 fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
     let root = src_root();

@@ -249,7 +249,7 @@ const COMMAND_FLOOR = 340
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 335
-const DISPATCH_FLOOR = 445
+const DISPATCH_FLOOR = 475
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2921,7 +2921,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 193
+const HANDLER_ATTR_FLOOR = 206
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

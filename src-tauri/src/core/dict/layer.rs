@@ -70,7 +70,7 @@ use super::{
 /// `sha256` trong `dict-manifest.toml` ràng chúng lại. Đường bịt thật là một **sàn phiên
 /// bản** ở đây *(từ chối `file_version < MINIMUM_SCHEMA_VERSION`)* — chưa cài, ghi ở
 /// `deferred-work.md` §code review 1-19.
-pub const SUPPORTED_SCHEMA_VERSION: u32 = 3;
+pub const SUPPORTED_SCHEMA_VERSION: u32 = 4;
 
 /// Phiên bản lược đồ **CŨ NHẤT** đường đọc này còn đọc nổi — Ice chốt ở code review
 /// 2026-08-10.
@@ -88,6 +88,10 @@ pub const SUPPORTED_SCHEMA_VERSION: u32 = 3;
 ///
 /// 🔴 **Nâng `SCHEMA_VERSION` ⇒ nâng CẢ HAI hằng ở đây**, trừ khi có một lý do đo được để
 /// giữ chiều lùi. Nâng mỗi `SUPPORTED` là dựng lại đúng cái bẫy vừa gỡ.
+///
+/// Ngoại lệ có chủ ý (AD-69): v4 chỉ thêm cột mà `quick_lookup` đọc, nên giữ 3 để tệp v3 vẫn
+/// tra Trung→Việt, Anh→Việt và hiện ghi công. Câu SQL chạm cột v4 phải đọc
+/// [`DictLayer::schema_version`] trước.
 pub const MINIMUM_SCHEMA_VERSION: u32 = 3;
 
 /// Danh tính của lớp **nền**. Mọi giá trị khác là một lớp **gỡ rời**.
@@ -316,7 +320,9 @@ pub struct SkippedLayer {
 pub struct DictLayer {
     db: ReadOnlyDb,
     layer: String,
+    schema_version: u32,
     sources: Vec<SourceInfo>,
+    gloss_langs: Vec<(String, Option<String>)>,
 }
 
 impl DictLayer {
@@ -411,7 +417,26 @@ impl DictLayer {
             });
         }
 
-        Ok(DictLayer { db, layer, sources })
+        let gloss_langs = if file_version >= 4 {
+            db.read(|conn| {
+                let mut stmt = conn.prepare("SELECT code, gloss_lang FROM dict_source")?;
+                let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+                rows.collect::<Result<Vec<_>, _>>()
+            })
+            .map_err(|err| SkipReason::SourcesUnreadable {
+                detail: err.to_string(),
+            })?
+        } else {
+            Vec::new()
+        };
+
+        Ok(DictLayer {
+            db,
+            layer,
+            schema_version: file_version,
+            sources,
+            gloss_langs,
+        })
     }
 
     /// Đường dẫn tệp `.db` của lớp này.
@@ -420,6 +445,26 @@ impl DictLayer {
     }
 
     /// Nguồn mang `code`, nếu tệp này có nó.
+    /// The file's own `user_version`, so a query touching a newer column can check it first.
+    pub(super) fn schema_version(&self) -> u32 {
+        self.schema_version
+    }
+
+    /// Language of the senses a source carries (`vi`, `en`), known only for schema v4 files.
+    pub fn gloss_lang(&self, code: &str) -> Option<&str> {
+        self.gloss_langs
+            .iter()
+            .find(|(known, _)| known == code)
+            .and_then(|(_, lang)| lang.as_deref())
+    }
+
+    pub(super) fn read<T, F>(&self, job: F) -> Result<T, StoreError>
+    where
+        F: FnOnce(ReadHandle<'_>) -> SqlResult<T>,
+    {
+        self.db.read(job)
+    }
+
     pub(super) fn source(&self, code: &str) -> Option<&SourceInfo> {
         self.sources.iter().find(|source| source.code == code)
     }

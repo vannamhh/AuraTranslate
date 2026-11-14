@@ -407,3 +407,113 @@ export async function readDictLicenseText(code: string): Promise<ReadLicenseText
     return { text: null, error: UNKNOWN_IPC_ERROR }
   }
 }
+
+const CMD_QUICK_LOOKUP = 'quick_lookup'
+
+export type QuickGroupId = 'pinyin' | 'vi_zh' | 'en_vi' | 'zh_vi'
+export type QuickGroupStatus = 'rows' | 'empty' | 'outdated_dictionary' | 'error'
+
+/** One headword row of a quick-lookup group; `reading` is verbatim (tone marks or tone numbers). */
+export type QuickRow = {
+  headword: string
+  headword_simp: string | null
+  reading: string | null
+  gloss: string | null
+  source_code: string
+  source_name: string
+  source_count: number
+}
+
+export type QuickGroup = {
+  id: QuickGroupId
+  status: QuickGroupStatus
+  rows: QuickRow[]
+  has_more: boolean
+  incomplete: boolean
+  error: IpcError | null
+}
+
+export type QuickLookupResponse = {
+  route: QueryRoute
+  query_truncated: boolean
+  layers_loaded: boolean
+  skipped: string[]
+  groups: QuickGroup[]
+}
+
+export type QuickLookupResult = {
+  response: QuickLookupResponse | null
+  error: IpcError | null
+}
+
+const QUICK_GROUP_IDS: readonly string[] = ['pinyin', 'vi_zh', 'en_vi', 'zh_vi']
+const QUICK_GROUP_STATUSES: readonly string[] = ['rows', 'empty', 'outdated_dictionary', 'error']
+
+function isNullableString(value: unknown): boolean {
+  return value === null || typeof value === 'string'
+}
+
+function isQuickRow(value: unknown): value is QuickRow {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof QuickRow, unknown>>
+  return (
+    typeof v.headword === 'string' &&
+    isNullableString(v.headword_simp) &&
+    isNullableString(v.reading) &&
+    isNullableString(v.gloss) &&
+    typeof v.source_code === 'string' &&
+    typeof v.source_name === 'string' &&
+    typeof v.source_count === 'number'
+  )
+}
+
+function isQuickGroup(value: unknown): value is QuickGroup {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof QuickGroup, unknown>>
+  return (
+    typeof v.id === 'string' &&
+    QUICK_GROUP_IDS.includes(v.id) &&
+    typeof v.status === 'string' &&
+    QUICK_GROUP_STATUSES.includes(v.status) &&
+    Array.isArray(v.rows) &&
+    v.rows.every(isQuickRow) &&
+    typeof v.has_more === 'boolean' &&
+    typeof v.incomplete === 'boolean' &&
+    (v.error === null || isIpcError(v.error)) &&
+    (v.status !== 'error' || v.error !== null)
+  )
+}
+
+function isQuickLookupResponse(value: unknown): value is QuickLookupResponse {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof QuickLookupResponse, unknown>>
+  return (
+    (v.route === 'zh' || v.route === 'en') &&
+    typeof v.query_truncated === 'boolean' &&
+    typeof v.layers_loaded === 'boolean' &&
+    Array.isArray(v.skipped) &&
+    v.skipped.every((code) => typeof code === 'string') &&
+    Array.isArray(v.groups) &&
+    v.groups.every(isQuickGroup)
+  )
+}
+
+/** Quick lookup behind the Mod+K palette. Never throws; a malformed reply is `ipc.unknown`, not an empty result. */
+export async function quickLookup(query: string): Promise<QuickLookupResult> {
+  try {
+    const response = await invoke<unknown>(CMD_QUICK_LOOKUP, { query })
+    if (isQuickLookupResponse(response)) return { response, error: null }
+    console.error(`[dict] \`${CMD_QUICK_LOOKUP}\` returned a reply of an unexpected shape`)
+    return { response: null, error: UNKNOWN_IPC_ERROR }
+  } catch (err) {
+    if (isIpcError(err)) return { response: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(`[dict] \`${CMD_QUICK_LOOKUP}\` failed with a non-IpcError: ${String(err)}`)
+      return { response: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[dict] \`${CMD_QUICK_LOOKUP}\` unavailable outside Tauri: ${String(err)}`)
+    return { response: null, error: null }
+  }
+}

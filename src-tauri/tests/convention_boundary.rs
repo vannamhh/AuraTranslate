@@ -10,7 +10,7 @@ const CONVENTION_DIR: &str = "core/convention";
 const AI_DIR: &str = "core/ai";
 const CONVENTION_FLOOR: usize = 9;
 const AI_FLOOR: usize = 5;
-const SRC_RS_FLOOR: usize = 133;
+const SRC_RS_FLOOR: usize = 144;
 
 fn is_ident_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_'

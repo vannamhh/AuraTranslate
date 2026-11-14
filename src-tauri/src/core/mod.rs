@@ -10,6 +10,7 @@ pub mod chapter_delete;
 pub mod cleanup;
 pub mod convention;
 pub mod delimited_text;
+pub mod diacritics;
 pub mod dict;
 pub mod docx;
 pub mod export;

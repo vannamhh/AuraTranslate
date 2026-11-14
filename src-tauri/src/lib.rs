@@ -1267,6 +1267,7 @@ pub fn run() {
             crate::commands::chapter::wire::update_chapter_origin,
             crate::commands::dict::wire::read_han_viet,
             crate::commands::dict::wire::lookup_dictionary,
+            crate::commands::dict::wire::quick_lookup,
             crate::commands::dict::wire::list_dict_sources,
             crate::commands::dict::wire::read_dict_license_text,
             // Story 1.20 — muc da ghim, pham vi TOAN UNG DUNG (`global.db`, Ice ky lai

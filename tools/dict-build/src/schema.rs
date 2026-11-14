@@ -31,7 +31,7 @@
 /// bốn tệp sau lượt dựng. Bản phát hành không chạm, vì cả bốn tệp đi cùng một release và
 /// `sha256` trong `dict-manifest.toml` ràng chúng lại. **Đường bịt thật là một sàn phiên bản
 /// ở bờ đọc** *(từ chối `file_version < MINIMUM`)*, chưa cài — xem `deferred-work.md`.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// Siêu dữ liệu của chính tệp — khoá/giá trị, đọc được bằng mắt qua `sqlite3` CLI.
 pub const DICT_META_DDL: &str = "\
@@ -76,7 +76,8 @@ CREATE TABLE dict_source (
   attribution    TEXT NOT NULL,
   source_version TEXT NOT NULL,
   source_url     TEXT NOT NULL,
-  lang           TEXT NOT NULL DEFAULT ''
+  lang           TEXT NOT NULL DEFAULT '',
+  gloss_lang     TEXT
 );";
 
 /// Một đầu mục. `headword_simp` NULL khi nguồn không phân biệt phồn/giản.
@@ -99,7 +100,8 @@ CREATE TABLE dict_entry (
   headword_simp TEXT,
   reading       TEXT,
   han_viet      TEXT,
-  nom_reading   TEXT
+  nom_reading   TEXT,
+  reading_key   TEXT
 );";
 
 /// Một nghĩa. FR29: một từ nhiều từ loại ⇒ nhiều hàng ở đây, không gộp thành một
@@ -160,6 +162,7 @@ CREATE TABLE char_idx (
 pub const ENTRY_INDEXES_DDL: &str = "\
 CREATE INDEX idx_entry_headword      ON dict_entry(headword);
 CREATE INDEX idx_entry_headword_simp ON dict_entry(headword_simp);
+CREATE INDEX idx_entry_reading_key   ON dict_entry(reading_key);
 CREATE INDEX idx_sense_entry         ON dict_sense(entry_id);
 CREATE INDEX idx_example_sense       ON dict_example(sense_id);
 CREATE INDEX idx_citation_sense      ON dict_citation(sense_id);";

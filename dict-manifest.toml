@@ -63,10 +63,22 @@
 #   • Kích thước **KHÔNG đổi** ở cả bốn tệp — cột TEXT ngắn trên đúng 10 hàng nằm lọt
 #     trong trang đã cấp phát.
 #
-# ✅ Xác nhận TÁI LẬP ĐƯỢC: hai lượt `--layer all` độc lập vào hai thư mục đích khác
-# nhau cho ra ĐÚNG bốn SHA-256 dưới đây, cả bốn tệp.
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v3/dict-core.db"
-sha256         = "95c9f5b118d05058621e03e2467aff6d1fb25a9b061a7e4a1d113201d68bf981"
+# 🔴 SHA-256 CẬP NHẬT LẦN NĂM ở **tra nhanh Mod+K** (2026-11-14) — LƯỢC ĐỒ LÊN v4 (AD-69).
+# `SCHEMA_VERSION` 3→4: cột `dict_entry.reading_key` + `idx_entry_reading_key` và cột
+# `dict_source.gloss_lang`. Dựng lại **cả bốn** tệp bằng `--layer all`; URL trỏ release
+# `dict-v4`, mà Ice chưa tải lên — tới lúc đó `scripts/fetch-dicts.mjs` không tải được.
+#   • dict-core.db:         195.813.376 → **208.252.928 byte**
+#   • dict-thieu-chuu.db:     5.795.840 →   **5.894.144 byte**
+#   • dict-vietphrase.db:   160.788.480 → **167.567.360 byte**
+#   • dict-tran-van-chanh.db: 10.842.112 → **11.960.320 byte**
+#   • Tổng bốn tệp 393.674.752 byte (bản cài chưa đo).
+#   • 70 hàng của dict-core.db có `reading` mà `reading_key` NULL (Quảng/phương ngữ, dấu
+#     kết hợp NFD); `tests/reading_key_real_data.rs` kê số đó.
+#
+# ✅ Tái lập: bốn SHA-256 dưới đây là của MỘT lượt dựng 2026-11-14; chưa chạy lượt thứ hai
+# (test fixture `two_builds_from_the_same_raw_tree_produce_identical_checksums` xanh).
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v4/dict-core.db"
+sha256         = "53d99afc8c327f3af27cf4512781c157e56478d2c6d896da9029370f417af731"
 source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unihan@17.0.0 · viwiktionary@2026-08-04 · en-wiktionary@2026-08-04 · viwiktionary-en@2026-08-04 · en-wiktionary-vi@2026-08-06"
 
 # Ba lớp gỡ rời trong phạm vi Story 1.10c (Ice chốt 2026-08-06: + Trần Văn Chánh, cạnh
@@ -74,14 +86,14 @@ source_version = "cvdict@c379d909e3 (2026-08-04) · cc-cedict@2026-08-04 · unih
 # tệp thuộc MỘT thế hệ dữ liệu (§Quyết định #6 của Story 1.9/1.10).
 [[detachable]]
 name           = "thieu-chuu"
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v3/dict-thieu-chuu.db"
-sha256         = "e391a4b242818627209fe1d8e9446cc7c60854110912add6a4de2069aac66054"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v4/dict-thieu-chuu.db"
+sha256         = "c001e2b48bd63bb9baa7e215265fb2df3ee4dcb564a2b5b8634add36f39a436f"
 source_version = "catusf/tudien@2.2 (2022-10-10)"
 
 [[detachable]]
 name           = "vietphrase"
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v3/dict-vietphrase.db"
-sha256         = "9e472aeb9185d5a77b583b191a3ca39c66718de1764ecda541ebd0d9de480bb5"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v4/dict-vietphrase.db"
+sha256         = "e0ef84b01d3fab2f6243dd9ce28df9156305a22e36ee498934e560cc66abbc44"
 source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF-8)"
 
 # 🔴 Lớp gỡ rời THỨ BA — Story 1.10c. Rủi ro pháp lý CHƯA đóng (Trần Văn Chánh, 1999,
@@ -91,6 +103,6 @@ source_version = "truyencuatui/VietPhrase@master (tải 2026-08-05, chuyển UTF
 # `assets/licenses/tran-van-chanh.txt` và `sources_meta::TRAN_VAN_CHANH` (AC8).
 [[detachable]]
 name           = "tran-van-chanh"
-url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v3/dict-tran-van-chanh.db"
-sha256         = "0940a59705b8e8003f1eaa03fbcabb933dc2f764f73278c09ac2e9db9ddef484"
+url            = "https://github.com/vannamhh/AuraTranslate/releases/download/dict-v4/dict-tran-van-chanh.db"
+sha256         = "361c31bab0b0e7c0420be9208296559075a38193b1492c07e2b108c901dab1d7"
 source_version = "catusf/tudien@a7dd918ecc67de8c2d15034f885d919b9295eba4 (2025-12-19)"

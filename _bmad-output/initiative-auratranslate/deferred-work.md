@@ -14190,3 +14190,10 @@ chính nó.
 
 - Chưa ai dùng popup "Tra riêng" trong app thật. Ice: tra một câu không có trong từ điển, bấm vài chữ ở dải "Tra riêng", popup hiện dưới chữ và panel giữ câu; chữ ở hàng cuối thì popup lật lên trên, không tràn khỏi vùng cuộn (AC3); bấm vùng trống hoặc Esc thì con trỏ về chữ (AC2); ghim một mục trong popup.
   Quan trọng vì happy-dom không đo hình học và không chuyển tiêu điểm khi bấm. Chủ: Ice. Trỏ: `plan-tra-rieng-mo-popup-tra-cuu.md`.
+
+## Deferred from: tra nhanh một từ trong bảng Mod+K (2026-11-14)
+
+- Bốn `.db` dict-v4 mới chỉ có ở máy dựng; `dict-manifest.toml` đã trỏ `dict-v4` nhưng GitHub Release chưa có. Ice: tải bốn tệp lên Release `dict-v4` (sha256 trong manifest), rồi chạy `node scripts/fetch-dicts.mjs`; hash lệch thì dựng lại và sửa manifest.
+  Quan trọng vì `fetch-dicts.mjs` và `release.yml` không tải được cho tới lúc đó, và bản cài NFR6 (trần 500.000.000, macOS 432.363.050) chưa đo với bốn tệp v4 (393.674.752 byte thô). Chủ: Ice. Trỏ: `plan-tra-tu-nhanh-trong-bang-mod-k.md`.
+- Chưa ai dùng chế độ "Tra từ" của Mod+K trong app thật. Ice: Mod+K, gõ `/nihao` (dòng đầu 你好, khung xem trước có nghĩa cvdict kèm nguồn), gõ `xin chào`, gõ `你好`; mũi tên đổi xem trước, Enter mở panel Lookup đúng từ và lịch sử thêm một mục; bấm lệnh "Tra từ" bằng chuột; xem hình học khung, cuộn danh sách; kiểm `runLookup` có hiện panel Lookup khi panel đang ẩn.
+  Quan trọng vì vitest chỉ dùng happy-dom, không đo hình học, tiêu điểm thật hay WKWebView. Chủ: Ice. Trỏ: `plan-tra-tu-nhanh-trong-bang-mod-k.md`.

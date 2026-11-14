@@ -205,3 +205,28 @@ fn char_idx_composite_primary_key_rejects_a_duplicate_pair_live() {
         "a duplicate (ch, entry_id) pair must be rejected by the composite primary key"
     );
 }
+
+#[test]
+fn schema_v4_adds_reading_key_with_index_and_gloss_lang() {
+    assert_eq!(schema::SCHEMA_VERSION, 4);
+    let conn = open_with_schema();
+    let cols = |table: &str| -> Vec<String> {
+        let mut stmt = conn
+            .prepare(&format!("PRAGMA table_info({table})"))
+            .unwrap();
+        stmt.query_map([], |r| r.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    };
+    assert!(cols("dict_entry").iter().any(|c| c == "reading_key"));
+    assert!(cols("dict_source").iter().any(|c| c == "gloss_lang"));
+    let idx: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_entry_reading_key'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(idx, 1);
+}

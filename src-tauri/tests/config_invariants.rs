@@ -1300,7 +1300,7 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
 
 /// Sàn quần thể RIÊNG cho ca trên, trên `src-tauri/src/**` — cùng khuôn `RS_FLOOR` của
 /// `glossary_boundary.rs`.
-const RS_FLOOR_FOR_DIALOG_CHECK: usize = 133;
+const RS_FLOOR_FOR_DIALOG_CHECK: usize = 144;
 
 /// 🔴 **P1 (vòng rà ba lớp 2026-08-25) — `MutexGuard` của `OpenWorkState` KHÔNG được sống
 /// xuyên qua `blocking_save_file()`/`blocking_pick_file()`.** Hộp thoại hệ điều hành có
@@ -2393,11 +2393,11 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 23] = [
     ),
     (
         "src/commands/dict.rs",
-        4,
+        5,
         0,
         0,
-        "CHUA DO -- chu: Dev. Bon vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
-         ai do no o TANG VO.",
+        "CHUA DO -- chu: Dev. Nam vo tra tu dien (them quick_lookup cua bang Mod+K, cung khuon \
+         lookup_dictionary); duong tra cuu nong co nguong NFR rieng, chua ai do no o TANG VO.",
     ),
     ("src/commands/export.rs", 8, 8, 8, ""),
     ("src/commands/glossary.rs", 9, 10, 10, ""),
@@ -2602,9 +2602,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (139, 85),
+        (140, 85),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         139/85.\n\n\
+         140/85.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

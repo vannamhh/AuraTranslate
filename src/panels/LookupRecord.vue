@@ -35,6 +35,8 @@ const props = defineProps<{
    * field instead of inferring failure from `senses.length === 0`, a legitimate empty shape.
    */
   sensesFailed?: boolean
+  /** Hides the pin button where no pin target is resolved, e.g. the Mod+K preview. */
+  noPin?: boolean
 }>()
 
 /** Một đầu mục cùng đúng những nghĩa của RIÊNG nó. */
@@ -155,6 +157,7 @@ const senseTotalKey = computed(() =>
           được bằng trình đọc màn hình, và nhãn nút cũng đổi theo (`pinLabelKey`).
         -->
         <button
+          v-if="noPin !== true"
           type="button"
           class="ui-icon-btn lookup-pin"
           :title="t(pinLabelKey(cluster.pinned))"

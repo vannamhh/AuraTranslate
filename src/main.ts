@@ -1039,7 +1039,7 @@ async function boot(): Promise<void> {
       ...tmFuzzyCommandDeps(),
       ...tmConcordanceCommandDeps(),
       ...tmManageCommandDeps(),
-      ...paletteCommandDeps(),
+      ...paletteCommandDeps({ runLookup }),
       ...exportCommandDeps(),
       ...libraryWorkPageCommandDeps(),
       ...reviewerImportCommandDeps(),

@@ -4,7 +4,7 @@ skill: bmad-prd
 title: "PRD: AuraTranslate"
 status: final
 created: 2026-08-02
-updated: 2026-11-04
+updated: 2026-11-14
 ---
 
 # PRD: AuraTranslate
@@ -111,7 +111,7 @@ Ba điểm này sinh ra FR128, FR129, FR130 và FR131. **Mô hình dữ liệu k
 
 ### 3.2 Ngoài phạm vi
 
-- Cặp ngôn ngữ khác ngoài **Anh → Việt** và **Trung → Việt**
+- Cặp ngôn ngữ khác ngoài **Anh → Việt** và **Trung → Việt** 🔵 2026-11-14: tra ngược **Việt → Trung** trên dữ liệu Trung → Việt nằm trong phạm vi, như một cách tra từ điển (FR161). Đó không phải một cặp dịch: không có Tác phẩm Việt → Trung, không dịch, không TM, không Glossary theo chiều đó
 - Cloud sync, tài khoản người dùng, real-time collaboration
 - Bản web và bản mobile
 - Dịch tự động hàng loạt không có người biên tập
@@ -185,7 +185,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 |---|---|---|---|
 | **C1** | Library — kho tài liệu & trải nghiệm đọc | Điểm vào ứng dụng | FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128, FR132, FR155 |
 | **C2** | Workspace — môi trường dịch **ba panel** *(🔵 2026-08-14: bốn → ba, lưới gộp Source + Editor)* | Trung tâm thao tác | FR16–FR26, FR42, FR44, FR78, FR117, FR129, **FR133, FR134** |
-| **C3** | Embedded Dictionary & Lookup | Điều kiện tồn tại | FR27–FR41 |
+| **C3** | Embedded Dictionary & Lookup | Điều kiện tồn tại | FR27–FR41, FR161 *(🔵 2026-11-14: thêm FR161)* |
 | **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114, FR154, FR159 |
 | **C5** | Translation Memory & tái sử dụng | Không tra lại thứ đã tra | FR56–FR64, FR118 |
 | **C6** | AI mở & Smart RAG Injector | AI đề xuất dưới quyền người biên tập | FR65–FR77, FR153–FR158 |
@@ -194,7 +194,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | **C9** | Dự án & dữ liệu — `.atproj`, chỉ mục, scope | Nền của C1–C8 | FR96–FR104 |
 | **C10** | Phát hành & tin cậy | Vượt rào cản không ký số | FR105–FR112 |
 
-**Tổng: 159 yêu cầu chức năng còn hiệu lực** (FR1–FR160, trừ FR20 đã rút). 🔵 2026-11-04: thêm FR160. 🔵 2026-11-03: dòng này từng ghi 132, lệch với số định nghĩa có trong tài liệu; số mới đếm các định nghĩa `**FRn.**` sau khi thêm FR159.
+**Tổng: 160 yêu cầu chức năng còn hiệu lực** (FR1–FR161, trừ FR20 đã rút). 🔵 2026-11-14: thêm FR161. 🔵 2026-11-04: thêm FR160. 🔵 2026-11-03: dòng này từng ghi 132, lệch với số định nghĩa có trong tài liệu; số mới đếm các định nghĩa `**FRn.**` sau khi thêm FR159.
 
 ### 5.2 Glossary thuật ngữ
 
@@ -224,6 +224,7 @@ Mọi tài liệu downstream (`bmad-ux`, `bmad-architecture`, `bmad-create-epics
 | **Hán Việt** | Âm đọc Việt của ký tự Hán. Nội dung của tab Hán Việt trong Panel Source | — |
 | **Segment alignment** | Bài toán khớp cấu trúc đoạn giữa file nhập từ Reviewer và dữ liệu sẵn có | ~~Structural Index Mapping~~ *(tên trong PRD v8.0)* |
 | **BYOK** | *Bring Your Own Key* — người dùng dùng API key của chính mình | — |
+| **Tra nhanh** | Tra một từ ở bảng Mod+K, kết quả hiện ngay trong khung (FR161). Khác Auto-Lookup (bôi đen, ra ở Panel Lookup) và khác Dịch nhanh (AI) | ~~dịch nhanh~~ *(tên của thao tác AI, FR153–FR158)* |
 | **Dịch nhanh** | Dịch một chuỗi để người dùng hiểu nghĩa khi đang duyệt, bằng cấu hình AI riêng. Kết quả chỉ để tham khảo, không phải bản dịch của Tác phẩm (FR153–FR158). `Dịch thử` là nhãn nút của thao tác này | ~~bản dịch AI~~, ~~đề xuất AI~~ *(hai từ này chỉ kết quả ở panel AI Translation, FR72)* |
 
 ---
@@ -576,6 +577,33 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 #### Tiện ích
 
 **FR41.** Lịch sử tra cứu trong phiên làm việc, và ghim mục từ để tra lại nhanh. **`[A9]`**
+🔵 2026-11-14: lịch sử chỉ ghi khi người dùng chọn tra một đầu mục; xem trước ở bảng Mod+K không ghi (FR161).
+
+#### Tra nhanh trong bảng Mod+K
+
+**FR161.** **Tra nhanh một từ ở bảng Mod+K.** Người dùng mở Mod+K, vào chế độ **Tra từ**, gõ một từ và xem nghĩa ngay trong khung, không rời chỗ đang làm. Từ đó là chữ Hán, pinyin, tiếng Việt hoặc tiếng Anh.
+
+- **Vào và ra.** Gõ `/` ở ô trống, hoặc bấm lệnh **Tra từ** bằng chuột. Backspace ở ô trống đưa bảng về danh sách lệnh.
+- **Nhóm kết quả theo hình dạng câu tra, không gộp.** Câu có chữ Hán ra một nhóm Trung → Việt, cùng kết quả với panel Lookup. Câu bằng chữ Latin ra ba nhóm: Hán theo pinyin, Việt → Trung, Anh → Việt; nhóm không có mục thì ẩn. Mỗi dòng mang nguồn của nghĩa nó đưa ra (FR31), và nguồn không bao giờ gộp (FR32).
+- **Pinyin.** Gõ liền hay cách, có hay không có dấu thanh hoặc số thanh, đều tra cùng một khoá; thanh bị bỏ qua khi tra, còn dòng kết quả vẫn hiện dấu thanh. Khớp hẳn đứng trước khớp phần đầu.
+- **Việt → Trung.** Không có từ điển Việt → Trung riêng: kết quả là các đầu mục chữ Hán mà nghĩa tiếng Việt của chúng chứa câu tra. Nghĩa trùng khít câu tra đứng đầu. Câu có dấu chỉ khớp đúng dấu (NFR8); câu không mang dấu nào khớp cả các biến thể dấu, cùng cách đọc của FR9.
+- **Xem trước, không ghi lịch sử.** Dòng đang chọn hiện bản ghi đầy đủ của đầu mục (FR28–FR32) ngay trong khung. Xem trước không thêm mục vào lịch sử tra cứu (FR41); Enter mở panel Lookup với đầu mục đó và thêm đúng một mục.
+- **Không rỗng im lặng.** Đang tải, lỗi, không có kết quả, và bộ từ điển cũ đều có thông báo riêng. Một nhóm bị cắt ở 20 mục nói rõ còn nữa. Bộ từ điển trước phiên bản này vẫn tra Trung → Việt và Anh → Việt; hai nhóm còn lại báo cần cập nhật bộ từ điển.
+- **Chạy offline** (FR27) và dưới ngưỡng NFR1: p95 phía Rust < 100 ms, đo trên chính lệnh này.
+- **Giới hạn đã biết.** `nu` không ra `nǚ`: chữ `ü` gõ là `v` hoặc `u:`.
+
+> **Tiêu chí nghiệm thu cho FR161:**
+> - Gõ `/nihao`: dòng đầu nhóm pinyin là 你好, và khung xem trước hiện nghĩa cvdict cùng nguồn của nó.
+> - `nihao`, `ni hao`, `ni3hao3`, `nǐhǎo` cho cùng một kết quả.
+> - Gõ `xin chào`: nhóm Việt → Trung có 你好, nghĩa trùng khít đứng đầu.
+> - Gõ `an`: ba nhóm, nhóm không có mục thì ẩn; cả ba rỗng thì hiện trạng thái "không có kết quả", không phải một khung trống.
+> - Xem trước một dòng rồi mở panel Lookup bằng đường khác: lịch sử không có mục mới. Nhấn Enter: panel hiện đầu mục đó và lịch sử có thêm đúng một mục.
+> - Bấm lệnh **Tra từ** bằng chuột: bảng vào chế độ tra và con trỏ ở ô gõ.
+> - Gõ nhanh hai phím: chỉ phản hồi của câu mới nhất được hiện. Đang gõ bằng bộ gõ (composition mở) thì không có truy vấn nào được gửi.
+> - Bộ từ điển trước phiên bản này, gõ `an`: nhóm Anh → Việt vẫn có kết quả, hai nhóm kia báo cần cập nhật bộ từ điển.
+> - 200 câu tra trộn bốn hình dạng (chữ Hán, pinyin, Việt có dấu, Latin không dấu) trên bộ từ điển mới: p95 phía Rust < 100 ms, ghi kèm bản build và tải máy.
+
+> Thêm 2026-11-14 qua `correct-course` (AD-69). Ice quyết: làm đủ ba phần (chữ Hán, pinyin, Việt → Trung); kết quả là danh sách kèm khung xem trước; vào chế độ bằng `/` và có lệnh cho chuột. Bộ từ điển đổi lược đồ nên cần một bản phát hành mới do Ice tải lên.
 
 ---
 

@@ -24,8 +24,8 @@ pub fn insert_source(
 ) -> rusqlite::Result<i64> {
     conn.execute(
         "INSERT INTO dict_source
-           (code, display_name, license_kind, license_id, license_text, attribution, source_version, source_url)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+           (code, display_name, license_kind, license_id, license_text, attribution, source_version, source_url, gloss_lang)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             meta.code,
             meta.display_name,
@@ -35,6 +35,7 @@ pub fn insert_source(
             meta.attribution,
             source_version,
             meta.source_url,
+            meta.gloss_lang,
         ],
     )?;
     Ok(conn.last_insert_rowid())
@@ -73,8 +74,8 @@ pub fn backfill_source_langs(conn: &Connection) -> rusqlite::Result<()> {
 /// `dict_sense` — không hàng nào chèn được nếu thiếu.
 pub fn insert_entry(conn: &Connection, source_id: i64, entry: &RawEntry) -> rusqlite::Result<i64> {
     conn.execute(
-        "INSERT INTO dict_entry (source_id, lang, headword, headword_simp, reading, han_viet, nom_reading)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO dict_entry (source_id, lang, headword, headword_simp, reading, han_viet, nom_reading, reading_key)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             source_id,
             entry.lang,
@@ -83,6 +84,7 @@ pub fn insert_entry(conn: &Connection, source_id: i64, entry: &RawEntry) -> rusq
             entry.reading,
             entry.han_viet,
             entry.nom_reading,
+            entry.reading.as_deref().and_then(crate::pinyin::pinyin_key),
         ],
     )?;
     let entry_id = conn.last_insert_rowid();

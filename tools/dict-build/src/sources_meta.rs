@@ -38,6 +38,8 @@ pub struct SourceMeta {
     pub license_id: Option<&'static str>,
     pub license_ref: LicenseRef,
     pub attribution: &'static str,
+    /// Language of the senses (`vi`, `en`) or `None` when the source has no senses.
+    pub gloss_lang: Option<&'static str>,
     pub source_url: &'static str,
 }
 
@@ -61,6 +63,7 @@ pub const CVDICT: SourceMeta = SourceMeta {
     license_id: Some("CC-BY-SA-4.0"),
     license_ref: LicenseRef::CcBySa4,
     attribution: "CVDICT (github.com/ph0ngp/CVDICT), phân phối theo CC BY-SA 4.0.",
+    gloss_lang: Some("vi"),
     source_url: "https://github.com/ph0ngp/CVDICT",
 };
 
@@ -71,6 +74,7 @@ pub const CC_CEDICT: SourceMeta = SourceMeta {
     license_id: Some("CC-BY-SA-4.0"),
     license_ref: LicenseRef::CcBySa4,
     attribution: "CC-CEDICT (mdbg.net/chinese/dictionary?page=cc-cedict), phân phối theo CC BY-SA 4.0.",
+    gloss_lang: Some("en"),
     source_url: "https://www.mdbg.net/chinese/dictionary?page=cc-cedict",
 };
 
@@ -81,6 +85,7 @@ pub const UNIHAN: SourceMeta = SourceMeta {
     license_id: Some("Unicode-3.0"),
     license_ref: LicenseRef::UnicodeV3,
     attribution: "Cơ sở dữ liệu Unihan, © Unicode, Inc. Phân phối theo Unicode License v3.",
+    gloss_lang: Some("en"),
     source_url: "https://www.unicode.org/reports/tr38/",
 };
 
@@ -91,6 +96,7 @@ pub const VIWIKTIONARY: SourceMeta = SourceMeta {
     license_id: Some("CC-BY-SA-4.0"),
     license_ref: LicenseRef::CcBySaAndGfdl,
     attribution: "Wiktionary tiếng Việt (vi.wiktionary.org), qua Wiktextract/kaikki.org. Phân phối theo CC BY-SA 4.0 và GFDL.",
+    gloss_lang: Some("vi"),
     source_url: "https://kaikki.org/dictionary/downloads/vi/vi-extract.jsonl",
 };
 
@@ -101,6 +107,7 @@ pub const EN_WIKTIONARY: SourceMeta = SourceMeta {
     license_id: Some("CC-BY-SA-4.0"),
     license_ref: LicenseRef::CcBySaAndGfdl,
     attribution: "English Wiktionary (en.wiktionary.org), mục tiếng Trung, qua Wiktextract/kaikki.org. Phân phối theo CC BY-SA 4.0 và GFDL.",
+    gloss_lang: Some("en"),
     source_url: "https://kaikki.org/dictionary/Chinese/kaikki.org-dictionary-Chinese.jsonl",
 };
 
@@ -121,6 +128,7 @@ pub const VIWIKTIONARY_EN: SourceMeta = SourceMeta {
     license_id: Some("CC-BY-SA-4.0"),
     license_ref: LicenseRef::CcBySaAndGfdl,
     attribution: "Wiktionary tiếng Việt (vi.wiktionary.org), mục tiếng Anh, qua Wiktextract/kaikki.org. Phân phối theo CC BY-SA 4.0 và GFDL.",
+    gloss_lang: Some("vi"),
     source_url: "https://kaikki.org/dictionary/downloads/vi/vi-extract.jsonl",
 };
 
@@ -139,6 +147,7 @@ pub const EN_WIKTIONARY_VI: SourceMeta = SourceMeta {
     license_id: Some("CC-BY-SA-4.0"),
     license_ref: LicenseRef::CcBySaAndGfdl,
     attribution: "English Wiktionary (en.wiktionary.org), mục tiếng Việt, qua Wiktextract/kaikki.org. Phân phối theo CC BY-SA 4.0 và GFDL.",
+    gloss_lang: None,
     source_url: "https://kaikki.org/dictionary/Vietnamese/kaikki.org-dictionary-Vietnamese.jsonl",
 };
 
@@ -154,6 +163,7 @@ pub const THIEU_CHUU: SourceMeta = SourceMeta {
     license_id: Some("CC0-1.0"),
     license_ref: LicenseRef::ThieuChuu,
     attribution: "Thiều Chửu (Nguyễn Hữu Kha, 1902–1954), Hán Việt Tự Điển (1942). Bản số hoá catusf/tudien@2.2, phát hành theo CC0 1.0 Universal.",
+    gloss_lang: Some("vi"),
     source_url: "https://github.com/catusf/tudien",
 };
 
@@ -168,6 +178,7 @@ pub const VIETPHRASE: SourceMeta = SourceMeta {
     license_id: None,
     license_ref: LicenseRef::VietPhrase,
     attribution: "Dữ liệu cộng đồng VietPhrase (github.com/truyencuatui/VietPhrase), không xác định được tác giả gốc.",
+    gloss_lang: Some("vi"),
     source_url: "https://github.com/truyencuatui/VietPhrase",
 };
 
@@ -186,6 +197,7 @@ pub const TRAN_VAN_CHANH: SourceMeta = SourceMeta {
     license_id: None,
     license_ref: LicenseRef::TranVanChanh,
     attribution: "Trần Văn Chánh, Từ điển Hán Việt (1999) — CÒN TRONG BẢN QUYỀN, tác giả còn sống. Bản số hoá catusf/tudien khai CC0 1.0 cho công sức số hoá; điều đó KHÔNG xoá bản quyền tác phẩm gốc. Đóng gói làm lớp gỡ rời (FR112) — xem assets/licenses/tran-van-chanh.txt.",
+    gloss_lang: Some("vi"),
     source_url: "https://github.com/catusf/tudien",
 };
 

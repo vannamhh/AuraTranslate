@@ -119,7 +119,8 @@ CREATE TABLE dict_source (
   attribution    TEXT NOT NULL,
   source_version TEXT NOT NULL,
   source_url     TEXT NOT NULL,
-  lang           TEXT NOT NULL DEFAULT ''
+  lang           TEXT NOT NULL DEFAULT '',
+  gloss_lang     TEXT
 );";
 
 const DICT_ENTRY_DDL: &str = "\
@@ -131,7 +132,8 @@ CREATE TABLE dict_entry (
   headword_simp TEXT,
   reading       TEXT,
   han_viet      TEXT,
-  nom_reading   TEXT
+  nom_reading   TEXT,
+  reading_key   TEXT
 );";
 
 const DICT_SENSE_DDL: &str = "\
@@ -176,6 +178,7 @@ CREATE TABLE char_idx (
 const ENTRY_INDEXES_DDL: &str = "\
 CREATE INDEX idx_entry_headword      ON dict_entry(headword);
 CREATE INDEX idx_entry_headword_simp ON dict_entry(headword_simp);
+CREATE INDEX idx_entry_reading_key   ON dict_entry(reading_key);
 CREATE INDEX idx_sense_entry         ON dict_sense(entry_id);
 CREATE INDEX idx_example_sense       ON dict_example(sense_id);
 CREATE INDEX idx_citation_sense      ON dict_citation(sense_id);";

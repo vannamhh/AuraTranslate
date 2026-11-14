@@ -440,3 +440,46 @@ fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) {
         }
     }
 }
+
+#[test]
+fn every_source_with_senses_declares_gloss_lang_and_every_reading_has_a_key() {
+    let (_dir, out_dir, _report) = build_all_fixture_dbs();
+    let mut files = 0;
+    for entry in std::fs::read_dir(&out_dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().and_then(|e| e.to_str()) != Some("db") {
+            continue;
+        }
+        files += 1;
+        let conn = Connection::open(&path).unwrap();
+        let undeclared: Vec<String> = conn
+            .prepare(
+                "SELECT s.code FROM dict_source s WHERE s.gloss_lang IS NULL
+                   AND EXISTS (SELECT 1 FROM dict_sense d WHERE d.source_id = s.id)",
+            )
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert!(
+            undeclared.is_empty(),
+            "{path:?}: no gloss_lang for {undeclared:?}"
+        );
+        let keyless: Vec<String> = conn
+            .prepare(
+                "SELECT headword || '|' || reading FROM dict_entry
+                  WHERE reading IS NOT NULL AND reading <> '' AND reading_key IS NULL",
+            )
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert!(
+            keyless.is_empty(),
+            "{path:?}: readings without a key {keyless:?}"
+        );
+    }
+    assert_eq!(files, 4);
+}

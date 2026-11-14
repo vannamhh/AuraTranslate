@@ -1027,6 +1027,8 @@ export type CommandDeps = {
   selectPrevPaletteItem?: () => void
   /** Opens the Work or runs the command under the palette cursor. Handler of `palette.run_selected`. */
   runSelectedPaletteItem?: () => void
+  /** Switches the palette to the quick-lookup mode, opening it when closed. Handler of `palette.lookup_mode`. */
+  enterPaletteLookupMode?: () => void
 
   // ── TM management overlay (FR62, FR63) ──
   /** Opens the TM management overlay. Handler of `tm.manage.open`. */
@@ -4488,6 +4490,16 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.runSelectedPaletteItem === undefined) return portMissing('palette.run_selected', 'runSelectedPaletteItem')
       deps.runSelectedPaletteItem()
+    },
+  })
+  target.register({
+    id: 'palette.lookup_mode',
+    palette: true,
+    labelKey: 'command.palette.lookup_mode',
+    keys: undefined,
+    run: () => {
+      if (deps.enterPaletteLookupMode === undefined) return portMissing('palette.lookup_mode', 'enterPaletteLookupMode')
+      deps.enterPaletteLookupMode()
     },
   })
 

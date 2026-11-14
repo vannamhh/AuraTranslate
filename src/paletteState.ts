@@ -16,6 +16,16 @@ import {
   loadWorks,
 } from './modes/libraryWorks'
 import { setMode } from './modes/modeState'
+import {
+  aimPaletteLookupRow,
+  enterPaletteLookup,
+  leavePaletteLookup,
+  paletteLookupActive,
+  queryPaletteLookup,
+  selectNextPaletteLookupRow,
+  selectPrevPaletteLookupRow,
+  selectedPaletteLookupHeadword,
+} from './paletteLookupState'
 
 export type PaletteItem =
   | { kind: 'work'; key: string; workId: string; label: string; doneCount: number | null; chapterCount: number }
@@ -57,7 +67,10 @@ export const paletteWorksAreFiltered = computed<boolean>(
 
 export const paletteIsSearching = computed<boolean>(() => query.value.trim() !== '')
 
+const LOOKUP_MODE_COMMAND = 'palette.lookup_mode'
+
 export const paletteWorkItems = computed<readonly PaletteItem[]>(() => {
+  if (paletteLookupActive.value) return []
   if (paletteWorksState.value !== 'ready' || !paletteIsSearching.value) return []
   const needle = foldVietnamese(query.value.trim())
   return libraryWorks.value
@@ -73,6 +86,7 @@ export const paletteWorkItems = computed<readonly PaletteItem[]>(() => {
 })
 
 export const paletteCommandItems = computed<readonly PaletteItem[]>(() => {
+  if (paletteLookupActive.value) return []
   const needle = foldVietnamese(query.value.trim())
   const marked = new Set(
     commandRegistry
@@ -98,38 +112,96 @@ export function openPalette(): void {
   if (open.value) return
   query.value = ''
   cursor.value = 0
+  leavePaletteLookup()
   open.value = true
   if (!libraryWorksHaveLoaded.value && !libraryWorksBusy.value) void loadWorks()
 }
 
 export function closePalette(): void {
   open.value = false
+  leavePaletteLookup()
 }
 
-export function setPaletteQuery(value: string): void {
+/** Enters the lookup mode with an empty box; opens the palette first when it is closed. */
+export function enterPaletteLookupMode(): void {
+  openPalette()
+  query.value = ''
+  cursor.value = 0
+  enterPaletteLookup()
+}
+
+/** Back to the Work and command list, keeping the box empty. */
+export function exitPaletteLookupMode(): void {
+  query.value = ''
+  cursor.value = 0
+  leavePaletteLookup()
+}
+
+/**
+ * A leading `/` typed into an empty Command box switches to lookup mode and is not kept as text.
+ * `composing` stores the text but sends no query: an IME composition is not a finished word.
+ */
+export function setPaletteQuery(value: string, composing = false): void {
+  if (!paletteLookupActive.value && !composing && query.value === '' && value.startsWith('/')) {
+    enterPaletteLookupMode()
+    setPaletteQuery(value.slice(1))
+    return
+  }
   query.value = value
+  if (paletteLookupActive.value) {
+    if (!composing) void queryPaletteLookup(value)
+    return
+  }
   cursor.value = 0
 }
 
 export function aimPaletteItem(index: number): void {
+  if (paletteLookupActive.value) {
+    aimPaletteLookupRow(index)
+    return
+  }
   if (index >= 0 && index < paletteItems.value.length) cursor.value = index
 }
 
 export function selectNextPaletteItem(): void {
+  if (paletteLookupActive.value) {
+    selectNextPaletteLookupRow()
+    return
+  }
   const count = paletteItems.value.length
   if (count > 0) cursor.value = (cursor.value + 1) % count
 }
 
 export function selectPrevPaletteItem(): void {
+  if (paletteLookupActive.value) {
+    selectPrevPaletteLookupRow()
+    return
+  }
   const count = paletteItems.value.length
   if (count > 0) cursor.value = (cursor.value - 1 + count) % count
 }
 
 /** Closes first so focus returns to where the user stood, then acts on the next tick. */
-export async function runSelectedPaletteItem(): Promise<void> {
+export async function runSelectedPaletteItem(runLookup?: (query: string) => void | Promise<void>): Promise<void> {
   if (!open.value) return
+  if (paletteLookupActive.value) {
+    const headword = selectedPaletteLookupHeadword()
+    if (headword === null) return
+    if (runLookup === undefined) {
+      console.error('[palette] lookup Enter has no `runLookup` port; the palette stays open')
+      return
+    }
+    closePalette()
+    await nextTick()
+    await runLookup(headword)
+    return
+  }
   const item = paletteItems.value.at(cursor.value)
   if (item === undefined) return
+  if (item.kind === 'command' && item.commandId === LOOKUP_MODE_COMMAND) {
+    dispatch(item.commandId)
+    return
+  }
   closePalette()
   await nextTick()
   if (item.kind === 'command') {
@@ -139,17 +211,25 @@ export async function runSelectedPaletteItem(): Promise<void> {
   if (await openWorkById(item.workId)) setMode('workspace')
 }
 
-export function paletteCommandDeps(): Pick<
+export function paletteCommandDeps(
+  ports: { runLookup?: (query: string) => void | Promise<void> } = {},
+): Pick<
   CommandDeps,
-  'openPalette' | 'closePalette' | 'selectNextPaletteItem' | 'selectPrevPaletteItem' | 'runSelectedPaletteItem'
+  | 'openPalette'
+  | 'closePalette'
+  | 'selectNextPaletteItem'
+  | 'selectPrevPaletteItem'
+  | 'runSelectedPaletteItem'
+  | 'enterPaletteLookupMode'
 > {
   return {
+    enterPaletteLookupMode,
     openPalette,
     closePalette,
     selectNextPaletteItem,
     selectPrevPaletteItem,
     runSelectedPaletteItem: () => {
-      void runSelectedPaletteItem()
+      void runSelectedPaletteItem(ports.runLookup)
     },
   }
 }
