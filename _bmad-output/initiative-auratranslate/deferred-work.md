@@ -14169,3 +14169,9 @@ chính nó.
   Quan trọng vì một hành vi phá dữ liệu (AD-49 lớp iii) đang chạy mà không có yêu cầu nào để đối chiếu. Cần một FR mới qua correct-course. Chủ: Sofia. Trỏ: `plan-xoa-chuong-cung-va-mem.md`.
 - Tác phẩm giữ lại sau khi xoá mềm Chương hiện cuối (0 Chương hiện ra, còn hàng `chapter_deleted`) không còn đường xoá nào trong UI: nút xoá cần một Chương được chọn, và plan cấm nút xoá Tác phẩm độc lập lẫn màn khôi phục.
   Quan trọng vì Tác phẩm ấy nằm mãi trong Library với thẻ 0/0. Cần quyết định sản phẩm (xoá Tác phẩm hay khôi phục Chương) cùng FR mới ở mục ngay trên. Chủ: Sofia. Trỏ: `plan-xoa-chuong-cung-va-mem.md` §Review Triage Log Q5.
+
+## Deferred from: tắt kiểm chính tả của webview trên mọi ô nhập (2026-11-14)
+
+- WebView2 chưa đo: `index.html` nay đặt `spellcheck="false"` ở `<html>` để mọi ô nhập kế thừa; mới đo kế thừa bằng Playwright Chromium 156 và WebKit 27.2, chưa trong app Windows đã cài.
+  Cần: gõ sai chính tả vào ô tìm Lookup, ô Editor và một ô trong Settings, không hiện gạch đỏ, menu chuột phải không gợi ý sửa.
+  Chủ: B7. Trỏ: `tests/frontend/spellcheckRoot.test.ts`.
