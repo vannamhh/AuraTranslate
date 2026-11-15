@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Màn nhập — một khối chung, ba tab nguồn</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade; --rule:#8d877b;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:20px}
+.hd{width:1280px;margin:0 auto 10px;color:#f4f1ea;line-height:1.55}
+.hd b{font-size:16px}
+.hd .sub{font-size:13px;opacity:.88;margin-top:4px;max-width:1000px}
+.pick{width:1280px;margin:0 auto 10px;display:flex;gap:8px}
+.pick button{font:inherit;font-size:13px;border:1px solid var(--rule);background:#5e594f;color:#f4f1ea;border-radius:4px;padding:6px 14px;cursor:pointer}
+.pick button.on{background:#f4f1ea;color:var(--ink);border-color:#f4f1ea;font-weight:600}
+.why{width:1280px;margin:14px auto 0;color:#f4f1ea;font-size:13px;line-height:1.65}
+.why p{margin:0 0 6px;max-width:1000px}
+
+.frame{width:1280px;height:860px;margin:0 auto;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3);display:flex;flex-direction:column;position:relative}
+.tb{height:42px;flex:none;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:12px;height:12px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:13px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.scrim{position:absolute;inset:42px 0 0 0;background:rgba(43,39,35,.18);display:flex;justify-content:center;align-items:flex-start;padding-top:28px}
+
+.panel{width:720px;max-height:770px;background:var(--surface);border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden}
+.ph{display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line-2)}
+.ph h2{margin:0;font-size:16px;font-weight:600}
+.ph .x{margin-left:auto}
+.body{padding:16px 20px;overflow:auto;flex:1}
+.common{display:grid;grid-template-columns:120px 1fr;gap:10px 14px;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--line-2)}
+.common .l{color:var(--ink-2)}
+.field{background:var(--sunken);border:1px solid var(--line);border-radius:4px;padding:7px 10px;font:inherit;font-size:13px;color:var(--ink);width:100%}
+.field.auto{color:var(--ink)}
+.field.dis{color:var(--ink-2);background:var(--bg)}
+.hint{font-size:13px;color:var(--ink-2);margin-top:4px}
+.radio{display:flex;gap:18px}
+.radio label{display:flex;gap:6px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+.seg span{padding:5px 11px;font-size:13px;background:var(--surface);border-right:1px solid var(--rule)}
+.seg span:last-child{border-right:0}
+.seg span.on{background:var(--ink);color:var(--surface);font-weight:600}
+.sel{display:flex;justify-content:space-between}
+.tabs{display:flex;gap:22px;margin:16px 0 0;border-bottom:1px solid var(--line)}
+.tabs span{padding:6px 0;font-size:13px;color:var(--ink-2)}
+.tabs span.on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--ink);margin-bottom:-1px}
+.tabs .k{margin-left:auto;align-self:center}
+.k{font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--ink-2);background:var(--surface);white-space:nowrap}
+.tabbody{padding-top:14px}
+textarea.field{min-height:220px;resize:none;line-height:1.6;font-family:var(--ui)}
+.urls{display:grid;grid-template-columns:34px 1fr;border:1px solid var(--line);border-radius:4px;overflow:hidden;min-height:220px;background:var(--sunken)}
+.urls ol{margin:0;padding:7px 6px 7px 0;list-style:none;text-align:right;color:var(--orn);font-family:var(--mono);font-size:13px;line-height:1.7;border-right:1px solid var(--line-2)}
+.urls pre{margin:0;padding:7px 10px;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);white-space:pre;overflow:hidden}
+.count{margin-top:8px;font-size:13px}
+.count b{font-family:var(--mono)}
+.promise{font-size:13px;color:var(--ink-2);margin-top:2px}
+.files{border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.file{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line-2);background:var(--surface)}
+.file:last-child{border-bottom:0}
+.file .n{font-family:var(--mono);font-size:13px}
+.file .t{font-size:13px;color:var(--ink-2)}
+.file .t.bi{color:var(--tm-text)}
+.file.bad{background:#f6ebe7}
+.file.bad .t{color:var(--error);font-weight:600}
+.file .rm{margin-left:auto}
+.droprow{display:flex;align-items:center;gap:12px;margin-top:10px}
+.droptxt{font-size:13px;color:var(--ink-2)}
+.err{margin-top:10px;padding:8px 12px;border-left:2px solid var(--error);background:#f6ebe7;color:var(--error);font-size:13px}
+.note{margin-top:10px;padding:8px 12px;border-left:2px solid var(--tm-text);background:var(--tm-bg);color:var(--tm-text);font-size:13px}
+.ft{display:flex;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid var(--line);background:var(--sunken)}
+.ft .dest{font-size:13px;color:var(--ink-2)}
+.ft .btns{margin-left:auto;display:flex;gap:10px}
+.btn{font:inherit;border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:6px 14px;font-size:13px;color:var(--ink);cursor:pointer}
+.btn.q{border-color:transparent;background:transparent;color:var(--primary);padding:4px 6px}
+.btn.p{background:var(--primary);border-color:var(--primary);color:#fbfaf6;font-weight:600}
+.btn.p .kp{font-family:var(--mono);font-size:13px;color:#d7e3e4;font-weight:400;margin-left:6px}
+.btn[disabled]{opacity:.45;cursor:default}
+.dropveil{position:absolute;inset:0;border:2px dashed var(--primary);background:rgba(230,238,238,.92);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--primary);font-weight:600;border-radius:6px}
+.variant{display:none}
+.variant.on{display:contents}
+.ann{position:absolute;font-size:13px;color:#f4f1ea;background:#2b2723;border-radius:4px;padding:5px 9px;max-width:230px;line-height:1.45}
+</style>
+</head>
+<body>
+<div class="hd">
+  <b>Màn nhập — một khối chung, ba tab nguồn</b>
+  <div class="sub">Ice chọn 2026-11-15 (Phương án A). Khối chung hiện một lần, tab Dán · Tệp · URL, một nút đi tiếp. Màn "Nhập từ website" riêng bỏ. Spine thắng khi khác mockup: EXPERIENCE.md §Đường nhập — màn nhập.</div>
+</div>
+<div class="pick" role="tablist">
+  <button class="on" data-v="paste">1 · Dán, tên tự điền</button>
+  <button data-v="files">2 · Tệp lẫn loại, bị từ chối</button>
+  <button data-v="drop">3 · Đang kéo tệp vào</button>
+  <button data-v="urls">4 · URL</button>
+  <button data-v="existing">5 · Thêm vào Tác phẩm đã có</button>
+</div>
+
+<div class="frame">
+  <div class="tb"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+  </div>
+  <div class="scrim">
+    <section class="panel" style="position:relative">
+      <header class="ph"><h2>Nhập tài liệu</h2><button class="btn q x">Đóng <span class="k">Esc</span></button></header>
+      <div class="body">
+
+        <!-- ===== khối chung ===== -->
+        <div class="common">
+          <span class="l">Đưa vào</span>
+          <div>
+            <div class="radio">
+              <label><input type="radio" name="d" class="d-new" checked> Tác phẩm mới</label>
+              <label><input type="radio" name="d" class="d-old"> Tác phẩm đã có</label>
+            </div>
+            <div class="variant" data-only="existing"><div class="field sel" style="margin-top:8px"><span>Kiếm Lai</span><span>▾</span></div></div>
+          </div>
+
+          <span class="l">Tên Tác phẩm</span>
+          <div>
+            <div class="variant" data-only="paste"><div class="field auto">Đệ nhất chương · Tuyết đầu mùa</div><div class="hint">Tự điền từ dòng đầu. Gõ đè thì app không đổi lại nữa.</div></div>
+            <div class="variant" data-only="files drop"><div class="field auto">tuyet-trung-han-dao-hanh</div><div class="hint">Tự điền từ tên tệp đầu tiên.</div></div>
+            <div class="variant" data-only="urls"><div class="field" style="color:var(--ink-2)">Để trống: lấy tiêu đề bài đầu tiên sau khi tải</div></div>
+            <div class="variant" data-only="existing"><div class="field dis">Kiếm Lai</div></div>
+          </div>
+
+          <span class="l">Ngôn ngữ nguồn</span>
+          <div>
+            <div class="variant" data-only="paste files drop urls"><span class="seg"><span class="on">Tự phát hiện</span><span>Tiếng Trung</span><span>Tiếng Anh</span></span></div>
+            <div class="variant" data-only="existing"><div class="field dis">Tiếng Trung</div></div>
+          </div>
+
+          <span class="l">Thể loại</span>
+          <div>
+            <div class="variant" data-only="paste files drop urls"><div class="field sel"><span>Chưa chọn</span><span>▾</span></div></div>
+            <div class="variant" data-only="existing"><div class="field dis">Tiên hiệp</div></div>
+          </div>
+        </div>
+
+        <!-- ===== tab nguồn ===== -->
+        <div class="tabs" role="tablist">
+          <span class="t-paste">Dán</span><span class="t-files">Tệp</span><span class="t-urls">URL</span>
+          <span class="k">← →</span>
+        </div>
+
+        <div class="tabbody">
+          <div class="variant" data-only="paste">
+            <textarea class="field">第一章 初雪
+
+那年冬天的第一场雪来得很早……</textarea>
+          </div>
+
+          <div class="variant" data-only="files drop existing">
+            <div class="files">
+              <div class="file"><span class="n">tuyet-trung-han-dao-hanh-q1.txt</span><span class="t">văn bản</span><button class="btn q rm">Bỏ</button></div>
+              <div class="file"><span class="n">tuyet-trung-han-dao-hanh-q2.txt</span><span class="t">văn bản</span><button class="btn q rm">Bỏ</button></div>
+              <div class="variant" data-only="files"><div class="file bad"><span class="n">ban-dich-cu.csv</span><span class="t">song ngữ, khác loại</span><button class="btn q rm">Bỏ</button></div></div>
+              <div class="variant" data-only="existing"><div class="file"><span class="n">kiem-lai-q3.docx</span><span class="t">.docx, dò khi xem trước</span><button class="btn q rm">Bỏ</button></div></div>
+            </div>
+            <div class="droprow">
+              <button class="btn">Chọn tệp…</button>
+              <span class="droptxt">hoặc thả tệp vào bất kỳ đâu trên khung này · .txt .md .docx .csv .tsv</span>
+            </div>
+            <div class="variant" data-only="files"><div class="err" role="alert">Một lượt nhập chỉ một loại: bỏ tệp song ngữ, hoặc bỏ các tệp văn bản.</div></div>
+            <div class="variant" data-only="existing"><div class="note">Nếu .docx dò ra bảng song ngữ: chưa thêm được vào Tác phẩm đã có. Màn xem trước sẽ báo và đề nghị tạo Tác phẩm mới.</div></div>
+          </div>
+
+          <div class="variant" data-only="urls">
+            <div class="urls">
+              <ol><li>1</li><li>2</li><li>3</li><li>4</li><li>…</li><li>50</li></ol>
+<pre>https://truyen-example.com/kiem-lai/chuong-1
+https://truyen-example.com/kiem-lai/chuong-2
+https://truyen-example.com/kiem-lai/chuong-3
+https://truyen-example.com/kiem-lai/chuong-4
+…
+https://truyen-example.com/kiem-lai/chuong-50</pre>
+            </div>
+            <div class="count"><b>50</b> link · sẽ tạo <b>50</b> Chương · <b>1</b> domain</div>
+            <div class="promise">Chỉ tải đúng 50 link này. Không tìm thêm link nào khác.</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="ft">
+        <span class="dest variant" data-only="paste files drop urls">Tạo Tác phẩm mới</span>
+        <span class="dest variant" data-only="existing">Thêm Chương vào cuối «Kiếm Lai»</span>
+        <div class="btns">
+          <button class="btn">Huỷ</button>
+          <span class="variant" data-only="paste drop existing"><button class="btn p">Xem trước <span class="kp">⌘↵</span></button></span>
+          <span class="variant" data-only="files"><button class="btn p" disabled>Xem trước <span class="kp">⌘↵</span></button></span>
+          <span class="variant" data-only="urls"><button class="btn p">Tải 50 link <span class="kp">⌘↵</span></button></span>
+        </div>
+      </footer>
+
+      <div class="variant" data-only="drop"><div class="dropveil">Thả để thêm 3 tệp vào tab Tệp</div></div>
+    </section>
+  </div>
+</div>
+
+<div class="why">
+  <p><b>So với hiện trạng</b> (đếm từ template, chưa đo app): Tên và Ngôn ngữ nguồn trước kia hỏi ở màn nhập, lại ở màn URL riêng, rồi ở màn xem trước; nay ở màn nhập một lần, màn xem trước chỉ điền sẵn để sửa. Ba nút "Tạo Tác phẩm từ…" và nút "Nhập từ website…" thành một nút chính đổi nhãn theo tab.</p>
+  <p><b>Tab Song ngữ không có:</b> .csv/.tsv luôn là song ngữ, .docx do app dò bảng hai cột, sửa ở màn xem trước khi dò sai.</p>
+</div>
+
+<script>
+const pick = document.querySelectorAll('.pick button');
+const tabFor = {paste:'paste', files:'files', drop:'files', urls:'urls', existing:'files'};
+function show(v){
+  pick.forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.querySelectorAll('.variant').forEach(el => {
+    el.classList.toggle('on', el.dataset.only.split(' ').includes(v));
+  });
+  document.querySelectorAll('.tabs span[class^="t-"]').forEach(el => {
+    el.classList.toggle('on', el.className.replace(' on','') === 't-' + tabFor[v]);
+  });
+  document.querySelector('.d-new').checked = v !== 'existing';
+  document.querySelector('.d-old').checked = v === 'existing';
+}
+pick.forEach(b => b.addEventListener('click', () => show(b.dataset.v)));
+show('paste');
+</script>
+</body>
+</html>

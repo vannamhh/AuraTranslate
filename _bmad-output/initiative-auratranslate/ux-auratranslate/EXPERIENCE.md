@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-11-03
+updated: 2026-11-15
 design: DESIGN.md
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
@@ -32,9 +32,8 @@ Cửa sổ ứng dụng
 │   ├── lưới Tác phẩm — bìa, tên, tiến độ, trạng thái
 │   ├── tìm kiếm xuyên thư viện — hai chế độ dấu
 │   ├── bộ lọc — trạng thái · lĩnh vực · ngôn ngữ nguồn · ngày sửa
-│   ├── nhập tài liệu → màn xem trước hợp nhất
-│   │     ├── từ file · dán văn bản · file song ngữ hai cột
-│   │     └── từ URL — dán danh sách link, mỗi dòng một Chương
+│   ├── nhập tài liệu: màn nhập → màn xem trước hợp nhất
+│   │     └── tab Dán · Tệp (gồm cả song ngữ hai cột) · URL (mỗi dòng một Chương)
 │   └── xuất → chọn cách xuất ảnh · khối ghi nguồn
 ├── Workspace ............... mở một Chương là vào đây
 │   ├── preset 2×2 (mặc định)   Nguyên văn | Bản dịch
@@ -325,6 +324,37 @@ Lớp lỗi này **không đường nghiệm thu nào của dự án bắt đư�
 
 **Hệ quả cho ý "gõ dấu chấm để tách câu"** *(Ice nêu 2026-08-14)*: nửa **gộp** của ý đó dựng được và tự nhiên; nửa **tách** thì vướng đúng bức tường trên. Và nó **không cần thiết**: một segment giữ `target_text` là **một chuỗi bất kỳ** — viết hai câu Việt cho một câu Trung **không đòi tách gì cả**.
 
+## Đường nhập — màn nhập
+
+*(Mục bổ sung 2026-11-15. Ice: "nhập nội dung đang tách nhiều trường thao tác riêng rẽ, trùng lặp và chưa nhất quán… chia ra nhiều cửa sổ, nhiều thao tác dư thừa". Trước ngày này màn nhập chưa có đặc tả: mỗi story thêm nguồn mới gắn một khối và một nút riêng. Mockup [`mockups/import-entry.html`](mockups/import-entry.html).)*
+
+Màn nhập là bước đứng trước màn xem trước hợp nhất. Nó gồm **một lớp phủ, một khối chung, ba tab nguồn và một nút đi tiếp**, và thay màn *Nhập từ website* riêng. Ice chọn hình dạng này (Phương án A) trong ba phương án. Hai phương án còn lại là B (một ô vào tự nhận loại nguồn) và C (màn nhập chỉ nhận nguồn, mọi trường dời sang màn xem trước); số thao tác của từng phương án nằm trong memlog 2026-11-15.
+
+Hiện trạng, đếm từ template chưa đo trên app: Tên và Ngôn ngữ nguồn được hỏi ba lần (màn nhập, màn URL, màn xem trước). Màn nhập có bốn nút đi tiếp ("Tạo Tác phẩm từ văn bản", "…từ tệp", "…từ tệp song ngữ", "Nhập từ website…"). Nhập một tệp vào Tác phẩm mới mất 6 thao tác, kể cả gõ tên. Theo đặc tả này, Tên không còn phải gõ, và kéo thả một tệp chỉ còn 4 thao tác: mở, thả, Xem trước, Nhập. Nhập 50 link mất 6 thao tác, nay còn 5.
+
+| Vùng | Chứa | Hành vi |
+|---|---|---|
+| **Khối chung** | Đưa vào (Tác phẩm mới / Tác phẩm đã có + ô chọn) · Tên Tác phẩm · Ngôn ngữ nguồn (Tự phát hiện · Tiếng Trung · Tiếng Anh) · Thể loại | Hiện một lần, đứng trên hàng tab, giữ nguyên khi đổi tab. Chọn *Tác phẩm đã có* thì ba trường dưới hiện giá trị của Tác phẩm đó và không sửa được |
+| **Hàng tab nguồn** | Dán · Tệp · URL | Dáng *tab con trong panel* (DESIGN.md §Ba cấp điều khiển). Đổi tab không xoá nội dung tab khác; chỉ tab đang chọn được gửi đi |
+| Tab **Dán** | Một ô văn bản | — |
+| Tab **Tệp** | Danh sách tệp (tên · loại nhận ra · `Bỏ`) · `Chọn tệp…` (hộp thoại hệ điều hành, chọn nhiều) · dòng *hoặc thả tệp vào bất kỳ đâu trên khung này* kèm danh sách đuôi | Nhận `.txt` `.md` `.docx` `.csv` `.tsv`. Hộp thoại và kéo thả đọc **cùng một** danh sách đuôi |
+| Tab **URL** | Ô dán link có cột số dòng · *N link · sẽ tạo N Chương · M domain* · *Chỉ tải đúng N link này. Không tìm thêm link nào khác.* | Giữ nguyên lời hứa và bộ đếm của màn URL cũ (NFR19) |
+| **Chân** | Đích (*Tạo Tác phẩm mới* / *Thêm Chương vào cuối «tên»*) · `Huỷ` · nút chính | Nút chính là `Xem trước ⌘↵` ở tab Dán và Tệp, `Tải N link ⌘↵` ở tab URL, vì bấm ở tab URL là gọi mạng nên nhãn phải nói ra |
+
+**Tên tự điền khi ô còn trống** (Ice). Tab Tệp lấy tên tệp đầu tiên bỏ đuôi; tab Dán lấy dòng đầu không trống; tab URL lấy tiêu đề bài đầu tiên sau khi tải, tức điền ở màn xem trước. Tên người dùng đã gõ không bao giờ bị đè. Vì thế **Tên trống không khoá nút chính**; màn xem trước vẫn khoá `Nhập` khi tên còn trống, như hiện nay.
+
+**Màn xem trước giữ Tên · Ngôn ngữ nguồn · Thể loại sửa được, điền sẵn** (Ice). Ở đó người dùng sửa khi đã thấy nội dung và kết quả dò ngôn ngữ, không phải nhập lại.
+
+**Thả tệp ở bất kỳ đâu trên lớp phủ** (Ice). Khi đang kéo tệp, cả khung hiện một lớp viền đứt `primary` ghi *Thả để thêm N tệp vào tab Tệp*. Thả xong, màn chuyển sang tab Tệp và thêm tệp vào danh sách. Lớp viền chỉ để báo hiệu, không nhận tiêu điểm.
+
+**Song ngữ không có tab riêng** (Ice). `.csv` và `.tsv` luôn là song ngữ. `.docx` do app dò bảng hai cột: danh sách tệp ghi *.docx, dò khi xem trước*, và màn xem trước có công tắc *Đọc như văn bản thường / Đọc như song ngữ* để sửa khi dò sai.
+
+**Một lượt nhập chỉ một loại tệp** (Ice). Tệp thường lẫn với tệp song ngữ thì tệp khác loại được tô `error` và ghi *song ngữ, khác loại*. Nút chính khoá, kèm câu *Một lượt nhập chỉ một loại: bỏ tệp song ngữ, hoặc bỏ các tệp văn bản.*, và mỗi tệp đều có `Bỏ`. [ASSUMPTION] Hai tệp song ngữ trong một lượt cũng bị từ chối theo cùng cách, vì đường song ngữ nhận một tệp.
+
+**Tác phẩm đã có áp cho mọi tab** (Ice). Lối vào đặt ở hai chỗ: ô *Đưa vào* trong màn nhập, và lệnh *Thêm Chương…* trên thẻ Tác phẩm cùng thanh hành động danh sách Chương. Lệnh *Thêm Chương…* mở màn nhập với Tác phẩm đó đã chọn sẵn. Riêng nguồn song ngữ thì phía Rust chưa nhận đích có sẵn. Cho tới khi nhận được, màn xem trước báo rõ lý do và đề nghị chuyển sang Tác phẩm mới; app không bao giờ khoá im lặng.
+
+**Phím.** `⌘↵` là nút chính, `Esc` đóng lớp phủ. Hàng tab theo mẫu tablist: `←` `→` đổi tab khi tiêu điểm ở hàng tab. [ASSUMPTION] Lần mở đầu tiên chọn tab Dán, sau đó nhớ tab dùng lần cuối. Hai lời mời ở Library rỗng (*dán* · *chọn tệp*) mở thẳng tab tương ứng.
+
 ## Đường nhập — màn xem trước hợp nhất
 
 *(Mục bổ sung 2026-08-03 cho FR122–FR128. Đây là bề mặt **đầu tiên** người dùng chạm vào sản phẩm, và là nơi hai lỗi đắt nhất của ứng dụng có thể xảy ra im lặng.)*
@@ -356,6 +386,8 @@ Một bài epochtimes.com bóc ra 301 khối (67 giữ · 234 loại). Bố cụ
 | Vùng | Chứa | Hành vi |
 |---|---|---|
 | **Cột cấu hình** (trái, ~344 px) | Nguồn (link/tệp, Bỏ) · Đưa vào (Tác phẩm mới/đã có) · tên Tác phẩm · ngôn ngữ nguồn · Bảng mã · Luật làm sạch · Xuất xứ (bốn trường xếp dọc) | Dính đầu khi cột văn bản cuộn; dài hơn khung thì tự cuộn riêng |
+
+🔵 2026-11-15 (Ice): cột cấu hình thêm **Thể loại** cạnh tên và ngôn ngữ nguồn. Cả ba điền sẵn từ màn nhập và sửa được ở đây, không bắt nhập lại; Đưa vào chỉ đọc. Xem §Đường nhập — màn nhập.
 | **Cột văn bản** (phải) | Tầng 2: dãy khối của Chương đang chọn, có biên `[` `]` | Cuộn theo trang |
 | **Chân dính** | *Sẽ tạo N Chương · số ký tự · ~ứng viên Glossary · trạng thái ban đầu* · *Chưa ghi gì xuống đĩa · Đã gọi N domain · xem* · `Huỷ` · `Nhập N Chương ⌥⌘↵` | Luôn hiện, ở mọi vị trí cuộn |
 
@@ -791,6 +823,7 @@ Luồng PRD đánh dấu **nhiều chỗ dễ hỏng nhất**. `FR13 → FR14 �
 *(Hành trình bổ sung 2026-08-03. Đây là **lần đầu tiên** Ice chạm vào sản phẩm với một bộ truyện mới — nên nó cũng là chỗ ấn tượng đầu tiên được quyết.)*
 
 1. Ice mở một trang truyện, copy 50 link chương vào clipboard. Từ Library, chọn **Nhập từ website**, dán.
+   🔵 2026-11-15: không còn màn *Nhập từ website* riêng; Ice mở **Nhập tài liệu**, chọn tab **URL** rồi dán (§Đường nhập — màn nhập). Tên để trống thì lấy tiêu đề bài đầu tiên.
 2. Dưới ô dán hiện hai con số: **50 link · sẽ tạo 50 Chương**, kèm câu *"Chỉ tải đúng 50 link này. Không tìm thêm link nào khác."* Ice liếc qua, thấy hai số bằng nhau, bấm **Tải**.
 3. Màn xem trước mở ra ở Chương 1. Đầu màn hình: **7 Chương cần xem · 43 Chương sạch**.
 4. **Nhịp then chốt.** Ice bấm `⌥W` để lọc về nhóm cần xem, và Chương 3 hiện ra với chữ `ç¬¬ä¸€ç«`. Ngay trên văn bản là một dải năm ô — cùng đoạn đầu Chương dựng bằng năm bảng mã. Ice **không đọc chữ nào**; mắt chạm ô thứ hai thấy `第一章 雪`, bấm. Cả màn hình dựng lại. Chữ Hán hiện đúng ở cả ba tầng.
@@ -822,6 +855,7 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 | Ba mức typography Chế độ đọc, sáng và tối | [`mockups/reading-mode-typography.html`](mockups/reading-mode-typography.html) | Chế độ đọc — tham chiếu chữ nghĩa |
 | **Nhập từ URL + màn xem trước hợp nhất** — dán link, đối chiếu bảng mã, sửa ranh giới bóc, luật làm sạch, nhật ký domain; sáng và tối | [`mockups/web-import.html`](mockups/web-import.html) | KF-4 · FR122–FR128 · NFR19 |
 | **Màn xem trước nhập ở quy mô thật** — hiện trạng dựng lại, Phương án 1 (đã chọn) và 2, đo khoảng cuộn tới nút Nhập | [`mockups/import-preview-gon.html`](mockups/import-preview-gon.html) | FR122–FR128 · §Bố cục: cột cấu hình, cột văn bản, chân dính |
+| **Màn nhập** — khối chung một lần, tab Dán · Tệp · URL, tệp lẫn loại bị từ chối, đang kéo tệp vào, thêm vào Tác phẩm đã có; chỉ nền sáng | [`mockups/import-entry.html`](mockups/import-entry.html) | §Đường nhập — màn nhập · KF-1 · KF-4 |
 | **Xuất — cách xuất ảnh và khối ghi nguồn**, kèm danh sách ảnh không có link gốc | [`mockups/export-images-attribution.html`](mockups/export-images-attribution.html) | FR130 · FR131 · FR128 |
 
 ### Bổ sung 2026-08-03 — bề mặt của Giai đoạn 1 và 2
@@ -926,6 +960,8 @@ Hệ quả cho thiết kế đã áp vào mockup: thẻ quyết định hiện *
 
   > *(Mục này từng được ghi là 🟡 còn mở với việc cần làm **"PRD nên phê chuẩn lựa chọn này thành chữ"**. Việc đó đã xong ở cả PRD lẫn Architecture trước khi mục này được rà lại; đánh dấu đóng ngày 2026-08-03 trong đợt rà mức sẵn sàng triển khai.)*
 - ~~**Mâu thuẫn giãn dòng `ui` trong `DESIGN.md`**~~ — ✅ **đóng 2026-08-03.** Sàn 1.66 áp cho **chữ nội dung họ `read`**; họ `ui` được phép ở **1.4 và 1.5** cho nhãn một dòng, nhưng **quay lại 1.66 khi chuỗi có khả năng xuống dòng** (mô tả dưới ô thiết lập, câu trạng thái, hộp giải thích). Ranh giới là *chữ có chạy thành đoạn hay không*, không phải cỡ chữ. Xem `DESIGN.md § Giãn dòng`. 🔵 2026-10-29: giãn dòng nay là bội 7px, chữ `ui` 21px (`DESIGN.md` §Lưới 7px).
+
+- **Dò `.docx` song ngữ trước pipeline** *(mở 2026-11-15, cho Winston)*. §Đường nhập — màn nhập để app tự dò bảng hai cột trong `.docx`, và màn xem trước đổi qua lại giữa văn bản thường và song ngữ. Cần Winston xác nhận phép dò này nằm trong tiêu chí hình dạng đầu vào của AD-39, hay phải viết AD mới, trước khi story chạm vào nó.
 
 ### ✅ Bề mặt theo bản đồ năng lực — đã phủ kín 2026-08-03
 
