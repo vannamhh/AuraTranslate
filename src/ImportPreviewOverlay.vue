@@ -11,6 +11,7 @@ import { quickAiAutoEnabled, quickAiConfigReadiness, refreshQuickAiConfigReadine
 import { useSelectionSurface } from './panels/selectionContract'
 import ChapterOrigin from './ChapterOrigin.vue'
 import SelectMenu from './SelectMenu.vue'
+import { genreChoices, genreLabel } from './modes/libraryWorkCard'
 import SourceLangChips from './modes/SourceLangChips.vue'
 import {
   addImportPreviewCleanupRule,
@@ -71,11 +72,13 @@ import {
   importPreviewLastSubmittedFrom,
   importPreviewLoadError,
   importPreviewPageProgress,
+  importPreviewPendingGenre,
   importPreviewPendingName,
   importPreviewPendingSourceLang,
   importPreviewSourceLangAuto,
   importPreviewSplitPatternApplies,
   importPreviewTotalChars,
+  setImportPreviewPendingGenre,
   setImportPreviewPendingName,
   setImportPreviewSourceLang,
   importPreviewSelectedBlocks,
@@ -917,6 +920,8 @@ const destinationSourceLangLabel = computed<string>(() => {
   return importPreviewSourceLangAuto.value ? t('mode.library.lang_auto_detected', { lang: base }) : base
 })
 
+const genreOptions = computed(() => genreChoices())
+
 const footerEl = useTemplateRef<HTMLElement>('footerEl')
 const configMaxHeight = ref<string | null>(null)
 let footerObserver: ResizeObserver | null = null
@@ -1355,6 +1360,24 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   />
                   <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
                   <span v-else data-ip-source-lang-label>{{ destinationSourceLangLabel }}</span>
+                </dd>
+              </div>
+              <div class="ip-summary-line">
+                <dt>{{ t('mode.library.preview.summary_genre') }}</dt>
+                <dd class="ip-summary-lang">
+                  <SelectMenu
+                    v-if="importPreviewDestinationWorkId === null"
+                    :model-value="importPreviewPendingGenre"
+                    variant="field"
+                    :columns="3"
+                    :options="genreOptions"
+                    :label="t('mode.library.preview.summary_genre')"
+                    :disabled="importPreviewConfirming"
+                    data-ip-genre
+                    @update:model-value="setImportPreviewPendingGenre"
+                  />
+                  <!-- aura-allow-text: KẾT QUẢ của `genreLabel()`, thể loại của Tác phẩm đã có. -->
+                  <span v-else data-ip-genre-label>{{ genreLabel(importPreviewPendingGenre) ?? t('mode.library.genre_unset') }}</span>
                 </dd>
               </div>
             </dl>

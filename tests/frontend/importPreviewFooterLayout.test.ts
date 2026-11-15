@@ -203,6 +203,57 @@ describe('tên Tác phẩm sửa được trên màn xem trước', () => {
     wrapper.unmount()
   })
 
+  it('Thể loại sửa được ở màn xem trước: xác nhận mang thể loại mới; đích đã có thì setter không đổi', async () => {
+    const { state, Overlay } = await fresh()
+    previewTextMock.mockResolvedValue({ preview: previewOf(1), error: null })
+    confirmMock.mockResolvedValue({ created: null, error: null })
+    await state.openImportPreviewFromText('Ten', 'en', 'romance', 'x', null)
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await nextTick()
+    expect(wrapper.find('[data-ip-genre]').exists()).toBe(true)
+    state.setImportPreviewPendingGenre('xianxia')
+    expect(state.importPreviewPendingGenre.value).toBe('xianxia')
+    await state.confirmImportPreview()
+    expect(confirmMock.mock.calls[0]?.[2]).toBe('xianxia')
+    wrapper.unmount()
+
+    await state.openImportPreviewFromText('Ten co san', 'en', 'romance', 'x', 'work-1')
+    state.setImportPreviewPendingGenre('xianxia')
+    expect(state.importPreviewPendingGenre.value).toBe('romance')
+    const existing = mount(Overlay, { attachTo: document.body })
+    await nextTick()
+    expect(existing.find('[data-ip-genre]').exists()).toBe(false)
+    expect(existing.find('[data-ip-genre-label]').exists()).toBe(true)
+    existing.unmount()
+  })
+
+  it('URL, ô Tên rỗng: tên điền từ tiêu đề Chương đầu; tiêu đề null thì Tên rỗng và Nhập khoá; tên gõ không bị đè', async () => {
+    const { state } = await fresh()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch([blockOf(true)]), error: null })
+    await state.openImportPreviewFromUrls('', 'en', '', URLS, null)
+    expect(state.importPreviewPendingName.value).toBe('Chuong 1')
+    expect(state.importPreviewCanConfirm.value).toBe(true)
+
+    const untitled = urlBatch([blockOf(true)])
+    const chapters = untitled.encoding_preview?.candidates[0]?.chapters ?? untitled.encoding_preview?.self_declared_chapters
+    if (chapters?.chapters[0]) chapters.chapters[0].title = null
+    startUrlImportMock.mockResolvedValue({ batch: untitled, error: null })
+    state.cancelImportPreview()
+    await state.openImportPreviewFromUrls('', 'en', '', URLS, null)
+    expect(state.importPreviewPendingName.value).toBe('')
+    expect(state.importPreviewCanConfirm.value).toBe(false)
+
+    state.cancelImportPreview()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch([blockOf(true)]), error: null })
+    await state.openImportPreviewFromUrls('Tên gõ', 'en', '', URLS, null)
+    expect(state.importPreviewPendingName.value).toBe('Tên gõ')
+
+    state.cancelImportPreview()
+    startUrlImportMock.mockResolvedValue({ batch: urlBatch([blockOf(true)]), error: null })
+    await state.openImportPreviewFromUrls('Ten co san', 'en', '', URLS, 'work-1')
+    expect(state.importPreviewPendingName.value).toBe('Ten co san')
+  })
+
   it('đích là Tác phẩm đã có: không dựng ô tên', async () => {
     const { state, Overlay } = await fresh()
     previewTextMock.mockResolvedValue({ preview: previewOf(1), error: null })

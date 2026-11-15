@@ -562,6 +562,17 @@ export function setImportPreviewPendingName(name: string): void {
   pendingName.value = name
 }
 
+export function setImportPreviewPendingGenre(genre: string): void {
+  if (pendingDestinationWorkId.value !== null) return
+  pendingGenre.value = genre
+}
+
+function fillBlankNameFromFirstChapterTitle(): void {
+  if (pendingDestinationWorkId.value !== null || pendingName.value.trim() !== '') return
+  const title = importPreviewSelectedChapters.value?.chapters[0]?.title?.trim() ?? ''
+  if (title !== '') pendingName.value = title
+}
+
 export type GlossaryEstimateState =
   | { kind: 'idle' }
   | { kind: 'running' }
@@ -1684,6 +1695,7 @@ export async function openImportPreviewFromUrls(
     adoptPreviewSourceLang(result.batch.encoding_preview)
     preview.value = result.batch.encoding_preview
     selectedEncoding.value = result.batch.encoding_preview.selected_encoding
+    fillBlankNameFromFirstChapterTitle()
   }
   status.value = 'loaded'
   loadError.value = null
@@ -1721,6 +1733,7 @@ function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startU
   selectedEncoding.value = batch.encoding_preview.candidates.some((c) => c.encoding === keepEncoding)
     ? keepEncoding
     : batch.encoding_preview.selected_encoding
+  fillBlankNameFromFirstChapterTitle()
   // THÊM (Story 6.10a) — số Chương có thể đã đổi dưới chân con trỏ (tải lại/bỏ một mục URL).
   syncChapterCursorAfterBatchChange()
 }

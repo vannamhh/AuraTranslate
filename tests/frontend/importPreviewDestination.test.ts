@@ -21,6 +21,7 @@ import { seedGenres } from './support/genreSeed'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
 import type { WorkRow } from '../../src/config/library'
+import type { CommandDeps } from '../../src/commands'
 import type { CreatedWork } from '../../src/config/project'
 import { pickSelectOption } from './support/selectMenu'
 
@@ -770,7 +771,7 @@ describe('ImportPreviewOverlay.vue — dải .ip-destination đọc đúng đíc
 // Bốn nút nộp giữ nguyên `disabled` khi tên (đã cắt khoảng trắng) rỗng
 // ═════════════════════════════════════════════════════════════════════════════════
 
-describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần khoảng trắng rỗng (L726)', () => {
+describe('LibraryMode.vue — ô Tên rỗng không khoá nút chính, tên tự điền', () => {
   let wrapper: ReturnType<typeof mount> | null = null
 
   afterEach(() => {
@@ -778,38 +779,73 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
     wrapper = null
   })
 
-  it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: nút chính khoá trên cả ba tab dù các ô khác đã điền đủ', async () => {
+  it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: nút chính KHÔNG khoá, ô Tên hiện tên tự điền theo tab đang chọn', async () => {
     mockInvokeWithWorks([])
     wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
     const nhap = await import('../../src/modes/libraryImport')
     const primary = (): HTMLButtonElement => wrapper!.get('[data-import-preview-open]').element as HTMLButtonElement
+    const nameValue = (): string => (wrapper!.get('[data-import-name]').element as HTMLInputElement).value
 
-    await wrapper.get('.import-form textarea').setValue('mot doan van ban')
-    const nameInput = wrapper.get('.import-form .field input[type="text"]')
+    await wrapper.get('.import-form textarea').setValue('\n\n  Đệ nhất chương\nnội dung')
+    const nameInput = wrapper.get('[data-import-name]')
     await nameInput.setValue('   ')
-    expect(primary().disabled).toBe(true)
+    expect(primary().disabled).toBe(false)
+    expect(nameValue()).toBe('Đệ nhất chương')
+    expect(wrapper.find('[data-import-name-hint]').exists()).toBe(true)
 
     nhap.selectImportTab('files')
-    await seedImportFiles(nhap, ['/tmp/mot-tep.txt'])
+    await seedImportFiles(nhap, ['/tmp/tuyet-trung.txt', '/tmp/khac.txt'])
     await wrapper.vm.$nextTick()
-    expect(primary().disabled).toBe(true)
+    expect(primary().disabled).toBe(false)
+    expect(nameValue()).toBe('tuyet-trung')
+
+    nhap.aimImportFile('/tmp/tuyet-trung.txt')
+    await nhap.removeAimedImportFile()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(nameValue()).toBe('khac')
 
     nhap.selectImportTab('urls')
     nhap.pastedUrls.value = 'https://example.com/1'
     await wrapper.vm.$nextTick()
-    expect(primary().disabled).toBe(true)
-
-    await nameInput.setValue('Ten Tac Pham')
-    await wrapper.vm.$nextTick()
     expect(primary().disabled).toBe(false)
+    expect(nameValue()).toBe('')
+    expect(wrapper.get('[data-import-name]').attributes('placeholder')).toBe(
+      'Để trống: lấy tiêu đề bài đầu tiên sau khi tải',
+    )
+
+    await nameInput.setValue('Tuyết Trung')
     nhap.selectImportTab('files')
     await wrapper.vm.$nextTick()
-    expect(primary().disabled).toBe(false)
-    nhap.selectImportTab('paste')
+    expect(nameValue()).toBe('Tuyết Trung')
+    expect(nhap.effectiveName.value).toBe('Tuyết Trung')
+    expect(wrapper.find('[data-import-name-hint]').exists()).toBe(false)
+
+    await nameInput.setValue('')
+    expect(nameValue()).toBe('khac')
+    expect(nhap.effectiveName.value).toBe('khac')
+  })
+
+  it('Tệp tab, ô Tên không đụng tới: Mod+Enter trên lớp phủ mở màn xem trước với tên là stem của tệp đầu', async () => {
+    mockInvokeWithWorks([])
+    previewFileMock.mockResolvedValue({ batch: null, error: null })
+    wrapper = await mountImportOverlay()
+    await flushPromises()
+    const commands = await import('../../src/commands')
+    const nhap = await import('../../src/modes/libraryImport')
+    const state = await import('../../src/importPreviewState')
+    commands.installCommands({ submitActiveImportTab: () => void nhap.submitActiveImportTab() } as unknown as CommandDeps)
+    nhap.selectImportTab('files')
+    await seedImportFiles(nhap, ['/tmp/tuyet-trung.txt'])
     await wrapper.vm.$nextTick()
-    expect(primary().disabled).toBe(false)
+
+    await wrapper.get('.li-scrim').trigger('keydown', { key: 'Enter', metaKey: true })
+    await flushPromises()
+
+    expect(state.importPreviewPendingName.value).toBe('tuyet-trung')
+    state.resetImportPreview()
   })
 
   it('đích là một Tác phẩm đã có: effectiveName kế thừa từ đích (không rỗng) nên nút chính không bị khoá vì lý do Tên', async () => {

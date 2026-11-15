@@ -1113,6 +1113,8 @@ impl ImportBatchVerdict {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassifiedImportPath {
     pub path: String,
+    /// File name without its last extension; empty when the path has no file name.
+    pub stem: String,
     pub kind: ImportFileKind,
     pub problem: Option<ImportFileProblem>,
     /// A `.docx` row carries the temporary *read as bilingual* toggle until detection replaces it.
@@ -1175,6 +1177,11 @@ pub fn classify_import_paths(
         .zip(&kinds)
         .map(|(path, kind)| ClassifiedImportPath {
             path: path.clone(),
+            stem: Path::new(path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_owned(),
             kind: *kind,
             problem: problem_of(*kind),
             is_docx: is_docx(path),
@@ -1354,6 +1361,15 @@ mod classify_tests {
 
     fn problems(c: &ImportClassification) -> Vec<Option<ImportFileProblem>> {
         c.files.iter().map(|f| f.problem).collect()
+    }
+
+    #[test]
+    fn a_classified_row_carries_its_file_stem_without_the_last_extension_only() {
+        let c = classify_import_paths(&paths(&["a.b.txt", "tuyet-trung.TXT", "noext", "x.pdf"]), &[]);
+        assert_eq!(
+            c.files.iter().map(|f| f.stem.as_str()).collect::<Vec<_>>(),
+            vec!["a.b", "tuyet-trung", "noext", "x"]
+        );
     }
 
     #[test]

@@ -886,6 +886,7 @@ pub fn search_library_scoped(
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClassifiedImportFileWire {
     pub path: String,
+    pub stem: String,
     pub kind: String,
     pub problem: Option<String>,
     pub is_docx: bool,
@@ -911,6 +912,7 @@ pub fn classify_import_files(
             .into_iter()
             .map(|file| ClassifiedImportFileWire {
                 path: file.path,
+                stem: file.stem,
                 kind: file.kind.as_str().to_owned(),
                 problem: file.problem.map(|p| p.as_str().to_owned()),
                 is_docx: file.is_docx,

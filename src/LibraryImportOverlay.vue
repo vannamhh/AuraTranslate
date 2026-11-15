@@ -16,6 +16,7 @@ import {
   dragFileCount,
   genre,
   importActiveTab,
+  importAutoName,
   importFileName,
   importFiles,
   importFilesLockKey,
@@ -55,6 +56,19 @@ const destinationOptions = computed(() =>
   destinationWorks.value.map((work) => ({ value: work.work_id, label: work.name })),
 )
 const genreOptions = computed(() => genreChoices())
+
+const nameIsAuto = computed(() => name.value.trim() === '' && importAutoName.value !== '')
+const nameFieldValue = computed(() => (name.value.trim() === '' ? importAutoName.value : name.value))
+const nameHintKey = computed<string | null>(() => {
+  if (!nameIsAuto.value) return null
+  return importActiveTab.value === 'paste' ? 'mode.library.name_auto_hint_paste' : 'mode.library.name_auto_hint_files'
+})
+
+function onNameInput(event: Event): void {
+  const field = event.target as HTMLInputElement
+  name.value = field.value
+  if (name.value.trim() === '') void nextTick(() => (field.value = nameFieldValue.value))
+}
 
 const TABS: readonly ImportTab[] = ['paste', 'files', 'urls']
 
@@ -276,8 +290,19 @@ function trapTab(event: KeyboardEvent): void {
 
         <label class="field">
           <span>{{ t('mode.library.field_name') }}</span>
-          <input v-if="pickedDestinationWork === null" v-model="name" class="ui-field ui-field--lg ui-field--full" type="text" autocomplete="off" />
+          <input
+            v-if="pickedDestinationWork === null"
+            :value="nameFieldValue"
+            class="ui-field ui-field--lg ui-field--full"
+            :data-name-auto="nameIsAuto"
+            :placeholder="importActiveTab === 'urls' ? t('mode.library.name_url_placeholder') : undefined"
+            data-import-name
+            type="text"
+            autocomplete="off"
+            @input="onNameInput"
+          />
           <input v-else :value="pickedDestinationWork.name" class="ui-field ui-field--lg ui-field--full" type="text" autocomplete="off" disabled />
+          <span v-if="nameHintKey !== null && pickedDestinationWork === null" class="hint" data-import-name-hint>{{ t(nameHintKey) }}</span>
         </label>
 
         <div class="field">

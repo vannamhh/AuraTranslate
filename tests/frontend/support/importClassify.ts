@@ -20,7 +20,10 @@ export function fakeClassification(paths: string[], docxAsBilingual: string[] = 
     if (kind === 'unsupported') problem = 'unsupported'
     else if (kind === 'bilingual' && text > 0) problem = 'kind_mismatch'
     else if (kind === 'bilingual' && bilingual > 1) problem = 'one_bilingual_only'
-    return { path, kind, problem, is_docx: ext(path) === 'docx' }
+    const base = path.split(/[\\/]/).pop() ?? ''
+    const dot = base.lastIndexOf('.')
+    const stem = dot > 0 ? base.slice(0, dot) : base
+    return { path, stem, kind, problem, is_docx: ext(path) === 'docx' }
   })
   let verdict: ImportClassification['verdict'] = 'text'
   if (paths.length === 0) verdict = 'empty'

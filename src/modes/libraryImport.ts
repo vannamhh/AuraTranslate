@@ -174,7 +174,12 @@ export const effectiveSourceLang = computed<string>(() => pickedDestinationWork.
 /** Tên Tác phẩm THẬT SỰ hiện/gửi — §Never spec 6.7b: không đổi tên của đích, nên khi đích là
  * một Tác phẩm sẵn có, đây là tên CỦA ĐÍCH — ô gõ tay [`name`] bị bỏ qua (Rust cũng bỏ qua nó
  * ở đường APPEND, xem Implementation Notes Phase 2 spec 6.7b). */
-export const effectiveName = computed<string>(() => pickedDestinationWork.value?.name ?? name.value)
+export const effectiveName = computed<string>(() => {
+  const picked = pickedDestinationWork.value
+  if (picked !== null) return picked.name
+  if (name.value.trim() === '' && destinationMode.value === 'new') return importAutoName.value
+  return name.value
+})
 
 /** Thể loại THẬT SỰ hiện/gửi — cùng lý do [`effectiveName`]. */
 export const effectiveGenre = computed<string>(() => pickedDestinationWork.value?.genre ?? genre.value)
@@ -256,6 +261,24 @@ export const docxAsBilingual = ref<string[]>([])
 
 export const importFiles = computed<ClassifiedImportFile[]>(() => importClassification.value?.files ?? [])
 export const importFilesVerdict = computed<ImportBatchVerdict>(() => importClassification.value?.verdict ?? 'empty')
+
+/** Name shown while the Name field is empty; follows the selected tab. The URL tab has none
+ * (the first Chapter title fills it in the preview). */
+export const importAutoName = computed<string>(() => {
+  switch (importActiveTab.value) {
+    case 'paste':
+      return (
+        pastedText.value
+          .split(/\r\n|\r|\n/)
+          .map((line) => line.trim())
+          .find((line) => line !== '') ?? ''
+      )
+    case 'files':
+      return importFiles.value[0]?.stem ?? ''
+    case 'urls':
+      return ''
+  }
+})
 
 /** Rust's verdict is the only judge; this only names the sentence that explains a locked button. */
 export const importFilesLockKey = computed<string | null>(() => {
@@ -758,11 +781,11 @@ export const importSubmitReady = computed<boolean>(() => {
   if (busy.value || destinationPending.value) return false
   switch (importActiveTab.value) {
     case 'paste':
-      return pastedText.value.trim() !== '' && effectiveName.value.trim() !== ''
+      return pastedText.value.trim() !== ''
     case 'files':
-      return (importFilesVerdict.value === 'text' || importFilesVerdict.value === 'bilingual') && effectiveName.value.trim() !== ''
+      return (importFilesVerdict.value === 'text' || importFilesVerdict.value === 'bilingual')
     case 'urls':
-      return pastedUrlCount.value > 0 && effectiveName.value.trim() !== ''
+      return pastedUrlCount.value > 0
   }
 })
 

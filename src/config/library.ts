@@ -471,6 +471,7 @@ export type ImportBatchVerdict =
 
 export type ClassifiedImportFile = {
   path: string
+  stem: string
   kind: ImportFileKind
   problem: ImportFileProblem | null
   is_docx: boolean
@@ -498,6 +499,7 @@ function isClassifiedFile(value: unknown): value is ClassifiedImportFile {
   return (
     typeof row.path === 'string' &&
     row.path.length > 0 &&
+    typeof row.stem === 'string' &&
     typeof row.kind === 'string' &&
     FILE_KINDS.includes(row.kind) &&
     (row.problem === null || (typeof row.problem === 'string' && FILE_PROBLEMS.includes(row.problem))) &&

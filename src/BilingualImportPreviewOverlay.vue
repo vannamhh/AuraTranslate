@@ -6,6 +6,8 @@ import { commandTitle } from './config/shortcutsState'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { takeRecordedImportOpener } from './importOpener'
 import SelectMenu from './SelectMenu.vue'
+import SourceLangChips from './modes/SourceLangChips.vue'
+import { genreChoices, genreLabel } from './modes/libraryWorkCard'
 import {
   bilingualImportPreview,
   bilingualImportPreviewActiveCuts,
@@ -17,6 +19,7 @@ import {
   bilingualImportPreviewCanImportUnlinked,
   bilingualImportPreviewEmptySourceMismatchCount,
   bilingualImportPreviewMismatchFocusSignal,
+  bilingualImportPreviewPendingGenre,
   bilingualImportPreviewPendingName,
   bilingualImportPreviewPendingSourceLang,
   bilingualImportPreviewCanSkipActiveRow,
@@ -43,6 +46,9 @@ import {
   setBilingualTableIndex,
   setBilingualChapterPattern,
   setBilingualHasHeader,
+  setBilingualImportPreviewPendingGenre,
+  setBilingualImportPreviewPendingName,
+  setBilingualImportPreviewSourceLang,
   setBilingualSourceColumn,
   setBilingualTargetColumn,
 } from './bilingualImportPreviewState'
@@ -375,6 +381,17 @@ const sourceLangLabel = computed<string>(() => {
   return bilingualImportPreviewPendingSourceLang.value
 })
 
+const genreOptions = computed(() => genreChoices())
+const isNewWork = computed(() => bilingualImportPreviewDestinationMode.value === 'new')
+
+function onNameInput(event: Event): void {
+  setBilingualImportPreviewPendingName((event.target as HTMLInputElement).value)
+}
+
+function onSourceLangChange(lang: string): void {
+  if (lang === 'zh' || lang === 'en') void setBilingualImportPreviewSourceLang(lang)
+}
+
 const mismatchFocus = useTemplateRef<HTMLElement>('mismatchFocus')
 watch(bilingualImportPreviewMismatchFocusSignal, () => {
   void nextTick(() => {
@@ -417,15 +434,59 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
         <div class="bip-two">
         <aside class="bip-config" :aria-label="t('mode.library.preview.config_label')">
           <dl class="bip-summary">
-            <div class="bip-summary-line">
+            <div v-if="isNewWork" class="bip-summary-line bip-field-line">
+              <dt>
+                <label for="bip-work-name">{{ t('mode.library.preview.summary_work_name') }}</label>
+              </dt>
+              <dd>
+                <input
+                  id="bip-work-name"
+                  class="ui-field ui-field--full"
+                  type="text"
+                  autocomplete="off"
+                  :value="bilingualImportPreviewPendingName"
+                  :disabled="bilingualImportPreviewConfirming"
+                  data-bip-work-name
+                  @input="onNameInput"
+                  @keydown.enter.prevent
+                />
+              </dd>
+            </div>
+            <div v-else class="bip-summary-line">
               <dt>{{ t('mode.library.preview.summary_work_name') }}</dt>
               <!-- aura-allow-text: DỮ LIỆU (tên Tác phẩm người dùng tự đặt). -->
               <dd>{{ bilingualImportPreviewPendingName }}</dd>
             </div>
-            <div class="bip-summary-line">
+            <div class="bip-summary-line" :class="{ 'bip-field-line': isNewWork }">
               <dt>{{ t('mode.library.preview.summary_source_lang') }}</dt>
+              <dd v-if="isNewWork">
+                <SourceLangChips
+                  :model-value="bilingualImportPreviewPendingSourceLang"
+                  name="bilingual-import-preview-source-lang"
+                  :include-auto="false"
+                  data-bip-source-lang
+                  @update:model-value="onSourceLangChange"
+                />
+              </dd>
               <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
-              <dd>{{ sourceLangLabel }}</dd>
+              <dd v-else>{{ sourceLangLabel }}</dd>
+            </div>
+            <div class="bip-summary-line" :class="{ 'bip-field-line': isNewWork }">
+              <dt>{{ t('mode.library.preview.summary_genre') }}</dt>
+              <dd v-if="isNewWork">
+                <SelectMenu
+                  :model-value="bilingualImportPreviewPendingGenre"
+                  variant="field"
+                  :columns="3"
+                  :options="genreOptions"
+                  :label="t('mode.library.preview.summary_genre')"
+                  :disabled="bilingualImportPreviewConfirming"
+                  data-bip-genre
+                  @update:model-value="setBilingualImportPreviewPendingGenre"
+                />
+              </dd>
+              <!-- aura-allow-text: KẾT QUẢ của `genreLabel()`. -->
+              <dd v-else>{{ genreLabel(bilingualImportPreviewPendingGenre) ?? t('mode.library.genre_unset') }}</dd>
             </div>
             <div class="bip-summary-line">
               <dt>{{ t('mode.library.preview.summary_initial_status') }}</dt>
@@ -943,6 +1004,14 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-summary-line dd {
   margin: 0;
   text-align: right;
+}
+
+.bip-field-line {
+  flex-direction: column;
+}
+
+.bip-field-line dd {
+  text-align: left;
 }
 
 .bip-head {

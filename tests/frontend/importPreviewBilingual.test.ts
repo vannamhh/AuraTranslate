@@ -425,6 +425,89 @@ describe('bilingualImportPreviewState — xác nhận bị KHOÁ khi còn hàng 
   })
 })
 
+describe('bilingualImportPreviewState — Tên, Ngôn ngữ nguồn, Thể loại sửa được', () => {
+  it('xác nhận mang đủ ba giá trị đã sửa, đổi ngôn ngữ dựng lại với ngôn ngữ mới', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    rebuildMock.mockResolvedValue({ preview: preview(), error: null })
+    confirmMock.mockResolvedValue({ created: { meta: { work_id: 'w1' } }, error: null })
+    await state.openBilingualImportPreview('Ten cu', 'zh', '', '/tmp/hai-cot.csv')
+
+    state.setBilingualImportPreviewPendingName('Ten moi')
+    await state.setBilingualImportPreviewSourceLang('en')
+    state.setBilingualImportPreviewPendingGenre('xianxia')
+
+    expect(rebuildMock).toHaveBeenCalledTimes(1)
+    expect(rebuildMock.mock.calls[0]?.[0]).toBe('en')
+    await state.confirmBilingualImportPreview()
+    expect(confirmMock.mock.calls[0]?.slice(0, 3)).toEqual(['Ten moi', 'en', 'xianxia'])
+  })
+
+  it('dựng lại trượt: nhãn ngôn ngữ về giá trị cũ, lỗi hiện như trước', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'zh', '', '/tmp/hai-cot.csv')
+    rebuildMock.mockResolvedValue({ preview: null, error: { code: 'x', message_key: 'x', params: {}, retryable: false } })
+
+    await state.setBilingualImportPreviewSourceLang('en')
+
+    expect(state.bilingualImportPreviewPendingSourceLang.value).toBe('zh')
+    expect(state.bilingualImportPreviewStatus.value).toBe('error')
+  })
+
+  it('Tên rỗng sau trim khoá cả hai nút xác nhận', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
+    state.setBilingualImportPreviewPendingName('   ')
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(false)
+    confirmMock.mockResolvedValue({ created: null, error: null })
+    await state.confirmBilingualImportPreview()
+    expect(confirmMock).not.toHaveBeenCalled()
+
+    previewMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ mismatches: [mismatch({ source_sentences: ['A.'] })] })] }), error: null })
+    await state.openBilingualImportPreview('', 'en', '', '/tmp/lech.csv')
+    expect(state.bilingualImportPreviewCanImportUnlinked.value).toBe(false)
+    state.setBilingualImportPreviewPendingName('Ten')
+    expect(state.bilingualImportPreviewCanImportUnlinked.value).toBe(true)
+  })
+
+  it('đích là Tác phẩm đã có: ba setter không đổi gì, lớp phủ hiện hàng chỉ đọc', async () => {
+    const { state, BilingualImportPreviewOverlay } = await freshOverlay()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openBilingualImportPreview('Kiem Lai', 'zh', 'tienhiep', '/tmp/hai-cot.csv', 'existing')
+    state.setBilingualImportPreviewPendingName('Khac')
+    state.setBilingualImportPreviewPendingGenre('khac')
+    await state.setBilingualImportPreviewSourceLang('en')
+    expect(state.bilingualImportPreviewPendingName.value).toBe('Kiem Lai')
+    expect(state.bilingualImportPreviewPendingGenre.value).toBe('tienhiep')
+    expect(state.bilingualImportPreviewPendingSourceLang.value).toBe('zh')
+    expect(rebuildMock).not.toHaveBeenCalled()
+
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('[data-bip-work-name]').exists()).toBe(false)
+    expect(wrapper.find('[data-bip-source-lang]').exists()).toBe(false)
+    expect(wrapper.find('[data-bip-genre]').exists()).toBe(false)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('Tác phẩm mới: lớp phủ dựng ô Tên, chip ngôn ngữ và Thể loại, ô Tên rỗng tắt nút xác nhận', async () => {
+    const { state, BilingualImportPreviewOverlay } = await freshOverlay()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('[data-bip-source-lang]').exists()).toBe(true)
+    expect(wrapper.find('[data-bip-genre]').exists()).toBe(true)
+    await wrapper.get('[data-bip-work-name]').setValue('')
+    expect(wrapper.get('.bip-act-primary').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-bip-work-name]').setValue('Ten moi')
+    expect(wrapper.get('.bip-act-primary').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+})
+
 describe('BilingualImportPreviewOverlay.vue — nút xác nhận khoá kèm lý do khi còn hàng lệch cặp', () => {
   it('còn mismatch ⇒ nút xác nhận `disabled`, hiện đúng số hàng lệch cặp', async () => {
     const { state, BilingualImportPreviewOverlay } = await freshOverlay()

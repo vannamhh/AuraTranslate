@@ -128,6 +128,7 @@ export const bilingualImportPreviewDestinationMode: DeepReadonly<Ref<'new' | 'ex
 
 export const bilingualImportPreviewPendingName: DeepReadonly<Ref<string>> = readonly(pendingName)
 export const bilingualImportPreviewPendingSourceLang: DeepReadonly<Ref<string>> = readonly(pendingSourceLang)
+export const bilingualImportPreviewPendingGenre: DeepReadonly<Ref<string>> = readonly(pendingGenre)
 export const bilingualImportPreviewSourceFileName = computed<string>(
   () => pendingPath.value.split(/[\\/]/).pop() ?? pendingPath.value,
 )
@@ -155,6 +156,7 @@ export const bilingualImportPreviewCanConfirm = computed<boolean>(() => {
     !confirming.value &&
     !opening.value &&
     pendingDestinationMode.value === 'new' &&
+    pendingName.value.trim() !== '' &&
     candidate !== null &&
     candidate.mismatches.length === 0 &&
     !tableChoicePending()
@@ -173,6 +175,7 @@ export const bilingualImportPreviewCanImportUnlinked = computed<boolean>(() => {
     !confirming.value &&
     !opening.value &&
     pendingDestinationMode.value === 'new' &&
+    pendingName.value.trim() !== '' &&
     candidate !== null &&
     candidate.mismatches.length > 0 &&
     bilingualImportPreviewEmptySourceMismatchCount.value === 0 &&
@@ -429,6 +432,25 @@ export async function openBilingualImportPreview(
   selectedEncoding.value = result.preview.selected_encoding
   status.value = 'loaded'
   loadError.value = null
+}
+
+export function setBilingualImportPreviewPendingName(name: string): void {
+  if (pendingDestinationMode.value !== 'new') return
+  pendingName.value = name
+}
+
+export function setBilingualImportPreviewPendingGenre(genre: string): void {
+  if (pendingDestinationMode.value !== 'new') return
+  pendingGenre.value = genre
+}
+
+export async function setBilingualImportPreviewSourceLang(lang: 'zh' | 'en'): Promise<void> {
+  if (pendingDestinationMode.value !== 'new' || confirming.value || opening.value) return
+  if (pendingSourceLang.value === lang) return
+  const previousLang = pendingSourceLang.value
+  pendingSourceLang.value = lang
+  await refresh()
+  if (status.value === 'error') pendingSourceLang.value = previousLang
 }
 
 // Column roles and regroupings belong to the previous table, so they reset on a switch.
