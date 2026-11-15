@@ -1199,6 +1199,8 @@ pub fn run() {
             // doc-comment cua `commands::library`.
             crate::commands::library::wire::library_rescan,
             crate::commands::library::wire::library_choose_root,
+            crate::commands::library::wire::library_pick_import_files,
+            crate::commands::library::wire::library_pick_bilingual_import_file,
             crate::commands::library::wire::library_forget_orphan,
             crate::commands::library::wire::library_relocate_orphan,
             crate::commands::library::wire::library_rebuild_index,

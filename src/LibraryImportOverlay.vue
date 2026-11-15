@@ -8,6 +8,8 @@ import { useSelectionSurface } from './panels/selectionContract'
 import {
   bilingualFilePath,
   busy,
+  chooseBilingualImportFile,
+  chooseImportFiles,
   destinationMode,
   destinationLibraryGenuinelyEmpty,
   destinationPending,
@@ -16,15 +18,15 @@ import {
   destinationWorksError,
   effectiveFilePaths,
   effectiveName,
-  filePath,
   genre,
   isDragOver,
   lastError,
   name,
   noticeKey,
-  onFilePathInput,
   pastedText,
+  pickedBilingualFileName,
   pickedDestinationWork,
+  pickedFileNames,
   setDestinationMode,
   setDestinationWorkId,
   sourceLang,
@@ -265,21 +267,22 @@ function trapTab(event: KeyboardEvent): void {
           {{ destinationMode === 'existing' ? t('mode.library.submit_text_append') : t('mode.library.submit_text') }}
         </button>
 
-        <!-- Indicator only: a drop fills the path field below, so it takes no tabindex. -->
+        <!-- Indicator only: a drop fills the file list below, so it takes no tabindex. -->
         <div class="dropzone" :class="{ over: isDragOver }">
           {{ t('mode.library.dropzone') }}
         </div>
 
-        <label class="field">
+        <div class="field">
           <span>{{ t('mode.library.field_path') }}</span>
-          <input
-            class="ui-field ui-field--lg ui-field--full"
-            :value="filePath"
-            type="text"
-            autocomplete="off"
-            @input="onFilePathInput(($event.target as HTMLInputElement).value)"
-          />
-        </label>
+          <div class="pick-row">
+            <button type="button" class="ui-btn ui-btn--lg" :disabled="busy" @click="chooseImportFiles()">
+              {{ t('mode.library.pick_file') }}
+            </button>
+            <!-- aura-allow-text: tên tệp người dùng vừa chọn là dữ liệu, không phải chuỗi giao diện. -->
+            <span v-if="pickedFileNames" class="pick-name">{{ pickedFileNames }}</span>
+            <span v-else class="pick-name">{{ t('mode.library.no_file_picked') }}</span>
+          </div>
+        </div>
         <button
           type="button"
           class="btn ui-btn ui-btn--lg"
@@ -295,10 +298,17 @@ function trapTab(event: KeyboardEvent): void {
           {{ destinationMode === 'existing' ? t('mode.library.submit_file_append') : t('mode.library.submit_file') }}
         </button>
 
-        <label class="field">
+        <div class="field">
           <span>{{ t('mode.library.field_bilingual_path') }}</span>
-          <input v-model="bilingualFilePath" class="ui-field ui-field--lg ui-field--full" type="text" autocomplete="off" />
-        </label>
+          <div class="pick-row">
+            <button type="button" class="ui-btn ui-btn--lg" :disabled="busy" @click="chooseBilingualImportFile()">
+              {{ t('mode.library.pick_file') }}
+            </button>
+            <!-- aura-allow-text: tên tệp người dùng vừa chọn là dữ liệu, không phải chuỗi giao diện. -->
+            <span v-if="pickedBilingualFileName" class="pick-name">{{ pickedBilingualFileName }}</span>
+            <span v-else class="pick-name">{{ t('mode.library.no_file_picked') }}</span>
+          </div>
+        </div>
         <button
           type="button"
           class="btn ui-btn ui-btn--lg"
@@ -383,6 +393,20 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pick-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field-group {

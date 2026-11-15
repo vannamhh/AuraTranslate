@@ -981,6 +981,60 @@ pub mod wire {
         super::apply_chosen_root(store.as_deref(), indexer.as_deref(), path.as_deref())
     }
 
+    fn picked_to_wire(picked: tauri_plugin_dialog::FilePath) -> Result<String, IpcError> {
+        picked
+            .into_path()
+            .ok()
+            .and_then(|path| path.to_str().map(str::to_owned))
+            .ok_or_else(import_path_invalid)
+    }
+
+    fn import_path_invalid() -> IpcError {
+        IpcError::new(
+            "library.import_path_invalid",
+            crate::core::i18n::MessageKey::Unknown,
+            Default::default(),
+            false,
+        )
+    }
+
+    /// Only paths cross to the webview, as with a drop; `None` is a cancelled dialog.
+    /// `(async)`: `blocking_pick_files()` blocks the calling thread.
+    #[tauri::command(async)]
+    pub fn library_pick_import_files(
+        app: tauri::AppHandle,
+    ) -> Result<Option<Vec<String>>, IpcError> {
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .add_filter("Text", &crate::core::segment::import::SUPPORTED_EXTENSIONS)
+            .blocking_pick_files()
+        else {
+            return Ok(None);
+        };
+        picked
+            .into_iter()
+            .map(picked_to_wire)
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some)
+    }
+
+    /// `(async)`: `blocking_pick_file()` blocks the calling thread.
+    #[tauri::command(async)]
+    pub fn library_pick_bilingual_import_file(
+        app: tauri::AppHandle,
+    ) -> Result<Option<String>, IpcError> {
+        app.dialog()
+            .file()
+            .add_filter(
+                "Bilingual",
+                &crate::core::segment::import::BILINGUAL_SUPPORTED_EXTENSIONS,
+            )
+            .blocking_pick_file()
+            .map(picked_to_wire)
+            .transpose()
+    }
+
     /// `(async)`: `blocking_pick_folder()` blocks the calling thread.
     #[tauri::command(async)]
     pub fn library_relocate_orphan(

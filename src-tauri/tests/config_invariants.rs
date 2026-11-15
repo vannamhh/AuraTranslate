@@ -1724,6 +1724,16 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/library.rs",
+            "pub fn library_pick_import_files(\n        app: tauri::AppHandle",
+            "hop thoai CHON tep chan (blocking_pick_files), cung ly do voi chon thu muc",
+        ),
+        (
+            "src/commands/library.rs",
+            "pub fn library_pick_bilingual_import_file(\n        app: tauri::AppHandle",
+            "hop thoai CHON tep chan (blocking_pick_file), cung ly do voi chon thu muc",
+        ),
+        (
+            "src/commands/library.rs",
             "pub fn library_forget_orphan(\n        app: tauri::AppHandle",
             "mot luot ghi qua `store::Writer` -- cung nhom voi hai vo tren, khong tach rieng \
              'nang'/'nhe'",
@@ -2401,7 +2411,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 23] = [
     ),
     ("src/commands/export.rs", 8, 8, 8, ""),
     ("src/commands/glossary.rs", 9, 10, 10, ""),
-    ("src/commands/library.rs", 3, 7, 7, ""),
+    ("src/commands/library.rs", 3, 9, 9, ""),
     ("src/commands/lifecycle.rs", 1, 4, 4, ""),
     (
         "src/commands/update.rs",
@@ -2602,9 +2612,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (140, 85),
+        (140, 87),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         140/85.\n\n\
+         140/87.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

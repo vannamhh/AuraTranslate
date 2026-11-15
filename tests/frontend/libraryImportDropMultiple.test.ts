@@ -31,6 +31,18 @@ vi.mock('../../src/config/project', async (importOriginal) => {
   }
 })
 
+const pickFilesMock = vi.fn()
+const pickBilingualMock = vi.fn()
+
+vi.mock('../../src/config/library', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/config/library')>()
+  return {
+    ...actual,
+    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
+    pickBilingualImportFile: (...args: unknown[]) => pickBilingualMock(...args),
+  }
+})
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return { ...actual, readOpenChapterSegments: async (): ReturnType<typeof actual.readOpenChapterSegments> => ({
@@ -85,6 +97,8 @@ async function freshModule() {
   listenHandlers.clear()
   previewFileMock.mockReset()
   confirmMock.mockReset()
+  pickFilesMock.mockReset()
+  pickBilingualMock.mockReset()
   const nhap = await import('../../src/modes/libraryImport')
   nhap.wireDragDropOnce()
   await Promise.resolve() // để `listen(...).then(...)` (microtask) đăng ký xong handler
@@ -148,16 +162,51 @@ describe('libraryImport — kéo-thả N tệp cùng lúc (Story 6.6b)', () => {
     expect(nhap.effectiveFilePaths.value).toEqual(['/tmp/dropped-a.txt', '/tmp/dropped-b.txt'])
   })
 
-  it('luật ưu tiên, chiều 2 — GÕ vào ô đường dẫn dọn SẠCH danh sách thả', async () => {
+  it('chọn tệp qua hộp thoại THAY danh sách đã thả, rồi tới `submitFilePath()` với đúng các tệp đã chọn', async () => {
     const nhap = await freshModule()
     fireDrop(['/tmp/dropped-a.txt', '/tmp/dropped-b.txt'])
-    expect(nhap.droppedFilePaths.value).toHaveLength(2)
+    pickFilesMock.mockResolvedValue({ paths: ['/tmp/chon/a.txt', '/tmp/chon/b.md'], error: null })
 
-    nhap.onFilePathInput('/tmp/moi-go.txt')
+    await nhap.chooseImportFiles()
 
-    expect(nhap.droppedFilePaths.value).toEqual([])
-    expect(nhap.effectiveFilePaths.value).toEqual(['/tmp/moi-go.txt'])
-    expect(nhap.filePath.value).toBe('/tmp/moi-go.txt')
+    expect(nhap.effectiveFilePaths.value).toEqual(['/tmp/chon/a.txt', '/tmp/chon/b.md'])
+    expect(nhap.pickedFileNames.value).toBe('a.txt, b.md')
+    expect(nhap.noticeKey.value).toBeNull()
+    previewFileMock.mockResolvedValue(batchFor(['/tmp/chon/a.txt', '/tmp/chon/b.md']))
+    await nhap.submitFilePath()
+    expect(previewFileMock).toHaveBeenCalledWith(['/tmp/chon/a.txt', '/tmp/chon/b.md'], 'auto', null, null)
+  })
+
+  it('huỷ hộp thoại chọn tệp giữ nguyên danh sách đang có, không báo lỗi', async () => {
+    const nhap = await freshModule()
+    fireDrop(['/tmp/dropped-a.txt'])
+    pickFilesMock.mockResolvedValue({ paths: null, error: null })
+
+    await nhap.chooseImportFiles()
+
+    expect(nhap.effectiveFilePaths.value).toEqual(['/tmp/dropped-a.txt'])
+    expect(nhap.lastError.value).toBeNull()
+  })
+
+  it('hộp thoại chọn tệp trượt ⇒ lỗi lên màn hình, danh sách không đổi', async () => {
+    const nhap = await freshModule()
+    const error = { code: 'library.import_path_invalid', message_key: 'err.unknown', params: {}, retryable: false }
+    pickFilesMock.mockResolvedValue({ paths: null, error })
+
+    await nhap.chooseImportFiles()
+
+    expect(nhap.lastError.value).toEqual(error)
+    expect(nhap.effectiveFilePaths.value).toEqual([])
+  })
+
+  it('chọn tệp song ngữ điền `bilingualFilePath`, tên hiển thị là tên tệp', async () => {
+    const nhap = await freshModule()
+    pickBilingualMock.mockResolvedValue({ paths: ['C:\\Docs\\song-ngu.csv'], error: null })
+
+    await nhap.chooseBilingualImportFile()
+
+    expect(nhap.bilingualFilePath.value).toBe('C:\\Docs\\song-ngu.csv')
+    expect(nhap.pickedBilingualFileName.value).toBe('song-ngu.csv')
   })
 
   it('cả hai nguồn rỗng ⇒ `effectiveFilePaths` rỗng, `submitFilePath()` no-op (0 lời gọi IPC)', async () => {

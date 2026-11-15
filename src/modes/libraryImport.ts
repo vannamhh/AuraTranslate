@@ -78,7 +78,7 @@ import { resetReviewerImport } from '../reviewerImportState'
 import { setOpenWork } from '../openWorkIdentity'
 import { restorePromptSetForWork } from '../promptSetState'
 import type { CreatedWork } from '../config/project'
-import { listLibraryWorks } from '../config/library'
+import { listLibraryWorks, pickBilingualImportFile, pickImportFiles } from '../config/library'
 import type { WorkRow } from '../config/library'
 import type { IpcError } from '../i18n'
 import { closeLibraryImportOverlay } from './libraryImportOverlayState'
@@ -260,17 +260,31 @@ export const effectiveFilePaths = computed<string[]>(() => {
   return typed === '' ? [] : [typed]
 })
 
-/**
- * Gọi từ `@input` của ô đường dẫn tệp (`LibraryMode.vue`) — **THÊM (Story 6.6b)**, KHÔNG còn
- * `v-model="filePath"` trần. Một GÕ THẬT của người dùng phải dọn [`droppedFilePaths`] (§Always
- * spec 6.6b: "typing in the path field clears it") — cùng lượt, không một `watch()` rời (một
- * `watch(filePath, ...)` không phân biệt được "vừa gõ" khỏi "vừa bị lượt thả GÁN giá trị hiển
- * thị", xem [`wireDragDropOnce`]).
- */
-export function onFilePathInput(value: string): void {
-  filePath.value = value
-  droppedFilePaths.value = []
+/** One rule for a drop and for the file picker: the whole list becomes the source of truth. */
+function acceptImportFilePaths(paths: readonly unknown[]): string[] {
+  const valid = paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
+  if (valid.length === 0) return valid
+  droppedFilePaths.value = valid
+  filePath.value = valid.length === 1 ? valid[0] : ''
+  return valid
+}
+
+function baseName(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path
+}
+
+export const pickedFileNames = computed(() => effectiveFilePaths.value.map(baseName).join(', '))
+
+export async function chooseImportFiles(): Promise<void> {
+  const { paths, error } = await pickImportFiles()
+  if (error !== null) {
+    lastError.value = error
+    return
+  }
+  if (paths === null) return
+  lastError.value = null
   noticeKey.value = null
+  acceptImportFilePaths(paths)
 }
 
 /** **THÊM (Story 6.16, FR115)** — nội dung ô nhập đường dẫn của đường nhập SONG NGỮ
@@ -279,6 +293,21 @@ export function onFilePathInput(value: string): void {
  * `bilingualImportPreviewState.ts`), và người dùng "đã chọn CHẾ ĐỘ song ngữ tường minh"
  * (§Intent) đúng bằng việc gõ vào Ô NÀY thay vì ô kia. */
 export const bilingualFilePath = ref('')
+
+export const pickedBilingualFileName = computed(() =>
+  bilingualFilePath.value === '' ? '' : baseName(bilingualFilePath.value),
+)
+
+export async function chooseBilingualImportFile(): Promise<void> {
+  const { paths, error } = await pickBilingualImportFile()
+  if (error !== null) {
+    lastError.value = error
+    return
+  }
+  if (paths === null) return
+  lastError.value = null
+  bilingualFilePath.value = paths[0]
+}
 
 /**
  * **THÊM (Story 6.7, FR122)** — nội dung ô dán danh sách URL, MỖI DÒNG một link.
@@ -744,20 +773,8 @@ export function wireDragDropOnce(): void {
     // `Drop` là sự kiện CUỐI của một chuỗi — không còn gì lơ lửng nữa.
     isDragOver.value = false
 
-    // 🔵 SỬA 2026-09-15 (Story 6.6b) — giữ NGUYÊN tất cả, không còn chỉ tệp đầu
-    // (`mode.library.drop_only_first` đã RETIRE — khoá bị XOÁ khỏi `vi.json`, thay bằng
-    // `mode.library.drop_multiple_files`; `vi.json` là một object khoá→chuỗi PHẲNG, không có
-    // bình luận để mà tra — 🔴 SỬA 2026-09-16, vòng rà đối kháng 2, mục 11: câu cũ trỏ sai
-    // vào một "mục lịch sử" không tồn tại). Lọc phần tử rỗng phòng thủ; thứ tự GIỮ NGUYÊN như
-    // hệ điều hành gửi (§Always spec 6.6b không đòi sắp lại).
-    const valid = paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
+    const valid = acceptImportFilePaths(paths)
     if (valid.length === 0) return
-
-    droppedFilePaths.value = valid
-    // Một tệp: giữ đúng hành vi CŨ — điền thẳng vào ô đường dẫn, người dùng vẫn sửa được bằng
-    // bàn phím (NFR17). N tệp: ô đường dẫn không có chỗ để hiện N đường dẫn có nghĩa — để
-    // trống, `droppedFilePaths` (không phải ô này) là nguồn thật (`effectiveFilePaths`).
-    filePath.value = valid.length === 1 ? valid[0] : ''
     noticeKey.value = valid.length > 1 ? 'mode.library.drop_multiple_files' : null
   })
 }

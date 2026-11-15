@@ -64,7 +64,7 @@ use super::split::SplitSegment;
 /// 6" đã HẾT ĐÚNG.** `.docx` nay được nhận, qua [`crate::core::docx::read_docx`] (module
 /// riêng, không qua `core::webimport/`) — xem nhánh `.docx` của [`import_file`]. Mọi thứ khác
 /// vẫn đóng — xem AC8.
-const SUPPORTED_EXTENSIONS: [&str; 3] = ["txt", "md", "docx"];
+pub(crate) const SUPPORTED_EXTENSIONS: [&str; 3] = ["txt", "md", "docx"];
 
 /// Trần kích thước một tệp nhập — **100 MB**, Ice chốt ở lượt code review 2026-08-06.
 ///
@@ -1046,7 +1046,7 @@ fn reject_batch_unsupported_extension(path: &Path) -> Result<(), ImportError> {
     Err(ImportError::BatchUnsupportedFormat { format: ext })
 }
 
-const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 3] = ["csv", "tsv", "docx"];
+pub(crate) const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 3] = ["csv", "tsv", "docx"];
 
 /// `.csv`/`.tsv` return undecoded bytes (decode and table-parse run inside the pipeline);
 /// `.docx` returns `BilingualTables`, which `select_bilingual_table` must turn into `BilingualRows`.

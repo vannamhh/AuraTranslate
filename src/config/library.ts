@@ -459,6 +459,45 @@ export async function chooseLibraryRoot(): Promise<ChooseRootResult> {
   return callChooseRoot(CMD_CHOOSE_ROOT)
 }
 
+export type PickPathsResult = { paths: string[] | null; error: IpcError | null }
+
+const CMD_PICK_IMPORT_FILES = 'library_pick_import_files'
+const CMD_PICK_BILINGUAL_IMPORT_FILE = 'library_pick_bilingual_import_file'
+
+function isPathList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((p) => typeof p === 'string' && p.length > 0)
+}
+
+async function callPickPaths(cmd: string): Promise<PickPathsResult> {
+  try {
+    const picked = await invoke<string[] | string | null>(cmd)
+    if (picked === null) return { paths: null, error: null }
+    const paths = typeof picked === 'string' ? [picked] : picked
+    if (!isPathList(paths) || paths.length === 0) {
+      console.error(`[library] \`${cmd}\` trả danh sách đường dẫn SAI HÌNH DẠNG: ${JSON.stringify(picked)}`)
+      return { paths: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { paths, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { paths: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { paths: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { paths: null, error: null }
+  }
+}
+
+/** `paths: null, error: null` is a cancelled dialog or no IPC bridge. */
+export async function pickImportFiles(): Promise<PickPathsResult> {
+  return callPickPaths(CMD_PICK_IMPORT_FILES)
+}
+
+export async function pickBilingualImportFile(): Promise<PickPathsResult> {
+  return callPickPaths(CMD_PICK_BILINGUAL_IMPORT_FILE)
+}
+
 /** Tìm lại một mục mồ côi — lệnh `library.relocate_orphan`. `report: null, error: null` == huỷ hộp thoại HOẶC không cầu IPC. */
 export async function relocateLibraryOrphan(workId: string): Promise<ChooseRootResult> {
   return callChooseRoot(CMD_RELOCATE_ORPHAN, { workId })
