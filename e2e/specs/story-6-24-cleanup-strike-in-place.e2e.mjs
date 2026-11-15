@@ -260,7 +260,11 @@ describe('cleanup rule strike-through in place', () => {
     expect(await hoverRuleReveals()).toBe(true)
 
     await browser.action('pointer').move({ x: 5, y: 5 }).perform()
-    await browser.keys('Tab')
+    // The driver's Tab is untrusted and moves nothing; WebKit gives a script focus() :focus-visible
+    // only when the element focused before it had it, which WebDriver typing into a field provides.
+    const nameField = await $(`${SCREEN} .ip-name-input`)
+    await nameField.setValue(TXT_WORK)
+    expect(await browser.execute((el) => el.matches(':focus-visible'), nameField)).toBe(true)
     await browser.execute((el) => el.focus(), piece)
     await browser.pause(200)
     expect(await browser.execute((el) => el.matches(':focus-visible'), piece)).toBe(true)

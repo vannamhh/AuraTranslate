@@ -109,7 +109,7 @@ context:
 - A `.docx` on the text path beside other `.txt` files still fails at Rust `import_files` (`BatchUnsupportedFormat`), surfaced as `lastError`, not as a row problem. Story 29 owns that.
 - Bilingual + existing Work: the preview carries `destinationMode`, cannot confirm, and `import.preview.bilingual_use_new_work` closes it with the destination reset to Tác phẩm mới (the user presses Xem trước again).
 - Tests: `libraryImportEntryMatrix.test.ts` (new), `support/importClassify.ts` is a double of the Rust verdict; e2e `story-6-25-import-entry.e2e.mjs` drops through `plugin:event|emit` on `aura://file-dropped`.
-- e2e: the primary button sits in the footer outside `<form>`, so `form.$$('[data-import-preview-open]')` finds nothing; `story-12-6`, `6-23`, `6-24` were rewritten to the panel selector and `dropFiles`. Final run: 7 of 8 touched specs green; `story-6-24` `.txt path` stays red at `:focus-visible` (deferred, `Chủ: Epic 6`).
+- e2e: the primary button sits in the footer outside `<form>`, so `form.$$('[data-import-preview-open]')` finds nothing; `story-12-6`, `6-23`, `6-24` were rewritten to the panel selector and `dropFiles`. Final run: 7 of 8 touched specs green; `story-6-24` `.txt path` stays red at `:focus-visible` (deferred, `Chủ: Epic 6`). 🔵 2026-11-15: harness cause found (the removed path field's WebDriver typing had supplied the `:focus-visible` that a script `focus()` inherits); the case now types into the preview's Name field first, green twice, red at the hint assert with the CSS rule removed.
 - `library.import.close` is a no-op while `busy` (guard in the `main.ts` dep), keeping the old URL screen's rule that a running download cannot be dismissed.
 
 ## Plan Change Log
