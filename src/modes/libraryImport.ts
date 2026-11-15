@@ -225,6 +225,7 @@ export async function loadDestinationWorks(): Promise<void> {
  * về `'new'` xoá LUÔN Tác phẩm đã chọn — không để một `work_id` cũ sống sót dưới một radio
  * đã đổi ý. */
 export function setDestinationMode(mode: 'new' | 'existing'): void {
+  destinationIsPreset = false
   destinationMode.value = mode
   if (mode === 'new') {
     destinationWorkId.value = null
@@ -239,7 +240,25 @@ export function setDestinationMode(mode: 'new' | 'existing'): void {
 
 /** Chọn một Tác phẩm trong picker — gọi từ `@change` của `<select>`. */
 export function setDestinationWorkId(workId: string): void {
+  destinationIsPreset = false
   destinationWorkId.value = workId
+}
+
+let destinationIsPreset = false
+
+/** Sets the destination for one opening of the overlay: the next plain open resets it. */
+export function presetImportDestination(workId: string | null): void {
+  destinationMode.value = 'existing'
+  destinationWorkId.value = workId
+  destinationIsPreset = true
+}
+
+/** Undoes a preset left by the previous opening; a destination the user picked by hand stays. */
+export function resetPresetImportDestination(): void {
+  if (!destinationIsPreset) return
+  destinationIsPreset = false
+  destinationMode.value = 'new'
+  destinationWorkId.value = null
 }
 
 /** Nội dung ô dán văn bản (AC1 nhánh a). */

@@ -219,6 +219,8 @@ export type CommandDeps = {
   submitActiveImportTab?: () => void
   /** Moves to Library and opens the import overlay. Handler of `library.import.open`. */
   openLibraryImportForm?: () => void
+  /** Opens the import overlay with *Đưa vào* set to the Work in view. Handler of `library.add_chapters`. */
+  openLibraryImportToAddChapters?: () => void
   /** Moves to Library and opens the import overlay on one tab. Handler of `library.import.open_paste` / `open_files`. */
   openLibraryImportOnTab?: (tab: 'paste' | 'files') => void
   /** Closes the import overlay. Handler of `library.import.close`. */
@@ -1698,6 +1700,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.openLibraryImportForm === undefined) return portMissing('library.import.open', 'openLibraryImportForm')
       deps.openLibraryImportForm()
+    },
+  })
+  target.register({
+    id: 'library.add_chapters',
+    labelKey: 'command.library.add_chapters',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryImportToAddChapters === undefined) {
+        return portMissing('library.add_chapters', 'openLibraryImportToAddChapters')
+      }
+      deps.openLibraryImportToAddChapters()
     },
   })
   target.register({

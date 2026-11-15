@@ -74,7 +74,7 @@ import { panelHeadersShown, setPanelHeadersShown } from './layout/panelHeadersSt
 // của Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E cùng lúc.
 import { closeLookupDrawer, openLookupDrawer } from './layout/lookupDrawerState'
 import { addGenre, deleteSelectedGenre, loadGenres, renameSelectedGenre } from './genreState'
-import { openLibraryImportForm, openLibraryImportOnTab } from './modes/libraryImportFocus'
+import { openLibraryImportForm, openLibraryImportOnTab, openLibraryImportToAddChapters } from './modes/libraryImportFocus'
 import { toggleToolsMenu } from './titlebarToolsState'
 // ── Story 1.15 — form nhập Tác phẩm ở Library ───────────────────────────────────────
 //
@@ -618,6 +618,7 @@ async function boot(): Promise<void> {
       switchBilingualImportToNewWork,
       openLibraryImportForm,
       openLibraryImportOnTab,
+      openLibraryImportToAddChapters: () => void openLibraryImportToAddChapters(),
       closeLibraryImportForm: () => {
         if (!importBusy.value) closeLibraryImportOverlay()
       },

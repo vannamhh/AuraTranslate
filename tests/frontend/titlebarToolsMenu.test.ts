@@ -51,13 +51,14 @@ describe('Công cụ ▾ list', () => {
         'command.ai.proofread.memory.open',
         'command.convention.manage.open',
         'command.convention.replace_chapter_open',
+        'command.library.add_chapters',
         'command.export.reviewer_import.open',
         'command.export.alignment.open',
         'command.glossary.harvest.open',
         'command.palette.open',
       ].map((key) => i18n.t(key)),
     )
-    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+T', 'Ctrl+Alt+B', 'Ctrl+,', '', 'Ctrl+Alt+A', '', '', '', '', 'Ctrl+K'])
+    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+T', 'Ctrl+Alt+B', 'Ctrl+,', '', 'Ctrl+Alt+A', '', '', '', '', '', 'Ctrl+K'])
     wrapper.unmount()
   })
 
@@ -100,7 +101,7 @@ describe('Công cụ ▾ list', () => {
     expect(document.activeElement).toBe(items[1]?.element)
     await items[1]?.trigger('keydown', { key: 'ArrowUp' })
     await items[0]?.trigger('keydown', { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(items[11]?.element)
+    expect(document.activeElement).toBe(items[12]?.element)
 
     await items[9]?.trigger('keydown', { key: 'Escape' })
     expect(state.toolsMenuIsOpen.value).toBe(false)
@@ -142,7 +143,7 @@ describe('Công cụ ▾ list', () => {
     const wrapper = mount(Menu, { attachTo: document.body })
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(true)
-    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(11)
+    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(12)
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(false)
     wrapper.unmount()

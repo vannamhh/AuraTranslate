@@ -453,6 +453,7 @@
   "command.layout.toggle_panel_headers": "Sắp xếp panel",
   "command.layout.lookup_drawer_open": "Tra cứu",
   "command.layout.lookup_drawer_close": "Đóng ngăn kéo Tra cứu",
+  "command.library.add_chapters": "Thêm Chương…",
   "command.library.import.open": "Nhập tài liệu",
   "command.library.import.close": "Đóng nhập tài liệu",
   "command.library.import.cancel": "Huỷ",

@@ -540,6 +540,14 @@ onBeforeUnmount(() => {
           @change="onSortChange"
         />
       </div>
+      <button
+        type="button"
+        class="btn ui-btn"
+        data-library-chapters-add
+        @click="dispatch('library.add_chapters')"
+      >
+        {{ t('command.library.add_chapters') }}
+      </button>
     </div>
 
     <div v-if="libraryChapterRenameEditing" class="wp-rename" data-library-chapter-rename-bar>

@@ -631,6 +631,15 @@ const importScreenIsOpen = computed<boolean>(
                 <button
                   type="button"
                   class="menu-item ui-menu-item"
+                  data-library-work-add-chapters
+                  data-menu-close
+                  @click="dispatch('library.add_chapters')"
+                >
+                  {{ t('command.library.add_chapters') }}
+                </button>
+                <button
+                  type="button"
+                  class="menu-item ui-menu-item"
                   data-library-open-work-folder
                   data-menu-close
                   @click="dispatch('library.open_work_folder')"

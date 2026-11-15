@@ -207,6 +207,21 @@ onBeforeUnmount(() => {
           role="menuitem"
           tabindex="-1"
           class="tools-item ui-menu-item"
+          data-tools-item="library.add_chapters" @click="dispatch('library.add_chapters')"
+        >
+          <span class="ui-row">
+            <span>{{ t('command.library.add_chapters') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('library.add_chapters') }}</span>
+          </span>
+        </button>
+      </li>
+      <li role="none">
+        <button
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
           data-tools-item="export.reviewer_import.open" @click="dispatch('export.reviewer_import.open')"
         >
           <span class="ui-row">
