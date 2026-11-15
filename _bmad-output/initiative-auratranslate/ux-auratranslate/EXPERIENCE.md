@@ -961,7 +961,7 @@ Hệ quả cho thiết kế đã áp vào mockup: thẻ quyết định hiện *
   > *(Mục này từng được ghi là 🟡 còn mở với việc cần làm **"PRD nên phê chuẩn lựa chọn này thành chữ"**. Việc đó đã xong ở cả PRD lẫn Architecture trước khi mục này được rà lại; đánh dấu đóng ngày 2026-08-03 trong đợt rà mức sẵn sàng triển khai.)*
 - ~~**Mâu thuẫn giãn dòng `ui` trong `DESIGN.md`**~~ — ✅ **đóng 2026-08-03.** Sàn 1.66 áp cho **chữ nội dung họ `read`**; họ `ui` được phép ở **1.4 và 1.5** cho nhãn một dòng, nhưng **quay lại 1.66 khi chuỗi có khả năng xuống dòng** (mô tả dưới ô thiết lập, câu trạng thái, hộp giải thích). Ranh giới là *chữ có chạy thành đoạn hay không*, không phải cỡ chữ. Xem `DESIGN.md § Giãn dòng`. 🔵 2026-10-29: giãn dòng nay là bội 7px, chữ `ui` 21px (`DESIGN.md` §Lưới 7px).
 
-- **Dò `.docx` song ngữ trước pipeline** *(mở 2026-11-15, cho Winston)*. §Đường nhập — màn nhập để app tự dò bảng hai cột trong `.docx`, và màn xem trước đổi qua lại giữa văn bản thường và song ngữ. Cần Winston xác nhận phép dò này nằm trong tiêu chí hình dạng đầu vào của AD-39, hay phải viết AD mới, trước khi story chạm vào nó.
+- ~~**Dò `.docx` song ngữ trước pipeline**~~ — ✅ **đóng 2026-11-15 (Winston, Ice ký):** nằm trong AD-39, Rule sửa tại chỗ, không AD mới. Một `.docx` có trong lượt nhiều tệp chỉ biết loại khi Rust dò lúc mở xem trước; lẫn loại thì câu từ chối hiện lúc bấm Xem trước, không phải ngay trong danh sách. *(mở 2026-11-15, cho Winston)*. §Đường nhập — màn nhập để app tự dò bảng hai cột trong `.docx`, và màn xem trước đổi qua lại giữa văn bản thường và song ngữ. Cần Winston xác nhận phép dò này nằm trong tiêu chí hình dạng đầu vào của AD-39, hay phải viết AD mới, trước khi story chạm vào nó.
 
 ### ✅ Bề mặt theo bản đồ năng lực — đã phủ kín 2026-08-03
 

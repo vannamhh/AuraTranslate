@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-11-14'
+updated: '2026-11-15'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -525,6 +525,13 @@ graph TD
   | **Đã một đơn vị một Chương** — mỗi link trong danh sách của FR122 | **Không.** Một link đã là một Chương |
 
   > **Đường song ngữ (FR115) rơi vào hàng trên theo đúng tiêu chí hình dạng** — một file `.docx` hai cột chứa cả bộ truyện cũng đến thành một dòng chưa chia Chương. **Mẫu phân tách áp lên cột nguồn**: đầu Chương ở cột gốc mang dạng ổn định máy khớp được, còn cột đích do người khác dịch nên có thể ghi khác đi hoặc bỏ hẳn dòng tiêu đề.
+
+  🔵 **2026-11-15 (Ice ký):** một `.docx` có thể là văn bản (FR13) hoặc bảng song ngữ (FR115). **Chọn giữa hai hình dạng là việc của bước đầu vào**, không phải một đường nhập mới.
+
+  - **Rust dò từ nội dung, trong một hàm**, trên kết quả `read_docx` đã đọc một lần. Có bảng cấp cao rộng từ hai cột thì ra `PipelineShape::BilingualTables`; không có thì ra `Blob`, không ném lỗi. Ngưỡng dò (một bảng nhỏ trong tiểu thuyết vẫn là văn bản) do story quyết.
+  - **Webview không chọn hình dạng của `.docx`.** Mở xem trước một `.docx` là một lời gọi; phản hồi mang hình dạng Rust đã chọn cùng bản xem trước của hình dạng đó, và webview mở màn xem trước theo hình dạng trong phản hồi, cùng khuôn cờ `already_chaptered`. Đuôi tệp chỉ dùng để quyết khi nó không mơ hồ: `.csv`/`.tsv` luôn là song ngữ, `.txt`/`.md` luôn là văn bản.
+  - **Luật một lượt một loại tệp dùng hình dạng Rust trả**, sau dò và sau ghi đè. Một lượt nhiều tệp lẫn hình dạng thì Rust từ chối bằng lỗi có kiểu, không mở màn xem trước.
+  - **Người dùng ghi đè ở màn xem trước.** Rust dựng lại chuỗi từ bước một, trong bộ nhớ, như khi đổi bảng mã, và trước khi có segment nào. Ghi đè chỉ đổi bước đầu vào, không đổi thứ tự. `PendingImportSourceState` là nơi duy nhất giữ nguồn của lượt nhập: bước đầu vào cất vào đó đủ để dựng hình dạng còn lại, và ghi đè không đọc lại đường dẫn tệp.
 
   **Tách Chương và tách segment là hai bước khác nhau, và chúng nằm hai phía của màn xem trước** — khác đơn vị (Chương và câu), khác điều kiện áp dụng, khác quyền của người dùng. Người dùng **sửa được mẫu phân tách** ngay trên màn xem trước và thấy kết quả tách Chương đổi theo; người dùng **không sửa ranh giới câu** ở đó. Gộp hai bước làm một sẽ hoặc mất đường sửa mẫu, hoặc mở một đường sửa ranh giới câu mà AD-4 không cho phép.
 
