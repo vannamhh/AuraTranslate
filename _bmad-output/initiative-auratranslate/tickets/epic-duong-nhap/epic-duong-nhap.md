@@ -55,9 +55,15 @@ Epic theo năng lực người dùng thấy được. Phần nghiệm thu chia �
 
 - parent — ../initiative-auratranslate.md, FR Coverage Map của PRD và `epics.md`
 - retrospective — epic-duong-nhap-retrospective.md
+- design — ../../ux-auratranslate/EXPERIENCE.md §Đường nhập — màn nhập (2026-11-15), mockup `mockups/import-entry.html`
 
 ## Notes
 
 - Retrospective: `epic-duong-nhap-retrospective.md` (verdict ở frontmatter của tệp đó).
 - Story 6.18 (entry 18): đã gộp vào Story 10.9 (Epic 10); AC đã ở 10.9. Plan giữ `in-progress` làm đầu vào của 10.9: task 1–6 xong, task 7–8 còn lại ở 10.9.
 - FR13 (Epic 1 ⇄ Epic 6), FR44 và FR129 (Epic 6 ⇄ Epic 7): nghiệm thu chia đôi, phần chủ của epic này ở mục Requirements, phần còn lại ở epic kia.
+- Decision: 2026-11-15 — Ice thấy màn nhập tách nhiều trường riêng rẽ, trùng lặp, nhiều cửa sổ: Tên và Ngôn ngữ nguồn bị hỏi ba lần, bốn nút đi tiếp. Thứ đổi là cách giao, không phải yêu cầu của epic; thiết kế mới ở EXPERIENCE.md §Đường nhập — màn nhập. Thêm story 25 đến 30.
+- Decision: 2026-11-15 — Tracer bullet: không áp, epic đã chạy; 25 là nền của đợt chia lại, 26 đến 29 chờ nó. 28 đi trước 29 vì cùng mã song ngữ.
+- Decision: 2026-11-15 — Ice giữ 25 nguyên một story, không tách đôi dù Sofia đề nghị tách phần tab URL, thả tệp và phím ra.
+- Decision: 2026-11-15 — Story dọn mã 30 chỉ dọn mã của 25 đến 29, không chờ 23 và 16c.
+- Decision: 2026-11-15 — 26 áp cho cả màn xem trước song ngữ: Tên, Ngôn ngữ nguồn, Thể loại sửa được ở cả hai màn.

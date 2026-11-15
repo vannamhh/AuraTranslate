@@ -362,3 +362,74 @@ after = [23]
 hitl = false
 risk = "medium"
 refine = true
+
+[[entry]]
+id = 25
+type = "story"
+title = "Màn nhập một khối chung, ba tab Dán · Tệp · URL, một nút chính"
+description = "Lớp phủ Nhập tài liệu có một khối chung hiện một lần: Đưa vào, Tên, Ngôn ngữ nguồn, Thể loại; chọn Tác phẩm đã có thì ba trường khoá theo Tác phẩm đó. Dưới là ba tab Dán, Tệp, URL và một nút chính. Màn Nhập từ website riêng bỏ; tab URL giữ bộ đếm và lời hứa chỉ tải đúng các link đã dán. Tab Tệp nhận .txt, .md, .docx, .csv, .tsv, cùng một danh sách đuôi cho hộp thoại và kéo thả; .csv và .tsv đi đường song ngữ có sẵn. Thả tệp ở đâu trên lớp phủ cũng vào tab Tệp. Tệp lẫn loại, hoặc hai tệp song ngữ, bị từ chối kèm câu và nút Bỏ. Song ngữ với Tác phẩm đã có: màn xem trước song ngữ báo chưa làm được và đề nghị Tác phẩm mới, cho tới Story 28. Phím: Mod+Enter, Esc, mũi tên trái phải trên hàng tab; nhớ tab dùng lần cuối; hai lời mời ở Library rỗng mở đúng tab. Story 26 đến 29 dựa vào lớp phủ này."
+verify = "spec e2e: dán 3 link ở tab URL thấy 3 link và nút Tải 3 link; thả 2 tệp .txt và 1 tệp .csv thì nút chính khoá và câu một-loại hiện, bỏ tệp .csv thì mở được xem trước; nút Nhập từ website không còn trên màn."
+covers = ["FR13", "FR14", "FR115", "FR122"]
+after = []
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/EXPERIENCE.md#đường-nhập--màn-nhập", "ux-auratranslate/mockups/import-entry.html"]
+
+[[entry]]
+id = 26
+type = "story"
+title = "Tên Tác phẩm tự điền, màn xem trước điền sẵn Tên · Ngôn ngữ · Thể loại"
+description = "Tên trống thì tự điền: tên tệp đầu bỏ đuôi, dòng đầu đoạn dán, hoặc tiêu đề Chương đầu khi xem trước nhập URL. Không đè tên đã gõ, không chạy khi đích là Tác phẩm đã có. Tên trống thôi khoá nút chính của màn nhập do Story 25 dựng. Cả hai màn xem trước, văn bản và song ngữ, cho sửa Tên, Ngôn ngữ nguồn và Thể loại, điền sẵn từ màn nhập; màn song ngữ hiện chỉ đọc hai trường đầu và chưa có Thể loại."
+verify = "spec e2e: chọn tệp tuyet-trung.txt, không gõ tên, thì xem trước hiện Tên tuyet-trung và Nhập tạo Tác phẩm đúng tên; gõ tên trước thì tên giữ nguyên; đổi Thể loại ở xem trước, cả với một tệp .csv, thì Tác phẩm tạo ra mang Thể loại mới."
+covers = ["FR13", "FR122"]
+after = [25]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/EXPERIENCE.md#đường-nhập--màn-nhập"]
+
+[[entry]]
+id = 27
+type = "story"
+title = "Lệnh Thêm Chương… trên thẻ Tác phẩm mở màn nhập với đích chọn sẵn"
+description = "Thẻ Tác phẩm và thanh hành động danh sách Chương có lệnh Thêm Chương…, mở lớp phủ nhập của Story 25 với Đưa vào là Tác phẩm đó. Story này chỉ chọn sẵn đích; việc khoá ba trường theo Tác phẩm là của Story 25. Có đường chuột và mục trong Công cụ theo AD-62."
+verify = "spec e2e: bấm Thêm Chương… trên thẻ Kiếm Lai thì lớp phủ mở với Tác phẩm đã có là Kiếm Lai và ba trường mang giá trị của Kiếm Lai."
+covers = ["FR122"]
+after = [25]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/EXPERIENCE.md#đường-nhập--màn-nhập"]
+
+[[entry]]
+id = 28
+type = "story"
+title = "Nhập song ngữ vào Tác phẩm đã có"
+description = "Nhập song ngữ thêm Chương vào cuối một Tác phẩm đã có, như đường văn bản ở Story 7b. Gỡ câu báo tạm mà Story 25 đặt ở màn xem trước song ngữ. Đóng mục nợ 'màn nhập một khối chung, ba tab nguồn (2026-11-15)' trong deferred-work.md."
+verify = "cargo test --test bilingual_import_contract: thêm một .csv 2 cặp vào Tác phẩm có 3 Chương thì ra Chương thứ 4 và 5, câu đích mang xuất xứ của đường song ngữ; spec e2e: chọn Tác phẩm đã có và một .csv đi tới Nhập."
+covers = ["FR115"]
+after = [25]
+hitl = false
+risk = "medium"
+notes = ["Hiện lệnh xác nhận nhập song ngữ phía Rust chỉ tạo Tác phẩm mới (src-tauri/src/commands/project/bilingual.rs)."]
+
+[[entry]]
+id = 29
+type = "story"
+title = "App tự dò .docx song ngữ, công tắc sửa ở màn xem trước"
+description = "Một .docx thả vào tab Tệp được dò có bảng hai cột hay không, rồi mở đúng màn xem trước. Màn xem trước có công tắc Đọc như văn bản thường / Đọc như song ngữ để sửa khi dò sai. Đi sau Story 28 vì cùng mã song ngữ."
+verify = "spec e2e: .docx văn bản thường mở xem trước thường, .docx bảng hai cột mở xem trước song ngữ, bật công tắc thì đổi qua lại mà không phải chọn lại tệp."
+covers = ["FR13", "FR115"]
+after = [28, "16c"]
+hitl = false
+risk = "medium"
+unknown = "Winston: phép dò .docx song ngữ có nằm trong tiêu chí hình dạng đầu vào của AD-39 không, hay cần AD mới?"
+
+[[entry]]
+id = 30
+type = "story"
+title = "Refactor sweep (màn nhập)"
+description = "Dọn mã Story 25 đến 29 để lại; phạm vi đặt lúc bắt đầu, từ plan và finding review các story ấy hoãn. Chỉ dọn; việc bị đẩy khỏi story khác là story mới."
+verify = "Các test chạm màn nhập và màn xem trước xanh như trước khi dọn."
+covers = []
+after = [25, 26, 27, 28, 29]
+hitl = false
+risk = "low"

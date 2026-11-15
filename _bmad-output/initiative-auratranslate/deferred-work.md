@@ -14199,3 +14199,9 @@ chính nó.
 - Chưa ai dùng chế độ "Tra từ" của Mod+K trong app thật. Ice: Mod+K, gõ `/nihao` (dòng đầu 你好, khung xem trước có nghĩa cvdict kèm nguồn), gõ `xin chào`, gõ `你好`; mũi tên đổi xem trước, Enter mở panel Lookup đúng từ và lịch sử thêm một mục; bấm lệnh "Tra từ" bằng chuột; xem hình học khung, cuộn danh sách; kiểm `runLookup` có hiện panel Lookup khi panel đang ẩn.
   Quan trọng vì vitest chỉ dùng happy-dom, không đo hình học, tiêu điểm thật hay WKWebView. Chủ: Ice. Trỏ: `plan-tra-tu-nhanh-trong-bang-mod-k.md`.
   → ✅ ĐÃ ĐÓNG 2026-11-15 (plan tra nhanh Mod+K): Ice thử ở app thật, đạt. Ice góp ý thêm: từ tiếng Anh không nên mở nhóm pinyin và Việt→Trung; đã làm cùng ngày (AD-69, dòng 🔵 2026-11-15).
+
+## Deferred from: màn nhập một khối chung, ba tab nguồn (2026-11-15)
+
+- Nhập song ngữ chưa thêm được vào Tác phẩm đã có: `confirm_bilingual_import` (`src-tauri/src/commands/project/bilingual.rs`) không nhận đích, chỉ tạo Tác phẩm mới. Ice chọn thiết kế đủ: mọi nguồn đều thêm được vào Tác phẩm đã có.
+  Quan trọng vì §Đường nhập — màn nhập cho chọn *Tác phẩm đã có* ở mọi tab; trước khi Rust nhận đích, màn xem trước phải báo lý do, không khoá im. Chủ: Epic 6. Trỏ: `ux-auratranslate/EXPERIENCE.md` §Đường nhập — màn nhập.
+  → 🔵 2026-11-15: Sofia xếp vào story riêng. Chủ: Story 6.28
