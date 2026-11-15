@@ -104,7 +104,6 @@ async function open() {
     submitActiveImportTab: () => void nhap.submitActiveImportTab(),
     pickImportFiles: () => void nhap.chooseImportFiles(),
     removeAimedImportFile: () => void nhap.removeAimedImportFile(),
-    switchBilingualImportToNewWork: nhap.switchBilingualImportToNewWork,
   } as CommandDeps)
   await nhap.loadDestinationWorks()
   const Overlay = (await import('../../src/LibraryImportOverlay.vue')).default
@@ -290,7 +289,7 @@ describe('an existing Work locks Name, Ngôn ngữ nguồn and Thể loại on e
     expect(view.get('.li-dest').text()).toBe('Thêm Chương vào cuối «Kiem Lai»')
   })
 
-  it('a bilingual file with an existing Work opens the preview in "existing" mode: notice and switch button render, it cannot confirm, and after the switch a new-Work preview can', async () => {
+  it('a bilingual file with an existing Work sends the destination id, names the Work and can confirm', async () => {
     const { nhap, view } = await open()
     const loaded = {
       confidence: 'high',
@@ -330,18 +329,13 @@ describe('an existing Work locks Name, Ngôn ngữ nguồn and Thể loại on e
 
     expect(state.bilingualImportPreviewStatus.value).toBe('loaded')
     expect(state.bilingualImportPreviewDestinationMode.value).toBe('existing')
-    expect(state.bilingualImportPreviewCanConfirm.value).toBe(false)
-    expect(bilingual.text()).toContain('Nhập song ngữ vào một Tác phẩm đã có chưa làm được')
-    expect(previewBilingualMock.mock.calls[0][1]).toBe('zh')
-
-    await bilingual.get('[data-bilingual-use-new-work]').trigger('click')
-    await flushPromises()
-    expect(state.bilingualImportPreviewIsOpen.value).toBe(false)
-    expect(nhap.destinationMode.value).toBe('new')
-    expect(nhap.destinationWorkId.value).toBeNull()
-
-    await state.openBilingualImportPreview('Ten', 'zh', '', '/d/song-ngu.csv', nhap.destinationMode.value)
+    expect(state.bilingualImportPreviewDestinationWorkId.value).toBe('w-1')
     expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
+    expect(previewBilingualMock.mock.calls[0][1]).toBe('zh')
+    expect(previewBilingualMock.mock.calls[0][7]).toBe('w-1')
+    expect(bilingual.find('[data-bilingual-use-new-work]').exists()).toBe(false)
+    expect(bilingual.find('[data-bip-work-name]').exists()).toBe(false)
+    expect(bilingual.get('[data-bip-destination]').text()).toBe("Đích: thêm vào \"Kiem Lai\"")
     bilingual.unmount()
   })
 

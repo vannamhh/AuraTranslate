@@ -860,13 +860,9 @@ pub struct PendingImportSource {
     /// đường khác. `confirm_import_with_encoding` CLONE trường này y hệt `shape` — cùng
     /// vòng đời (giữ nguyên trên đường lỗi, dọn chỉ khi `create_work` thành công).
     pub docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
-    /// **THÊM 2026-09-16 (Story 6.7b, FR122 nửa hai)** — `work_id` của Tác phẩm ĐÍCH,
-    /// `None` ⇔ đích Tác phẩm MỚI. Cất tại lượt MỞ một phiên xem trước (ba đường đơn ngữ:
-    /// dán/tệp/URL — Quyết định 1), sống suốt phiên (kể cả qua `reload`/`remove một mục URL`,
-    /// đổi override khối tầng 2, dời con trỏ Chương xem trước — mọi thao tác đó gọi lại
-    /// [`stash_pending_import_source`]/[`sync_pending_from_url_items`] với CÙNG giá trị này,
-    /// không phải một giá trị mới), và đọc lại y nguyên lúc xác nhận qua
-    /// [`current_pending_destination`].
+    /// `work_id` of the destination Work, `None` for a new Work. Set only by the call that opens
+    /// a preview session (text, file, URL and bilingual file); every mid-session rebuild passes the
+    /// stored value back, and confirm reads it through [`current_pending_destination`].
     ///
     /// 🔴 **VÌ SAO Ở ĐÂY, KHÔNG PHẢI MỘT THAM SỐ MỖI-LƯỢT-GỌI RIÊNG (đổi ý sau lượt rà đầu).**
     /// Bản đầu của story này truyền đích như một tham số riêng cho MỖI vỏ cần nó — đúng khuôn
@@ -2984,6 +2980,11 @@ pub fn confirm_append_import_with_encoding_with_progress(
         &origin_overrides,
         domain_log_state,
         docx_sidecar,
+        0,
+        1,
+        false,
+        &[],
+        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
         on_image_progress,
         should_cancel,
     )?;
@@ -3026,118 +3027,6 @@ pub fn confirm_append_import_with_encoding(
         domain_log_state,
         &mut |_, _| {},
         &|| false,
-    )
-}
-
-/// **THÊM 2026-09-16 (Story 6.7b, Phase 4 — vòng rà của coordinator, đối chứng đỏ ① của
-/// đường APPEND)** — [`confirm_append_import_with_encoding`] CỘNG bước 4, đúng khuôn
-/// [`crate::commands::lifecycle::set_chapter_status_indexed`]/
-/// `crate::commands::chapter::merge_chapters_indexed`: hàm THUẦN, không
-/// `AppHandle`, để `tests/**` gọi được thẳng và chứng minh bước 4 THẬT SỰ chạy sau một lượt
-/// xác nhận append thành công — không phải một lượt `Indexer::rebuild` do chính test tự gọi
-/// rời (đúng cái bẫy "tự reindex thì không canh gì" mà correction của Phase 1 đã gọi tên,
-/// áp lại cho bước 4 thay vì AC3).
-///
-/// Uỷ thác TRỌN quyết định "chỉ reindex khi ghi thành công" cho
-/// [`crate::commands::lifecycle::finish_lifecycle_write`] — vị từ `is_ok()` khai ĐÚNG MỘT
-/// CHỖ, dùng chung với mọi `*_indexed` khác trong kho, không một bản chép tay thứ hai.
-///
-/// ⚠️ **Giới hạn ghi thẳng, không giấu**: đây là seam THUẦN cho `tests/**`, cùng vai trò
-/// `set_chapter_status_indexed` đã giữ từ trước.
-///
-/// 🔵 **SỬA 2026-09-16 (vòng rà, mục B9) — câu dưới đây từng đúng, hết đúng từ bản sửa này.**
-/// Bản viết đầu nói hàm này "KHÔNG phải hàm mà `wire::confirm_import_with_encoding` gọi theo
-/// đúng tên" ở CẢ HAI nhánh — đo lại: điều đó chỉ đúng cho nhánh Tác phẩm ĐANG MỞ (giữ một
-/// `MutexGuard` của `OpenWorkState` suốt lượt ghi, nên gọi hàm NÀY ở đó sẽ kéo dài thời gian
-/// giữ khoá qua một lượt quét đĩa toàn Library, đúng lớp rủi ro mà `wire::set_chapter_status`'s
-/// doc-comment đã ghi tên — nhánh đó VẪN tự soạn `confirm_append_import_with_encoding` rồi một
-/// lời gọi `reindex_library` RIÊNG, SAU khi khoá đã nhả). Nhánh CÒN LẠI (đích chưa mở — `Store`
-/// vừa mở riêng từ chỉ mục, không một `MutexGuard` nào đang giữ) không mang rủi ro đó, và từ
-/// bản sửa 2026-09-16 (B9: hàm này trước đó có 1 định nghĩa + 6 chỗ gọi test + **0** chỗ gọi
-/// sản phẩm — case canh nó chỉ chứng minh một hàm song song, không chứng minh gì về đường sản
-/// phẩm thật) gọi ĐÚNG hàm này, xem `wire::confirm_import_with_encoding`. Một mutation xoá dòng
-/// gọi `reindex_library(&app, &root)` ở nhánh Tác phẩm ĐANG MỞ vẫn KHÔNG bị hàm này/case dùng
-/// nó bắt được. That mutation is caught through the wire by `tests/project_wire.rs`.
-/// Cái hàm này ĐÓNG là seam
-/// "bước 4 của đường append CÓ TỒN TẠI và THẬT SỰ cập nhật chỉ mục" — seam mà trước Phase 4
-/// KHÔNG tồn tại ở BẤT KỲ hình dạng nào cho đường append (khác hẳn
-/// `set_chapter_status`/`merge_chapters`, cả hai đã có `*_indexed` từ trước).
-#[expect(
-    clippy::too_many_arguments,
-    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
-)]
-pub fn confirm_append_import_with_encoding_indexed(
-    open: &mut OpenWork,
-    state: &PendingImportSourceState,
-    source_lang: &str,
-    encoding_wire_id: &str,
-    cleanup_rules: Vec<CleanupRule>,
-    chapter_pattern: Option<ChapterPattern>,
-    block_overrides: Vec<Option<bool>>,
-    origin_overrides: Vec<Option<ChapterOriginOverride>>,
-    domain_log_state: &webimport::DomainLogState,
-    indexer: Option<&crate::core::library::indexer::Indexer>,
-    global: Option<&Store>,
-    root: &std::path::Path,
-) -> Result<(), IpcError> {
-    confirm_append_import_with_encoding_indexed_with_progress(
-        open,
-        state,
-        source_lang,
-        encoding_wire_id,
-        cleanup_rules,
-        chapter_pattern,
-        block_overrides,
-        origin_overrides,
-        domain_log_state,
-        indexer,
-        global,
-        root,
-        &mut |_, _| {},
-        &|| false,
-    )
-}
-
-/// Same shape as [`confirm_append_import_with_encoding_indexed`] plus real image
-/// progress/cancel wiring; production callers that need it use this one, tests keep
-/// calling the no-op wrapper.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
-)]
-pub fn confirm_append_import_with_encoding_indexed_with_progress(
-    open: &mut OpenWork,
-    state: &PendingImportSourceState,
-    source_lang: &str,
-    encoding_wire_id: &str,
-    cleanup_rules: Vec<CleanupRule>,
-    chapter_pattern: Option<ChapterPattern>,
-    block_overrides: Vec<Option<bool>>,
-    origin_overrides: Vec<Option<ChapterOriginOverride>>,
-    domain_log_state: &webimport::DomainLogState,
-    indexer: Option<&crate::core::library::indexer::Indexer>,
-    global: Option<&Store>,
-    root: &std::path::Path,
-    on_image_progress: &mut dyn FnMut(usize, usize),
-    should_cancel: &dyn Fn() -> bool,
-) -> Result<(), IpcError> {
-    crate::commands::lifecycle::finish_lifecycle_write(
-        confirm_append_import_with_encoding_with_progress(
-            open,
-            state,
-            source_lang,
-            encoding_wire_id,
-            cleanup_rules,
-            chapter_pattern,
-            block_overrides,
-            origin_overrides,
-            domain_log_state,
-            on_image_progress,
-            should_cancel,
-        ),
-        indexer,
-        global,
-        root,
     )
 }
 

@@ -89,7 +89,6 @@ import {
   removeAimedImportFile,
   selectImportTab,
   submitActiveImportTab,
-  switchBilingualImportToNewWork,
 } from './modes/libraryImport'
 // ── Story 6.3 — màn xem trước bảng mã (FR126) ────────────────────────────────────────
 //
@@ -615,7 +614,6 @@ async function boot(): Promise<void> {
       selectImportTab,
       pickImportFiles: () => void chooseImportFiles(),
       removeAimedImportFile: () => void removeAimedImportFile(),
-      switchBilingualImportToNewWork,
       openLibraryImportForm,
       openLibraryImportOnTab,
       openLibraryImportToAddChapters: () => void openLibraryImportToAddChapters(),

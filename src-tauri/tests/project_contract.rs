@@ -28,9 +28,9 @@ use auratranslate_lib::commands::project::{
     Tier2BlockOverridesState, UrlImportItem, UrlImportItemsState, append_chapters_to_work,
     block_overrides_for_range, build_file_import_batch_wire, chapters_shape_if_all_ok,
     clear_url_import_items_after_successful_confirm, confirm_append_import_with_encoding,
-    confirm_append_import_with_encoding_indexed, create_work, create_work_from_file,
-    create_work_from_text, mutated_index_invalidates_tier2_blocks, reset_block_overrides,
-    resolve_chapter_pattern, set_block_override, stash_pending_import_source,
+    create_work, create_work_from_file, create_work_from_text,
+    mutated_index_invalidates_tier2_blocks, reset_block_overrides, resolve_chapter_pattern,
+    set_block_override, stash_pending_import_source,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
@@ -6442,15 +6442,15 @@ fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_i
 }
 
 /// Story 6.7b, Phase 4 — đối chứng đỏ ① của coordinator: gỡ bước 4
-/// (`reindex_after_lifecycle_write`, gọi qua [`confirm_append_import_with_encoding_indexed`])
+/// (`reindex_after_lifecycle_write`, gọi qua `finish_lifecycle_write`)
 /// khỏi đường APPEND phải làm MỘT ca đỏ. Đo 2026-08-27 đã ghi **0** ca đỏ cho đúng phép gỡ
 /// này trên 34 nhị phân — mệnh đề `src-tauri/AGENTS.md:54` canh là: một lượt ghi MỚI vào
 /// `chapter`/`segment` mà bỏ qua `Indexer::rebuild` làm chỉ mục tìm kiếm NÓI DỐI im lặng —
 /// vẫn thấy đúng tập Chương CŨ, không bao giờ thấy Chương vừa thêm. Ca này đo ĐÚNG mệnh đề
 /// đó qua CẢ HAI cửa sổ chỉ mục: `library_work.chapter_count` VÀ tìm kiếm toàn văn.
 ///
-/// 🔴 Gọi [`confirm_append_import_with_encoding_indexed`] — hàm THUẦN đã CHỨA bước 4 bên
-/// trong (uỷ thác cho `commands::lifecycle::finish_lifecycle_write`) — KHÔNG tự gọi
+/// 🔴 Ghép `finish_lifecycle_write(confirm_append_import_with_encoding(..))` đúng như
+/// `wire::append_into_destination` — KHÔNG tự gọi
 /// `Indexer::rebuild`/`reindex_after_lifecycle_write` rời sau đó: một ca tự reindex thì
 /// không canh gì (đúng bẫy mà correction Phase 1 đã gọi tên cho AC3, áp lại ở đây cho bước 4).
 #[test]
@@ -6509,7 +6509,7 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
         "tu khoa cua Chuong CHUA TUNG duoc them khong duoc khop gi ca truoc luot append"
     );
 
-    // Duong APPEND THAT -- qua PendingImportSourceState + confirm_append_import_with_encoding_indexed,
+    // Duong APPEND THAT -- qua PendingImportSourceState + confirm_append_import_with_encoding + finish_lifecycle_write,
     // KHONG chen thang SQL. Chuong moi mang marker duy nhat de tim kiem toan van phan biet
     // duoc "Chuong CU da co" voi "Chuong MOI vua them".
     let pending = PendingImportSourceState::new(None);
@@ -6518,21 +6518,23 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
     ))]);
     stash_pending_import_source(&pending, new_shape, None);
 
-    confirm_append_import_with_encoding_indexed(
-        &mut opened,
-        &pending,
-        "en",
-        "UTF-8",
-        Vec::new(),
-        None,
-        Vec::new(),
-        Vec::new(),
-        &std::sync::Mutex::new(Vec::new()),
+    auratranslate_lib::commands::lifecycle::finish_lifecycle_write(
+        confirm_append_import_with_encoding(
+            &mut opened,
+            &pending,
+            "en",
+            "UTF-8",
+            Vec::new(),
+            None,
+            Vec::new(),
+            Vec::new(),
+            &std::sync::Mutex::new(Vec::new()),
+        ),
         Some(&indexer),
         Some(&global),
         &root,
     )
-    .unwrap_or_else(|e| panic!("confirm_append_import_with_encoding_indexed: {e:?}"));
+    .unwrap_or_else(|e| panic!("append + finish_lifecycle_write: {e:?}"));
 
     assert_eq!(
         chapter_count_of(&indexer),

@@ -920,6 +920,7 @@ export async function previewBilingualImportFromFile(
   targetColumn: number,
   hasHeader: boolean,
   tableIndex: number | null,
+  destinationWorkId: string | null = null,
 ): Promise<BilingualImportEncodingPreviewResult> {
   try {
     const preview = await invoke<BilingualImportEncodingPreview>(CMD_PREVIEW_BILINGUAL_FROM_FILE, {
@@ -930,6 +931,7 @@ export async function previewBilingualImportFromFile(
       targetColumn,
       hasHeader,
       tableIndex,
+      destination: destinationWorkId,
     })
     if (!isBilingualImportEncodingPreview(preview)) {
       console.error(

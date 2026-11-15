@@ -532,3 +532,63 @@ pub fn confirm_bilingual_import_with_policy(
     *guard = None;
     Ok(opened)
 }
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
+pub fn confirm_bilingual_append_import_with_policy(
+    open: &mut OpenWork,
+    state: &PendingImportSourceState,
+    source_lang: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    bilingual_source_column: usize,
+    bilingual_target_column: usize,
+    bilingual_has_header: bool,
+    regroupings: Vec<crate::core::segment::bilingual::BilingualRegrouping>,
+    table_index: Option<usize>,
+    mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy,
+) -> Result<(), IpcError> {
+    let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
+        IpcError::from(ImportError::UnrecognizedEncoding {
+            wire_id: encoding_wire_id.to_owned(),
+        })
+    })?;
+
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let shape = guard
+        .as_ref()
+        .map(|p| p.shape.clone())
+        .ok_or_else(no_pending_import_source)?;
+    let shape = select_bilingual_table(&shape, table_index)?;
+
+    append_chapters_to_work_with_progress(
+        open,
+        source_lang,
+        shape,
+        chosen,
+        cleanup_rules,
+        chapter_pattern,
+        Vec::new(),
+        &[],
+        &webimport::DomainLogState::default(),
+        None,
+        bilingual_source_column,
+        bilingual_target_column,
+        bilingual_has_header,
+        &regroupings,
+        mismatched_rows,
+        &mut |_, _| {},
+        &|| false,
+    )?;
+
+    *guard = None;
+    drop(guard);
+
+    crate::commands::lifecycle::write_lifecycle_after_change(open)?;
+    Ok(())
+}

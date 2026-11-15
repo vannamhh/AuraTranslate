@@ -58,8 +58,8 @@ const pendingName = ref('')
 const pendingSourceLang = ref('')
 const pendingPath = ref('')
 const pendingGenre = ref('')
-/** Bilingual import only creates a new Work; an existing destination is shown as a notice. */
-const pendingDestinationMode = ref<'new' | 'existing'>('new')
+/** Destination Work id sent once at preview open; Rust keeps it with the pending source. */
+const pendingDestinationWorkId = ref<string | null>(null)
 
 /** Vai cột (0-based) + cờ tiêu đề — tham số MỖI LƯỢT gọi Rust, cùng khuôn `chapterPattern`
  * (không lưu ở Rust giữa hai lượt — xem doc-comment `PipelineInput::bilingual_source_column`
@@ -123,8 +123,11 @@ export const bilingualImportPreviewChapterPatternKind: DeepReadonly<Ref<ChapterP
 export const bilingualImportPreviewChapterFilterActive: DeepReadonly<Ref<boolean>> = readonly(chapterFilterActive)
 export const bilingualImportPreviewChapterCursor: DeepReadonly<Ref<number>> = readonly(chapterCursor)
 
-export const bilingualImportPreviewDestinationMode: DeepReadonly<Ref<'new' | 'existing'>> =
-  readonly(pendingDestinationMode)
+export const bilingualImportPreviewDestinationWorkId: DeepReadonly<Ref<string | null>> =
+  readonly(pendingDestinationWorkId)
+export const bilingualImportPreviewDestinationMode = computed<'new' | 'existing'>(() =>
+  pendingDestinationWorkId.value === null ? 'new' : 'existing',
+)
 
 export const bilingualImportPreviewPendingName: DeepReadonly<Ref<string>> = readonly(pendingName)
 export const bilingualImportPreviewPendingSourceLang: DeepReadonly<Ref<string>> = readonly(pendingSourceLang)
@@ -155,8 +158,7 @@ export const bilingualImportPreviewCanConfirm = computed<boolean>(() => {
     status.value === 'loaded' &&
     !confirming.value &&
     !opening.value &&
-    pendingDestinationMode.value === 'new' &&
-    pendingName.value.trim() !== '' &&
+    (pendingDestinationWorkId.value !== null || pendingName.value.trim() !== '') &&
     candidate !== null &&
     candidate.mismatches.length === 0 &&
     !tableChoicePending()
@@ -174,8 +176,7 @@ export const bilingualImportPreviewCanImportUnlinked = computed<boolean>(() => {
     status.value === 'loaded' &&
     !confirming.value &&
     !opening.value &&
-    pendingDestinationMode.value === 'new' &&
-    pendingName.value.trim() !== '' &&
+    (pendingDestinationWorkId.value !== null || pendingName.value.trim() !== '') &&
     candidate !== null &&
     candidate.mismatches.length > 0 &&
     bilingualImportPreviewEmptySourceMismatchCount.value === 0 &&
@@ -380,7 +381,7 @@ export async function openBilingualImportPreview(
   sourceLang: string,
   genre: string,
   path: string,
-  destinationMode: 'new' | 'existing' = 'new',
+  destinationWorkId: string | null = null,
 ): Promise<void> {
   if (opening.value) return
   opening.value = true
@@ -391,7 +392,7 @@ export async function openBilingualImportPreview(
   pendingSourceLang.value = sourceLang
   pendingPath.value = path
   pendingGenre.value = genre
-  pendingDestinationMode.value = destinationMode
+  pendingDestinationWorkId.value = destinationWorkId
   sourceColumn.value = 0
   targetColumn.value = 1
   hasHeader.value = false
@@ -408,7 +409,7 @@ export async function openBilingualImportPreview(
   chapterFilterActive.value = false
   chapterCursor.value = 0
 
-  const result = await previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false, null)
+  const result = await previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false, null, destinationWorkId)
   if (mySequence !== sequence) return
   opening.value = false
   overlayOpen.value = true
@@ -435,17 +436,17 @@ export async function openBilingualImportPreview(
 }
 
 export function setBilingualImportPreviewPendingName(name: string): void {
-  if (pendingDestinationMode.value !== 'new') return
+  if (pendingDestinationWorkId.value !== null) return
   pendingName.value = name
 }
 
 export function setBilingualImportPreviewPendingGenre(genre: string): void {
-  if (pendingDestinationMode.value !== 'new') return
+  if (pendingDestinationWorkId.value !== null) return
   pendingGenre.value = genre
 }
 
 export async function setBilingualImportPreviewSourceLang(lang: 'zh' | 'en'): Promise<void> {
-  if (pendingDestinationMode.value !== 'new' || confirming.value || opening.value) return
+  if (pendingDestinationWorkId.value !== null || confirming.value || opening.value) return
   if (pendingSourceLang.value === lang) return
   const previousLang = pendingSourceLang.value
   pendingSourceLang.value = lang
@@ -739,7 +740,7 @@ export function resetBilingualImportPreview(): void {
   pendingName.value = ''
   pendingSourceLang.value = ''
   pendingGenre.value = ''
-  pendingDestinationMode.value = 'new'
+  pendingDestinationWorkId.value = null
   pendingPath.value = ''
   sourceColumn.value = 0
   targetColumn.value = 1

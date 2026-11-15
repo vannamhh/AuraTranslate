@@ -433,6 +433,12 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
       <template v-else-if="bilingualImportPreviewStatus === 'loaded' && bilingualImportPreview !== null">
         <div class="bip-two">
         <aside class="bip-config" :aria-label="t('mode.library.preview.config_label')">
+          <p class="bip-destination" role="status" data-bip-destination>
+            <span v-if="isNewWork">{{ t('mode.library.preview.destination_new_work') }}</span>
+            <span v-else>
+              {{ t('mode.library.preview.destination_existing_work', { name: bilingualImportPreviewPendingName }) }}
+            </span>
+          </p>
           <dl class="bip-summary">
             <div v-if="isNewWork" class="bip-summary-line bip-field-line">
               <dt>
@@ -869,16 +875,6 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
       <div class="bip-actions">
         <button
-          v-if="bilingualImportPreviewDestinationMode === 'existing'"
-          type="button"
-          class="bip-act ui-btn ui-btn--lg"
-          data-bilingual-use-new-work
-          :disabled="bilingualImportPreviewConfirming"
-          @click="dispatch('import.preview.bilingual_use_new_work')"
-        >
-          {{ t('command.import.preview.bilingual_use_new_work') }}
-        </button>
-        <button
           v-if="bilingualImportPreviewMismatches.length > 0"
           type="button"
           class="bip-act ui-btn ui-btn--lg"
@@ -942,9 +938,6 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
         <p v-else-if="bilingualImportPreviewCanImportUnlinked" class="bip-tier-empty-reason" role="status">
           {{ t('mode.library.preview.bilingual_unlinked_hint') }}
         </p>
-        <p v-if="bilingualImportPreviewDestinationMode === 'existing'" class="bip-tier-empty-reason" role="status">
-          {{ t('mode.library.preview.bilingual_existing_work_unavailable') }}
-        </p>
         <p class="bip-hint">{{ t('mode.library.preview.hint_no_write_before_confirm_bilingual') }}</p>
       </div>
     </section>
@@ -963,6 +956,14 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-head-note,
 .bip-hint {
   margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.bip-destination {
+  margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

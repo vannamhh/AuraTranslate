@@ -123,17 +123,6 @@ describe('library.add_chapters', () => {
     expect(overlay.libraryImportOverlayIsOpen.value).toBe(true)
   })
 
-  it('Bilingual: switching to Tác phẩm mới sticks across a plain open', async () => {
-    const { focus, imp, mode, identity } = await load([KIEM])
-    mode.setMode('workspace')
-    identity.setOpenWork('w-kiem', 'Kiếm Lai')
-    await focus.openLibraryImportToAddChapters()
-    imp.switchBilingualImportToNewWork()
-    expect(imp.destinationMode.value).toBe('new')
-    focus.openLibraryImportForm()
-    expect(imp.destinationMode.value).toBe('new')
-  })
-
   it('a target missing from a loaded list reloads it before the overlay opens', async () => {
     const { focus, imp, overlay, mode, identity } = await load([TUYET])
     await imp.loadDestinationWorks()

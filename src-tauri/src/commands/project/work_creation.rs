@@ -710,9 +710,8 @@ pub fn create_work(
 /// ngữ nghĩa "số của lượt gọi NÀY" mà `create_work` đã theo, không phải một bộ đếm luỹ kế
 /// qua nhiều lượt append).
 ///
-/// Chỉ phục vụ BA đường đơn ngữ (dán/tệp/URL, Quyết định 1 spec 6.7b) — không tham số
-/// `bilingual_*`/`regroupings`: `shape` không bao giờ là `PipelineShape::Bilingual` trên
-/// đường gọi này (đường song ngữ đi qua `confirm_bilingual_import`, không đổi).
+/// Serves the text/file/URL paths and the bilingual path; the text paths pass
+/// `0, 1, false, &[], Refuse` for the bilingual parameters.
 ///
 /// Trả về số Chương đã ghi thêm (`chapters.len()`), để chỗ gọi log/hiển thị không phải đếm lại.
 ///
@@ -734,6 +733,11 @@ pub fn append_chapters_to_work_with_progress(
     origin_overrides: &[Option<ChapterOriginOverride>],
     domain_log_state: &webimport::DomainLogState,
     docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    bilingual_source_column: usize,
+    bilingual_target_column: usize,
+    bilingual_has_header: bool,
+    regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
+    mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy,
     on_image_progress: &mut dyn FnMut(usize, usize),
     should_cancel: &dyn Fn() -> bool,
 ) -> Result<usize, IpcError> {
@@ -767,10 +771,13 @@ pub fn append_chapters_to_work_with_progress(
             .with_chapter_pattern(chapter_pattern)
             .with_extract_main_content(extract_main_content)
             .with_block_overrides(block_overrides)
-            // Duong nay khong bao gio mang PipelineShape::Bilingual -- 0 cot/0 regrouping,
-            // cung khuon `confirm_import_with_encoding`.
-            .with_bilingual_columns(0, 1, false)
-            .with_bilingual_regroupings(Vec::new()),
+            .with_bilingual_columns(
+                bilingual_source_column,
+                bilingual_target_column,
+                bilingual_has_header,
+            )
+            .with_bilingual_regroupings(regroupings.to_vec())
+            .with_bilingual_mismatched_rows(mismatched_rows),
     )?;
     if !outcome.bilingual_mismatches.is_empty() {
         let count = outcome.bilingual_mismatches.len();
@@ -908,10 +915,11 @@ pub fn append_chapters_to_work_with_progress(
                     chapter.chapter_origin.as_ref(),
                     origin_overrides_owned.get(i).and_then(Option::as_ref),
                 );
-            // §Always spec 6.7b — Chuong moi luon NotStarted: duong nay khong bao gio mang
-            // chapter.bilingual_segments (shape khong bao gio la Bilingual, xem doc-comment
-            // ham nay), khac `create_work` noi nhanh do con duoc doc toi.
-            let chapter_status = LifecycleStatus::NotStarted;
+            let chapter_status = if chapter.bilingual_segments.is_some() {
+                LifecycleStatus::InProgress
+            } else {
+                LifecycleStatus::NotStarted
+            };
             tx.execute(
                 "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at, \
                  origin_author, origin_site_name, origin_url, origin_published_at) \
@@ -930,7 +938,14 @@ pub fn append_chapters_to_work_with_progress(
             )?;
 
             let chapter_id = tx.last_insert_rowid();
-            crate::commands::segment::insert_segments(tx, chapter_id, &final_segments[i])?;
+            match &chapter.bilingual_segments {
+                Some(segments) => {
+                    crate::commands::segment::insert_bilingual_segments(tx, chapter_id, segments)?;
+                }
+                None => {
+                    crate::commands::segment::insert_segments(tx, chapter_id, &final_segments[i])?;
+                }
+            }
 
             for saved in saved_assets.iter().filter(|s| s.chapter_index == i) {
                 tx.execute(
@@ -994,6 +1009,11 @@ pub fn append_chapters_to_work(
         origin_overrides,
         domain_log_state,
         docx_sidecar,
+        0,
+        1,
+        false,
+        &[],
+        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
         &mut |_, _| {},
         &|| false,
     )

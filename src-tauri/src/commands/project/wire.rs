@@ -19,13 +19,9 @@ use crate::core::webimport;
 /// đoán — cùng khuôn `resolve_configured_library_root`: luật làm sạch là một tiện ích
 /// bổ trợ, một sự cố ở đây không được phép làm cả màn xem trước sập.
 ///
-/// ⚠️ **KHÔNG mang khái niệm đích** — dùng nguyên hàm này (không đổi chữ ký, cùng lý do
-/// `tests/ipc_contract.rs::the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file`
-/// khoá đúng literal `resolve_cleanup_rules(&app)` bên trong ba vỏ song ngữ) cho MỌI chỗ
-/// gọi chưa có khái niệm "đích" (song ngữ, và các vỏ tinh chỉnh một lượt nhập URL đã mở:
-/// `reload_url_import_item`/`remove_url_import_item`/`tier2_block_*`/
-/// `preview_chapter_detail`). Ba đường đơn ngữ CÓ đích (Story 6.7b, Quyết định 1) gọi
-/// [`resolve_cleanup_rules_for`] ngay dưới thay vì hàm này.
+/// Takes no destination: used by the URL-session refinement shells
+/// (`reload_url_import_item`, `remove_url_import_item`, `tier2_block_*`, `preview_chapter_detail`).
+/// Import paths that have a destination call [`resolve_cleanup_rules_for`].
 fn resolve_cleanup_rules<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<CleanupRule> {
     use tauri::Manager as _;
 
@@ -48,8 +44,8 @@ fn resolve_cleanup_rules<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<Cl
 }
 
 /// **THÊM 2026-09-16 (Story 6.7b, AC3)** — luật làm sạch cho một chỗ gọi CÓ khái niệm
-/// đích (ba đường đơn ngữ của Quyết định 1: `preview_import_encoding_from_text/_from_file`,
-/// `start_url_import`, và `confirm_import_with_encoding`). `Some(work_id)` ⇒ tầng Tác
+/// đích (the text/file/URL previews, `confirm_import_with_encoding` and the three bilingual
+/// shells). `Some(work_id)` ⇒ tầng Tác
 /// phẩm phân giải từ ĐÍCH đó, KHÔNG từ `OpenWorkState` — xem
 /// [`resolve_cleanup_rules_for_destination`]. `None` (đích = Tác phẩm MỚI) uỷ thác
 /// NGUYÊN VẸN cho [`resolve_cleanup_rules`] ở trên — giữ đúng hành vi hôm nay: hợp nhất
@@ -936,123 +932,28 @@ pub fn confirm_import_with_encoding<R: tauri::Runtime>(
         ));
     };
 
-    // Đường APPEND (Story 6.7b) — tái dùng `Store` đang mở nếu đích TRÙNG Tác phẩm đang
-    // mở; ngược lại phân giải qua chỉ mục, đúng khuôn [`open_work`] ngay dưới. `state`
-    // vắng mặt (lỗi lắp dây `lib.rs`) đọc như "không Work nào đang mở" — rơi thẳng xuống
-    // nhánh mở-mới, KHÔNG một lỗi riêng (best-effort, cùng triết lý mọi state vắng mặt
-    // khác trong tệp này).
-    // Held across both branches: replace_open_work sweeps before it takes the
-    // OpenWorkState lock, so it could delete images written but not yet referenced.
-    let append_in_progress_state = app.try_state::<super::AppendInProgressState>();
-    let append_in_progress_guard = append_in_progress_state
-        .as_deref()
-        .map(|state| super::AppendInProgressGuard::new(state, work_id.clone()));
-    let open_state = app.try_state::<OpenWorkState>();
-    let already_open = open_state.as_ref().is_some_and(|state| {
-        let guard = state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        guard
-            .as_ref()
-            .is_some_and(|open| open.meta.work_id == work_id)
-    });
-
-    let (created, new_chapter_ids) = if already_open {
-        let state = open_state
-            .as_ref()
-            .expect("already_open vua xac nhan Some o tren");
-        let mut guard = state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        // 🔴 SUA 2026-09-16 (vong ra) — khoa da NHA giua lan kiem tra `already_open` o tren
-        // va lan khoa lai nay; `replace_open_work` co the doi Tac pham dang mo trong luc
-        // do (5 cho goi o wire.rs, lenh async chay tren threadpool). Kiem lai
-        // `work_id` NGAY SAU khi khoa lai thay vi tin `already_open`; mot lech (Tac pham
-        // khac, hoac khong con Tac pham nao) tra ve mot loi co ten thay vi `.expect()`
-        // (fatal duoi `panic = "abort"`, src-tauri/AGENTS.md).
-        let Some(open) = guard.as_mut().filter(|open| open.meta.work_id == work_id) else {
-            return Err(crate::core::library::WorkError::OpenFailed {
-                name: work_id.clone(),
-                detail: "OpenWorkState da doi Tac pham giua luc kiem tra va luc khoa lai"
-                    .to_string(),
-            }
-            .into());
-        };
-        super::confirm_append_import_with_encoding_with_progress(
-            open,
-            &pending_state,
-            &source_lang,
-            &encoding,
-            cleanup_rules,
-            pattern,
-            block_overrides,
-            origin_overrides,
-            domain_log_state_ref,
-            &mut on_image_progress,
-            &should_cancel_images,
-        )?;
-        (CreatedWork::from_open(open), open.new_chapter_ids.clone())
-    } else {
-        let Some(indexer) = app.try_state::<Indexer>() else {
-            return Err(indexer_is_missing());
-        };
-        // Đọc LẠI chỉ mục ở đây, nghiêm túc (không đường tắt) — đích có thể đã biến mất
-        // giữa lượt xem trước và lượt xác nhận này (§I/O Matrix "Destination vanished").
-        //
-        // 🔵 SỬA 2026-09-16 (Ice) — `open_destination_for_append`, không `open_work`
-        // thẳng: một `project.db` HỎNG phải nổi lên bằng `work.open_failed` (nêu tên
-        // Tác phẩm người dùng vừa chọn), không bằng mã tầng-kho `store.open_failed`.
-        // Xem doc-comment của hàm đó.
-        let indexed = indexer.find_work(&work_id)?;
-        let mut opened = super::open_destination_for_append(&work_id, indexed.as_ref())?;
-        // 🔵 SUA 2026-09-16 (vong ra, B9) — goi thang `confirm_append_import_with_encoding_
-        // indexed` thay vi tu soan `confirm_append_import_with_encoding` roi mot loi goi
-        // `reindex_library` RIENG: nhanh nay khong giu bat ky khoa `OpenWorkState` nao
-        // (`opened` la mot `Store` vua mo rieng tu chi muc, khong tu mot `MutexGuard`), nen
-        // goi ham *_indexed truc tiep KHONG keo dai thoi gian giu mot khoa nao qua luot quet
-        // dia toan Library — ly do doc-comment cua ham do neu de KHONG dung no (kéo dai thoi
-        // gian giu `OpenWorkState`) khong ap dung o nhanh nay. Truoc ban sua nay, ham
-        // *_indexed khong co cho goi san xuat nao (B9, vong ra 2026-09-16): 1 dinh nghia +
-        // 6 cho goi tests, 0 cho goi src — ca canh no chi chung minh mot ham song song,
-        // khong chung minh gi ve duong san pham that.
-        let global = app.try_state::<Store>();
-        super::confirm_append_import_with_encoding_indexed_with_progress(
-            &mut opened,
-            &pending_state,
-            &source_lang,
-            &encoding,
-            cleanup_rules,
-            pattern,
-            block_overrides,
-            origin_overrides,
-            domain_log_state_ref,
-            Some(indexer.inner()),
-            global.as_deref(),
-            &root,
-            &mut on_image_progress,
-            &should_cancel_images,
-        )?;
-        let created = CreatedWork::from_open(&opened);
-        let new_chapter_ids = opened.new_chapter_ids.clone();
-        replace_open_work(&app, opened);
-        (created, new_chapter_ids)
-    };
-    drop(append_in_progress_guard);
+    // Đường APPEND (Story 6.7b) — choreography dùng chung với song ngữ: `append_into_destination`.
+    let (created, new_chapter_ids) =
+        append_into_destination(app.clone(), root.clone(), &work_id, |open| {
+            super::confirm_append_import_with_encoding_with_progress(
+                open,
+                &pending_state,
+                &source_lang,
+                &encoding,
+                cleanup_rules,
+                pattern,
+                block_overrides,
+                origin_overrides,
+                domain_log_state_ref,
+                &mut on_image_progress,
+                &should_cancel_images,
+            )
+        })?;
 
     reset_tier2_block_overrides(&app);
     reset_chapter_origin_overrides(&app);
     if let Some(items_state) = app.try_state::<super::UrlImportItemsState>() {
         super::clear_url_import_items_after_successful_confirm(&items_state);
-    }
-    // 🔵 SUA 2026-09-16 (vong ra, B9) — nhanh DA MO o tren giu nguyen `confirm_append_
-    // import_with_encoding` tho + mot loi goi `reindex_library` RIENG o day, dung sau khi
-    // `MutexGuard` cua `OpenWorkState` da nha (dung kỷ luat "nha khoa truoc buoc 4" ma
-    // `confirm_append_import_with_encoding_indexed`'s doc-comment tu neu ten — goi ham do
-    // TRONG nhanh DA MO se keo dai thoi gian giu khoa qua luot quet dia). Nhanh KHONG MO o
-    // tren da tu reindex ben trong `_indexed`, nen KHONG goi lai o day — tranh mot luot quet
-    // dia thua.
-    if already_open {
-        reindex_library(&app, &root);
     }
     // Đường APPEND nay CŨNG quét Glossary, đúng khuôn nhánh
     // Tác phẩm MỚI ngay trên: `new_chapter_ids` là Chương VỪA GHI bởi CHÍNH lượt gọi này
@@ -1064,6 +965,84 @@ pub fn confirm_import_with_encoding<R: tauri::Runtime>(
         created,
         || spawn_import_scan(app, work_id, new_chapter_ids, source_lang),
     ))
+}
+
+fn append_into_destination<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    root: std::path::PathBuf,
+    work_id: &str,
+    write: impl FnOnce(&mut OpenWork) -> Result<(), IpcError>,
+) -> Result<(CreatedWork, Vec<i64>), IpcError> {
+    use tauri::Manager as _;
+
+    // Held across both branches: replace_open_work sweeps before it takes the
+    // OpenWorkState lock, so it could delete images written but not yet referenced.
+    let append_in_progress_state = app.try_state::<super::AppendInProgressState>();
+    let append_in_progress_guard = append_in_progress_state
+        .as_deref()
+        .map(|state| super::AppendInProgressGuard::new(state, work_id.to_owned()));
+    let open_state = app.try_state::<OpenWorkState>();
+    let already_open = open_state.as_ref().is_some_and(|state| {
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard
+            .as_ref()
+            .is_some_and(|open| open.meta.work_id == work_id)
+    });
+
+    let (created, new_chapter_ids) = if already_open {
+        let Some(state) = open_state.as_ref() else {
+            return Err(crate::core::library::WorkError::OpenFailed {
+                name: work_id.to_owned(),
+                detail: "OpenWorkState da doi Tac pham giua luc kiem tra va luc khoa lai"
+                    .to_string(),
+            }
+            .into());
+        };
+        let mut guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // The lock was released since the check above, so the open Work may have changed.
+        let Some(open) = guard.as_mut().filter(|open| open.meta.work_id == work_id) else {
+            return Err(crate::core::library::WorkError::OpenFailed {
+                name: work_id.to_owned(),
+                detail: "OpenWorkState da doi Tac pham giua luc kiem tra va luc khoa lai"
+                    .to_string(),
+            }
+            .into());
+        };
+        write(open)?;
+        (CreatedWork::from_open(open), open.new_chapter_ids.clone())
+    } else {
+        let Some(indexer) = app.try_state::<Indexer>() else {
+            return Err(indexer_is_missing());
+        };
+        // Re-read the index: the destination may have vanished since the preview opened.
+        // `open_destination_for_append` names the Work (`work.open_failed`) on a broken
+        // project.db instead of the store-level code.
+        let indexed = indexer.find_work(work_id)?;
+        let mut opened = super::open_destination_for_append(work_id, indexed.as_ref())?;
+        let global = app.try_state::<Store>();
+        crate::commands::lifecycle::finish_lifecycle_write(
+            write(&mut opened),
+            Some(indexer.inner()),
+            global.as_deref(),
+            &root,
+        )?;
+        let created = CreatedWork::from_open(&opened);
+        let new_chapter_ids = opened.new_chapter_ids.clone();
+        replace_open_work(&app, opened);
+        (created, new_chapter_ids)
+    };
+    drop(append_in_progress_guard);
+
+    // The open-Work branch reindexes here, after the OpenWorkState lock is gone, so the
+    // lock is not held across a Library disk scan.
+    if already_open {
+        reindex_library(&app, &root);
+    }
+    Ok((created, new_chapter_ids))
 }
 
 /// Vỏ IPC — màn xem trước bảng mã của đường nhập song ngữ (Story 6.16, FR115). Cùng
@@ -1107,6 +1086,7 @@ pub fn preview_bilingual_import_from_file(
     target_column: usize,
     has_header: bool,
     table_index: Option<usize>,
+    destination: Option<String>,
 ) -> Result<super::BilingualImportEncodingPreview, IpcError> {
     use tauri::Manager as _;
     let Some(state) = app.try_state::<PendingImportSourceState>() else {
@@ -1120,7 +1100,7 @@ pub fn preview_bilingual_import_from_file(
     // `ChapterOriginOverridesState` mục "Reset khi nào").
     reset_tier2_block_overrides(&app);
     reset_chapter_origin_overrides(&app);
-    let cleanup_rules = resolve_cleanup_rules(&app);
+    let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
     let preview = match super::preview_bilingual_import(
         &shape,
         &source_lang,
@@ -1140,8 +1120,7 @@ pub fn preview_bilingual_import_from_file(
             return Err(err);
         }
     };
-    // Đường song ngữ ngoài phạm vi đích (Decision 1, spec 6.7b) — luôn New Work.
-    super::stash_pending_import_source(&state, shape, None);
+    super::stash_pending_import_source_for(&state, shape, None, destination);
     Ok(preview)
 }
 
@@ -1196,7 +1175,7 @@ pub fn rebuild_bilingual_import_preview(
             .map(|p| p.shape.clone())
             .ok_or_else(no_pending_import_source)?
     };
-    let cleanup_rules = resolve_cleanup_rules(&app);
+    let cleanup_rules = resolve_cleanup_rules_for(&app, pending_destination(&app).as_deref());
     let resolved: Vec<crate::core::segment::bilingual::BilingualRegrouping> =
         regroupings.into_iter().map(Into::into).collect();
     super::preview_bilingual_import(
@@ -1213,9 +1192,9 @@ pub fn rebuild_bilingual_import_preview(
 }
 
 /// Vỏ IPC — xác nhận lượt nhập song ngữ (Story 6.16, FR115). Cùng khuôn
-/// `confirm_import_with_encoding`: lõi là [`super::confirm_bilingual_import`] (điểm gọi
-/// [`super::create_work`] cho đường này), vỏ chỉ phân giải thư mục gốc, gói kết quả, và
-/// nối tiếp lượt tái lập chỉ mục.
+/// `confirm_import_with_encoding`: without a stashed destination the core is
+/// [`super::confirm_bilingual_import_with_policy`] (`create_work`) and the shell reindexes; with
+/// one, [`super::confirm_bilingual_append_import_with_policy`] runs through `append_into_destination`.
 ///
 /// ⚠️ **KHÔNG spawn quét Glossary** — khác `confirm_import_with_encoding`: một Chương
 /// song ngữ đã có bản dịch, quét ứng viên Glossary (Story 3.5, FR47) là nghĩa vụ của
@@ -1264,8 +1243,9 @@ pub fn confirm_bilingual_import(
     };
     let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
     let root = resolve_library_root(&app, app.try_state::<Store>().as_deref())?;
+    let destination_work_id = super::current_pending_destination(&pending_state);
     // Đọc hai tầng luật LÚC XÁC NHẬN — cùng kỷ luật `confirm_import_with_encoding`.
-    let cleanup_rules = resolve_cleanup_rules(&app);
+    let cleanup_rules = resolve_cleanup_rules_for(&app, destination_work_id.as_deref());
     let resolved: Vec<crate::core::segment::bilingual::BilingualRegrouping> =
         regroupings.into_iter().map(Into::into).collect();
     let mismatched_rows = if import_mismatched_rows {
@@ -1273,6 +1253,25 @@ pub fn confirm_bilingual_import(
     } else {
         crate::core::segment::bilingual::MismatchedRowPolicy::Refuse
     };
+    if let Some(work_id) = destination_work_id {
+        let (created, _) = append_into_destination(app.clone(), root.clone(), &work_id, |open| {
+            super::confirm_bilingual_append_import_with_policy(
+                open,
+                &pending_state,
+                &source_lang,
+                &encoding,
+                cleanup_rules,
+                pattern,
+                source_column,
+                target_column,
+                has_header,
+                resolved,
+                table_index,
+                mismatched_rows,
+            )
+        })?;
+        return Ok(created);
+    }
     let opened = super::confirm_bilingual_import_with_policy(
         &root,
         &pending_state,

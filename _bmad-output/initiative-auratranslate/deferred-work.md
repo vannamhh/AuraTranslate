@@ -14205,6 +14205,7 @@ chính nó.
 - Nhập song ngữ chưa thêm được vào Tác phẩm đã có: `confirm_bilingual_import` (`src-tauri/src/commands/project/bilingual.rs`) không nhận đích, chỉ tạo Tác phẩm mới. Ice chọn thiết kế đủ: mọi nguồn đều thêm được vào Tác phẩm đã có.
   Quan trọng vì §Đường nhập — màn nhập cho chọn *Tác phẩm đã có* ở mọi tab; trước khi Rust nhận đích, màn xem trước phải báo lý do, không khoá im. Chủ: Epic 6. Trỏ: `ux-auratranslate/EXPERIENCE.md` §Đường nhập — màn nhập.
   → 🔵 2026-11-15: Sofia xếp vào story riêng. Chủ: Story 6.28
+  → ✅ ĐÃ ĐÓNG 2026-11-15 (Story 6.28) — `confirm_bilingual_import` đọc đích từ nguồn chờ và nối Chương mới sau Chương cuối; màn xem trước song ngữ bỏ thông báo và nút *Tạo Tác phẩm mới*.
 
 ## Deferred from: story 6-25 màn nhập một khối chung (2026-11-15)
 
@@ -14217,3 +14218,9 @@ chính nó.
   summary: e2e `story-6-24` ca `.txt path` đỏ ở assert `:focus-visible` (dòng 266), hai lượt cùng binary, sau khi 6.25 sửa xong bước nhập.
   evidence: chưa rõ lỗi sản phẩm hay bàn đo. Probe: `keys('Tab')` của driver tới webview với `isTrusted: false`, tiêu điểm đứng ở `.ip-panel`; đặt tiêu điểm vào ô văn bản trước vẫn đỏ. Nightly xanh cuối 7e6b6b1e có trước 3f42865b (commit đã làm gãy bước nhập của ca). Chốt bằng: chạy ca trên 7e6b6b1e kèm probe, hoặc Tab thật trong app. Chủ: Epic 6.
   → ✅ ĐÃ ĐÓNG 2026-11-15 (Story 6.25) — lỗi bàn đo, không phải sản phẩm: WebKit cho focus() bằng script mang `:focus-visible` chỉ khi phần tử trước đó có nó; ở bản cũ, `setValue` vào ô đường dẫn (gỡ ở 3f42865b) tạo ra trạng thái đó một cách tình cờ. Ca nay gõ vào ô Tên của màn xem trước rồi mới focus(), xanh hai lượt; gỡ quy tắc CSS `:focus-visible` thì đỏ ở assert nhãn.
+
+## Deferred from: story 6-28 nhập song ngữ vào Tác phẩm đã có (2026-11-16)
+
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-nhap-song-ngu-vao-tac-pham-a-co-plan.md`
+  summary: Trong e2e, `browser.keys(['Meta','1'])` hết giờ (POST actions của WebDriver) ngay sau khi không gian dịch mở một Chương vừa nối bằng song ngữ, ba lượt liên tiếp; spec 6-28 tránh bằng realClick lên tab chế độ.
+  evidence: chưa rõ lỗi sản phẩm hay bàn đo; chín spec khác dùng cùng phím sau khi mở không gian dịch. Chốt bằng: chạy `Meta+1` sau khi mở một Chương thường trong cùng spec, và bấm Cmd-1 thật trong app sau một lượt nối song ngữ. Chủ: Epic 6.

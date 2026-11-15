@@ -102,6 +102,16 @@ beforeEach(() => {
 })
 
 describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mock adapter)', () => {
+  it('gửi `destination` đúng khóa: id Tác phẩm hoặc null', async () => {
+    mockInvoke.mockResolvedValue(validWirePreview())
+    const { previewBilingualImportFromFile } = await import('../../src/config/project')
+    await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null, 'w-9')
+    expect(mockInvoke.mock.calls[0][1]).toMatchObject({ destination: 'w-9' })
+    mockInvoke.mockClear()
+    await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
+    expect(mockInvoke.mock.calls[0][1]).toMatchObject({ destination: null })
+  })
+
   it('payload snake_case hợp lệ đi qua isBilingualImportEncodingPreview thật, không bị bác', async () => {
     mockInvoke.mockResolvedValue(validWirePreview())
     const { previewBilingualImportFromFile } = await import('../../src/config/project')
@@ -272,6 +282,7 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
       sourceColumn: 0,
       targetColumn: 1,
       hasHeader: true,
+      destination: null,
       tableIndex: 1,
     })
   })
@@ -321,6 +332,17 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
     const result = await previewBilingualImportFromFile('/tmp/a.docx', 'en', null, 0, 1, false, null)
 
     expect(result.preview).toBeNull()
+  })
+
+  it('rebuild và confirm không gửi `destination` (Rust đọc đích đã cất lúc mở)', async () => {
+    mockInvoke.mockResolvedValue(validWirePreview())
+    const { rebuildBilingualImportPreview, confirmBilingualImport } = await import('../../src/config/project')
+
+    await rebuildBilingualImportPreview('en', null, 0, 1, false, [], null)
+    await confirmBilingualImport('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], null)
+
+    expect(mockInvoke.mock.calls[0][1]).not.toHaveProperty('destination')
+    expect(mockInvoke.mock.calls[1][1]).not.toHaveProperty('destination')
   })
 
   it('rebuild và confirm gửi tableIndex', async () => {

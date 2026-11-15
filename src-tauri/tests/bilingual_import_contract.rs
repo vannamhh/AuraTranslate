@@ -3054,3 +3054,256 @@ mod docx_source {
         cleanup(&root);
     }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Append into an existing Work (bilingual path with a destination)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+fn existing_work(root: &Path, chapters: usize) -> auratranslate_lib::commands::project::OpenWork {
+    use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineShape};
+    let shape = PipelineShape::Chapters(
+        (1..=chapters)
+            .map(|i| ChapterInput::AlreadyText(format!("Chuong cu so {i}. Cau hai.")))
+            .collect(),
+    );
+    auratranslate_lib::commands::project::create_work(
+        root,
+        "Co San",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("dung Tac pham dich that bai")
+}
+
+fn snapshot_chapters(store: &Store) -> Vec<Vec<String>> {
+    store
+        .read(|conn| {
+            let mut rows = Vec::new();
+            for (table, order) in [("chapter", "ord"), ("segment", "chapter_id, ord, id")] {
+                let mut stmt = conn.prepare(&format!("SELECT * FROM {table} ORDER BY {order}"))?;
+                let n = stmt.column_count();
+                let mapped = stmt.query_map([], |r| {
+                    let mut cells = vec![table.to_owned()];
+                    for i in 0..n {
+                        cells.push(format!("{:?}", r.get_ref(i)?));
+                    }
+                    Ok(cells)
+                })?;
+                for row in mapped {
+                    rows.push(row?);
+                }
+            }
+            Ok(rows)
+        })
+        .expect("doc chapter va segment that bai")
+}
+
+fn append_bilingual(
+    open: &mut auratranslate_lib::commands::project::OpenWork,
+    state: &PendingImportSourceState,
+    pattern: Option<ChapterPattern>,
+    policy: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy,
+) -> Result<(), auratranslate_lib::core::i18n::IpcError> {
+    auratranslate_lib::commands::project::confirm_bilingual_append_import_with_policy(
+        open,
+        state,
+        "en",
+        "UTF-8",
+        Vec::new(),
+        pattern,
+        0,
+        1,
+        false,
+        Vec::new(),
+        None,
+        policy,
+    )
+}
+
+#[test]
+fn a_bilingual_append_adds_in_progress_chapters_after_the_last_one_and_leaves_old_rows_untouched() {
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let root = temp_dir("append-paired");
+    let mut open = existing_work(&root, 3);
+    let before = snapshot_chapters(&open.store);
+    assert_eq!(read_chapters(&open.store).len(), 3);
+
+    let csv = "CHUONG MOT,CHAPTER ONE\nCau mot day.,First line.\n\
+               CHUONG HAI,CHAPTER TWO\nCau hai day.,Second line.\n";
+    let path = write_file(&root, "them.csv", csv.as_bytes());
+    let state = pending_state();
+    stash_pending_import_source(
+        &state,
+        import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
+    );
+
+    append_bilingual(
+        &mut open,
+        &state,
+        Some(ChapterPattern::literal("CHUONG")),
+        MismatchedRowPolicy::Refuse,
+    )
+    .expect("append song ngu phai thanh cong");
+
+    let after = snapshot_chapters(&open.store);
+    for row in &before {
+        assert!(
+            after.contains(row),
+            "hang cu phai giu nguyen moi cot: {row:?}"
+        );
+    }
+    let ords: Vec<i64> = open
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT ord FROM chapter ORDER BY ord")?;
+            let rows = stmt.query_map([], |r| r.get(0))?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc ord");
+    assert_eq!(ords, vec![1, 2, 3, 4, 5]);
+    let chapters = read_chapters(&open.store);
+    for chapter in &chapters[3..] {
+        assert_eq!(chapter.status, "in_progress");
+        let segments = read_segments(&open.store, chapter.id);
+        assert!(!segments.is_empty());
+        for s in &segments {
+            assert_eq!(s.translation_origin, "bilingual_import");
+            assert!(!s.target_text.is_empty());
+        }
+    }
+    assert_eq!(chapters[3].title.as_deref(), Some("CHUONG MOT"));
+    assert_eq!(chapters[4].title.as_deref(), Some("CHUONG HAI"));
+    assert_eq!(open.new_chapter_ids.len(), 2);
+    assert!(
+        state.lock().unwrap().is_none(),
+        "thanh cong thi o dang cho duoc don"
+    );
+
+    drop(open);
+    cleanup(&root);
+}
+
+#[test]
+fn a_bilingual_append_with_the_unlinked_policy_imports_the_mismatched_row_as_one_unlinked_segment()
+{
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let root = temp_dir("append-unlinked");
+    let mut open = existing_work(&root, 1);
+    let path = write_file(&root, "lech.csv", UNLINKED_CSV.as_bytes());
+    let state = pending_state();
+    stash_pending_import_source(
+        &state,
+        import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
+    );
+
+    append_bilingual(&mut open, &state, None, MismatchedRowPolicy::ImportUnlinked)
+        .expect("co co thi hang lech nhap duoc");
+
+    let chapters = read_chapters(&open.store);
+    assert_eq!(chapters.len(), 2);
+    assert_eq!(chapters[1].status, "in_progress");
+    let segments = read_segments(&open.store, chapters[1].id);
+    assert_eq!(segments.len(), 3, "mot hang = mot segment");
+    assert_eq!(segments[1].source_text, "Hai cau day. Cau hai nua.");
+    let marks: i64 = open
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_unlinked", [], |r| r.get(0)))
+        .expect("dem dau");
+    assert_eq!(marks, 2, "hai hang lech mang dau chua noi");
+
+    drop(open);
+    cleanup(&root);
+}
+
+#[test]
+fn a_mismatched_bilingual_append_writes_nothing_and_keeps_the_pending_source() {
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let root = temp_dir("append-refused");
+    let mut open = existing_work(&root, 2);
+    let before = snapshot_chapters(&open.store);
+    let path = write_file(&root, "lech.csv", UNLINKED_CSV.as_bytes());
+    let state = pending_state();
+    stash_pending_import_source(
+        &state,
+        import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
+    );
+
+    let err = append_bilingual(&mut open, &state, None, MismatchedRowPolicy::Refuse)
+        .expect_err("hang lech cap thi append bi tu choi O RUST");
+    assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
+    assert_eq!(err.params().get("count").map(String::as_str), Some("2"));
+    assert_eq!(snapshot_chapters(&open.store), before, "Tac pham khong doi");
+    assert!(
+        state.lock().unwrap().is_some(),
+        "o dang cho giu nguyen de thu lai"
+    );
+
+    append_bilingual(&mut open, &state, None, MismatchedRowPolicy::ImportUnlinked)
+        .expect("thu lai voi co thi thanh cong tren cung nguon da cat");
+    assert_eq!(read_chapters(&open.store).len(), 3);
+
+    drop(open);
+    cleanup(&root);
+}
+
+#[test]
+fn the_destination_stashed_at_preview_time_is_read_back_and_the_new_work_path_still_creates() {
+    use auratranslate_lib::commands::project::{
+        current_pending_destination, stash_pending_import_source_for,
+    };
+    let root = temp_dir("destination-roundtrip");
+    let path = write_file(&root, "mot.csv", b"Cau mot.,One.\n");
+    let state = pending_state();
+    stash_pending_import_source_for(
+        &state,
+        import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
+        Some("work-id-1".to_owned()),
+    );
+    assert_eq!(
+        current_pending_destination(&state).as_deref(),
+        Some("work-id-1")
+    );
+
+    stash_pending_import_source(
+        &state,
+        import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
+    );
+    assert_eq!(current_pending_destination(&state), None);
+    let opened = confirm_bilingual_import(
+        &root,
+        &state,
+        "Moi",
+        "en",
+        "",
+        "UTF-8",
+        Vec::new(),
+        None,
+        0,
+        1,
+        false,
+        Vec::new(),
+        None,
+    )
+    .expect("duong Tac pham moi khong doi");
+    assert_eq!(read_chapters(&opened.store).len(), 1);
+
+    drop(opened);
+    cleanup(&root);
+}

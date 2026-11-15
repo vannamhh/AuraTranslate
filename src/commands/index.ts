@@ -231,8 +231,6 @@ export type CommandDeps = {
   pickImportFiles?: () => void
   /** Drops the file row the pointer or focus is on. Handler of `library.import.file_remove`. */
   removeAimedImportFile?: () => void
-  /** Leaves the bilingual preview for a new Work. Handler of `import.preview.bilingual_use_new_work`. */
-  switchBilingualImportToNewWork?: () => void
   /** Opens or closes the title-bar `Công cụ ▾` list. Handler of `titlebar.tools.toggle`. */
   toggleToolsMenu?: () => void
 
@@ -1681,18 +1679,6 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.removeAimedImportFile()
     },
   })
-  target.register({
-    id: 'import.preview.bilingual_use_new_work',
-    labelKey: 'command.import.preview.bilingual_use_new_work',
-    keys: undefined,
-    run: () => {
-      if (deps.switchBilingualImportToNewWork === undefined) {
-        return portMissing('import.preview.bilingual_use_new_work', 'switchBilingualImportToNewWork')
-      }
-      deps.switchBilingualImportToNewWork()
-    },
-  })
-
   target.register({
     id: 'library.import.open',
     labelKey: 'command.library.import.open',

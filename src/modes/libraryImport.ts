@@ -42,7 +42,6 @@ import {
 } from '../importPreviewState'
 import {
   bilingualImportPreviewIsOpen,
-  cancelBilingualImportPreview,
   openBilingualImportPreview,
 } from '../bilingualImportPreviewState'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
@@ -776,7 +775,7 @@ async function openBilingualFromFiles(path: string): Promise<void> {
     effectiveSourceLang.value,
     effectiveGenre.value,
     path,
-    destinationMode.value,
+    destinationWorkId.value,
   )
 }
 
@@ -807,12 +806,6 @@ export const importSubmitReady = computed<boolean>(() => {
       return pastedUrlCount.value > 0
   }
 })
-
-/** Leaves the bilingual preview for the overlay with the destination set to a new Work. */
-export function switchBilingualImportToNewWork(): void {
-  setDestinationMode('new')
-  cancelBilingualImportPreview()
-}
 
 /** Nhánh danh sách URL (Story 6.7, FR122) — tải TUẦN TỰ đúng thứ tự đã dán rồi mở màn xem
  * trước. Cùng khuôn chốt của `submitPastedText`/`submitFilePath`: `busy || importPreviewIsOpen`

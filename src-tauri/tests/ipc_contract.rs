@@ -1233,7 +1233,7 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
 /// ca nao goi duoc vo that. Ba dieu duoi day deu la mot DONG trong than vo ma go di van bien
 /// dich va van xanh o `bilingual_import_contract.rs` (ca do goi HAM THUAN):
 /// ① thieu dong dang ky o `lib.rs` ⇒ `invoke()` tra "command not found" chi khi nguoi dung bam;
-/// ② thieu `resolve_cleanup_rules(&app)` ⇒ luat nguoi dung da bat khong toi duong song ngu —
+/// ② thieu `resolve_cleanup_rules_for(&app` ⇒ luat nguoi dung da bat khong toi duong song ngu —
 ///    dung trang thai ban dau cua story nay (hai cho goi truyen `Vec::new()`);
 /// ③ vo dung lai goi `import_bilingual_file` ⇒ moi lan doi cot DOC LAI TEP — trai Quyet dinh
 ///    Ice "toggling rebuilds the preview in memory", cung la trang thai ban dau cua story nay.
@@ -1294,8 +1294,8 @@ fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuil
         assert!(
             code_lines_of(wire)
                 .iter()
-                .any(|l| l.contains("resolve_cleanup_rules(&app)")),
-            "than vo `{wire}` phai phan giai luat lam sach hai tang (`resolve_cleanup_rules(&app)`) — \
+                .any(|l| l.contains("resolve_cleanup_rules_for(&app")),
+            "than vo `{wire}` phai phan giai luat lam sach hai tang (`resolve_cleanup_rules_for(&app`) — \
              thieu no thi luat nguoi dung da bat khong bao gio toi duong song ngu"
         );
     }
@@ -2077,17 +2077,26 @@ fn count_reindex_library_calls(text: &str) -> usize {
 /// [`the_three_import_encoding_preview_wires_are_registered_and_keep_their_parameter_names`]
 /// ngay trên), tổng quát hoá thành một hàm dùng lại được cho nhiều ca.
 fn wire_fn_body<'a>(wire_src: &'a str, fn_name: &str) -> &'a str {
-    let plain = format!("pub fn {fn_name}(");
-    let generic = format!("pub fn {fn_name}<R: tauri::Runtime>(");
-    let (start, signature) = match (wire_src.find(&plain), wire_src.find(&generic)) {
-        (Some(at), _) => (at, plain),
-        (None, Some(at)) => (at, generic),
-        (None, None) => panic!("khong tim thay vo `{fn_name}` trong `mod wire`"),
-    };
+    let candidates = [
+        format!("pub fn {fn_name}("),
+        format!("pub fn {fn_name}<R: tauri::Runtime>("),
+        format!("\nfn {fn_name}<R: tauri::Runtime>("),
+        format!("\nfn {fn_name}("),
+    ];
+    let (start, signature) = candidates
+        .iter()
+        .find_map(|sig| {
+            wire_src
+                .find(sig.as_str())
+                .map(|at| (at + sig.starts_with('\n') as usize, sig))
+        })
+        .unwrap_or_else(|| panic!("khong tim thay vo `{fn_name}` trong `mod wire`"));
     let rest = &wire_src[start..];
-    let end = rest[signature.len()..]
-        .find("\npub fn ")
-        .map(|offset| offset + signature.len())
+    let skip = signature.len();
+    let end = ["\npub fn ", "\nfn ", "\npub(crate) fn "]
+        .iter()
+        .filter_map(|next| rest[skip..].find(next).map(|offset| offset + skip))
+        .min()
         .unwrap_or(rest.len());
     &rest[..end]
 }
@@ -2104,8 +2113,10 @@ fn read_wire_rs() -> String {
 
 /// **THÊM 2026-09-16 (Story 6.7b, coordinator review)** — cả NĂM chỗ gọi bước 4
 /// (`reindex_library(&app, &root)`) trong `mod wire` phải CÒN MẶT: `create_work_from_text`
-/// (`:499`), `create_work_from_file` (`:545`), `confirm_import_with_encoding` — HAI chỗ, nhánh
-/// Tác phẩm MỚI (`:837`) và nhánh APPEND (`:905`) — và `confirm_bilingual_import` (`:1102`).
+/// (`:499`), `create_work_from_file` (`:545`), `confirm_import_with_encoding` (nhánh Tác phẩm
+/// MỚI), `confirm_bilingual_import` (nhánh Tác phẩm MỚI) và `append_into_destination` — helper
+/// APPEND dùng chung của hai lệnh confirm, nhánh Tác phẩm đang mở; hai nhánh APPEND của confirm
+/// chỉ gọi helper nên không mang lời gọi riêng.
 /// Xoá (hoặc COMMENT ra) BẤT KỲ một trong năm phải làm ca này đỏ — đối chứng đo 2026-09-16,
 /// bảng năm lượt gỡ ở Implementation Notes của spec 6.7b.
 ///
@@ -2126,6 +2137,7 @@ fn all_five_reindex_library_call_sites_in_wire_rs_are_present() {
     let create_from_file = wire_fn_body(&wire_src, "create_work_from_file");
     let confirm = wire_fn_body(&wire_src, "confirm_import_with_encoding");
     let bilingual = wire_fn_body(&wire_src, "confirm_bilingual_import");
+    let append_helper = wire_fn_body(&wire_src, "append_into_destination");
 
     const APPEND_BRANCH_ANCHOR: &str = "// Đường APPEND (Story 6.7b)";
     let append_split = confirm.find(APPEND_BRANCH_ANCHOR).unwrap_or_else(|| {
@@ -2137,6 +2149,10 @@ fn all_five_reindex_library_call_sites_in_wire_rs_are_present() {
     });
     let new_work_branch = &confirm[..append_split];
     let append_branch = &confirm[append_split..];
+    assert!(
+        append_branch.contains("append_into_destination("),
+        "nhanh APPEND cua confirm_import_with_encoding phai di qua `append_into_destination`"
+    );
 
     for (seam, body, expected) in [
         ("create_work_from_text (:499)", create_from_text, 1),
@@ -2147,11 +2163,16 @@ fn all_five_reindex_library_call_sites_in_wire_rs_are_present() {
             1,
         ),
         (
-            "confirm_import_with_encoding, nhanh APPEND (:905)",
+            "confirm_import_with_encoding, nhanh APPEND (goi helper, khong tu reindex)",
             append_branch,
+            0,
+        ),
+        (
+            "append_into_destination (nhanh Tac pham dang mo)",
+            append_helper,
             1,
         ),
-        ("confirm_bilingual_import (:1102)", bilingual, 1),
+        ("confirm_bilingual_import (tao moi)", bilingual, 1),
     ] {
         let found = count_reindex_library_calls(body);
         assert_eq!(

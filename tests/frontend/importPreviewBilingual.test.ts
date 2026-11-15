@@ -41,7 +41,9 @@ vi.mock('../../src/config/project', async (importOriginal) => {
       targetColumn: number,
       hasHeader: boolean,
       tableIndex: number | null,
-    ) => previewMock(path, sourceLang, chapterPattern, sourceColumn, targetColumn, hasHeader, tableIndex),
+      destinationWorkId: string | null = null,
+    ) =>
+      previewMock(path, sourceLang, chapterPattern, sourceColumn, targetColumn, hasHeader, tableIndex, destinationWorkId),
     rebuildBilingualImportPreview: (
       sourceLang: string,
       chapterPattern: unknown,
@@ -203,7 +205,7 @@ describe('bilingualImportPreviewState — mở, đóng, dọn', () => {
 
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
 
-    expect(previewMock).toHaveBeenCalledWith('/tmp/hai-cot.csv', 'en', null, 0, 1, false, null)
+    expect(previewMock).toHaveBeenCalledWith('/tmp/hai-cot.csv', 'en', null, 0, 1, false, null, null)
     expect(state.bilingualImportPreviewIsOpen.value).toBe(true)
     expect(state.bilingualImportPreviewStatus.value).toBe('loaded')
     expect(state.bilingualImportPreviewSelectedEncoding.value).toBe('UTF-8')
@@ -410,6 +412,20 @@ describe('bilingualImportPreviewState — xác nhận bị KHOÁ khi còn hàng 
     expect(state.bilingualImportPreviewIsOpen.value).toBe(false)
   })
 
+  it('đích là Tác phẩm đã có: xác nhận không gửi lại đích và không chặn bởi tên rỗng', async () => {
+    const state = await freshState()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    confirmMock.mockResolvedValue({ created: { meta: { work_id: 'w-kiem' } }, error: null })
+    await state.openBilingualImportPreview('', 'zh', 'tienhiep', '/tmp/hai-cot.csv', 'w-kiem')
+
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
+    const result = await state.confirmBilingualImportPreview()
+
+    expect(confirmMock).toHaveBeenCalledTimes(1)
+    expect(result.created).toEqual({ meta: { work_id: 'w-kiem' } })
+    expect(state.bilingualImportPreviewDestinationWorkId.value).toBeNull()
+  })
+
   it('xác nhận trượt (Rust từ chối vì mismatch xuất hiện GIỮA lúc xem trước và lúc xác nhận) ⇒ giữ nguyên overlay, hiện lỗi', async () => {
     const state = await freshState()
     previewMock.mockResolvedValue({ preview: preview(), error: null })
@@ -475,7 +491,7 @@ describe('bilingualImportPreviewState — Tên, Ngôn ngữ nguồn, Thể loạ
   it('đích là Tác phẩm đã có: ba setter không đổi gì, lớp phủ hiện hàng chỉ đọc', async () => {
     const { state, BilingualImportPreviewOverlay } = await freshOverlay()
     previewMock.mockResolvedValue({ preview: preview(), error: null })
-    await state.openBilingualImportPreview('Kiem Lai', 'zh', 'tienhiep', '/tmp/hai-cot.csv', 'existing')
+    await state.openBilingualImportPreview('Kiem Lai', 'zh', 'tienhiep', '/tmp/hai-cot.csv', 'w-kiem')
     state.setBilingualImportPreviewPendingName('Khac')
     state.setBilingualImportPreviewPendingGenre('khac')
     await state.setBilingualImportPreviewSourceLang('en')
@@ -483,8 +499,12 @@ describe('bilingualImportPreviewState — Tên, Ngôn ngữ nguồn, Thể loạ
     expect(state.bilingualImportPreviewPendingGenre.value).toBe('tienhiep')
     expect(state.bilingualImportPreviewPendingSourceLang.value).toBe('zh')
     expect(rebuildMock).not.toHaveBeenCalled()
+    expect(previewMock.mock.calls[0][7]).toBe('w-kiem')
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+    expect(wrapper.find('[data-bilingual-use-new-work]').exists()).toBe(false)
+    expect(wrapper.get('[data-bip-destination]').text()).toContain('Kiem Lai')
     expect(wrapper.find('[data-bip-work-name]').exists()).toBe(false)
     expect(wrapper.find('[data-bip-source-lang]').exists()).toBe(false)
     expect(wrapper.find('[data-bip-genre]').exists()).toBe(false)
@@ -600,7 +620,7 @@ describe('bilingualImportPreviewState — bảng .docx', () => {
     previewMock.mockResolvedValue({ preview: unchosenPreview(), error: null })
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-bang.docx')
 
-    expect(previewMock).toHaveBeenCalledWith('/tmp/hai-bang.docx', 'en', null, 0, 1, false, null)
+    expect(previewMock).toHaveBeenCalledWith('/tmp/hai-bang.docx', 'en', null, 0, 1, false, null, null)
     expect(state.bilingualImportPreviewTableIndex.value).toBeNull()
     expect(state.bilingualImportPreviewCanConfirm.value).toBe(false)
     const result = await state.confirmBilingualImportPreview()
