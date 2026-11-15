@@ -67,3 +67,4 @@ Epic theo năng lực người dùng thấy được. Phần nghiệm thu chia �
 - Decision: 2026-11-15 — Ice giữ 25 nguyên một story, không tách đôi dù Sofia đề nghị tách phần tab URL, thả tệp và phím ra.
 - Decision: 2026-11-15 — Story dọn mã 30 chỉ dọn mã của 25 đến 29, không chờ 23 và 16c.
 - Decision: 2026-11-15 — 26 áp cho cả màn xem trước song ngữ: Tên, Ngôn ngữ nguồn, Thể loại sửa được ở cả hai màn.
+- Decision: 2026-11-15 — Winston trả lời câu hỏi chặn 6.29: dò `.docx` song ngữ nằm trong bước đầu vào của AD-39, không cần AD mới; Rule AD-39 sửa tại chỗ, Ice ký. 6.29 gỡ chặn.

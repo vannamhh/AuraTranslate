@@ -421,7 +421,8 @@ covers = ["FR13", "FR115"]
 after = [28, "16c"]
 hitl = false
 risk = "medium"
-unknown = "Winston: phép dò .docx song ngữ có nằm trong tiêu chí hình dạng đầu vào của AD-39 không, hay cần AD mới?"
+references = ["architecture-auratranslate/architecture-auratranslate.md#ad-39", "ux-auratranslate/EXPERIENCE.md#đường-nhập--màn-nhập"]
+notes = ["Giữ hay xoá mẫu phân tách, vai cột, quy nhóm câu và chọn bảng khi bật công tắc do story này quyết (memlog kiến trúc 2026-11-15)."]
 
 [[entry]]
 id = 30
