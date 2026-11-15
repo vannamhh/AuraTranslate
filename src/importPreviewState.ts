@@ -1410,7 +1410,7 @@ async function openWith(
   loadError.value = null
 }
 
-/** Mở màn xem trước — nhánh DÁN VĂN BẢN. Gọi từ handler tiêm của `library.import_text`.
+/** Mở màn xem trước — nhánh DÁN VĂN BẢN. Gọi từ `submitActiveImportTab`.
  *
  * 🔴 THÊM 2026-09-16 (Story 6.7b) — tham số `destinationWorkId`: `libraryImport.ts` đã phân
  * giải đích (radio + picker "Tác phẩm đã có") TRƯỚC lượt gọi này — xem doc-comment
@@ -1553,8 +1553,7 @@ export async function openImportPreviewFromFile(
 }
 
 /**
- * Mở màn xem trước — nhánh DANH SÁCH URL (Story 6.7, FR122). Gọi từ handler tiêm của
- * `library.import_urls`, SAU khi `urls` đã được lọc dòng rỗng ở `libraryImport.ts` (hai con
+ * Mở màn xem trước — nhánh DANH SÁCH URL (Story 6.7, FR122). Gọi từ `submitActiveImportTab`, SAU khi `urls` đã được lọc dòng rỗng ở `libraryImport.ts` (hai con
  * số hiển thị TRƯỚC khi bấm nút tính từ CHÍNH phép lọc đó — tính lại ở đây không đổi kết
  * quả, chỉ là cùng một phép lọc chạy hai lần).
  *

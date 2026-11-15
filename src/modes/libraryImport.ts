@@ -10,11 +10,11 @@
  * gọi TRONG `LibraryMode.vue::onMounted` không bao giờ chạy dưới phép kiểm Node thuần, nên
  * Kiểm B sẽ báo "command chưa đăng ký" trên `dispatch()` mà `.vue` gọi thật.
  *
- * ⇒ Hai thao tác nộp form (`library.import_text`, `library.import_file`) đăng ký ở
- * `src/commands/index.ts` như hai `CommandDeps` TIÊM VÀO — cùng khuôn `applyPreset` /
+ * ⇒ Thao tác nộp form (`library.import.submit`) đăng ký ở
+ * `src/commands/index.ts` như một `CommandDeps` TIÊM VÀO — cùng khuôn `applyPreset` /
  * `togglePanel` của `src/layout/dockController.ts`. Module này là **phía cung cấp**:
  * `LibraryMode.vue` đọc/ghi các `ref` ở đây qua `v-model`; `src/main.ts` nối
- * `submitPastedText` / `submitFilePath` vào `installCommands({...})`.
+ * `submitActiveImportTab` vào `installCommands({...})`.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔵 SỬA 2026-09-04 (Story 6.3, FR126) — nộp form KHÔNG còn tạo Tác phẩm trực tiếp.
@@ -40,7 +40,11 @@ import {
   openImportPreviewFromText,
   openImportPreviewFromUrls,
 } from '../importPreviewState'
-import { bilingualImportPreviewIsOpen, openBilingualImportPreview } from '../bilingualImportPreviewState'
+import {
+  bilingualImportPreviewIsOpen,
+  cancelBilingualImportPreview,
+  openBilingualImportPreview,
+} from '../bilingualImportPreviewState'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
 import {
@@ -78,8 +82,8 @@ import { resetReviewerImport } from '../reviewerImportState'
 import { setOpenWork } from '../openWorkIdentity'
 import { restorePromptSetForWork } from '../promptSetState'
 import type { CreatedWork } from '../config/project'
-import { listLibraryWorks, pickBilingualImportFile, pickImportFiles } from '../config/library'
-import type { WorkRow } from '../config/library'
+import { classifyImportPaths, listLibraryWorks, pickImportFiles } from '../config/library'
+import type { ClassifiedImportFile, ImportBatchVerdict, ImportClassification, WorkRow } from '../config/library'
 import type { IpcError } from '../i18n'
 import { closeLibraryImportOverlay } from './libraryImportOverlayState'
 
@@ -98,6 +102,9 @@ const DRAG_LEAVE_EVENT = 'aura://file-drag-leave'
  * các sự kiện DOM đó — xem `src-tauri/src/lib.rs::DRAG_ENTER_EVENT`.
  */
 export const isDragOver = ref(false)
+
+/** Files in the drag that is hovering the window; `0` when the platform reports none. */
+export const dragFileCount = ref(0)
 
 let dragDropWired = false
 let unlisteners: UnlistenFn[] = []
@@ -233,80 +240,116 @@ export function setDestinationWorkId(workId: string): void {
 /** Nội dung ô dán văn bản (AC1 nhánh a). */
 export const pastedText = ref('')
 
-/** Nội dung ô nhập đường dẫn (AC1 nhánh b — vá NFR17: đường bàn phím cho nhánh tệp). */
-export const filePath = ref('')
+export type ImportTab = 'paste' | 'files' | 'urls'
 
-/**
- * **THÊM (Story 6.6b, FR14 mở rộng)** — danh sách N đường dẫn vừa được KÉO-THẢ, giữ NGUYÊN
- * tất cả (không còn chỉ tệp đầu — xem [`wireDragDropOnce`]). Rỗng khi chưa thả gì, hoặc khi
- * người dùng vừa GÕ vào [`filePath`] ([`onFilePathInput`] dọn ô này — §Always spec 6.6b: "a
- * dropped list wins while it is non-empty, and typing in the path field clears it").
- *
- * `filePath` (ô nhập một dòng) và ô này là HAI NGUỒN của cùng một nhánh nhập — chỉ
- * [`effectiveFilePaths`] mới là "sự thật" mà [`submitFilePath`] gửi đi; không đọc thẳng ô
- * nào riêng lẻ ở chỗ gọi khác.
- */
-export const droppedFilePaths = ref<string[]>([])
+/** The selected source tab. Lives only as long as the app process, so a fresh start opens on Dán. */
+export const importActiveTab = ref<ImportTab>('paste')
 
-/**
- * Danh sách đường dẫn THỰC SỰ sẽ được gửi khi bấm nút "Nhập" — **THÊM (Story 6.6b)**. Đúng
- * MỘT luật ưu tiên (§Always spec 6.6b): `droppedFilePaths` THẮNG khi nó không rỗng; ô gõ tay
- * ([`filePath`]) chỉ được đọc khi danh sách thả rỗng. Không bao giờ CẢ HAI nguồn cùng góp
- * phần — đúng nghĩa "một luật ưu tiên, không hai nguồn sự thật" mà §Always đòi.
- */
-export const effectiveFilePaths = computed<string[]>(() => {
-  if (droppedFilePaths.value.length > 0) return droppedFilePaths.value
-  const typed = filePath.value.trim()
-  return typed === '' ? [] : [typed]
+export function selectImportTab(tab: ImportTab): void {
+  importActiveTab.value = tab
+}
+
+const importClassification = ref<ImportClassification | null>(null)
+
+/** `.docx` paths whose row carries the temporary *Đọc như song ngữ* toggle switched on. */
+export const docxAsBilingual = ref<string[]>([])
+
+export const importFiles = computed<ClassifiedImportFile[]>(() => importClassification.value?.files ?? [])
+export const importFilesVerdict = computed<ImportBatchVerdict>(() => importClassification.value?.verdict ?? 'empty')
+
+/** Rust's verdict is the only judge; this only names the sentence that explains a locked button. */
+export const importFilesLockKey = computed<string | null>(() => {
+  switch (importFilesVerdict.value) {
+    case 'has_unsupported':
+      return 'mode.library.files_locked_unsupported'
+    case 'mixed_kinds':
+      return 'mode.library.files_locked_mixed'
+    case 'multiple_bilingual':
+      return 'mode.library.files_locked_one_bilingual'
+    default:
+      return null
+  }
 })
 
-/** One rule for a drop and for the file picker: the whole list becomes the source of truth. */
-function acceptImportFilePaths(paths: readonly unknown[]): string[] {
-  const valid = paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
-  if (valid.length === 0) return valid
-  droppedFilePaths.value = valid
-  filePath.value = valid.length === 1 ? valid[0] : ''
-  return valid
+let classifySequence = 0
+
+async function applyImportFilePaths(paths: string[]): Promise<void> {
+  classifySequence += 1
+  const mine = classifySequence
+  if (paths.length === 0) {
+    importClassification.value = null
+    docxAsBilingual.value = []
+    return
+  }
+  const { classification, error } = await classifyImportPaths(paths, docxAsBilingual.value)
+  if (mine !== classifySequence) return
+  if (error !== null) {
+    lastError.value = error
+    return
+  }
+  if (classification !== null) importClassification.value = classification
+}
+
+/** The dialog and a drop both end here, so they cannot classify differently. */
+function setImportClassification(classification: ImportClassification): void {
+  classifySequence += 1
+  importClassification.value = classification
 }
 
 function baseName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path
 }
 
-export const pickedFileNames = computed(() => effectiveFilePaths.value.map(baseName).join(', '))
-
-export async function chooseImportFiles(): Promise<void> {
-  const { paths, error } = await pickImportFiles()
-  if (error !== null) {
-    lastError.value = error
-    return
-  }
-  if (paths === null) return
-  lastError.value = null
-  noticeKey.value = null
-  acceptImportFilePaths(paths)
+export function importFileName(path: string): string {
+  return baseName(path)
 }
 
-/** **THÊM (Story 6.16, FR115)** — nội dung ô nhập đường dẫn của đường nhập SONG NGỮ
- * (`.csv`/`.tsv`), tách khỏi [`filePath`]: hai đường đi tới hai màn xem trước RIÊNG
- * (`ImportPreviewOverlay.vue` vs `BilingualImportPreviewOverlay.vue`, xem
- * `bilingualImportPreviewState.ts`), và người dùng "đã chọn CHẾ ĐỘ song ngữ tường minh"
- * (§Intent) đúng bằng việc gõ vào Ô NÀY thay vì ô kia. */
-export const bilingualFilePath = ref('')
-
-export const pickedBilingualFileName = computed(() =>
-  bilingualFilePath.value === '' ? '' : baseName(bilingualFilePath.value),
-)
-
-export async function chooseBilingualImportFile(): Promise<void> {
-  const { paths, error } = await pickBilingualImportFile()
+export async function chooseImportFiles(): Promise<void> {
+  const { classification, error } = await pickImportFiles(docxAsBilingual.value)
   if (error !== null) {
     lastError.value = error
     return
   }
-  if (paths === null) return
+  if (classification === null) return
   lastError.value = null
-  bilingualFilePath.value = paths[0]
+  noticeKey.value = null
+  const known = importFiles.value.map((f) => f.path)
+  const added = classification.files.map((f) => f.path).filter((path) => !known.includes(path))
+  if (known.length === 0) {
+    setImportClassification(classification)
+    return
+  }
+  await applyImportFilePaths([...known, ...added])
+}
+
+/** The row the pointer or focus is on; `library.import.file_remove` acts on it. */
+const aimedFilePath = ref<string | null>(null)
+
+export function aimImportFile(path: string): void {
+  aimedFilePath.value = path
+}
+
+export async function removeAimedImportFile(): Promise<void> {
+  const target = aimedFilePath.value
+  aimedFilePath.value = null
+  if (target === null) return
+  docxAsBilingual.value = docxAsBilingual.value.filter((p) => p !== target)
+  await applyImportFilePaths(importFiles.value.map((f) => f.path).filter((p) => p !== target))
+}
+
+/** `@change` of the temporary *Đọc như song ngữ* toggle on a `.docx` row. */
+export async function setDocxReadAsBilingual(path: string, on: boolean): Promise<void> {
+  docxAsBilingual.value = on
+    ? [...docxAsBilingual.value.filter((p) => p !== path), path]
+    : docxAsBilingual.value.filter((p) => p !== path)
+  await applyImportFilePaths(importFiles.value.map((f) => f.path))
+}
+
+export function resetImportFiles(): void {
+  classifySequence += 1
+  importClassification.value = null
+  docxAsBilingual.value = []
+  aimedFilePath.value = null
 }
 
 /**
@@ -584,12 +627,8 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     if (importPreviewLastSubmittedFrom.value === 'text') {
       pastedText.value = ''
     } else if (importPreviewLastSubmittedFrom.value === 'file') {
-      filePath.value = ''
-      // Story 6.6b — cùng lượt xoá, cùng lý do: một danh sách thả cũ không được sống sót qua
-      // một lượt tạo Tác phẩm đã thành công (lượt kế tiếp bắt đầu SẠCH).
-      droppedFilePaths.value = []
+      resetImportFiles()
     } else if (importPreviewLastSubmittedFrom.value === 'urls') {
-      // 🔵 THÊM Story 6.7 — cùng lý lẽ hai nhánh trên, ba biến thể `'text'`/`'file'`/`'urls'`.
       pastedUrls.value = ''
     }
 
@@ -626,14 +665,14 @@ export async function submitPastedText(): Promise<void> {
   // `confirmImportPreview()` — một cửa sổ mà nút "Nhập" đã hết `:disabled` từ lâu, chỉ còn
   // bị chặn THỊ GIÁC bởi lớp phủ scrim của `ImportPreviewOverlay.vue` (`z-index: 11,
   // position: fixed, inset: 0`). Chuột không xuyên qua được lớp phủ đó, nhưng
-  // `dispatch('library.import_text')` là một command ĐÃ ĐĂNG KÝ (`commands/index.ts`) — một
+  // `dispatch('library.import.submit')` là một command ĐÃ ĐĂNG KÝ (`commands/index.ts`) — một
   // lối vào không đi qua DOM (bàn phím toàn cục, palette lệnh nếu có) vẫn gọi thẳng được
   // hàm này trong khi lớp phủ đang mở, mở một lượt xem trước THỨ HAI đè lên nguồn đang chờ
   // mà lượt xác nhận ĐẦU đang dùng — cùng lớp rủi ro "state bị ghi đè giữa chừng" mà mục 4/14
   // đã đóng ở hai góc khác. Chặn Ở ĐÂY (không chỉ `busy`) đóng góc còn lại: `importPreviewIsOpen`
   // đúng suốt từ lúc mở tới lúc huỷ/xác nhận xong — cửa sổ nó phủ RỘNG HƠN `busy`.
   if (busy.value || importPreviewIsOpen.value) return
-  // ⚠️ Chốt ở ĐÂY, không chỉ ở `:disabled` của nút: `dispatch('library.import_text')`
+  // ⚠️ Chốt ở ĐÂY, không chỉ ở `:disabled` của nút: `dispatch('library.import.submit')`
   // là một command đã đăng ký, và một lối vào tương lai (palette, phím tắt) sẽ đi thẳng
   // qua đây mà không đi qua thuộc tính DOM nào.
   if (pastedText.value.trim() === '') return
@@ -659,19 +698,20 @@ export async function submitPastedText(): Promise<void> {
   busy.value = false
 }
 
-/** Nhánh tệp — mở màn xem trước bảng mã cho [`effectiveFilePaths`] hiện tại (ô nhập đường
- * dẫn, bàn phím **hoặc** kéo-thả N tệp — Story 6.3, NFR17 giữ nguyên; mở rộng N tệp Story
- * 6.6b, FR14). */
+/** Tab Tệp — Rust's verdict picks the path: `text` opens the encoding preview of every row,
+ * `bilingual` opens the bilingual preview of its single row; any other verdict does nothing. */
 export async function submitFilePath(): Promise<void> {
-  // Cùng lý do và cùng khoá với `submitPastedText` (mục 9) — `importPreviewIsOpen` phủ
-  // đúng cửa sổ THẬT (mở → huỷ/xác nhận xong), `busy` chỉ phủ tới lúc màn xem trước MỞ.
-  if (busy.value || importPreviewIsOpen.value) return
-  const paths = effectiveFilePaths.value
-  if (paths.length === 0) return
-  // 🔴 THÊM (Story 6.7b) — xem doc-comment [`destinationPending`].
+  if (busy.value || importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value) return
+  const verdict = importFilesVerdict.value
+  if (verdict !== 'text' && verdict !== 'bilingual') return
   if (destinationPending.value) return
-  // ⚠️ Cùng lý do và cùng chốt với `submitPastedText`.
+  const paths = importFiles.value.map((f) => f.path)
   if (!(await beginSubmit())) return
+  if (verdict === 'bilingual') {
+    await openBilingualFromFiles(paths[0])
+    busy.value = false
+    return
+  }
   // `openImportPreviewFromFile` tự chốt nhánh `'file'` (`importPreviewState.ts`).
   await openImportPreviewFromFile(
     effectiveName.value,
@@ -684,23 +724,52 @@ export async function submitFilePath(): Promise<void> {
   busy.value = false
 }
 
-/** **THÊM (Story 6.16, FR115)** — nhánh song ngữ (`.csv`/`.tsv`): mở màn xem trước RIÊNG
- * (`bilingualImportPreviewState.ts::openBilingualImportPreview`), cùng khuôn `submitFilePath`
- * nhưng canh `bilingualImportPreviewIsOpen` (state RIÊNG, không `importPreviewIsOpen`) — hai
- * lớp phủ độc lập, một lượt mở lớp này không chặn lớp kia và ngược lại là đúng, vì `dispatch`
- * chỉ cho phép MỘT trong hai lệnh submit chạy tại một thời điểm từ phía form (mỗi ô một nút). */
-export async function submitBilingualFilePath(): Promise<void> {
-  if (busy.value || bilingualImportPreviewIsOpen.value) return
-  const path = bilingualFilePath.value.trim()
-  if (path === '') return
-  if (!(await beginSubmit())) return
-  if (sourceLang.value === 'auto') {
+async function openBilingualFromFiles(path: string): Promise<void> {
+  if (effectiveSourceLang.value === 'auto') {
     lastError.value = BILINGUAL_NEEDS_SOURCE_LANG_ERROR
-    busy.value = false
     return
   }
-  await openBilingualImportPreview(name.value, sourceLang.value, genre.value, path)
-  busy.value = false
+  await openBilingualImportPreview(
+    effectiveName.value,
+    effectiveSourceLang.value,
+    effectiveGenre.value,
+    path,
+    destinationMode.value,
+  )
+}
+
+/** The primary button of the overlay: submits only the selected tab. */
+export async function submitActiveImportTab(): Promise<void> {
+  switch (importActiveTab.value) {
+    case 'paste':
+      await submitPastedText()
+      return
+    case 'files':
+      await submitFilePath()
+      return
+    case 'urls':
+      await submitPastedUrls()
+      return
+  }
+}
+
+/** Whether the primary button of the selected tab may be pressed. */
+export const importSubmitReady = computed<boolean>(() => {
+  if (busy.value || destinationPending.value) return false
+  switch (importActiveTab.value) {
+    case 'paste':
+      return pastedText.value.trim() !== '' && effectiveName.value.trim() !== ''
+    case 'files':
+      return (importFilesVerdict.value === 'text' || importFilesVerdict.value === 'bilingual') && effectiveName.value.trim() !== ''
+    case 'urls':
+      return pastedUrlCount.value > 0 && effectiveName.value.trim() !== ''
+  }
+})
+
+/** Leaves the bilingual preview for the overlay with the destination set to a new Work. */
+export function switchBilingualImportToNewWork(): void {
+  setDestinationMode('new')
+  cancelBilingualImportPreview()
 }
 
 /** Nhánh danh sách URL (Story 6.7, FR122) — tải TUẦN TỰ đúng thứ tự đã dán rồi mở màn xem
@@ -763,19 +832,27 @@ export function wireDragDropOnce(): void {
       })
   }
 
-  wire<unknown>(DRAG_ENTER_EVENT, () => {
+  wire<unknown>(DRAG_ENTER_EVENT, (count) => {
+    dragFileCount.value = typeof count === 'number' && count > 0 ? count : 0
     isDragOver.value = true
   })
   wire<unknown>(DRAG_LEAVE_EVENT, () => {
     isDragOver.value = false
+    dragFileCount.value = 0
   })
   wire<string[]>(DRAG_DROP_EVENT, (paths) => {
-    // `Drop` là sự kiện CUỐI của một chuỗi — không còn gì lơ lửng nữa.
     isDragOver.value = false
+    dragFileCount.value = 0
 
-    const valid = acceptImportFilePaths(paths)
+    const valid = Array.isArray(paths)
+      ? paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
+      : []
     if (valid.length === 0) return
-    noticeKey.value = valid.length > 1 ? 'mode.library.drop_multiple_files' : null
+    selectImportTab('files')
+    noticeKey.value = null
+    lastError.value = null
+    const known = importFiles.value.map((f) => f.path)
+    void applyImportFilePaths([...known, ...valid.filter((path) => !known.includes(path))])
   })
 }
 
@@ -791,4 +868,5 @@ export function unwireDragDrop(): void {
   unlisteners = []
   dragDropWired = false
   isDragOver.value = false
+  dragFileCount.value = 0
 }

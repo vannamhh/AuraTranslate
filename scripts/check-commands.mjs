@@ -2426,6 +2426,7 @@ const R_DISPATCH_VIA_PARAM =
   "Kiểm B's nonLiteralDispatchCalls"
 const R_MENU_CLOSE = 'closes a native `<details>` menu in place from Escape or Enter on an option — view state, no dispatch'
 const R_SELECT_IN_PLACE = 'selects Chapter rows in place from a pointer press — selection is view state, no dispatch'
+const R_AIM_IMPORT_FILE = 'moves the import file-row aim from a press on its Bỏ button, the file list untouched — view state, no dispatch'
 const R_AIM_CHAPTER = 'moves the Chapter list cursor from a press on a row button, selection untouched — view state, no dispatch'
 const R_MENU_HOLD_FOCUS = 'keeps focus and selection where they are on a press inside a floating menu — no dispatch'
 const R_SELECT_ROWS_IN_PLACE = 'selects sentence rows in place from a press or drag on the number column — selection is view state, no dispatch'
@@ -2616,8 +2617,11 @@ const HANDLER_TABLE = {
   },
   'src/LibraryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/LibraryImportOverlay.vue::recordImportOpener': { nonCommand: R_POINTER_FOCUS },
-  'src/modes/LibraryUrlImportScreen.vue::recordImportOpener': { nonCommand: R_POINTER_FOCUS },
-  'src/modes/LibraryUrlImportScreen.vue::onEscape': { ids: ['library.import_urls_close'] },
+  'src/LibraryImportOverlay.vue::onSubmitChord': { ids: ['library.import.submit'] },
+  'src/LibraryImportOverlay.vue::onTabKeydown': {
+    ids: ['library.import.tab_paste', 'library.import.tab_files', 'library.import.tab_urls'],
+  },
+  'src/LibraryImportOverlay.vue::aimFileRow': { nonCommand: R_AIM_IMPORT_FILE },
   'src/TmImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ReviewerImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmManageOverlay.vue::onRowMouseDown': { nonCommand: R_CURSOR_LOCAL },

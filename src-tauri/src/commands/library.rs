@@ -880,6 +880,46 @@ pub fn search_library_scoped(
     Ok(wire)
 }
 
+/// One row of the import entry list: the verdict of [`classify_import_files`] for one path.
+/// `kind`: `text` / `bilingual` / `unsupported`; `problem`: `None` or the reason the row blocks
+/// the batch (`unsupported` / `kind_mismatch` / `one_bilingual_only`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ClassifiedImportFileWire {
+    pub path: String,
+    pub kind: String,
+    pub problem: Option<String>,
+    pub is_docx: bool,
+}
+
+/// `verdict`: `empty` / `text` / `bilingual` / `has_unsupported` / `mixed_kinds` /
+/// `multiple_bilingual`; only `text` and `bilingual` let the primary button go on.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ImportClassificationWire {
+    pub files: Vec<ClassifiedImportFileWire>,
+    pub verdict: String,
+}
+
+/// The one classification both entry points (OS dialog and drop) end in.
+pub fn classify_import_files(
+    paths: &[String],
+    docx_as_bilingual: &[String],
+) -> ImportClassificationWire {
+    let classified = crate::core::segment::import::classify_import_paths(paths, docx_as_bilingual);
+    ImportClassificationWire {
+        files: classified
+            .files
+            .into_iter()
+            .map(|file| ClassifiedImportFileWire {
+                path: file.path,
+                kind: file.kind.as_str().to_owned(),
+                problem: file.problem.map(|p| p.as_str().to_owned()),
+                is_docx: file.is_docx,
+            })
+            .collect(),
+        verdict: classified.verdict.as_str().to_owned(),
+    }
+}
+
 /// Sáu vỏ `#[tauri::command]` — ba của Story 5.3, [`library_list_works`] của Story 5.4,
 /// [`library_search`] của Story 5.9, cộng [`library_list_orphans`].
 /// **Không một quy tắc nào sống ở đây.**
@@ -998,41 +1038,41 @@ pub mod wire {
         )
     }
 
-    /// Only paths cross to the webview, as with a drop; `None` is a cancelled dialog.
+    /// Only paths cross to the webview, as with a drop; `None` is a cancelled dialog. The files
+    /// come back already classified, through the same function as a drop.
     /// `(async)`: `blocking_pick_files()` blocks the calling thread.
     #[tauri::command(async)]
     pub fn library_pick_import_files(
         app: tauri::AppHandle,
-    ) -> Result<Option<Vec<String>>, IpcError> {
+        docx_as_bilingual: Vec<String>,
+    ) -> Result<Option<super::ImportClassificationWire>, IpcError> {
         let Some(picked) = app
             .dialog()
             .file()
-            .add_filter("Text", &crate::core::segment::import::SUPPORTED_EXTENSIONS)
+            .add_filter(
+                "Import",
+                &crate::core::segment::import::IMPORT_ENTRY_EXTENSIONS,
+            )
             .blocking_pick_files()
         else {
             return Ok(None);
         };
-        picked
+        let paths = picked
             .into_iter()
             .map(picked_to_wire)
-            .collect::<Result<Vec<_>, _>>()
-            .map(Some)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Some(super::classify_import_files(
+            &paths,
+            &docx_as_bilingual,
+        )))
     }
 
-    /// `(async)`: `blocking_pick_file()` blocks the calling thread.
-    #[tauri::command(async)]
-    pub fn library_pick_bilingual_import_file(
-        app: tauri::AppHandle,
-    ) -> Result<Option<String>, IpcError> {
-        app.dialog()
-            .file()
-            .add_filter(
-                "Bilingual",
-                &crate::core::segment::import::BILINGUAL_SUPPORTED_EXTENSIONS,
-            )
-            .blocking_pick_file()
-            .map(picked_to_wire)
-            .transpose()
+    #[tauri::command]
+    pub fn library_classify_import_paths(
+        paths: Vec<String>,
+        docx_as_bilingual: Vec<String>,
+    ) -> super::ImportClassificationWire {
+        super::classify_import_files(&paths, &docx_as_bilingual)
     }
 
     /// `(async)`: `blocking_pick_folder()` blocks the calling thread.

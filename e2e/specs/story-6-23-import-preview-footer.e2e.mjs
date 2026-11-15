@@ -12,6 +12,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { realClick } from '../support/pointer.mjs'
+import { dropFiles, openUrlImportTab } from '../support/importForm.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const URL_WORK = `e2e-623-url-${RUN_TAG}`
@@ -84,11 +85,7 @@ describe('Story 6-23: import preview frame', () => {
 
   it('URL path: one band of 200+ dropped blocks, footer button in view at top and bottom, config column steady, no pattern box', async () => {
     await ready()
-    await realClick(await $('[data-library-import-open]'))
-    await $('[data-library-url-screen-open]').waitForDisplayed({ timeout: 10_000 })
-    await realClick(await $('[data-library-url-screen-open]'))
-    const screen = await $('[data-library-url-import-screen]')
-    await screen.waitForDisplayed({ timeout: 10_000 })
+    const screen = await openUrlImportTab()
     await (await screen.$('textarea')).setValue(`http://127.0.0.1:${port}/a`)
     await (await screen.$('input[type="text"]')).setValue(URL_WORK)
     await realClick(await screen.$('[data-import-preview-open]'))
@@ -143,7 +140,7 @@ describe('Story 6-23: import preview frame', () => {
 
     await realClick(await $(`${SCREEN} footer.ip-footer .ip-act:not(.ip-act-primary)`))
     await $(SCREEN).waitForExist({ reverse: true, timeout: 10_000 })
-    await realClick(await screen.$('.us-actions .us-btn:not(.us-btn-primary)'))
+    await realClick(await screen.$('.li-close'))
     await screen.waitForExist({ reverse: true, timeout: 10_000 })
   })
 
@@ -156,11 +153,10 @@ describe('Story 6-23: import preview frame', () => {
     if (!(await $('.li-panel .import-form').isDisplayed())) await realClick(await $('[data-library-import-open]'))
     const form = await $('.li-panel .import-form')
     await form.waitForDisplayed({ timeout: 10_000 })
-    const inputs = await form.$$('.field input[type="text"]')
-    await inputs[0].setValue(TXT_WORK)
-    await inputs[inputs.length - 2].setValue(txt)
-    const buttons = await form.$$('[data-import-preview-open]')
-    await realClick(buttons[1])
+    await (await form.$('.field input[type="text"]')).setValue(TXT_WORK)
+    await dropFiles([txt])
+    await $('.li-panel [data-import-tabpanel="files"]').waitForDisplayed({ timeout: 10_000 })
+    await realClick(await $('.li-panel [data-import-preview-open]'))
     await $(SCREEN).waitForDisplayed({ timeout: 60_000 })
 
     const patternInput = await $(`${SCREEN} .ip-chapters-pattern-input`)

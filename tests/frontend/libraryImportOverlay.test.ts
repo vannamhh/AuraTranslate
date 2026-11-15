@@ -28,8 +28,11 @@ const NO_WORK = { code: 'work.none_open', message_key: 'err.work.none_open', par
 
 let pages: VueWrapper[] = []
 
+const submitActiveImportTab = vi.fn()
+
 async function setup() {
   vi.resetModules()
+  submitActiveImportTab.mockReset()
   await seedGenres()
   mockInvoke.mockReset()
   mockInvoke.mockImplementation((cmd: string) =>
@@ -46,7 +49,10 @@ async function setup() {
     setMode: modeState.setMode,
     isMac: false,
     openLibraryImportForm: focusMod.openLibraryImportForm,
+    openLibraryImportOnTab: focusMod.openLibraryImportOnTab,
     closeLibraryImportForm: overlay.closeLibraryImportOverlay,
+    selectImportTab: imp.selectImportTab,
+    submitActiveImportTab,
   } as CommandDeps)
   const Overlay = (await import('../../src/LibraryImportOverlay.vue')).default
   const Library = (await import('../../src/modes/LibraryMode.vue')).default
@@ -91,7 +97,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
   })
 
   it('each empty-state invitation opens the overlay', async () => {
-    const { overlay, Library } = await setup()
+    const { overlay, imp, Library } = await setup()
     const page = mount(Library, { attachTo: document.body })
     pages.push(page)
     const state = await import('../../src/modes/libraryWorks')
@@ -99,10 +105,13 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     await flush()
     const invites = page.findAll('[data-library-empty-invite]')
     expect(invites).toHaveLength(2)
+    const expectedTab = { paste: 'paste', file: 'files' } as const
     for (const invite of invites) {
       overlay.resetLibraryImportOverlay()
       await invite.trigger('click')
       expect(overlay.libraryImportOverlayIsOpen.value).toBe(true)
+      const kind = invite.attributes('data-library-empty-invite') as keyof typeof expectedTab
+      expect(imp.importActiveTab.value).toBe(expectedTab[kind])
     }
   })
 
@@ -180,7 +189,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(document.activeElement).toBe(genreField.find('summary').element)
 
     await wrapper.find('.li-panel').trigger('keydown', { key: 'Tab' })
-    expect(document.activeElement?.tagName).toBe('TEXTAREA')
+    expect(document.activeElement?.getAttribute('data-import-tab')).toBe('paste')
   })
 
   it('focus falls back to [data-library-import-open] when the opener node was replaced', async () => {
@@ -219,5 +228,132 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     await flush()
     expect(overlay.libraryImportOverlayIsOpen.value).toBe(false)
     expect(wrapper.find('.li-panel').exists()).toBe(false)
+  })
+
+  it('the overlay opens on Dán, remembers the last tab for the session and reopens on it with Mod+N', async () => {
+    const { commands, overlay, imp, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    expect(imp.importActiveTab.value).toBe('paste')
+    expect(wrapper.get('[data-import-tab="paste"]').attributes('aria-selected')).toBe('true')
+
+    await wrapper.get('[data-import-tab="files"]').trigger('click')
+    expect(imp.importActiveTab.value).toBe('files')
+    overlay.closeLibraryImportOverlay()
+    await flush()
+    commands.dispatch('library.import.open')
+    await flush()
+
+    expect(wrapper.get('[data-import-tab="files"]').attributes('aria-selected')).toBe('true')
+    expect(wrapper.find('[data-import-tabpanel="files"]').exists()).toBe(true)
+  })
+
+  it('the tablist keeps one tab stop and moves between tabs with the arrow keys', async () => {
+    const { commands, imp, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    const stops = (): string[] =>
+      wrapper.findAll('[role="tab"]').filter((t) => t.attributes('tabindex') === '0').map((t) => t.attributes('data-import-tab') ?? '')
+    expect(stops()).toEqual(['paste'])
+
+    await wrapper.get('[data-import-tab="paste"]').trigger('keydown', { key: 'ArrowRight' })
+    await flush()
+    expect(imp.importActiveTab.value).toBe('files')
+    expect(stops()).toEqual(['files'])
+    expect(document.activeElement?.getAttribute('data-import-tab')).toBe('files')
+
+    await wrapper.get('[data-import-tab="files"]').trigger('keydown', { key: 'ArrowLeft' })
+    await wrapper.get('[data-import-tab="paste"]').trigger('keydown', { key: 'ArrowLeft' })
+    await flush()
+    expect(imp.importActiveTab.value).toBe('urls')
+  })
+
+  it('Mod+Enter presses the primary button only when it is enabled; Esc closes', async () => {
+    const { commands, overlay, imp, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+
+    await wrapper.get('.li-scrim').trigger('keydown', { key: 'Enter', metaKey: true })
+    expect(submitActiveImportTab).not.toHaveBeenCalled()
+
+    imp.name.value = 'Ten'
+    imp.pastedText.value = 'noi dung'
+    await flush()
+    await wrapper.get('.li-scrim').trigger('keydown', { key: 'Enter' })
+    expect(submitActiveImportTab).not.toHaveBeenCalled()
+    await wrapper.get('.li-scrim').trigger('keydown', { key: 'Enter', ctrlKey: true })
+    expect(submitActiveImportTab).toHaveBeenCalledTimes(1)
+
+    await wrapper.get('.li-scrim').trigger('keydown', { key: 'Escape' })
+    await flush()
+    expect(overlay.libraryImportOverlayIsOpen.value).toBe(false)
+  })
+
+  it('no separate website button or screen exists, and the URL tab shows the counter, the promise and "Tải N link"', async () => {
+    const { commands, imp, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    expect(wrapper.find('[data-library-url-screen-open]').exists()).toBe(false)
+    expect(commands.commandRegistry.has('library.import_urls_open')).toBe(false)
+
+    await wrapper.get('[data-import-tab="urls"]').trigger('click')
+    imp.name.value = 'Ten'
+    imp.pastedUrls.value = 'https://a.example/1\nhttps://a.example/2\nhttps://b.example/3'
+    await flush()
+    expect(wrapper.get('[data-import-url-count]').text()).toBe('3 link · sẽ tạo 3 Chương · 2 domain')
+    expect(wrapper.get('[data-import-tabpanel="urls"]').text()).toContain('Chỉ tải đúng 3 link này.')
+    const primary = wrapper.get('[data-import-preview-open]')
+    expect(primary.text()).toContain('Tải 3 link')
+    expect((primary.element as HTMLButtonElement).disabled).toBe(false)
+
+    imp.pastedUrls.value = '   \n'
+    await flush()
+    expect(wrapper.get('[data-import-url-count]').text()).toBe('0 link · sẽ tạo 0 Chương · 0 domain')
+    expect((wrapper.get('[data-import-preview-open]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('a drag over the window shows the dashed frame naming the file count, outside the tab order', async () => {
+    const { commands, imp, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    expect(wrapper.find('[data-import-drop-frame]').exists()).toBe(false)
+
+    imp.isDragOver.value = true
+    imp.dragFileCount.value = 2
+    await flush()
+    const frame = wrapper.get('[data-import-drop-frame]')
+    expect(frame.text()).toBe('Thả để thêm 2 tệp vào tab Tệp')
+    expect(frame.attributes('aria-hidden')).toBe('true')
+    expect(frame.find('[tabindex], button, input, textarea').exists()).toBe(false)
+
+    imp.isDragOver.value = false
+    imp.dragFileCount.value = 0
+    await flush()
+    expect(wrapper.find('[data-import-drop-frame]').exists()).toBe(false)
+  })
+
+  it('Tab through the trap stops only on the selected tab, never on the inactive ones', async () => {
+    const { commands, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    const seen = new Set<string>()
+    for (let i = 0; i < 40; i += 1) {
+      await wrapper.find('.li-panel').trigger('keydown', { key: 'Tab' })
+      const tab = document.activeElement?.getAttribute('data-import-tab')
+      if (tab) seen.add(tab)
+    }
+    expect([...seen]).toEqual(['paste'])
   })
 })

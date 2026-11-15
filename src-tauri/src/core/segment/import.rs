@@ -1048,6 +1048,155 @@ fn reject_batch_unsupported_extension(path: &Path) -> Result<(), ImportError> {
 
 pub(crate) const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 3] = ["csv", "tsv", "docx"];
 
+/// The one extension list of the import entry: it feeds the OS dialog filter and the drop
+/// classification, so the two entry points cannot disagree.
+pub const IMPORT_ENTRY_EXTENSIONS: [&str; 5] = ["txt", "md", "docx", "csv", "tsv"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportFileKind {
+    Text,
+    Bilingual,
+    Unsupported,
+}
+
+impl ImportFileKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Text => "text",
+            Self::Bilingual => "bilingual",
+            Self::Unsupported => "unsupported",
+        }
+    }
+}
+
+/// Why one row is rejected; `None` on a row that can be imported as it stands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportFileProblem {
+    Unsupported,
+    KindMismatch,
+    OneBilingualOnly,
+}
+
+impl ImportFileProblem {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unsupported => "unsupported",
+            Self::KindMismatch => "kind_mismatch",
+            Self::OneBilingualOnly => "one_bilingual_only",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportBatchVerdict {
+    Empty,
+    Text,
+    Bilingual,
+    HasUnsupported,
+    MixedKinds,
+    MultipleBilingual,
+}
+
+impl ImportBatchVerdict {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Empty => "empty",
+            Self::Text => "text",
+            Self::Bilingual => "bilingual",
+            Self::HasUnsupported => "has_unsupported",
+            Self::MixedKinds => "mixed_kinds",
+            Self::MultipleBilingual => "multiple_bilingual",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassifiedImportPath {
+    pub path: String,
+    pub kind: ImportFileKind,
+    pub problem: Option<ImportFileProblem>,
+    /// A `.docx` row carries the temporary *read as bilingual* toggle until detection replaces it.
+    pub is_docx: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportClassification {
+    pub files: Vec<ClassifiedImportPath>,
+    pub verdict: ImportBatchVerdict,
+}
+
+/// `.csv`/`.tsv` are always bilingual; `.txt`/`.md` always text; `.docx` is text unless its
+/// path is listed in `docx_as_bilingual`. Text files may be many; a bilingual file travels
+/// alone and never with text files, so with both kinds present the bilingual rows are the
+/// rejected ones.
+pub fn classify_import_paths(
+    paths: &[String],
+    docx_as_bilingual: &[String],
+) -> ImportClassification {
+    let is_docx = |path: &str| -> bool {
+        Path::new(path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("docx"))
+    };
+    let kind_of = |path: &str| -> ImportFileKind {
+        let ext = Path::new(path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase);
+        match ext.as_deref() {
+            Some("txt" | "md") => ImportFileKind::Text,
+            Some("csv" | "tsv") => ImportFileKind::Bilingual,
+            Some("docx") if docx_as_bilingual.iter().any(|p| p == path) => {
+                ImportFileKind::Bilingual
+            }
+            Some("docx") => ImportFileKind::Text,
+            _ => ImportFileKind::Unsupported,
+        }
+    };
+    let kinds: Vec<ImportFileKind> = paths.iter().map(|p| kind_of(p)).collect();
+    let count = |kind: ImportFileKind| kinds.iter().filter(|k| **k == kind).count();
+    let (text, bilingual, unsupported) = (
+        count(ImportFileKind::Text),
+        count(ImportFileKind::Bilingual),
+        count(ImportFileKind::Unsupported),
+    );
+
+    let problem_of = |kind: ImportFileKind| -> Option<ImportFileProblem> {
+        match kind {
+            ImportFileKind::Unsupported => Some(ImportFileProblem::Unsupported),
+            ImportFileKind::Bilingual if text > 0 => Some(ImportFileProblem::KindMismatch),
+            ImportFileKind::Bilingual if bilingual > 1 => Some(ImportFileProblem::OneBilingualOnly),
+            _ => None,
+        }
+    };
+    let files = paths
+        .iter()
+        .zip(&kinds)
+        .map(|(path, kind)| ClassifiedImportPath {
+            path: path.clone(),
+            kind: *kind,
+            problem: problem_of(*kind),
+            is_docx: is_docx(path),
+        })
+        .collect();
+
+    let verdict = if paths.is_empty() {
+        ImportBatchVerdict::Empty
+    } else if unsupported > 0 {
+        ImportBatchVerdict::HasUnsupported
+    } else if text > 0 && bilingual > 0 {
+        ImportBatchVerdict::MixedKinds
+    } else if bilingual > 1 {
+        ImportBatchVerdict::MultipleBilingual
+    } else if bilingual == 1 {
+        ImportBatchVerdict::Bilingual
+    } else {
+        ImportBatchVerdict::Text
+    };
+    ImportClassification { files, verdict }
+}
+
 /// `.csv`/`.tsv` return undecoded bytes (decode and table-parse run inside the pipeline);
 /// `.docx` returns `BilingualTables`, which `select_bilingual_table` must turn into `BilingualRows`.
 pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
@@ -1193,4 +1342,134 @@ fn reject_unsupported_extension(path: &Path) -> Result<(), ImportError> {
     }
 
     Err(ImportError::UnsupportedFormat { format: ext })
+}
+
+#[cfg(test)]
+mod classify_tests {
+    use super::*;
+
+    fn paths(names: &[&str]) -> Vec<String> {
+        names.iter().map(|n| format!("/tmp/{n}")).collect()
+    }
+
+    fn problems(c: &ImportClassification) -> Vec<Option<ImportFileProblem>> {
+        c.files.iter().map(|f| f.problem).collect()
+    }
+
+    #[test]
+    fn an_empty_batch_has_the_empty_verdict() {
+        assert_eq!(
+            classify_import_paths(&[], &[]).verdict,
+            ImportBatchVerdict::Empty
+        );
+    }
+
+    #[test]
+    fn text_files_of_any_count_are_one_text_batch() {
+        let c = classify_import_paths(&paths(&["a.txt", "b.TXT", "c.md"]), &[]);
+        assert_eq!(c.verdict, ImportBatchVerdict::Text);
+        assert!(
+            c.files
+                .iter()
+                .all(|f| f.kind == ImportFileKind::Text && f.problem.is_none())
+        );
+    }
+
+    #[test]
+    fn one_csv_is_a_bilingual_batch() {
+        let c = classify_import_paths(&paths(&["a.csv"]), &[]);
+        assert_eq!(c.verdict, ImportBatchVerdict::Bilingual);
+        assert_eq!(c.files[0].kind, ImportFileKind::Bilingual);
+        assert_eq!(c.files[0].problem, None);
+    }
+
+    #[test]
+    fn a_csv_beside_text_files_is_the_rejected_row() {
+        let c = classify_import_paths(&paths(&["a.txt", "b.txt", "c.csv"]), &[]);
+        assert_eq!(c.verdict, ImportBatchVerdict::MixedKinds);
+        assert_eq!(
+            problems(&c),
+            vec![None, None, Some(ImportFileProblem::KindMismatch)]
+        );
+    }
+
+    #[test]
+    fn a_csv_listed_first_is_still_the_rejected_row_beside_text() {
+        let c = classify_import_paths(&paths(&["c.tsv", "a.txt"]), &[]);
+        assert_eq!(c.verdict, ImportBatchVerdict::MixedKinds);
+        assert_eq!(
+            problems(&c),
+            vec![Some(ImportFileProblem::KindMismatch), None]
+        );
+    }
+
+    #[test]
+    fn two_bilingual_files_are_both_rejected() {
+        let c = classify_import_paths(&paths(&["a.csv", "b.tsv"]), &[]);
+        assert_eq!(c.verdict, ImportBatchVerdict::MultipleBilingual);
+        assert_eq!(
+            problems(&c),
+            vec![
+                Some(ImportFileProblem::OneBilingualOnly),
+                Some(ImportFileProblem::OneBilingualOnly)
+            ]
+        );
+    }
+
+    #[test]
+    fn an_unsupported_extension_locks_the_batch() {
+        let c = classify_import_paths(&paths(&["a.txt", "b.pdf", "noext"]), &[]);
+        assert_eq!(c.verdict, ImportBatchVerdict::HasUnsupported);
+        assert_eq!(
+            problems(&c),
+            vec![
+                None,
+                Some(ImportFileProblem::Unsupported),
+                Some(ImportFileProblem::Unsupported)
+            ]
+        );
+        assert_eq!(c.files[1].kind, ImportFileKind::Unsupported);
+    }
+
+    #[test]
+    fn a_docx_is_text_until_its_path_is_marked_bilingual() {
+        let docx = paths(&["t.docx"]);
+        assert_eq!(
+            classify_import_paths(&docx, &[]).verdict,
+            ImportBatchVerdict::Text
+        );
+        let marked = classify_import_paths(&docx, &docx);
+        assert_eq!(marked.verdict, ImportBatchVerdict::Bilingual);
+        assert_eq!(marked.files[0].kind, ImportFileKind::Bilingual);
+    }
+
+    #[test]
+    fn a_docx_marked_bilingual_beside_a_txt_is_the_mixed_case() {
+        let all = paths(&["t.docx", "a.txt"]);
+        let c = classify_import_paths(&all, &all[..1]);
+        assert_eq!(c.verdict, ImportBatchVerdict::MixedKinds);
+        assert_eq!(
+            problems(&c),
+            vec![Some(ImportFileProblem::KindMismatch), None]
+        );
+    }
+
+    #[test]
+    fn only_a_docx_row_carries_the_bilingual_toggle() {
+        let c = classify_import_paths(&paths(&["a.txt", "b.DOCX", "c.pdf"]), &[]);
+        assert_eq!(
+            c.files.iter().map(|f| f.is_docx).collect::<Vec<_>>(),
+            vec![false, true, false]
+        );
+    }
+
+    #[test]
+    fn the_entry_list_covers_both_pipelines() {
+        for ext in SUPPORTED_EXTENSIONS
+            .iter()
+            .chain(BILINGUAL_SUPPORTED_EXTENSIONS.iter())
+        {
+            assert!(IMPORT_ENTRY_EXTENSIONS.contains(ext), "{ext}");
+        }
+    }
 }

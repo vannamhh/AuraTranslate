@@ -58,6 +58,8 @@ const pendingName = ref('')
 const pendingSourceLang = ref('')
 const pendingPath = ref('')
 const pendingGenre = ref('')
+/** Bilingual import only creates a new Work; an existing destination is shown as a notice. */
+const pendingDestinationMode = ref<'new' | 'existing'>('new')
 
 /** Vai cột (0-based) + cờ tiêu đề — tham số MỖI LƯỢT gọi Rust, cùng khuôn `chapterPattern`
  * (không lưu ở Rust giữa hai lượt — xem doc-comment `PipelineInput::bilingual_source_column`
@@ -121,6 +123,9 @@ export const bilingualImportPreviewChapterPatternKind: DeepReadonly<Ref<ChapterP
 export const bilingualImportPreviewChapterFilterActive: DeepReadonly<Ref<boolean>> = readonly(chapterFilterActive)
 export const bilingualImportPreviewChapterCursor: DeepReadonly<Ref<number>> = readonly(chapterCursor)
 
+export const bilingualImportPreviewDestinationMode: DeepReadonly<Ref<'new' | 'existing'>> =
+  readonly(pendingDestinationMode)
+
 export const bilingualImportPreviewPendingName: DeepReadonly<Ref<string>> = readonly(pendingName)
 export const bilingualImportPreviewPendingSourceLang: DeepReadonly<Ref<string>> = readonly(pendingSourceLang)
 export const bilingualImportPreviewSourceFileName = computed<string>(
@@ -149,6 +154,7 @@ export const bilingualImportPreviewCanConfirm = computed<boolean>(() => {
     status.value === 'loaded' &&
     !confirming.value &&
     !opening.value &&
+    pendingDestinationMode.value === 'new' &&
     candidate !== null &&
     candidate.mismatches.length === 0 &&
     !tableChoicePending()
@@ -166,6 +172,7 @@ export const bilingualImportPreviewCanImportUnlinked = computed<boolean>(() => {
     status.value === 'loaded' &&
     !confirming.value &&
     !opening.value &&
+    pendingDestinationMode.value === 'new' &&
     candidate !== null &&
     candidate.mismatches.length > 0 &&
     bilingualImportPreviewEmptySourceMismatchCount.value === 0 &&
@@ -370,6 +377,7 @@ export async function openBilingualImportPreview(
   sourceLang: string,
   genre: string,
   path: string,
+  destinationMode: 'new' | 'existing' = 'new',
 ): Promise<void> {
   if (opening.value) return
   opening.value = true
@@ -380,6 +388,7 @@ export async function openBilingualImportPreview(
   pendingSourceLang.value = sourceLang
   pendingPath.value = path
   pendingGenre.value = genre
+  pendingDestinationMode.value = destinationMode
   sourceColumn.value = 0
   targetColumn.value = 1
   hasHeader.value = false
@@ -708,6 +717,7 @@ export function resetBilingualImportPreview(): void {
   pendingName.value = ''
   pendingSourceLang.value = ''
   pendingGenre.value = ''
+  pendingDestinationMode.value = 'new'
   pendingPath.value = ''
   sourceColumn.value = 0
   targetColumn.value = 1

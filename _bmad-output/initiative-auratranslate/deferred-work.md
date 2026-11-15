@@ -14205,3 +14205,14 @@ chính nó.
 - Nhập song ngữ chưa thêm được vào Tác phẩm đã có: `confirm_bilingual_import` (`src-tauri/src/commands/project/bilingual.rs`) không nhận đích, chỉ tạo Tác phẩm mới. Ice chọn thiết kế đủ: mọi nguồn đều thêm được vào Tác phẩm đã có.
   Quan trọng vì §Đường nhập — màn nhập cho chọn *Tác phẩm đã có* ở mọi tab; trước khi Rust nhận đích, màn xem trước phải báo lý do, không khoá im. Chủ: Epic 6. Trỏ: `ux-auratranslate/EXPERIENCE.md` §Đường nhập — màn nhập.
   → 🔵 2026-11-15: Sofia xếp vào story riêng. Chủ: Story 6.28
+
+## Deferred from: story 6-25 màn nhập một khối chung (2026-11-15)
+
+- Kéo một tệp từ Finder thả lên lớp phủ nhập chưa thử ở app thật: khung nét đứt hiện, tệp vào tab Tệp. e2e chỉ đi qua sự kiện `aura://file-dropped` do JS phát, không qua kéo-thả hệ điều hành.
+  Quan trọng vì khung kéo dựa vào `aura://file-drag-enter` mang số tệp từ Rust, vitest và e2e không đo được. Chủ: Epic 6. Trỏ: `e2e/specs/story-6-25-import-entry.e2e.mjs`.
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-man-nhap-mot-khoi-chung-ba-tab-dan-tep-url-mot-nut-chinh-plan.md`
+  summary: Thả tệp lên trang Library khi lớp phủ nhập đang đóng thì tệp vào danh sách tab Tệp ẩn, màn hình không báo gì; chỉ lộ khi mở lớp phủ.
+  evidence: `wireDragDropOnce` sống suốt lúc LibraryMode mount (`LibraryMode.vue:130`), khung thả nằm trong lớp phủ chưa render. Có từ trước 6.25 (đường thả cũ cũng điền danh sách ẩn). Chủ: Story 6.30.
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-man-nhap-mot-khoi-chung-ba-tab-dan-tep-url-mot-nut-chinh-plan.md`
+  summary: e2e `story-6-24` ca `.txt path` đỏ ở assert `:focus-visible` (dòng 266), hai lượt cùng binary, sau khi 6.25 sửa xong bước nhập.
+  evidence: chưa rõ lỗi sản phẩm hay bàn đo. Probe: `keys('Tab')` của driver tới webview với `isTrusted: false`, tiêu điểm đứng ở `.ip-panel`; đặt tiêu điểm vào ô văn bản trước vẫn đỏ. Nightly xanh cuối 7e6b6b1e có trước 3f42865b (commit đã làm gãy bước nhập của ca). Chốt bằng: chạy ca trên 7e6b6b1e kèm probe, hoặc Tab thật trong app. Chủ: Epic 6.

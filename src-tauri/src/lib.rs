@@ -234,7 +234,7 @@ impl ExitFlush {
     }
 }
 
-/// Một thao tác kéo vừa **vào** cửa sổ. Khớp `src/modes/libraryImport.ts`.
+/// A drag entered the window; the payload is the number of files being dragged. Matches `src/modes/libraryImport.ts`.
 ///
 /// 🔴 Vì sao cần một event RIÊNG cho việc này, thay vì để webview tự bắt `dragenter` của
 /// DOM: `drag_drop_enabled` mặc định `true` ở Tauri v2 (`tauri.conf.json` không override),
@@ -1200,7 +1200,7 @@ pub fn run() {
             crate::commands::library::wire::library_rescan,
             crate::commands::library::wire::library_choose_root,
             crate::commands::library::wire::library_pick_import_files,
-            crate::commands::library::wire::library_pick_bilingual_import_file,
+            crate::commands::library::wire::library_classify_import_paths,
             crate::commands::library::wire::library_forget_orphan,
             crate::commands::library::wire::library_relocate_orphan,
             crate::commands::library::wire::library_rebuild_index,
@@ -2034,7 +2034,7 @@ fn wire_drag_drop(app: &tauri::App) {
                 let payload: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
                 handle.emit(DRAG_DROP_EVENT, payload)
             }
-            tauri::DragDropEvent::Enter { .. } => handle.emit(DRAG_ENTER_EVENT, ()),
+            tauri::DragDropEvent::Enter { paths, .. } => handle.emit(DRAG_ENTER_EVENT, paths.len()),
             tauri::DragDropEvent::Leave => handle.emit(DRAG_LEAVE_EVENT, ()),
             _ => return,
         };

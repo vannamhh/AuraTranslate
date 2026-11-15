@@ -73,12 +73,10 @@ import {
   loadChapters,
 } from './libraryChapters'
 import LibraryWorkPage from './LibraryWorkPage.vue'
-import LibraryUrlImportScreen from './LibraryUrlImportScreen.vue'
 import ImportPreviewOverlay from '../ImportPreviewOverlay.vue'
 import BilingualImportPreviewOverlay from '../BilingualImportPreviewOverlay.vue'
 import { importPreviewIsOpen } from '../importPreviewState'
 import { bilingualImportPreviewIsOpen } from '../bilingualImportPreviewState'
-import { libraryUrlImportScreenIsOpen } from './libraryImportOverlayState'
 // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
 // 🔵 SỬA (retro Epic 5, AI-3 — 2026-09-03) — thêm `librarySearchCoverageGapState`, bề mặt ĐỘC
 // LẬP với `librarySearchStatusKey` (§Always: "phải hiện cả khi có kết quả").
@@ -371,14 +369,13 @@ watch(libraryWorkPageIsOpen, (open, wasOpen) => {
   })
 })
 const importScreenIsOpen = computed<boolean>(
-  () => libraryUrlImportScreenIsOpen.value || importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value,
+  () => importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value,
 )
 </script>
 
 <template>
   <!-- `tabindex="-1"` để phần tử nhận được focus lập trình. Nó KHÔNG vào thứ tự Tab. -->
   <section ref="root" class="mode" tabindex="-1">
-    <LibraryUrlImportScreen />
     <ImportPreviewOverlay />
     <BilingualImportPreviewOverlay />
     <LibraryWorkPage v-if="!importScreenIsOpen && libraryWorkPageIsOpen" />
@@ -577,10 +574,10 @@ const importScreenIsOpen = computed<boolean>(
         <p class="big">{{ t('mode.library.status') }}</p>
         <p class="small">{{ t('mode.library.empty_body') }}</p>
         <div class="empty-actions">
-          <button type="button" class="btn btn-primary ui-btn ui-btn--primary" data-library-empty-invite="paste" @click="dispatch('library.import.open')">
+          <button type="button" class="btn btn-primary ui-btn ui-btn--primary" data-library-empty-invite="paste" @click="dispatch('library.import.open_paste')">
             {{ t('mode.library.empty_invite_paste') }}
           </button>
-          <button type="button" class="btn ui-btn" data-library-empty-invite="file" @click="dispatch('library.import.open')">
+          <button type="button" class="btn ui-btn" data-library-empty-invite="file" @click="dispatch('library.import.open_files')">
             {{ t('mode.library.empty_invite_file') }}
           </button>
         </div>

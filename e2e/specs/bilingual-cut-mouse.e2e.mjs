@@ -8,6 +8,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { realClick } from '../support/pointer.mjs'
+import { dropFiles } from '../support/importForm.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK = `e2e-147-cut-${RUN_TAG}`
@@ -67,9 +68,9 @@ describe('Story 14-7: bilingual import cut by pointer', () => {
     await form.waitForDisplayed({ timeout: 10_000 })
     await (await form.$('.field input[type="text"]')).setValue(WORK)
     await realClick(await (await form.$('[data-import-source-lang] input[type="radio"][value="zh"]')).$('..'))
-    const inputs = await form.$$('.field input[type="text"]')
-    await inputs[inputs.length - 1].setValue(csv)
-    await realClick(await form.$('[data-bilingual-import-preview-open]'))
+    await dropFiles([csv])
+    await $('.li-panel [data-import-tabpanel="files"]').waitForDisplayed({ timeout: 10_000 })
+    await realClick(await $('.li-panel [data-import-preview-open]'))
     await $(SCREEN).waitForDisplayed({ timeout: 30_000 })
     await $(HEADING).waitForDisplayed({ timeout: 15_000 })
 

@@ -8,6 +8,7 @@
 import { createServer } from 'node:http'
 
 import { realClick } from '../support/pointer.mjs'
+import { openUrlImportTab } from '../support/importForm.mjs'
 
 const SCREEN = '.ip-screen'
 const PARAGRAPHS = 60
@@ -46,13 +47,10 @@ async function enable(enabled) {
 }
 
 async function openPreview(path) {
-  const screen = await $('[data-library-url-import-screen]')
+  let screen = await $('.li-panel')
   if (!(await screen.isDisplayed())) {
     await $('[data-library-import-open]').waitForDisplayed({ timeout: 30_000 })
-    await realClick(await $('[data-library-import-open]'))
-    await $('[data-library-url-screen-open]').waitForDisplayed({ timeout: 10_000 })
-    await realClick(await $('[data-library-url-screen-open]'))
-    await screen.waitForDisplayed({ timeout: 10_000 })
+    screen = await openUrlImportTab()
   }
   await (await screen.$('textarea')).setValue(`http://127.0.0.1:${port}${path}`)
   await (await screen.$('input[type="text"]')).setValue(`e2e-156-${Date.now() % 1_000_000}`)

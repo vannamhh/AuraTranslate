@@ -10,6 +10,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { realClick } from '../support/pointer.mjs'
+import { dropFiles, openUrlImportTab } from '../support/importForm.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const URL_WORK = `e2e-624-url-${RUN_TAG}`
@@ -142,11 +143,7 @@ describe('cleanup rule strike-through in place', () => {
 
   it('URL path: a match after 4 096 bytes is struck in its block, the label follows hover and the J/K cursor, text appears once, scrollTop survives a rule toggle', async () => {
     await ready()
-    await realClick(await $('[data-library-import-open]'))
-    await $('[data-library-url-screen-open]').waitForDisplayed({ timeout: 10_000 })
-    await realClick(await $('[data-library-url-screen-open]'))
-    const screen = await $('[data-library-url-import-screen]')
-    await screen.waitForDisplayed({ timeout: 10_000 })
+    const screen = await openUrlImportTab()
     await (await screen.$('textarea')).setValue(`http://127.0.0.1:${port}/a`)
     await (await screen.$('input[type="text"]')).setValue(URL_WORK)
     await realClick(await screen.$('[data-import-preview-open]'))
@@ -227,7 +224,7 @@ describe('cleanup rule strike-through in place', () => {
 
     await realClick(await $(`${SCREEN} footer.ip-footer .ip-act:not(.ip-act-primary)`))
     await $(SCREEN).waitForExist({ reverse: true, timeout: 10_000 })
-    await realClick(await screen.$('.us-actions .us-btn:not(.us-btn-primary)'))
+    await realClick(await screen.$('.li-close'))
     await screen.waitForExist({ reverse: true, timeout: 10_000 })
   })
 
@@ -242,12 +239,11 @@ describe('cleanup rule strike-through in place', () => {
     if (!(await $('.li-panel .import-form').isDisplayed())) await realClick(await $('[data-library-import-open]'))
     const form = await $('.li-panel .import-form')
     await form.waitForDisplayed({ timeout: 10_000 })
-    const inputs = await form.$$('.field input[type="text"]')
-    await inputs[0].setValue(TXT_WORK)
-    await inputs[inputs.length - 2].setValue(txt)
+    await (await form.$('.field input[type="text"]')).setValue(TXT_WORK)
     await realClick(await (await form.$('input[type="radio"][value="en"]')).$('..'))
-    const buttons = await form.$$('[data-import-preview-open]')
-    await realClick(buttons[1])
+    await dropFiles([txt])
+    await $('.li-panel [data-import-tabpanel="files"]').waitForDisplayed({ timeout: 10_000 })
+    await realClick(await $('.li-panel [data-import-preview-open]'))
     await $(SCREEN).waitForDisplayed({ timeout: 60_000 })
 
     const piece = await $(`${SCREEN} .ip-main .ip-cleanup-text .ip-cleanup-struck`)

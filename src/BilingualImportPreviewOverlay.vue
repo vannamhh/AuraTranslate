@@ -24,6 +24,7 @@ import {
   bilingualImportPreviewChapterFilterActive,
   bilingualImportPreviewConfirmError,
   bilingualImportPreviewConfirming,
+  bilingualImportPreviewDestinationMode,
   bilingualImportPreviewHasHeader,
   bilingualImportPreviewIsOpen,
   bilingualImportPreviewLoadError,
@@ -344,7 +345,7 @@ function onAimCutTarget(position: number): void {
 
 watch(bilingualImportPreviewIsOpen, (open) => {
   if (open) {
-    returnFocusTo = takeRecordedImportOpener() ?? focusReturnTargetOnOpen('[data-bilingual-import-preview-open]')
+    returnFocusTo = takeRecordedImportOpener() ?? focusReturnTargetOnOpen('[data-import-preview-open]')
     void nextTick(() => panel.value?.focus())
     return
   }
@@ -359,7 +360,7 @@ watch(bilingualImportPreviewIsOpen, (open) => {
       return
     }
 
-    const opener = document.querySelector<HTMLElement>('[data-bilingual-import-preview-open]')
+    const opener = document.querySelector<HTMLElement>('[data-import-preview-open]')
     if (opener !== null) {
       opener.focus()
       return
@@ -807,6 +808,16 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
       <div class="bip-actions">
         <button
+          v-if="bilingualImportPreviewDestinationMode === 'existing'"
+          type="button"
+          class="bip-act ui-btn ui-btn--lg"
+          data-bilingual-use-new-work
+          :disabled="bilingualImportPreviewConfirming"
+          @click="dispatch('import.preview.bilingual_use_new_work')"
+        >
+          {{ t('command.import.preview.bilingual_use_new_work') }}
+        </button>
+        <button
           v-if="bilingualImportPreviewMismatches.length > 0"
           type="button"
           class="bip-act ui-btn ui-btn--lg"
@@ -869,6 +880,9 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
         </p>
         <p v-else-if="bilingualImportPreviewCanImportUnlinked" class="bip-tier-empty-reason" role="status">
           {{ t('mode.library.preview.bilingual_unlinked_hint') }}
+        </p>
+        <p v-if="bilingualImportPreviewDestinationMode === 'existing'" class="bip-tier-empty-reason" role="status">
+          {{ t('mode.library.preview.bilingual_existing_work_unavailable') }}
         </p>
         <p class="bip-hint">{{ t('mode.library.preview.hint_no_write_before_confirm_bilingual') }}</p>
       </div>

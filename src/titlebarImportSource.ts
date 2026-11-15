@@ -14,8 +14,8 @@ import {
   importPreviewSourceTextBytes,
   importPreviewUrlItems,
 } from './importPreviewState'
-import { pastedUrlCount, pastedUrlDomainCount } from './modes/libraryImport'
-import { libraryUrlImportScreenIsOpen } from './modes/libraryImportOverlayState'
+import { importActiveTab, pastedUrlCount, pastedUrlDomainCount } from './modes/libraryImport'
+import { libraryImportOverlayIsOpen } from './modes/libraryImportOverlayState'
 import { currentMode } from './modes/modeState'
 
 function joinParts(parts: string[]): string {
@@ -47,7 +47,7 @@ export const importSourceStatusText = computed<string | null>(() => {
     const label = t('titlebar.import_source_pasted_text')
     return bytes === null ? label : joinParts([label, formatByteSize(bytes)])
   }
-  if (libraryUrlImportScreenIsOpen.value) {
+  if (libraryImportOverlayIsOpen.value && importActiveTab.value === 'urls') {
     return joinParts([
       t('titlebar.import_source_links', { count: groupThousands(pastedUrlCount.value) }),
       t('titlebar.import_source_domains', { count: String(pastedUrlDomainCount.value) }),

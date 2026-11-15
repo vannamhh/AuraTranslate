@@ -386,16 +386,17 @@ describe('màn xem trước mở nhưng đã đổi sang tab khác', () => {
 })
 
 describe('cổng phím tắt toàn cục', () => {
-  it('main.ts chặn phím toàn cục khi bất kỳ màn xem trước hoặc màn website đang mở', async () => {
+  it('main.ts chặn phím toàn cục khi bất kỳ màn xem trước đang mở', async () => {
     const { readFileSync } = await import('node:fs')
     const source = readFileSync('src/main.ts', 'utf8')
     const start = source.indexOf('isBlocked: (event) =>')
     expect(start).toBeGreaterThan(-1)
     const block = source.slice(start, source.indexOf('}', start + 200) + 1)
-    for (const flag of ['importPreviewIsOpen', 'bilingualImportPreviewIsOpen', 'libraryUrlImportScreenIsOpen']) {
+    for (const flag of ['importPreviewIsOpen', 'bilingualImportPreviewIsOpen', 'libraryImportOverlayIsOpen']) {
       expect(block, flag).toContain(`${flag}.value`)
     }
-    expect(block).toMatch(/currentMode\.value === 'library' &&\s*\(libraryUrlImportScreenIsOpen/)
+    expect(block).toMatch(/currentMode\.value === 'library' &&\s*\(importPreviewIsOpen/)
+    expect(block).not.toContain('libraryUrlImportScreenIsOpen')
   })
 })
 

@@ -74,7 +74,7 @@ import { panelHeadersShown, setPanelHeadersShown } from './layout/panelHeadersSt
 // của Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E cùng lúc.
 import { closeLookupDrawer, openLookupDrawer } from './layout/lookupDrawerState'
 import { addGenre, deleteSelectedGenre, loadGenres, renameSelectedGenre } from './genreState'
-import { openLibraryImportForm } from './modes/libraryImportFocus'
+import { openLibraryImportForm, openLibraryImportOnTab } from './modes/libraryImportFocus'
 import { toggleToolsMenu } from './titlebarToolsState'
 // ── Story 1.15 — form nhập Tác phẩm ở Library ───────────────────────────────────────
 //
@@ -82,12 +82,14 @@ import { toggleToolsMenu } from './titlebarToolsState'
 // Vue thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/project.ts` — import nó ở
 // `src/commands/index.ts` giết Kiểm C/D/E.
 import {
-  bilingualFilePath,
+  chooseImportFiles,
+  resetImportFiles,
+  busy as importBusy,
   finishImportSubmission,
-  submitBilingualFilePath,
-  submitFilePath,
-  submitPastedText,
-  submitPastedUrls,
+  removeAimedImportFile,
+  selectImportTab,
+  submitActiveImportTab,
+  switchBilingualImportToNewWork,
 } from './modes/libraryImport'
 // ── Story 6.3 — màn xem trước bảng mã (FR126) ────────────────────────────────────────
 //
@@ -315,10 +317,7 @@ import { resetReviewMode } from './reviewModeState'
 import { exportOverlayIsOpen } from './exportState'
 import {
   closeLibraryImportOverlay,
-  closeLibraryUrlImportScreen,
   libraryImportOverlayIsOpen,
-  libraryUrlImportScreenIsOpen,
-  openLibraryUrlImportScreen,
 } from './modes/libraryImportOverlayState'
 import { tmManageCommandDeps } from './tmManageCommandDeps'
 import { paletteCommandDeps, paletteIsOpen } from './paletteState'
@@ -612,14 +611,16 @@ async function boot(): Promise<void> {
       // Story 4.12, Phase 3a · Decision 2 — ngăn kéo Tra cứu, điểm vào ở `<StatusBar />`.
       openLookupDrawer,
       closeLookupDrawer,
-      submitPastedText,
-      submitFilePath,
-      submitPastedUrls,
-      submitBilingualFilePath,
+      submitActiveImportTab: () => void submitActiveImportTab(),
+      selectImportTab,
+      pickImportFiles: () => void chooseImportFiles(),
+      removeAimedImportFile: () => void removeAimedImportFile(),
+      switchBilingualImportToNewWork,
       openLibraryImportForm,
-      closeLibraryImportForm: closeLibraryImportOverlay,
-      openLibraryUrlImportScreen,
-      closeLibraryUrlImportScreen,
+      openLibraryImportOnTab,
+      closeLibraryImportForm: () => {
+        if (!importBusy.value) closeLibraryImportOverlay()
+      },
       toggleToolsMenu,
       // Story 6.3 — màn xem trước bảng mã (FR126). `confirmImportPreview` KHÔNG bỏ qua kết
       // quả (khác `submitPastedText`): thành công hay trượt đều phải đóng vòng nộp form
@@ -636,18 +637,15 @@ async function boot(): Promise<void> {
       },
       cancelImportPreview,
       cancelImportPreviewImageDownload,
-      // Story 6.16 — nhập tài liệu song ngữ hai cột (FR115). Cùng khuôn `confirmImportPreview`
-      // ngay trên (đóng vòng nộp form qua CHÍNH `finishImportSubmission` dùng chung — reset
-      // panel không khác gì theo nguồn nhập) — chỉ thêm một dòng riêng: `bilingualFilePath`
-      // không nằm trong bốn nhánh `importPreviewLastSubmittedFrom` mà `finishImportSubmission`
-      // đọc (module đó không biết về đường song ngữ), nên xoá Ô ĐÃ NỘP ở ngay đây.
+      // Bilingual confirm clears the submitted file list here: finishImportSubmission
+      // does not know the bilingual path.
       confirmBilingualImportPreview: () => {
         void (async () => {
           const result = await confirmBilingualImportPreview()
           if (result.created !== null || result.error !== null) {
             finishImportSubmission(result.created, result.error)
             if (result.created !== null) {
-              bilingualFilePath.value = ''
+              resetImportFiles()
             }
           }
         })()
@@ -658,7 +656,7 @@ async function boot(): Promise<void> {
           if (result.created !== null || result.error !== null) {
             finishImportSubmission(result.created, result.error)
             if (result.created !== null) {
-              bilingualFilePath.value = ''
+              resetImportFiles()
             }
           }
         })()
@@ -1209,7 +1207,7 @@ async function boot(): Promise<void> {
         chapterSplitOverlayIsOpen.value ||
         libraryImportOverlayIsOpen.value ||
         (currentMode.value === 'library' &&
-          (libraryUrlImportScreenIsOpen.value || importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value)) ||
+          (importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value)) ||
         reviewerImportOverlayIsOpen.value ||
         alignmentOverlayIsOpen.value ||
         importOverlayIsOpen.value ||

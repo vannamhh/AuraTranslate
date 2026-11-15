@@ -211,28 +211,26 @@ export type CommandDeps = {
   // ── Story 1.15 — nộp form nhập Tác phẩm ở Library ───────────────────────────────
   //
   // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`togglePanel`: state của form
-  // (`name`, `pastedText`, `filePath`, …) sống trong `src/modes/libraryImport.ts`, một
+  // (`name`, `pastedText`, the file list, …) sống trong `src/modes/libraryImport.ts`, một
   // module Vue thật — import thẳng nó ở đây giết Kiểm C/D/E cùng lý do `@tauri-apps/api`
-  // bị cấm. `src/main.ts` nối `submitPastedText`/`submitFilePath` vào `installCommands`.
+  // bị cấm. `src/main.ts` nối `submitActiveImportTab` vào `installCommands`.
 
-  /** Nộp `pastedText` hiện tại. Handler của `library.import_text` (AC1 nhánh dán). */
-  submitPastedText?: () => void
-  /** Nộp `filePath` hiện tại. Handler của `library.import_file` (AC1 nhánh tệp/NFR17). */
-  submitFilePath?: () => void
-  /** Nộp `pastedUrls` hiện tại. Handler của `library.import_urls` (Story 6.7, FR122). */
-  submitPastedUrls?: () => void
-  /** Nộp `bilingualFilePath` hiện tại. Handler của `library.import_bilingual` (Story 6.16,
-   * FR115) — mở màn xem trước RIÊNG (`bilingualImportPreviewState.ts`), không
-   * `importPreviewState.ts`. */
-  submitBilingualFilePath?: () => void
+  /** Submits the selected tab of the import overlay. Handler of `library.import.submit`. */
+  submitActiveImportTab?: () => void
   /** Moves to Library and opens the import overlay. Handler of `library.import.open`. */
   openLibraryImportForm?: () => void
+  /** Moves to Library and opens the import overlay on one tab. Handler of `library.import.open_paste` / `open_files`. */
+  openLibraryImportOnTab?: (tab: 'paste' | 'files') => void
   /** Closes the import overlay. Handler of `library.import.close`. */
   closeLibraryImportForm?: () => void
-  /** Opens the "Nhập từ website" screen. Handler of `library.import_urls_open`. */
-  openLibraryUrlImportScreen?: () => void
-  /** Closes the "Nhập từ website" screen back to the import form. Handler of `library.import_urls_close`. */
-  closeLibraryUrlImportScreen?: () => void
+  /** Selects a source tab of the import overlay. Handler of `library.import.tab_*`. */
+  selectImportTab?: (tab: 'paste' | 'files' | 'urls') => void
+  /** Opens the OS file dialog of the Tệp tab. Handler of `library.import.pick_files`. */
+  pickImportFiles?: () => void
+  /** Drops the file row the pointer or focus is on. Handler of `library.import.file_remove`. */
+  removeAimedImportFile?: () => void
+  /** Leaves the bilingual preview for a new Work. Handler of `import.preview.bilingual_use_new_work`. */
+  switchBilingualImportToNewWork?: () => void
   /** Opens or closes the title-bar `Công cụ ▾` list. Handler of `titlebar.tools.toggle`. */
   toggleToolsMenu?: () => void
 
@@ -1603,75 +1601,93 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     })
   }
 
-  /**
-   * `library.import_text` / `library.import_file` — Story 1.15, AC1.
-   *
-   * ⚠️ Cố ý KHÔNG gán phím: nộp một form là một thao tác cần đọc lại giá trị đã gõ
-   * trước khi kích hoạt, không phải một lối tắt đáng nhớ — cùng lý lẽ mà các
-   * `layout.toggle_*` cố ý không gán phím ở Story 1.6 (§QĐ #3). Hai nút bấm
-   * tương ứng vẫn tới được bằng bàn phím qua Tab + Enter/Space, chuẩn HTML gốc.
-   */
+  /** The overlay's primary button, one id for every tab; no key here (`Mod+Enter` is handled
+   * inside the overlay, which blocks the global chord with `aria-modal`). */
   target.register({
-    id: 'library.import_text',
-    labelKey: 'command.library.import_text',
-    run: () => {
-      if (deps.submitPastedText === undefined) return portMissing('library.import_text', 'submitPastedText')
-      deps.submitPastedText()
-    },
-  })
-  target.register({
-    id: 'library.import_file',
-    labelKey: 'command.library.import_file',
-    run: () => {
-      if (deps.submitFilePath === undefined) return portMissing('library.import_file', 'submitFilePath')
-      deps.submitFilePath()
-    },
-  })
-  /** `library.import_urls` — Story 6.7 (FR122). Cố ý KHÔNG gán phím, cùng lý do
-   * `library.import_text`/`library.import_file` ngay trên. */
-  target.register({
-    id: 'library.import_urls',
-    labelKey: 'command.library.import_urls',
-    run: () => {
-      if (deps.submitPastedUrls === undefined) return portMissing('library.import_urls', 'submitPastedUrls')
-      deps.submitPastedUrls()
-    },
-  })
-  /** `library.import_urls_open` / `library.import_urls_close` — the paste step of the website
-   * import is a Library screen; no key, same reason as `library.import_urls`. */
-  target.register({
-    id: 'library.import_urls_open',
-    labelKey: 'command.library.import_urls_open',
+    id: 'library.import.submit',
+    labelKey: 'command.library.import.submit',
     keys: undefined,
     run: () => {
-      if (deps.openLibraryUrlImportScreen === undefined) {
-        return portMissing('library.import_urls_open', 'openLibraryUrlImportScreen')
+      if (deps.submitActiveImportTab === undefined) {
+        return portMissing('library.import.submit', 'submitActiveImportTab')
       }
-      deps.openLibraryUrlImportScreen()
+      deps.submitActiveImportTab()
     },
   })
   target.register({
-    id: 'library.import_urls_close',
-    labelKey: 'command.library.import_urls_close',
+    id: 'library.import.tab_paste',
+    labelKey: 'command.library.import.tab_paste',
     keys: undefined,
     run: () => {
-      if (deps.closeLibraryUrlImportScreen === undefined) {
-        return portMissing('library.import_urls_close', 'closeLibraryUrlImportScreen')
-      }
-      deps.closeLibraryUrlImportScreen()
+      if (deps.selectImportTab === undefined) return portMissing('library.import.tab_paste', 'selectImportTab')
+      deps.selectImportTab('paste')
     },
   })
-
-  /** `library.import_bilingual` — Story 6.16 (FR115). Cố ý KHÔNG gán phím, cùng lý do ba lệnh
-   * `library.import_*` ngay trên. */
   target.register({
-    id: 'library.import_bilingual',
-    labelKey: 'command.library.import_bilingual',
+    id: 'library.import.tab_files',
+    labelKey: 'command.library.import.tab_files',
+    keys: undefined,
     run: () => {
-      if (deps.submitBilingualFilePath === undefined) {
-        return portMissing('library.import_bilingual', 'submitBilingualFilePath')
+      if (deps.selectImportTab === undefined) return portMissing('library.import.tab_files', 'selectImportTab')
+      deps.selectImportTab('files')
+    },
+  })
+  target.register({
+    id: 'library.import.tab_urls',
+    labelKey: 'command.library.import.tab_urls',
+    keys: undefined,
+    run: () => {
+      if (deps.selectImportTab === undefined) return portMissing('library.import.tab_urls', 'selectImportTab')
+      deps.selectImportTab('urls')
+    },
+  })
+  target.register({
+    id: 'library.import.open_paste',
+    labelKey: 'command.library.import.open_paste',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryImportOnTab === undefined) return portMissing('library.import.open_paste', 'openLibraryImportOnTab')
+      deps.openLibraryImportOnTab('paste')
+    },
+  })
+  target.register({
+    id: 'library.import.open_files',
+    labelKey: 'command.library.import.open_files',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryImportOnTab === undefined) return portMissing('library.import.open_files', 'openLibraryImportOnTab')
+      deps.openLibraryImportOnTab('files')
+    },
+  })
+  target.register({
+    id: 'library.import.pick_files',
+    labelKey: 'command.library.import.pick_files',
+    keys: undefined,
+    run: () => {
+      if (deps.pickImportFiles === undefined) return portMissing('library.import.pick_files', 'pickImportFiles')
+      deps.pickImportFiles()
+    },
+  })
+  target.register({
+    id: 'library.import.file_remove',
+    labelKey: 'command.library.import.file_remove',
+    keys: undefined,
+    run: () => {
+      if (deps.removeAimedImportFile === undefined) {
+        return portMissing('library.import.file_remove', 'removeAimedImportFile')
       }
-      deps.submitBilingualFilePath()
+      deps.removeAimedImportFile()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_use_new_work',
+    labelKey: 'command.import.preview.bilingual_use_new_work',
+    keys: undefined,
+    run: () => {
+      if (deps.switchBilingualImportToNewWork === undefined) {
+        return portMissing('import.preview.bilingual_use_new_work', 'switchBilingualImportToNewWork')
+      }
+      deps.switchBilingualImportToNewWork()
     },
   })
 

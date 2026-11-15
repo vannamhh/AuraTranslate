@@ -6,6 +6,7 @@
  */
 import { createServer } from 'node:http'
 import { realClick } from '../support/pointer.mjs'
+import { openUrlImportTab } from '../support/importForm.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK = `e2e-146-url-${RUN_TAG}`
@@ -110,11 +111,7 @@ describe('Story 14-6: URL import preview block tier by pointer', () => {
       interval: 250,
     })
     await $('[data-library-import-open]').waitForDisplayed({ timeout: 30_000 })
-    await realClick(await $('[data-library-import-open]'))
-    await $('[data-library-url-screen-open]').waitForDisplayed({ timeout: 10_000 })
-    await realClick(await $('[data-library-url-screen-open]'))
-    const screen = await $('[data-library-url-import-screen]')
-    await screen.waitForDisplayed({ timeout: 10_000 })
+    const screen = await openUrlImportTab()
     await (await screen.$('textarea')).setValue(`http://127.0.0.1:${port}/a\nhttp://127.0.0.1:${port}/b`)
     await (await screen.$('input[type="text"]')).setValue(WORK)
     await realClick(await screen.$('[data-import-preview-open]'))

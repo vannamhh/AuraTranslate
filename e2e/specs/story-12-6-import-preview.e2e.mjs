@@ -7,6 +7,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { realClick } from '../support/pointer.mjs'
+import { dropFiles, selectImportTab } from '../support/importForm.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const PASTE_WORK = `e2e-126-paste-${RUN_TAG}`
@@ -72,10 +73,10 @@ describe('Story 12-6: import preview screens', () => {
     await realClick(await $(OPEN_BTN))
     const form = await $(FORM)
     await form.waitForDisplayed({ timeout: 10_000 })
+    await selectImportTab('paste')
     await (await fieldByLabel(form, 0)).setValue(PASTE_WORK)
     await (await form.$('textarea')).setValue('Cau mot。Cau hai。')
-    const submit = (await form.$$('[data-import-preview-open]'))[0]
-    await realClick(submit)
+    await realClick(await $('.li-panel [data-import-preview-open]'))
 
     await $(SCREEN).waitForDisplayed({ timeout: 30_000 })
     const shape = await browser.execute((screenSel) => {
@@ -140,6 +141,7 @@ describe('Story 12-6: import preview screens', () => {
     await realClick(await $(OPEN_BTN))
     const form = await $(FORM)
     await form.waitForDisplayed({ timeout: 10_000 })
+    await selectImportTab('paste')
     expect(
       await browser.execute(
         () => document.querySelector('[data-import-source-lang] .lang-chip--on')?.textContent?.trim() ?? '',
@@ -147,7 +149,7 @@ describe('Story 12-6: import preview screens', () => {
     ).toBe('Tự phát hiện')
     await (await fieldByLabel(form, 0)).setValue(`e2e-126-auto-${RUN_TAG}`)
     await (await form.$('textarea')).setValue('他走进房间。她笑了！你好吗？')
-    await realClick((await form.$$('[data-import-preview-open]'))[0])
+    await realClick(await $('.li-panel [data-import-preview-open]'))
     await $(SCREEN).waitForDisplayed({ timeout: 30_000 })
 
     const litChip = () =>
@@ -169,26 +171,25 @@ describe('Story 12-6: import preview screens', () => {
   })
 
   it('"Nhập từ website": count line, promise, submit label and Cancel returning focus to its opener', async () => {
-    await browser.execute(() => document.querySelector('.li-panel textarea')?.focus())
-    await realClick(await $('[data-library-url-screen-open]'))
-    const screen = await $('[data-library-url-import-screen]')
-    await screen.waitForDisplayed({ timeout: 10_000 })
+    await realClick(await $(OPEN_BTN))
+    const screen = await selectImportTab('urls')
     await (await screen.$('textarea')).setValue('https://a.example/1\nhttps://a.example/2\nhttps://a.example/3')
 
     const text = await browser.execute(() => ({
-      count: (document.querySelector('.us-count')?.textContent || '').trim(),
-      promise: (document.querySelector('.us-promise')?.textContent || '').trim(),
-      submit: (document.querySelector('[data-library-url-import-screen] [data-import-preview-open]')?.textContent || '').trim(),
+      count: (document.querySelector('[data-import-url-count]')?.textContent || '').trim(),
+      promise: (document.querySelector('[data-import-tabpanel="urls"] .li-note:last-child')?.textContent || '').trim(),
+      submit: (document.querySelector('.li-panel [data-import-preview-open]')?.textContent || '').trim(),
       source: (document.querySelector('[data-titlebar-import-source]')?.textContent || '').trim(),
     }))
     expect(text.count).toBe('3 link · sẽ tạo 3 Chương · 1 domain')
     expect(text.promise).toContain('Chỉ tải đúng 3 link')
-    expect(text.submit).toBe('Tải 3 link')
+    expect(text.submit).toContain('Tải 3 link')
+    expect(await $('[data-library-url-screen-open]').isExisting()).toBe(false)
     expect(text.source).toContain('3 link')
 
-    await realClick(await screen.$('.us-actions .us-btn:not(.us-btn-primary)'))
+    await realClick(await screen.$('.li-close'))
     await screen.waitForExist({ reverse: true, timeout: 10_000 })
-    await expectFocusOnAttribute('data-library-url-screen-open')
+    await expectFocusOnAttribute('data-library-import-open')
   })
 
   it('bilingual file with a mismatched row: "Nhập luôn, nối sau" creates the Work with the row marked unlinked', async () => {
@@ -201,9 +202,9 @@ describe('Story 12-6: import preview screens', () => {
     await form.waitForDisplayed({ timeout: 10_000 })
     await (await fieldByLabel(form, 0)).setValue(BILINGUAL_WORK)
     await realClick(await (await form.$('[data-import-source-lang] input[type="radio"][value="zh"]')).$('..'))
-    const inputs = await form.$$('.field input[type="text"]')
-    await inputs[inputs.length - 1].setValue(csv)
-    await realClick(await form.$('[data-bilingual-import-preview-open]'))
+    await dropFiles([csv])
+    await $('.li-panel [data-import-tabpanel="files"]').waitForDisplayed({ timeout: 10_000 })
+    await realClick(await $('.li-panel [data-import-preview-open]'))
 
     await $(BIP_SCREEN).waitForDisplayed({ timeout: 30_000 })
     const probe = await browser.execute(() => {

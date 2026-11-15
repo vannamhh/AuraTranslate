@@ -34,6 +34,30 @@ vi.mock('../../src/config/project', async (importOriginal) => {
   }
 })
 
+const pickFilesMock = vi.fn()
+
+vi.mock('../../src/config/library', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/config/library')>()
+  const { fakeClassification } = await import('./support/importClassify')
+  return {
+    ...actual,
+    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
+    classifyImportPaths: async (paths: string[], docx: string[]) => ({
+      classification: fakeClassification(paths, docx),
+      error: null,
+    }),
+  }
+})
+
+async function seedImportFiles(
+  nhap: typeof import('../../src/modes/libraryImport'),
+  paths: string[],
+): Promise<void> {
+  const { fakeClassification } = await import('./support/importClassify')
+  pickFilesMock.mockResolvedValue({ classification: fakeClassification(paths), error: null })
+  await nhap.chooseImportFiles()
+}
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return { ...actual, readOpenChapterSegments: async (): ReturnType<typeof actual.readOpenChapterSegments> => ({
@@ -101,6 +125,7 @@ beforeEach(() => {
   previewTextMock.mockReset()
   previewFileMock.mockReset()
   confirmMock.mockReset()
+  pickFilesMock.mockReset()
 })
 
 describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt nộp form THỨ HAI, dù `busy` đã hạ', () => {
@@ -108,7 +133,7 @@ describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt n�
     const nhap = await import('../../src/modes/libraryImport')
     const state = await import('../../src/importPreviewState')
 
-    nhap.filePath.value = '/tmp/a.txt'
+    await seedImportFiles(nhap, ['/tmp/a.txt'])
     previewFileMock.mockResolvedValue({
       batch: { items: [{ path: '/tmp/a.txt', ok: true, byte_len: null, error: null }], encoding_preview: preview() },
       error: null,
@@ -121,7 +146,7 @@ describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt n�
 
     // Lượt nộp THỨ HAI -- mô phỏng một lối vào không-DOM (dispatch trực tiếp) trong khi màn
     // xem trước ĐẦU còn mở. `:disabled` của nút không còn liên quan ở đây.
-    nhap.filePath.value = '/tmp/b.txt'
+    await seedImportFiles(nhap, ['/tmp/b.txt'])
     await nhap.submitFilePath()
 
     expect(previewFileMock).toHaveBeenCalledTimes(1) // KHÔNG một lượt gọi IPC thứ hai
@@ -132,7 +157,7 @@ describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt n�
     const nhap = await import('../../src/modes/libraryImport')
     const state = await import('../../src/importPreviewState')
 
-    nhap.filePath.value = '/tmp/a.txt'
+    await seedImportFiles(nhap, ['/tmp/a.txt'])
     previewFileMock.mockResolvedValue({
       batch: { items: [{ path: '/tmp/a.txt', ok: true, byte_len: null, error: null }], encoding_preview: preview() },
       error: null,

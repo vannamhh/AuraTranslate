@@ -35,60 +35,6 @@ const OVERLAY_CONFIRM_BTN = '.ip-screen .ip-act-primary'
 const OVERLAY_ERROR = '.ip-screen .ip-error'
 
 /**
- * Tìm nút nộp dán-văn-bản bằng CẤU TRÚC DOM, không bằng việc tin `form.$('[data-import-preview-open]')`
- * luôn trúng đúng nút. Hai nút — dán văn bản, tệp — CÙNG mang thuộc tính
- * `[data-import-preview-open]` (`src/modes/LibraryMode.vue:1250,1279,1325`), không thuộc tính
- * nào phân biệt được chúng với nhau; "lấy nút khớp ĐẦU TIÊN" chỉ đúng vì thứ tự HIỆN TẠI
- * trong form, và một lượt thêm/đổi thứ tự nhánh nhập sẽ làm giả định đó sai một cách im lặng.
- *
- * Neo thay vào đó: textarea dán văn bản (`<textarea>` ĐẦU TIÊN trong form — `field_paste`,
- * `LibraryMode.vue:1245`) rồi đi tới nút `[data-import-preview-open]` đứng NGAY SAU label bọc
- * nó (`:1247-1255`). Nếu nút neo được không tồn tại, hoặc không phải là
- * `[data-import-preview-open]` ĐẦU TIÊN trong form, bố cục đã trôi khỏi giả định này — ném
- * lỗi nêu tên chỗ trôi, không bấm liều.
- *
- * ⚠️ Đi qua `browser.execute` với CHỈ chuỗi CSS (trả về CHỈ SỐ trong danh sách nút), không
- * qua XPath tương đối `form.$('.//…')`: giao thức WebDriver classic (bộ lái WebKit của thư
- * mục này) chạy XPath tương đối bằng `document.evaluate(value, contextNode)` — đúng cho
- * `.` — nhưng đo được 2026-09-14 nó KHÔNG neo đúng contextNode qua endpoint "find element
- * from element" của bộ lái này, nên một biểu thức tưởng ĐÃ neo vào `form` vẫn lệch. Duyệt
- * DOM trong `execute()` (chạy thẳng trong webview, không qua endpoint đó) không dính lỗi này.
- */
-async function findPasteTextSubmit(form) {
-  const result = await browser.execute((formSel) => {
-    const formEl = document.querySelector(formSel)
-    if (formEl === null) return { ok: false, reason: 'form_missing' }
-    const buttons = Array.from(formEl.querySelectorAll('[data-import-preview-open]'))
-    const pasteTextarea = formEl.querySelector('textarea')
-    if (pasteTextarea === null) return { ok: false, reason: 'no_textarea' }
-    const label = pasteTextarea.closest('label')
-    if (label === null) return { ok: false, reason: 'no_label' }
-    let anchored = null
-    for (let node = label.nextElementSibling; node !== null; node = node.nextElementSibling) {
-      if (node.matches('[data-import-preview-open]')) {
-        anchored = node
-        break
-      }
-    }
-    if (anchored === null) return { ok: false, reason: 'no_anchored_button' }
-    const anchoredIndex = buttons.indexOf(anchored)
-    if (anchoredIndex !== 0) return { ok: false, reason: 'not_first', anchoredIndex, buttonCount: buttons.length }
-    return { ok: true, index: anchoredIndex }
-  }, '.import-form')
-
-  if (!result.ok) {
-    throw new Error(
-      `createWorkThroughForm: lệch bố cục ở nút nộp dán-văn-bản (mã: ${result.reason}, ` +
-        `${JSON.stringify(result)}) — mong nó là nút \`[data-import-preview-open]\` ĐẦU TIÊN ` +
-        'trong form, đứng ngay sau label bọc textarea dán văn bản. Không bấm gì.',
-    )
-  }
-
-  const buttons = await form.$$('[data-import-preview-open]')
-  return buttons[result.index]
-}
-
-/**
  * Chờ nút xác nhận của màn xem trước BẬT. Đọc trạng thái LẦN CUỐI trong biến ngoài vòng
  * `waitUntil` rồi chỉ DỰNG thông báo lỗi ở nhánh `catch` — cùng luật `support/workspace.mjs`
  * ("số trong câu báo lỗi đọc SAU vòng chờ, không nội suy vào tham số lúc tạo object").
@@ -155,9 +101,9 @@ async function waitOverlayClosed() {
 }
 
 /**
- * Tạo một Tác phẩm qua ĐÚNG ĐƯỜNG người dùng bấm: bấm `Nhập tài liệu` mở lớp phủ nhập → điền form → bấm nộp dán-văn-bản → chờ màn
+ * Tạo một Tác phẩm qua ĐÚNG ĐƯỜNG người dùng bấm: bấm `Nhập tài liệu` mở lớp phủ nhập → tab Dán → điền form → bấm nút chính → chờ màn
  * xem trước cho phép xác nhận → bấm xác nhận → chờ màn đóng. Xem doc-comment đầu tệp cho lý
- * do đường này (không phải cầu IPC trần) và cách neo nút (không phải vị trí nút).
+ * do đường này (không phải cầu IPC trần).
  *
  * @param {string} name tên Tác phẩm
  * @returns {Promise<void>}
@@ -166,15 +112,48 @@ export async function createWorkThroughForm(name) {
   await realClick(await $(IMPORT_OPEN_BTN))
   const form = await $(`${IMPORT_PANEL} .import-form`)
   await form.waitForDisplayed({ timeout: 10_000 })
+  await selectImportTab('paste')
   await (await form.$('input[type="text"]')).setValue(name)
   // Một ký tự là đủ — cả hai spec dùng hàm này đo TRẠNG THÁI/TIẾN ĐỘ, không đo bộ tách câu.
   await (await form.$('textarea')).setValue('x')
 
-  const submit = await findPasteTextSubmit(form)
-  await realClick(submit)
+  await realClick(await $(`${IMPORT_PANEL} [data-import-preview-open]`))
 
   await waitConfirmEnabled()
   await realClick(await $(OVERLAY_CONFIRM_BTN))
   await waitOverlayClosed()
   await $(IMPORT_PANEL).waitForExist({ reverse: true, timeout: 10_000 })
+}
+
+/**
+ * Selects a source tab of the open import overlay with a real pointer press and waits for its
+ * body. `tab` is `paste`, `files` or `urls`. Returns the overlay panel.
+ *
+ * @param {'paste' | 'files' | 'urls'} tab
+ */
+export async function selectImportTab(tab) {
+  const button = await $(`${IMPORT_PANEL} [data-import-tab="${tab}"]`)
+  await button.waitForDisplayed({ timeout: 10_000 })
+  await realClick(button)
+  await $(`${IMPORT_PANEL} [data-import-tabpanel="${tab}"]`).waitForDisplayed({ timeout: 10_000 })
+  return $(IMPORT_PANEL)
+}
+
+/** Opens the import overlay from the Library button on the URL tab; returns the overlay panel. */
+export async function openUrlImportTab() {
+  await realClick(await $(IMPORT_OPEN_BTN))
+  await $(IMPORT_PANEL).waitForDisplayed({ timeout: 10_000 })
+  return selectImportTab('urls')
+}
+
+/**
+ * Feeds the same `aura://file-dropped` event Rust emits on an OS drop, so the webview listener
+ * and the classification behind it run exactly as for a real drop.
+ *
+ * @param {string[]} paths absolute file paths
+ */
+export async function dropFiles(paths) {
+  await browser.execute(async (list) => {
+    await window.__TAURI_INTERNALS__.invoke('plugin:event|emit', { event: 'aura://file-dropped', payload: list })
+  }, paths)
 }

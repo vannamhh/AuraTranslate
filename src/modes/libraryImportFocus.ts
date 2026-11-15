@@ -1,4 +1,5 @@
 import { setMode } from './modeState'
+import { selectImportTab } from './libraryImport'
 import { openLibraryImportOverlay } from './libraryImportOverlayState'
 
 export function openLibraryImportForm(): void {
@@ -8,4 +9,9 @@ export function openLibraryImportForm(): void {
   } catch (err) {
     console.error('[library] opening the import form failed:', err)
   }
+}
+
+export function openLibraryImportOnTab(tab: 'paste' | 'files'): void {
+  selectImportTab(tab)
+  openLibraryImportForm()
 }

@@ -6,38 +6,44 @@ import { focusReturnTargetOnOpen } from './commands/focus'
 import { recordImportOpener } from './importOpener'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
-  bilingualFilePath,
+  aimImportFile,
   busy,
-  chooseBilingualImportFile,
-  chooseImportFiles,
   destinationMode,
   destinationLibraryGenuinelyEmpty,
-  destinationPending,
   destinationWorkId,
   destinationWorks,
   destinationWorksError,
-  effectiveFilePaths,
-  effectiveName,
+  dragFileCount,
   genre,
+  importActiveTab,
+  importFileName,
+  importFiles,
+  importFilesLockKey,
+  importSubmitReady,
   isDragOver,
   lastError,
   name,
   noticeKey,
   pastedText,
-  pickedBilingualFileName,
+  pastedUrlCount,
+  pastedUrlDomainCount,
+  pastedUrls,
   pickedDestinationWork,
-  pickedFileNames,
   setDestinationMode,
   setDestinationWorkId,
+  setDocxReadAsBilingual,
+  docxAsBilingual,
   sourceLang,
   destinationExistingWorkAvailable,
 } from './modes/libraryImport'
+import type { ImportTab } from './modes/libraryImport'
+import type { ClassifiedImportFile } from './config/library'
 import { bilingualImportPreviewIsOpen } from './bilingualImportPreviewState'
 import SelectMenu from './SelectMenu.vue'
 import SourceLangChips from './modes/SourceLangChips.vue'
 import { genreChoices, genreLabel, sourceLangLabel } from './modes/libraryWorkCard'
 import { importPreviewIsOpen } from './importPreviewState'
-import { libraryImportOverlayIsOpen, libraryUrlImportScreenIsOpen } from './modes/libraryImportOverlayState'
+import { libraryImportOverlayIsOpen } from './modes/libraryImportOverlayState'
 
 const FIRST_FIELD =
   'input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([disabled]), textarea:not([disabled])'
@@ -50,7 +56,81 @@ const destinationOptions = computed(() =>
 )
 const genreOptions = computed(() => genreChoices())
 
+const TABS: readonly ImportTab[] = ['paste', 'files', 'urls']
+
+const urlLineNumbers = computed<number[]>(() => {
+  const count = Math.max(1, pastedUrls.value.split('\n').length)
+  return Array.from({ length: count }, (_, i) => i + 1)
+})
+const urlGutter = useTemplateRef<HTMLElement>('urlGutter')
+const urlTextarea = useTemplateRef<HTMLTextAreaElement>('urlTextarea')
+
+function onUrlScroll(): void {
+  if (urlGutter.value !== null && urlTextarea.value !== null) urlGutter.value.scrollTop = urlTextarea.value.scrollTop
+}
+
+const submitLabel = computed<string>(() =>
+  importActiveTab.value === 'urls'
+    ? t(
+        destinationMode.value === 'existing' ? 'mode.library.url_screen_submit_append' : 'mode.library.url_screen_submit',
+        { count: String(pastedUrlCount.value) },
+      )
+    : t('mode.library.import_preview_action'),
+)
+
+const submitChord = computed<string>(() =>
+  document.documentElement.dataset.platform === 'mac'
+    ? t('mode.library.import_submit_chord_mac')
+    : t('mode.library.import_submit_chord_other'),
+)
+
+function fileKindKey(file: ClassifiedImportFile): string {
+  if (file.problem === 'unsupported') return 'mode.library.file_kind_unsupported'
+  if (file.problem === 'kind_mismatch') return 'mode.library.file_kind_bilingual_mismatch'
+  if (file.problem === 'one_bilingual_only') return 'mode.library.file_kind_bilingual_extra'
+  return file.kind === 'bilingual' ? 'mode.library.file_kind_bilingual' : 'mode.library.file_kind_text'
+}
+
+function docxChecked(path: string): boolean {
+  return docxAsBilingual.value.includes(path)
+}
+
+function onDocxToggle(path: string, event: Event): void {
+  const box = event.target
+  if (box instanceof HTMLInputElement) void setDocxReadAsBilingual(path, box.checked)
+}
+
+function aimFileRow(event: Event): void {
+  const row = (event.currentTarget as HTMLElement).closest<HTMLElement>('[data-import-file-path]')
+  if (row?.dataset.importFilePath !== undefined) aimImportFile(row.dataset.importFilePath)
+}
+
+function onSubmitChord(event: KeyboardEvent): void {
+  if (!(event.metaKey || event.ctrlKey)) return
+  event.preventDefault()
+  if (importSubmitReady.value) dispatch('library.import.submit')
+}
+
+function onTabKeydown(event: KeyboardEvent): void {
+  const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+  if (step === 0) return
+  event.preventDefault()
+  const next = TABS[(TABS.indexOf(importActiveTab.value) + step + TABS.length) % TABS.length]
+  if (next === 'paste') dispatch('library.import.tab_paste')
+  else if (next === 'files') dispatch('library.import.tab_files')
+  else dispatch('library.import.tab_urls')
+  void nextTick(() => panel.value?.querySelector<HTMLElement>(`[data-import-tab="${next}"]`)?.focus())
+}
+
 useSelectionSurface(panel, 'display')
+
+// A removed row unmounts the focused Bỏ button and focus falls to body, outside the keydown scope.
+watch(importFiles, () => {
+  void nextTick(() => {
+    const root = panel.value
+    if (root !== null && libraryImportOverlayIsOpen.value && !root.contains(document.activeElement)) root.focus()
+  })
+})
 
 watch(libraryImportOverlayIsOpen, (open) => {
   if (open) {
@@ -85,7 +165,9 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary:not([aria-disabled="true"]), ' +
         'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
-  ).filter((el) => !insideClosedMenu(el) && !isUncheckedRadioOfCheckedGroup(root, el))
+  ).filter(
+    (el) => el.getAttribute('tabindex') !== '-1' && !insideClosedMenu(el) && !isUncheckedRadioOfCheckedGroup(root, el),
+  )
 }
 
 // focus() on anything inside a closed <details> is a no-op in WebKit, so the trap would stall there.
@@ -123,34 +205,22 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="libraryImportOverlayIsOpen"
-    v-show="!(libraryUrlImportScreenIsOpen || importPreviewIsOpen || bilingualImportPreviewIsOpen)"
+    v-show="!(importPreviewIsOpen || bilingualImportPreviewIsOpen)"
     class="li-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('library.import.close')"
+    @keydown.enter="onSubmitChord($event)"
     @keydown.tab="trapTab($event)"
   >
     <section ref="panel" class="li-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="li-title">
       <header class="li-head">
         <h2 id="li-title" class="li-title">{{ t('mode.library.import_title') }}</h2>
-        <button type="button" class="li-close ui-btn ui-btn--quiet" @click="dispatch('library.import.close')">
+        <button type="button" class="li-close ui-btn ui-btn--quiet" :disabled="busy" @click="dispatch('library.import.close')">
           {{ t('command.library.import.close') }}
         </button>
       </header>
 
       <form class="import-form" @submit.prevent>
-        <button
-          type="button"
-          class="btn ui-btn"
-          data-library-url-screen-open
-          :disabled="busy"
-          @pointerdown="recordImportOpener"
-          @mousedown="recordImportOpener"
-          @focus="recordImportOpener"
-          @click="dispatch('library.import_urls_open')"
-        >
-          {{ t('mode.library.url_screen_open') }}
-        </button>
-
         <fieldset class="field field-group" data-import-destination>
           <legend>{{ t('mode.library.field_destination') }}</legend>
 
@@ -237,6 +307,7 @@ function trapTab(event: KeyboardEvent): void {
             :columns="3"
             :options="genreOptions"
             :label="t('mode.library.field_genre')"
+            data-import-genre
           />
           <input
             v-else
@@ -248,85 +319,172 @@ function trapTab(event: KeyboardEvent): void {
           />
         </div>
 
-        <label class="field">
-          <span>{{ t('mode.library.field_paste') }}</span>
-          <textarea v-model="pastedText" class="ui-field ui-field--full" rows="6"></textarea>
-        </label>
-        <button
-          type="button"
-          class="btn ui-btn ui-btn--lg"
-          data-import-preview-open
-          :disabled="busy || pastedText.trim() === '' || destinationPending || effectiveName.trim() === ''"
-          @pointerdown="recordImportOpener"
-          @mousedown="recordImportOpener"
-          @focus="recordImportOpener"
-          @click="dispatch('library.import_text')"
-        >
-          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
-               tử ba ngôi. -->
-          {{ destinationMode === 'existing' ? t('mode.library.submit_text_append') : t('mode.library.submit_text') }}
-        </button>
-
-        <!-- Indicator only: a drop fills the file list below, so it takes no tabindex. -->
-        <div class="dropzone" :class="{ over: isDragOver }">
-          {{ t('mode.library.dropzone') }}
+        <div class="li-tabs" role="tablist" :aria-label="t('mode.library.tabs_label')">
+          <button
+            type="button"
+            role="tab"
+            class="ui-tab"
+            data-import-tab="paste"
+            :aria-selected="importActiveTab === 'paste'"
+            :aria-controls="importActiveTab === 'paste' ? 'li-tabpanel-paste' : undefined"
+            :tabindex="importActiveTab === 'paste' ? 0 : -1"
+            @click="dispatch('library.import.tab_paste')"
+            @keydown="onTabKeydown"
+          >
+            {{ t('command.library.import.tab_paste') }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="ui-tab"
+            data-import-tab="files"
+            :aria-selected="importActiveTab === 'files'"
+            :aria-controls="importActiveTab === 'files' ? 'li-tabpanel-files' : undefined"
+            :tabindex="importActiveTab === 'files' ? 0 : -1"
+            @click="dispatch('library.import.tab_files')"
+            @keydown="onTabKeydown"
+          >
+            {{ t('command.library.import.tab_files') }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="ui-tab"
+            data-import-tab="urls"
+            :aria-selected="importActiveTab === 'urls'"
+            :aria-controls="importActiveTab === 'urls' ? 'li-tabpanel-urls' : undefined"
+            :tabindex="importActiveTab === 'urls' ? 0 : -1"
+            @click="dispatch('library.import.tab_urls')"
+            @keydown="onTabKeydown"
+          >
+            {{ t('command.library.import.tab_urls') }}
+          </button>
         </div>
 
-        <div class="field">
-          <span>{{ t('mode.library.field_path') }}</span>
-          <div class="pick-row">
-            <button type="button" class="ui-btn ui-btn--lg" :disabled="busy" @click="chooseImportFiles()">
+        <div v-if="importActiveTab === 'paste'" id="li-tabpanel-paste" class="li-tabpanel" role="tabpanel" data-import-tabpanel="paste">
+          <label class="field">
+            <span>{{ t('mode.library.field_paste') }}</span>
+            <textarea v-model="pastedText" class="ui-field ui-field--full" rows="10"></textarea>
+          </label>
+        </div>
+
+        <div v-else-if="importActiveTab === 'files'" id="li-tabpanel-files" class="li-tabpanel" role="tabpanel" data-import-tabpanel="files">
+          <ul v-if="importFiles.length > 0" class="li-files" data-import-files>
+            <li
+              v-for="file in importFiles"
+              :key="file.path"
+              class="li-file"
+              :class="{ 'li-file--bad': file.problem !== null }"
+              :data-import-file-path="file.path"
+              :data-import-file-kind="file.kind"
+              :data-import-file-problem="file.problem ?? ''"
+            >
+              <!-- aura-allow-text: tên tệp là dữ liệu người dùng chọn, không phải chuỗi giao diện. -->
+              <span class="li-file-name" :title="file.path">{{ importFileName(file.path) }}</span>
+              <!-- aura-allow-text: qua t(). -->
+              <span class="li-file-kind">{{ t(fileKindKey(file)) }}</span>
+              <label v-if="file.is_docx" class="li-file-toggle ui-check">
+                <input type="checkbox" :checked="docxChecked(file.path)" @change="onDocxToggle(file.path, $event)" />
+                <span>{{ t('mode.library.file_docx_as_bilingual') }}</span>
+              </label>
+              <button
+                type="button"
+                class="li-file-remove ui-btn ui-btn--quiet"
+                data-import-file-remove
+                :disabled="busy"
+                @mousedown="aimFileRow"
+                @focus="aimFileRow"
+                @click="dispatch('library.import.file_remove')"
+              >
+                {{ t('command.library.import.file_remove') }}
+              </button>
+            </li>
+          </ul>
+          <div class="li-droprow">
+            <button type="button" class="ui-btn ui-btn--lg" data-import-pick-files :disabled="busy" @click="dispatch('library.import.pick_files')">
               {{ t('mode.library.pick_file') }}
             </button>
-            <!-- aura-allow-text: tên tệp người dùng vừa chọn là dữ liệu, không phải chuỗi giao diện. -->
-            <span v-if="pickedFileNames" class="pick-name">{{ pickedFileNames }}</span>
-            <span v-else class="pick-name">{{ t('mode.library.no_file_picked') }}</span>
+            <span class="li-droptext">{{ t('mode.library.dropzone') }}</span>
           </div>
+          <!-- aura-allow-text: qua t(). -->
+          <p v-if="importFilesLockKey !== null" class="li-lock" role="alert" data-import-files-lock>{{ t(importFilesLockKey) }}</p>
         </div>
-        <button
-          type="button"
-          class="btn ui-btn ui-btn--lg"
-          data-import-preview-open
-          :disabled="busy || effectiveFilePaths.length === 0 || destinationPending || effectiveName.trim() === ''"
-          @pointerdown="recordImportOpener"
-          @mousedown="recordImportOpener"
-          @focus="recordImportOpener"
-          @click="dispatch('library.import_file')"
-        >
-          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
-               tử ba ngôi. -->
-          {{ destinationMode === 'existing' ? t('mode.library.submit_file_append') : t('mode.library.submit_file') }}
-        </button>
 
-        <div class="field">
-          <span>{{ t('mode.library.field_bilingual_path') }}</span>
-          <div class="pick-row">
-            <button type="button" class="ui-btn ui-btn--lg" :disabled="busy" @click="chooseBilingualImportFile()">
-              {{ t('mode.library.pick_file') }}
-            </button>
-            <!-- aura-allow-text: tên tệp người dùng vừa chọn là dữ liệu, không phải chuỗi giao diện. -->
-            <span v-if="pickedBilingualFileName" class="pick-name">{{ pickedBilingualFileName }}</span>
-            <span v-else class="pick-name">{{ t('mode.library.no_file_picked') }}</span>
-          </div>
+        <div v-else id="li-tabpanel-urls" class="li-tabpanel" role="tabpanel" data-import-tabpanel="urls">
+          <p class="li-note">{{ t('mode.library.url_screen_subtitle') }}</p>
+          <label class="field">
+            <span>{{ t('mode.library.field_urls') }}</span>
+            <div class="li-urls">
+              <ol ref="urlGutter" class="li-url-gutter" aria-hidden="true">
+                <!-- aura-allow-text: DỮ LIỆU (số dòng của ô dán, không phải câu văn). -->
+                <li v-for="n in urlLineNumbers" :key="n">{{ n }}</li>
+              </ol>
+              <textarea
+                ref="urlTextarea"
+                v-model="pastedUrls"
+                class="li-url-textarea ui-field ui-field--full"
+                wrap="off"
+                rows="10"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="https://…"
+                @scroll="onUrlScroll"
+              ></textarea>
+            </div>
+          </label>
+          <p class="li-count" role="status" data-import-url-count>
+            {{
+              t('mode.library.url_screen_count', {
+                links: String(pastedUrlCount),
+                chapters: String(pastedUrlCount),
+                domains: String(pastedUrlDomainCount),
+              })
+            }}
+          </p>
+          <p class="li-note">{{ t('mode.library.url_screen_promise', { count: String(pastedUrlCount) }) }}</p>
         </div>
-        <button
-          type="button"
-          class="btn ui-btn ui-btn--lg"
-          data-bilingual-import-preview-open
-          :disabled="busy || bilingualFilePath.trim() === '' || name.trim() === ''"
-          @pointerdown="recordImportOpener"
-          @mousedown="recordImportOpener"
-          @focus="recordImportOpener"
-          @click="dispatch('library.import_bilingual')"
-        >
-          {{ t('mode.library.submit_bilingual') }}
-        </button>
       </form>
 
       <!-- aura-allow-text: qua t(). -->
       <p class="notice" role="status">{{ noticeKey ? t(noticeKey) : '' }}</p>
       <!-- aura-allow-text: qua tError(). -->
       <p class="error" role="status">{{ lastError ? tError(lastError) : '' }}</p>
+
+      <footer class="li-foot">
+        <span class="li-dest">
+          <!-- aura-allow-text: tên Tác phẩm đích là dữ liệu; câu còn lại qua t(). -->
+          {{
+            pickedDestinationWork === null
+              ? t('mode.library.footer_dest_new')
+              : t('mode.library.footer_dest_existing', { name: pickedDestinationWork.name })
+          }}
+        </span>
+        <div class="li-foot-actions">
+          <button type="button" class="ui-btn ui-btn--lg" data-import-cancel :disabled="busy" @click="dispatch('library.import.close')">
+            {{ t('command.library.import.cancel') }}
+          </button>
+          <button
+            type="button"
+            class="btn li-primary ui-btn ui-btn--lg ui-btn--primary"
+            data-import-preview-open
+            :disabled="!importSubmitReady"
+            @pointerdown="recordImportOpener"
+            @mousedown="recordImportOpener"
+            @focus="recordImportOpener"
+            @click="dispatch('library.import.submit')"
+          >
+            <!-- aura-allow-text: qua t(). -->
+            {{ submitLabel }}
+            <!-- aura-allow-text: qua t() trong `submitChord`. -->
+            <span class="li-chord">{{ submitChord }}</span>
+          </button>
+        </div>
+      </footer>
+
+      <div v-if="isDragOver" class="li-dropveil" aria-hidden="true" data-import-drop-frame>
+        <!-- aura-allow-text: qua t(). -->
+        {{ dragFileCount > 0 ? t('mode.library.drop_frame', { count: String(dragFileCount) }) : t('mode.library.drop_frame_unknown') }}
+      </div>
     </section>
   </div>
 </template>
@@ -348,6 +506,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .li-panel {
+  position: relative;
   width: 100%;
   max-width: 721px;
   max-height: 100%;
@@ -462,21 +621,171 @@ function trapTab(event: KeyboardEvent): void {
   align-self: flex-start;
 }
 
-.dropzone {
-  border: 1px dashed var(--color-outline);
-  border-radius: 4px;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  text-align: center;
+.li-tabs {
+  display: flex;
+  gap: calc(var(--space-unit) * 3);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.li-tabs .ui-tab {
+  padding: calc(var(--space-unit) * 1) 0;
+  margin-bottom: -1px; /* aura-allow-spacing: overlaps the 1px rule under the tab row */
+}
+
+.li-tabpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.li-files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-default);
+}
+
+.li-file {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--color-outline);
+  background: var(--color-surface);
+}
+
+.li-file:last-child {
+  border-bottom: none;
+}
+
+.li-file--bad {
+  background: var(--color-surface-sunken);
+}
+
+.li-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-on-surface);
+}
+
+.li-file-kind,
+.li-file-toggle {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.li-file--bad .li-file-kind {
+  color: var(--color-error);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.li-file-remove {
+  margin-left: auto;
+}
+
+.li-droprow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.li-droptext,
+.li-note,
+.li-count {
+  margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-  background: var(--color-surface-sunken);
 }
 
-.dropzone.over {
-  border-color: var(--color-primary);
+.li-count {
+  color: var(--color-on-surface);
+}
+
+.li-lock {
+  margin: 0;
+  padding: 7px 14px;
+  border-left: 2px solid var(--color-error);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-error);
+}
+
+.li-urls {
+  display: flex;
+  height: 245px;
+}
+
+.li-url-gutter {
+  margin: 0;
+  padding: 7px; /* aura-allow-spacing: 1px border + 6px padding of textarea.ui-field so numbers meet the text lines */
+  list-style: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 100%;
+  text-align: right;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+  border-right: 1px solid var(--color-outline);
+}
+
+.li-url-textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  overflow: auto;
+}
+
+.li-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.li-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.li-dest {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.li-chord {
+  margin-left: 7px;
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  font-weight: normal;
+}
+
+.li-dropveil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--color-primary);
+  background: var(--color-surface);
   color: var(--color-primary);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  font-weight: var(--weight-ui-md-strong);
+  pointer-events: none;
 }
 
 .notice {

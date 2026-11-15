@@ -28,6 +28,30 @@ vi.mock('../../src/config/project', async (importOriginal) => {
   }
 })
 
+const pickFilesMock = vi.fn()
+
+vi.mock('../../src/config/library', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/config/library')>()
+  const { fakeClassification } = await import('./support/importClassify')
+  return {
+    ...actual,
+    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
+    classifyImportPaths: async (paths: string[], docx: string[]) => ({
+      classification: fakeClassification(paths, docx),
+      error: null,
+    }),
+  }
+})
+
+async function seedImportFiles(
+  nhap: typeof import('../../src/modes/libraryImport'),
+  paths: string[],
+): Promise<void> {
+  const { fakeClassification } = await import('./support/importClassify')
+  pickFilesMock.mockResolvedValue({ classification: fakeClassification(paths), error: null })
+  await nhap.chooseImportFiles()
+}
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return { ...actual, readOpenChapterSegments: async (): ReturnType<typeof actual.readOpenChapterSegments> => ({
@@ -43,15 +67,16 @@ beforeEach(() => {
   vi.resetModules()
   previewFileMock.mockReset()
   confirmMock.mockReset()
+  pickFilesMock.mockReset()
 })
 
 describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường dẫn vẫn được xoá đúng lúc', () => {
-  it('filePath sống sót qua lượt trượt, rồi bị xoá SAU lượt thành công', async () => {
+  it('danh sách tệp sống sót qua lượt trượt, rồi bị xoá SAU lượt thành công', async () => {
     const nhap = await import('../../src/modes/libraryImport')
     const preview = await import('../../src/importPreviewState')
 
     nhap.name.value = 'Tac pham moi'
-    nhap.filePath.value = '/tmp/gbk.txt'
+    await seedImportFiles(nhap, ['/tmp/gbk.txt'])
     previewFileMock.mockResolvedValue({
       batch: {
         items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }],
@@ -88,7 +113,7 @@ describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường 
     }
 
     // Chưa bị xoá — lượt xác nhận vừa rồi TRƯỢT, không có gì để nói "đã nộp xong".
-    expect(nhap.filePath.value).toBe('/tmp/gbk.txt')
+    expect(nhap.importFiles.value.map((f) => f.path)).toEqual(['/tmp/gbk.txt'])
     expect(preview.importPreviewIsOpen.value).toBe(true) // lớp phủ vẫn mở để chọn lại
 
     // Lượt 2 — chọn lại GBK, THÀNH CÔNG.
@@ -103,7 +128,7 @@ describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường 
     expect(nhap.createdWork.value).toEqual(created)
     // 🔴 Đây là dòng đỏ trên bản lỗi: `lastSubmittedFrom` bị xoá sớm ở lượt 1 làm nhánh
     // `if (lastSubmittedFrom.value === 'file')` ở `finishImportSubmission` không khớp nữa,
-    // và `filePath` KHÔNG được xoá dù lượt nhập đã thành công thật.
-    expect(nhap.filePath.value).toBe('')
+    // và danh sách tệp KHÔNG được xoá dù lượt nhập đã thành công thật.
+    expect(nhap.importFiles.value).toEqual([])
   })
 })

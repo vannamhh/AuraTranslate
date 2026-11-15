@@ -45,6 +45,30 @@ vi.mock('../../src/config/project', async (importOriginal) => {
   }
 })
 
+const pickFilesMock = vi.fn()
+
+vi.mock('../../src/config/library', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/config/library')>()
+  const { fakeClassification } = await import('./support/importClassify')
+  return {
+    ...actual,
+    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
+    classifyImportPaths: async (paths: string[], docx: string[]) => ({
+      classification: fakeClassification(paths, docx),
+      error: null,
+    }),
+  }
+})
+
+async function seedImportFiles(
+  nhap: typeof import('../../src/modes/libraryImport'),
+  paths: string[],
+): Promise<void> {
+  const { fakeClassification } = await import('./support/importClassify')
+  pickFilesMock.mockResolvedValue({ classification: fakeClassification(paths), error: null })
+  await nhap.chooseImportFiles()
+}
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return { ...actual, readOpenChapterSegments: async (): ReturnType<typeof actual.readOpenChapterSegments> => ({
@@ -97,12 +121,13 @@ let pageWrapper: ReturnType<typeof mount> | null = null
 
 async function mountUrlScreen(): Promise<ReturnType<typeof mount>> {
   const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-  const { default: LibraryUrlImportScreen } = await import('../../src/modes/LibraryUrlImportScreen.vue')
+  const { default: LibraryImportOverlay } = await import('../../src/LibraryImportOverlay.vue')
   const overlayState = await import('../../src/modes/libraryImportOverlayState')
+  const nhap = await import('../../src/modes/libraryImport')
   pageWrapper = mount(LibraryMode)
   overlayState.openLibraryImportOverlay()
-  overlayState.openLibraryUrlImportScreen()
-  return mount(LibraryUrlImportScreen)
+  nhap.selectImportTab('urls')
+  return mount(LibraryImportOverlay)
 }
 
 function minimalPreview() {
@@ -148,6 +173,7 @@ beforeEach(async () => {
   previewTextMock.mockReset()
   previewFileMock.mockReset()
   startUrlMock.mockReset()
+  pickFilesMock.mockReset()
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -526,18 +552,17 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     wrapper = null
   })
 
-  it('đích Tác phẩm mới (mặc định): nút dán/tệp đọc "Tạo Tác phẩm từ …", nút mở màn website đọc "Nhập từ website…"', async () => {
+  it('đích Tác phẩm mới (mặc định): MỘT nút chính "Xem trước", chân form nói "Tạo Tác phẩm mới", không còn nút mở màn website', async () => {
     mockInvokeWithWorks([workRow()])
     wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('[data-import-preview-open]')
-    expect(buttons).toHaveLength(2)
-    const [textBtn, fileBtn] = buttons
-    expect(textBtn.text()).toContain('Tạo Tác phẩm')
-    expect(fileBtn.text()).toContain('Tạo Tác phẩm')
-    expect(wrapper.get('[data-library-url-screen-open]').text()).toBe('Nhập từ website…')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0].text()).toContain('Xem trước')
+    expect(wrapper.get('.li-dest').text()).toBe('Tạo Tác phẩm mới')
+    expect(wrapper.find('[data-library-url-screen-open]').exists()).toBe(false)
   })
 
   it('màn Nhập từ website: nút nộp đọc "Tải N link" với đích mới, "Thêm Chương từ N link" với đích đã có', async () => {
@@ -549,12 +574,12 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     nhap.name.value = 'Ten'
     await screen.vm.$nextTick()
 
-    expect(screen.get('[data-import-preview-open]').text()).toBe('Tải 3 link')
-    expect(screen.get('.us-count').text()).toBe('3 link · sẽ tạo 3 Chương · 2 domain')
+    expect(screen.get('[data-import-preview-open]').text()).toContain('Tải 3 link')
+    expect(screen.get('[data-import-url-count]').text()).toBe('3 link · sẽ tạo 3 Chương · 2 domain')
 
     await screen.get('[data-import-destination] input[type="radio"]:not(:checked)').setValue(true)
     await screen.vm.$nextTick()
-    expect(screen.get('[data-import-preview-open]').text()).toBe('Thêm Chương từ 3 link')
+    expect(screen.get('[data-import-preview-open]').text()).toContain('Thêm Chương từ 3 link')
 
     screen.unmount()
   })
@@ -570,12 +595,12 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     nhap.genre.value = ''
     await screen.vm.$nextTick()
 
-    const chips = screen.get('[data-url-import-source-lang]')
+    const chips = screen.get('[data-import-source-lang]')
     expect(chips.attributes('role')).toBe('radiogroup')
     expect(chips.findAll('.lang-chip').map((c) => c.text())).toEqual(['Tự phát hiện', 'Tiếng Trung', 'Tiếng Anh'])
     await chips.get('input[value="en"]').setValue(true)
 
-    const genreMenu = screen.get('[data-url-import-genre]')
+    const genreMenu = screen.get('[data-import-genre]')
     expect(genreMenu.get('.select-options').classes()).toContain('select-options--cols-3')
     await genreMenu.get('input[value="tcm"]').setValue(true)
     expect(nhap.genre.value).toBe('tcm')
@@ -590,7 +615,7 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     screen.unmount()
   })
 
-  it('đích là một Tác phẩm đã có: hai nút đổi sang "Thêm Chương từ …", không còn nói "Tạo Tác phẩm"', async () => {
+  it('đích là một Tác phẩm đã có: chân form nói "Thêm Chương vào cuối «tên»", nút chính vẫn là "Xem trước"', async () => {
     mockInvokeWithWorks([workRow()])
     wrapper = await mountImportOverlay()
     await flushPromises()
@@ -599,14 +624,12 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     const existingRadio = wrapper.get('[data-import-destination] input[value="existing"]')
     await existingRadio.setValue(true)
     await wrapper.vm.$nextTick()
+    const picker = wrapper.get('[data-import-destination-picker] [data-dropdown-menu]')
+    await pickSelectOption(picker, 'w-1')
+    await wrapper.vm.$nextTick()
 
-    // Radio "đã có" chọn được nhưng picker CHƯA chọn Tác phẩm nào -- chữ trên nút đổi theo
-    // RADIO (destinationMode), không đợi một Tác phẩm cụ thể được chọn.
-    const buttons = wrapper.findAll('[data-import-preview-open]')
-    expect(buttons).toHaveLength(2)
-    const [textBtn, fileBtn] = buttons
-    expect(textBtn.text()).toBe('Thêm Chương từ văn bản')
-    expect(fileBtn.text()).toBe('Thêm Chương từ tệp')
+    expect(wrapper.get('.li-dest').text()).toMatch(/^Thêm Chương vào cuối «.+»$/)
+    expect(wrapper.get('[data-import-preview-open]').text()).toContain('Xem trước')
   })
 
   it('mở bằng chuột (pointerdown, nút không nhận tiêu điểm): Huỷ trả tiêu điểm về chính nút đã bấm, không về ô đang gõ', async () => {
@@ -669,7 +692,7 @@ describe('libraryImport.ts::submitFilePath — đích đã chọn đi trọn t�
     nhap.destinationMode.value = 'existing'
     nhap.destinationWorkId.value = 'w-1'
     nhap.sourceLang.value = 'zh' // ô gõ tay khác hẳn đích -- một hồi quy đọc nhầm ô này sẽ lộ ở đây
-    nhap.filePath.value = '/tmp/mot-tep.txt'
+    await seedImportFiles(nhap, ['/tmp/mot-tep.txt'])
 
     await nhap.submitFilePath()
 
@@ -755,44 +778,41 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
     wrapper = null
   })
 
-  it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: cả hai nút dán/tệp VÀ nút song ngữ đều disabled dù các ô khác đã điền đủ', async () => {
+  it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: nút chính khoá trên cả ba tab dù các ô khác đã điền đủ', async () => {
     mockInvokeWithWorks([])
     wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
+    const nhap = await import('../../src/modes/libraryImport')
+    const primary = (): HTMLButtonElement => wrapper!.get('[data-import-preview-open]').element as HTMLButtonElement
 
-    const textareas = wrapper.findAll('.import-form textarea')
-    expect(textareas).toHaveLength(1)
-    await textareas[0]?.setValue('mot doan van ban')
-
-    // Thứ tự tài liệu của ba ô văn bản trần trong form: Tên, Đường dẫn tệp, Đường dẫn song
-    // ngữ (Ngôn ngữ nguồn là chip radio, Thể loại là SelectMenu; không nằm trong tập này).
-    const textInputs = wrapper.findAll('.import-form .field input[type="text"]')
-    expect(textInputs).toHaveLength(3)
-    const [nameInput, filePathInput, bilingualPathInput] = textInputs
-    await filePathInput.setValue('/tmp/mot-tep.txt')
+    await wrapper.get('.import-form textarea').setValue('mot doan van ban')
+    const nameInput = wrapper.get('.import-form .field input[type="text"]')
     await nameInput.setValue('   ')
+    expect(primary().disabled).toBe(true)
 
-    const previewButtons = wrapper.findAll('[data-import-preview-open]')
-    expect(previewButtons).toHaveLength(2)
-    for (const btn of previewButtons) {
-      expect((btn.element as HTMLButtonElement).disabled).toBe(true)
-    }
+    nhap.selectImportTab('files')
+    await seedImportFiles(nhap, ['/tmp/mot-tep.txt'])
+    await wrapper.vm.$nextTick()
+    expect(primary().disabled).toBe(true)
 
-    await bilingualPathInput.setValue('/tmp/song-ngu.csv')
-    const bilingualButton = wrapper.get('[data-bilingual-import-preview-open]')
-    expect((bilingualButton.element as HTMLButtonElement).disabled).toBe(true)
+    nhap.selectImportTab('urls')
+    nhap.pastedUrls.value = 'https://example.com/1'
+    await wrapper.vm.$nextTick()
+    expect(primary().disabled).toBe(true)
 
-    // Gõ một cái tên thật -- cả bốn nút hết `disabled` (mọi ô khác đã điền đủ ngay trên).
     await nameInput.setValue('Ten Tac Pham')
     await wrapper.vm.$nextTick()
-    for (const btn of wrapper.findAll('[data-import-preview-open]')) {
-      expect((btn.element as HTMLButtonElement).disabled).toBe(false)
-    }
-    expect((wrapper.get('[data-bilingual-import-preview-open]').element as HTMLButtonElement).disabled).toBe(false)
+    expect(primary().disabled).toBe(false)
+    nhap.selectImportTab('files')
+    await wrapper.vm.$nextTick()
+    expect(primary().disabled).toBe(false)
+    nhap.selectImportTab('paste')
+    await wrapper.vm.$nextTick()
+    expect(primary().disabled).toBe(false)
   })
 
-  it('đích là một Tác phẩm đã có: effectiveName kế thừa từ đích (không rỗng) nên ba nút dán/tệp/URL không bị khoá vì lý do Tên', async () => {
+  it('đích là một Tác phẩm đã có: effectiveName kế thừa từ đích (không rỗng) nên nút chính không bị khoá vì lý do Tên', async () => {
     mockInvokeWithWorks([workRow()])
     wrapper = await mountImportOverlay()
     await flushPromises()
