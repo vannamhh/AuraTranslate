@@ -127,18 +127,30 @@ function walk(dir, out = [], seen = new Set()) {
  *      nợ mà `reportUnusedDisableDirectives: 'error'` của `eslint.config.js` tồn tại để
  *      chống: một miễn trừ hết cần mà ở lại là một luật đã tắt mà không ai biết.
  */
+/**
+ * @param {string} file
+ * @param {string[]} cells
+ * @param {string} reason
+ * @returns {Array<[string, string]>}
+ */
+function exemptCells(file, cells, reason) {
+  return cells.map((cell) => [`${file}::${cell}`, reason])
+}
+
 const EXEMPT = new Map([
-  ...['open', 'query', 'cursor'].map((cell) => [
-    `src/paletteState.ts::${cell}`,
+  ...exemptCells(
+    'src/paletteState.ts',
+    ['open', 'query', 'cursor'],
     'Screen state of the Mod+K palette, not Work data: every open starts from an empty box and a closed palette holds nothing a Work change could leak.',
-  ]),
-  ...[
-    'active', 'response', 'error', 'pending', 'asked', 'cursor',
-    'previewHeadword', 'previewResponse', 'previewError', 'previewPending', 'sequence', 'previewSequence',
-  ].map((cell) => [
-    `src/paletteLookupState.ts::${cell}`,
+  ),
+  ...exemptCells(
+    'src/paletteLookupState.ts',
+    [
+      'active', 'response', 'error', 'pending', 'asked', 'cursor',
+      'previewHeadword', 'previewResponse', 'previewError', 'previewPending', 'sequence', 'previewSequence',
+    ],
     'Dictionary results of the palette lookup mode, not Work data; `leavePaletteLookup` clears every cell on each palette open and close.',
-  ]),
+  ),
   [
     'src/genreState.ts::genreRows',
     'Global genre list read from `global.db`, not Work data; clearing it on a Work change would empty every genre menu until the next reload.',
