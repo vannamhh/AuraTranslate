@@ -40,8 +40,8 @@ vi.mock('../../src/config/library', async (importOriginal) => {
   return {
     ...actual,
     pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
-    classifyImportPaths: async (paths: string[], docx: string[]) => ({
-      classification: fakeClassification(paths, docx),
+    classifyImportPaths: async (paths: string[]) => ({
+      classification: fakeClassification(paths),
       error: null,
     }),
   }
@@ -251,7 +251,6 @@ describe('libraryImport — kéo-thả N tệp cùng lúc (Story 6.6b, 6.25)', (
     nhap.finishImportSubmission(created, null)
 
     expect(listedPaths(nhap)).toEqual([])
-    expect(nhap.docxAsBilingual.value).toEqual([])
   })
 
   it('bỏ qua phần tử thả rỗng một cách phòng thủ, không panic', async () => {

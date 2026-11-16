@@ -54,8 +54,8 @@ vi.mock('../../src/config/library', async (importOriginal) => {
   return {
     ...actual,
     pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
-    classifyImportPaths: async (paths: string[], docx: string[]) => ({
-      classification: fakeClassification(paths, docx),
+    classifyImportPaths: async (paths: string[]) => ({
+      classification: fakeClassification(paths),
       error: null,
     }),
   }

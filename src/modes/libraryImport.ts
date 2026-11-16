@@ -36,13 +36,21 @@ import {
   importPreviewIsOpen,
   takeImportPreviewUndetectableLangError,
   importPreviewLastSubmittedFrom,
+  importPreviewDocxCarry,
+  openImportPreviewFromDocxBatch,
   openImportPreviewFromFile,
   openImportPreviewFromText,
   openImportPreviewFromUrls,
+  resetImportPreview,
+  setImportPreviewDocxSwitch,
 } from '../importPreviewState'
 import {
+  bilingualImportPreviewDocxCarry,
   bilingualImportPreviewIsOpen,
   openBilingualImportPreview,
+  openBilingualImportPreviewFromDocx,
+  resetBilingualImportPreview,
+  setBilingualImportPreviewDocxSwitch,
 } from '../bilingualImportPreviewState'
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
@@ -80,7 +88,8 @@ import { resetConventionImport } from '../conventionImportState'
 import { resetReviewerImport } from '../reviewerImportState'
 import { setOpenWork } from '../openWorkIdentity'
 import { restorePromptSetForWork } from '../promptSetState'
-import type { CreatedWork } from '../config/project'
+import { previewDocxImport, switchDocxImportShape } from '../config/project'
+import type { ChapterPatternInput, CreatedWork, DocxImportPreviewWire, DocxImportShape } from '../config/project'
 import { classifyImportPaths, listLibraryWorks, pickImportFiles } from '../config/library'
 import type { ClassifiedImportFile, ImportBatchVerdict, ImportClassification, WorkRow } from '../config/library'
 import type { IpcError } from '../i18n'
@@ -274,9 +283,6 @@ export function selectImportTab(tab: ImportTab): void {
 
 const importClassification = ref<ImportClassification | null>(null)
 
-/** `.docx` paths whose row carries the temporary *Đọc như song ngữ* toggle switched on. */
-export const docxAsBilingual = ref<string[]>([])
-
 export const importFiles = computed<ClassifiedImportFile[]>(() => importClassification.value?.files ?? [])
 export const importFilesVerdict = computed<ImportBatchVerdict>(() => importClassification.value?.verdict ?? 'empty')
 
@@ -319,10 +325,9 @@ async function applyImportFilePaths(paths: string[]): Promise<void> {
   const mine = classifySequence
   if (paths.length === 0) {
     importClassification.value = null
-    docxAsBilingual.value = []
     return
   }
-  const { classification, error } = await classifyImportPaths(paths, docxAsBilingual.value)
+  const { classification, error } = await classifyImportPaths(paths)
   if (mine !== classifySequence) return
   if (error !== null) {
     lastError.value = error
@@ -346,7 +351,7 @@ export function importFileName(path: string): string {
 }
 
 export async function chooseImportFiles(): Promise<void> {
-  const { classification, error } = await pickImportFiles(docxAsBilingual.value)
+  const { classification, error } = await pickImportFiles()
   if (error !== null) {
     lastError.value = error
     return
@@ -374,22 +379,12 @@ export async function removeAimedImportFile(): Promise<void> {
   const target = aimedFilePath.value
   aimedFilePath.value = null
   if (target === null) return
-  docxAsBilingual.value = docxAsBilingual.value.filter((p) => p !== target)
   await applyImportFilePaths(importFiles.value.map((f) => f.path).filter((p) => p !== target))
-}
-
-/** `@change` of the temporary *Đọc như song ngữ* toggle on a `.docx` row. */
-export async function setDocxReadAsBilingual(path: string, on: boolean): Promise<void> {
-  docxAsBilingual.value = on
-    ? [...docxAsBilingual.value.filter((p) => p !== path), path]
-    : docxAsBilingual.value.filter((p) => p !== path)
-  await applyImportFilePaths(importFiles.value.map((f) => f.path))
 }
 
 export function resetImportFiles(): void {
   classifySequence += 1
   importClassification.value = null
-  docxAsBilingual.value = []
   aimedFilePath.value = null
 }
 
@@ -744,12 +739,17 @@ export async function submitPastedText(): Promise<void> {
 export async function submitFilePath(): Promise<void> {
   if (busy.value || importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value) return
   const verdict = importFilesVerdict.value
-  if (verdict !== 'text' && verdict !== 'bilingual') return
+  if (verdict !== 'text' && verdict !== 'bilingual' && verdict !== 'docx') return
   if (destinationPending.value) return
   const paths = importFiles.value.map((f) => f.path)
   if (!(await beginSubmit())) return
   if (verdict === 'bilingual') {
     await openBilingualFromFiles(paths[0])
+    busy.value = false
+    return
+  }
+  if (verdict === 'docx') {
+    await openDocxFromFile(paths[0])
     busy.value = false
     return
   }
@@ -779,6 +779,88 @@ async function openBilingualFromFiles(path: string): Promise<void> {
   )
 }
 
+/** Opens the preview Rust answers with for a lone `.docx`; an error (Tự dò on a bilingual
+ * document included) opens nothing and shows in the import overlay. */
+async function openDocxFromFile(path: string): Promise<void> {
+  const { response, error } = await previewDocxImport(
+    path,
+    effectiveSourceLang.value,
+    null,
+    destinationWorkId.value,
+  )
+  if (error !== null) {
+    lastError.value = error
+    return
+  }
+  if (response === null) return
+  await openDocxPreview(
+    response,
+    effectiveName.value,
+    effectiveSourceLang.value,
+    effectiveGenre.value,
+    path,
+    destinationWorkId.value,
+    null,
+  )
+}
+
+async function openDocxPreview(
+  response: DocxImportPreviewWire,
+  name: string,
+  sourceLang: string,
+  genre: string,
+  path: string,
+  destinationId: string | null,
+  chapterPattern: ChapterPatternInput | null,
+): Promise<void> {
+  if (response.shape === 'text' && response.text !== null) {
+    await openImportPreviewFromDocxBatch(name, sourceLang, genre, path, destinationId, response.text, chapterPattern)
+    surfaceUndetectableLang()
+    return
+  }
+  if (response.bilingual !== null) {
+    await openBilingualImportPreviewFromDocx(
+      name,
+      sourceLang,
+      genre,
+      path,
+      destinationId,
+      response.bilingual,
+      chapterPattern,
+    )
+  }
+}
+
+/**
+ * Flips the open `.docx` preview to the other shape. Rust rebuilds it from the stash (no path
+ * is read); on success the open module closes without `cancel_import_preview` and the other
+ * opens from the answer, with Name, language, genre, destination and Chapter pattern carried.
+ * On a refusal the shown preview stays and the error appears beside the switch.
+ */
+export async function switchDocxPreviewShape(target: DocxImportShape): Promise<void> {
+  const fromText = importPreviewIsOpen.value
+  const carry = fromText ? importPreviewDocxCarry() : bilingualImportPreviewDocxCarry()
+  if (carry === null) return
+  const setSwitch = fromText ? setImportPreviewDocxSwitch : setBilingualImportPreviewDocxSwitch
+  setSwitch(true, null)
+  const { response, error } = await switchDocxImportShape(target, carry.sourceLang, carry.chapterPattern)
+  if (error !== null || response === null) {
+    setSwitch(false, error)
+    return
+  }
+  if (fromText) resetImportPreview()
+  else resetBilingualImportPreview()
+  await openDocxPreview(
+    response,
+    carry.name,
+    carry.sourceLang,
+    carry.genre,
+    carry.path,
+    carry.destinationWorkId,
+    carry.chapterPattern,
+  )
+}
+
 /** The primary button of the overlay: submits only the selected tab. */
 export async function submitActiveImportTab(): Promise<void> {
   switch (importActiveTab.value) {
@@ -801,7 +883,11 @@ export const importSubmitReady = computed<boolean>(() => {
     case 'paste':
       return pastedText.value.trim() !== ''
     case 'files':
-      return (importFilesVerdict.value === 'text' || importFilesVerdict.value === 'bilingual')
+      return (
+        importFilesVerdict.value === 'text' ||
+        importFilesVerdict.value === 'bilingual' ||
+        importFilesVerdict.value === 'docx'
+      )
     case 'urls':
       return pastedUrlCount.value > 0
   }

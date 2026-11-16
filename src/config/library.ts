@@ -459,12 +459,13 @@ export async function chooseLibraryRoot(): Promise<ChooseRootResult> {
   return callChooseRoot(CMD_CHOOSE_ROOT)
 }
 
-export type ImportFileKind = 'text' | 'bilingual' | 'unsupported'
+export type ImportFileKind = 'text' | 'bilingual' | 'docx' | 'unsupported'
 export type ImportFileProblem = 'unsupported' | 'kind_mismatch' | 'one_bilingual_only'
 export type ImportBatchVerdict =
   | 'empty'
   | 'text'
   | 'bilingual'
+  | 'docx'
   | 'has_unsupported'
   | 'mixed_kinds'
   | 'multiple_bilingual'
@@ -474,7 +475,6 @@ export type ClassifiedImportFile = {
   stem: string
   kind: ImportFileKind
   problem: ImportFileProblem | null
-  is_docx: boolean
 }
 export type ImportClassification = { files: ClassifiedImportFile[]; verdict: ImportBatchVerdict }
 export type ImportClassificationResult = { classification: ImportClassification | null; error: IpcError | null }
@@ -482,12 +482,13 @@ export type ImportClassificationResult = { classification: ImportClassification 
 const CMD_PICK_IMPORT_FILES = 'library_pick_import_files'
 const CMD_CLASSIFY_IMPORT_PATHS = 'library_classify_import_paths'
 
-const FILE_KINDS: readonly string[] = ['text', 'bilingual', 'unsupported']
+const FILE_KINDS: readonly string[] = ['text', 'bilingual', 'docx', 'unsupported']
 const FILE_PROBLEMS: readonly string[] = ['unsupported', 'kind_mismatch', 'one_bilingual_only']
 const BATCH_VERDICTS: readonly string[] = [
   'empty',
   'text',
   'bilingual',
+  'docx',
   'has_unsupported',
   'mixed_kinds',
   'multiple_bilingual',
@@ -502,8 +503,7 @@ function isClassifiedFile(value: unknown): value is ClassifiedImportFile {
     typeof row.stem === 'string' &&
     typeof row.kind === 'string' &&
     FILE_KINDS.includes(row.kind) &&
-    (row.problem === null || (typeof row.problem === 'string' && FILE_PROBLEMS.includes(row.problem))) &&
-    typeof row.is_docx === 'boolean'
+    (row.problem === null || (typeof row.problem === 'string' && FILE_PROBLEMS.includes(row.problem)))
   )
 }
 
@@ -539,15 +539,12 @@ async function callClassification(cmd: string, args: Record<string, unknown>): P
 }
 
 /** `classification: null, error: null` is a cancelled dialog or no IPC bridge. */
-export async function pickImportFiles(docxAsBilingual: string[]): Promise<ImportClassificationResult> {
-  return callClassification(CMD_PICK_IMPORT_FILES, { docxAsBilingual })
+export async function pickImportFiles(): Promise<ImportClassificationResult> {
+  return callClassification(CMD_PICK_IMPORT_FILES, {})
 }
 
-export async function classifyImportPaths(
-  paths: string[],
-  docxAsBilingual: string[],
-): Promise<ImportClassificationResult> {
-  return callClassification(CMD_CLASSIFY_IMPORT_PATHS, { paths, docxAsBilingual })
+export async function classifyImportPaths(paths: string[]): Promise<ImportClassificationResult> {
+  return callClassification(CMD_CLASSIFY_IMPORT_PATHS, { paths })
 }
 
 /** Tìm lại một mục mồ côi — lệnh `library.relocate_orphan`. `report: null, error: null` == huỷ hộp thoại HOẶC không cầu IPC. */

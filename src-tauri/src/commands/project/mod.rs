@@ -860,6 +860,9 @@ pub struct PendingImportSource {
     /// đường khác. `confirm_import_with_encoding` CLONE trường này y hệt `shape` — cùng
     /// vòng đời (giữ nguyên trên đường lỗi, dọn chỉ khi `create_work` thành công).
     pub docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    /// The one read of a `.docx` source, kept so the preview can switch between the text and
+    /// bilingual shapes without reading the file again.
+    pub docx_source: Option<crate::core::segment::import::DocxSource>,
     /// `work_id` of the destination Work, `None` for a new Work. Set only by the call that opens
     /// a preview session (text, file, URL and bilingual file); every mid-session rebuild passes the
     /// stored value back, and confirm reads it through [`current_pending_destination`].
@@ -2724,12 +2727,23 @@ pub fn stash_pending_import_source_for(
     docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
     destination_work_id: Option<String>,
 ) {
+    stash_pending_docx_import_source(state, shape, docx_sidecar, None, destination_work_id);
+}
+
+pub fn stash_pending_docx_import_source(
+    state: &PendingImportSourceState,
+    shape: PipelineShape,
+    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
+    docx_source: Option<crate::core::segment::import::DocxSource>,
+    destination_work_id: Option<String>,
+) {
     let mut guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = Some(PendingImportSource {
         shape,
         docx_sidecar,
+        docx_source,
         destination_work_id,
     });
 }
@@ -3736,10 +3750,12 @@ pub mod wire;
 /// nguyên mọi đường dẫn `super::X`/`crate::commands::project::X` mà
 /// `wire.rs`/`tests.rs`/`tests/project_contract.rs` đã dùng trước lượt tách.
 mod bilingual;
+mod docx_shape;
 mod glossary_estimate;
 mod url_import;
 mod work_creation;
 pub use bilingual::*;
+pub use docx_shape::*;
 pub use glossary_estimate::*;
 pub use url_import::*;
 pub use work_creation::*;

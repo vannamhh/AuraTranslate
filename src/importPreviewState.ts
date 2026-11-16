@@ -64,6 +64,7 @@ import type {
   CleanupRuleTierWire,
   CreatedWork,
   EncodingCandidateWire,
+  FileImportBatchResult,
   FileImportBatchWire,
   FileImportItemWire,
   ImportEncodingPreview,
@@ -376,6 +377,10 @@ const chapterOriginError = ref<IpcError | null>(null)
  */
 const chapterFilterActive = ref(false)
 
+const docxSource = ref(false)
+const docxSwitchBusy = ref(false)
+const docxSwitchError = ref<IpcError | null>(null)
+
 /**
  * **THÊM (Story 6.6)** — mẫu phân tách Chương ĐANG GÕ, tham số MỖI LƯỢT NHẬP (§Always spec
  * 6.6: KHÔNG một cơ chế "nhớ mẫu" nào — Ice chốt 2026-09-05 mặc định KHÔNG nhớ giữa hai lượt
@@ -425,6 +430,9 @@ const stripForcedOpen = ref(false)
 let sequence = 0
 
 export const importPreviewIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
+export const importPreviewIsDocx: DeepReadonly<Ref<boolean>> = readonly(docxSource)
+export const importPreviewDocxSwitchBusy: DeepReadonly<Ref<boolean>> = readonly(docxSwitchBusy)
+export const importPreviewDocxSwitchError: DeepReadonly<Ref<IpcError | null>> = readonly(docxSwitchError)
 export const importPreviewOpening: DeepReadonly<Ref<boolean>> = readonly(opening)
 export const importPreviewPageProgress: DeepReadonly<Ref<ImportProgressEvent | null>> = readonly(urlImportPageProgress)
 export const importPreviewImageProgress: DeepReadonly<Ref<ImportProgressEvent | null>> =
@@ -1465,6 +1473,40 @@ export async function openImportPreviewFromFile(
   paths: string[],
   destinationWorkId: string | null,
 ): Promise<void> {
+  await openFileImportPreview(name, sourceLang, genre, paths, destinationWorkId, false, null, () =>
+    previewImportEncodingFromFile(paths, sourceLang, null, destinationWorkId),
+  )
+}
+
+/**
+ * Opens the text preview of a lone `.docx` from the batch `preview_docx_import` or
+ * `switch_docx_import_shape` already answered with; calls no preview wire and leaves Rust's
+ * pending source alone.
+ */
+export async function openImportPreviewFromDocxBatch(
+  name: string,
+  sourceLang: string,
+  genre: string,
+  path: string,
+  destinationWorkId: string | null,
+  batch: FileImportBatchWire,
+  chapterPattern: ChapterPatternInput | null,
+): Promise<void> {
+  await openFileImportPreview(name, sourceLang, genre, [path], destinationWorkId, true, chapterPattern, () =>
+    Promise.resolve({ batch, error: null }),
+  )
+}
+
+async function openFileImportPreview(
+  name: string,
+  sourceLang: string,
+  genre: string,
+  paths: string[],
+  destinationWorkId: string | null,
+  fromDocx: boolean,
+  carriedChapterPattern: ChapterPatternInput | null,
+  call: () => Promise<FileImportBatchResult>,
+): Promise<void> {
   if (opening.value) return
 
   opening.value = true
@@ -1479,6 +1521,9 @@ export async function openImportPreviewFromFile(
   pendingDestinationWorkId.value = destinationWorkId
   pendingText.value = null
   pendingPaths.value = paths
+  docxSource.value = fromDocx
+  docxSwitchBusy.value = false
+  docxSwitchError.value = null
   confirming.value = false
   confirmError.value = null
   cleanupActionError.value = null
@@ -1488,8 +1533,8 @@ export async function openImportPreviewFromFile(
   cleanupToggling.value = false
   cleanupDeletePendingKey.value = null
   stripForcedOpen.value = false
-  chapterPatternText.value = ''
-  chapterPatternKind.value = 'literal'
+  chapterPatternText.value = carriedChapterPattern?.pattern ?? ''
+  chapterPatternKind.value = carriedChapterPattern?.kind ?? 'literal'
   chapterPatternSending.value = false
   chapterPatternError.value = null
   pendingChapterPatternEdit = null
@@ -1521,7 +1566,7 @@ export async function openImportPreviewFromFile(
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
 
-  const result = await previewImportEncodingFromFile(paths, sourceLang, null, destinationWorkId)
+  const result = await call()
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
 
   opening.value = false
@@ -2907,4 +2952,32 @@ export function resetImportPreview(): void {
   urlChapterDetailEagerStale.value = false
   chapterOriginDrafts.value = {}
   chapterOriginError.value = null
+  docxSource.value = false
+  docxSwitchBusy.value = false
+  docxSwitchError.value = null
+}
+
+/** What the docx shape switch carries to the other preview. */
+export function importPreviewDocxCarry(): {
+  name: string
+  sourceLang: string
+  genre: string
+  destinationWorkId: string | null
+  path: string
+  chapterPattern: ChapterPatternInput | null
+} | null {
+  if (!docxSource.value || pendingPaths.value.length !== 1) return null
+  return {
+    name: pendingName.value,
+    sourceLang: pendingSourceLang.value,
+    genre: pendingGenre.value,
+    destinationWorkId: pendingDestinationWorkId.value,
+    path: pendingPaths.value[0],
+    chapterPattern: chapterPatternWire(),
+  }
+}
+
+export function setImportPreviewDocxSwitch(busy: boolean, error: IpcError | null): void {
+  docxSwitchBusy.value = busy
+  docxSwitchError.value = error
 }

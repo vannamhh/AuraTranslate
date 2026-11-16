@@ -1137,6 +1137,8 @@ pub fn run() {
             // truoc (doc tep MOT LAN, cat vao PendingImportSourceState -- TAI DUNG, khong mot
             // hop thu ba) cong mot vo xac nhan (clone tu o dang cho, goi `create_work`).
             crate::commands::project::wire::preview_bilingual_import_from_file,
+            crate::commands::project::wire::preview_docx_import,
+            crate::commands::project::wire::switch_docx_import_shape,
             // Dung lai xem truoc tren nguon DANG CHO (doi cot/tieu de/mau) -- khong doc lai tep.
             crate::commands::project::wire::rebuild_bilingual_import_preview,
             crate::commands::project::wire::confirm_bilingual_import,

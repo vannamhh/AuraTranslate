@@ -1,13 +1,13 @@
 import type { ClassifiedImportFile, ImportClassification } from '../../../src/config/library'
 
 /** A test double for the Rust verdict (`classify_import_paths`); product code never calls this. */
-export function fakeClassification(paths: string[], docxAsBilingual: string[] = []): ImportClassification {
+export function fakeClassification(paths: string[]): ImportClassification {
   const ext = (path: string): string => path.split('.').pop()?.toLowerCase() ?? ''
   const kindOf = (path: string): ClassifiedImportFile['kind'] => {
     const e = ext(path)
     if (e === 'txt' || e === 'md') return 'text'
     if (e === 'csv' || e === 'tsv') return 'bilingual'
-    if (e === 'docx') return docxAsBilingual.includes(path) ? 'bilingual' : 'text'
+    if (e === 'docx') return paths.length === 1 ? 'docx' : 'text'
     return 'unsupported'
   }
   const kinds = paths.map(kindOf)
@@ -23,7 +23,7 @@ export function fakeClassification(paths: string[], docxAsBilingual: string[] = 
     const base = path.split(/[\\/]/).pop() ?? ''
     const dot = base.lastIndexOf('.')
     const stem = dot > 0 ? base.slice(0, dot) : base
-    return { path, stem, kind, problem, is_docx: ext(path) === 'docx' }
+    return { path, stem, kind, problem }
   })
   let verdict: ImportClassification['verdict'] = 'text'
   if (paths.length === 0) verdict = 'empty'
@@ -31,5 +31,6 @@ export function fakeClassification(paths: string[], docxAsBilingual: string[] = 
   else if (text > 0 && bilingual > 0) verdict = 'mixed_kinds'
   else if (bilingual > 1) verdict = 'multiple_bilingual'
   else if (bilingual === 1) verdict = 'bilingual'
+  else if (kinds.filter((k) => k === 'docx').length === 1) verdict = 'docx'
   return { files, verdict }
 }

@@ -6,6 +6,12 @@ import { commandTitle } from './config/shortcutsState'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { takeRecordedImportOpener } from './importOpener'
 import SelectMenu from './SelectMenu.vue'
+import { switchDocxPreviewShape } from './modes/libraryImport'
+import {
+  bilingualImportPreviewDocxSwitchBusy,
+  bilingualImportPreviewDocxSwitchError,
+  bilingualImportPreviewIsDocx,
+} from './bilingualImportPreviewState'
 import SourceLangChips from './modes/SourceLangChips.vue'
 import { genreChoices, genreLabel } from './modes/libraryWorkCard'
 import {
@@ -197,6 +203,15 @@ function onTargetColumnChange(value: string): void {
 
 function onHasHeaderChange(event: Event): void {
   void setBilingualHasHeader((event.target as HTMLInputElement).checked)
+}
+
+const docxShapeOptions = computed(() => [
+  { value: 'text', label: t('mode.library.preview.docx_shape_text') },
+  { value: 'bilingual', label: t('mode.library.preview.docx_shape_bilingual') },
+])
+
+function onDocxShapeChange(raw: string): void {
+  if (raw === 'text') void switchDocxPreviewShape('text')
 }
 
 function onTableChange(raw: string): void {
@@ -413,6 +428,22 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
       <header class="bip-head">
         <h2 id="bip-title" class="bip-title">{{ t('mode.library.preview.bilingual_title') }}</h2>
         <p class="bip-head-note">{{ t('mode.library.preview.bilingual_screen_subtitle') }}</p>
+        <div v-if="bilingualImportPreviewIsDocx" class="bip-docx-shape" data-bip-docx-shape>
+          <SelectMenu
+            id="bip-docx-shape-select"
+            variant="field"
+            option-attr="data-docx-shape-option"
+            model-value="bilingual"
+            :options="docxShapeOptions"
+            :label="t('mode.library.preview.docx_shape_label')"
+            :disabled="bilingualImportPreviewConfirming || bilingualImportPreviewDocxSwitchBusy"
+            @change="onDocxShapeChange"
+          />
+          <p v-if="bilingualImportPreviewDocxSwitchError !== null" class="bip-status bip-error" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+            {{ tError(bilingualImportPreviewDocxSwitchError) }}
+          </p>
+        </div>
       </header>
 
       <p v-if="bilingualImportPreviewStatus === 'unknown'" class="bip-status" role="status">

@@ -1844,6 +1844,18 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
+            "pub fn preview_docx_import(\n    app: tauri::AppHandle",
+            "doc TRON tep `.docx` toi 100 MB cong giai nen zip o luot MO xem truoc, roi `.lock()` \
+             PendingImportSourceState",
+        ),
+        (
+            "src/commands/project/wire.rs",
+            "pub fn switch_docx_import_shape(\n    app: tauri::AppHandle",
+            "`.lock()` PendingImportSourceState, cung mutex ma confirm (async) giu khi tai anh, \
+             cong dung lai ca hai hinh dang tu ban cat",
+        ),
+        (
+            "src/commands/project/wire.rs",
             "pub fn confirm_bilingual_import(\n    app: tauri::AppHandle",
             "tron pipeline cong mot lo chen `segment` cong cac luot ghi dia, roi \
              `reindex_library`. KHONG phai mang: nhanh song ngu dat `blocks: None` \
@@ -2427,8 +2439,8 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 23] = [
     (
         "src/commands/project/wire.rs",
         4,
+        19,
         17,
-        15,
         "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel. cancel_import_glossary_estimate them plain -- cung mot AtomicU64.",
     ),
     (
@@ -2607,9 +2619,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (141, 86),
+        (141, 88),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         141/86.\n\n\
+         141/88.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

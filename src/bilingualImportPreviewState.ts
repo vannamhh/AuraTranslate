@@ -32,6 +32,7 @@ import {
 import type {
   BilingualEncodingCandidateWire,
   BilingualImportEncodingPreview,
+  BilingualImportEncodingPreviewResult,
   BilingualMismatchWire,
   BilingualRegroupingInput,
   ChapterPatternInput,
@@ -103,9 +104,16 @@ const chapterFilterActive = ref(false)
  * "cần xem" đầu tiên, xem `toggleBilingualImportPreviewChapterFilter`. */
 const chapterCursor = ref(0)
 
+const docxSource = ref(false)
+const docxSwitchBusy = ref(false)
+const docxSwitchError = ref<IpcError | null>(null)
+
 let sequence = 0
 
 export const bilingualImportPreviewIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
+export const bilingualImportPreviewIsDocx: DeepReadonly<Ref<boolean>> = readonly(docxSource)
+export const bilingualImportPreviewDocxSwitchBusy: DeepReadonly<Ref<boolean>> = readonly(docxSwitchBusy)
+export const bilingualImportPreviewDocxSwitchError: DeepReadonly<Ref<IpcError | null>> = readonly(docxSwitchError)
 export const bilingualImportPreviewOpening: DeepReadonly<Ref<boolean>> = readonly(opening)
 export const bilingualImportPreviewStatus: DeepReadonly<Ref<BilingualImportPreviewStatus>> = readonly(status)
 export const bilingualImportPreviewLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
@@ -383,6 +391,40 @@ export async function openBilingualImportPreview(
   path: string,
   destinationWorkId: string | null = null,
 ): Promise<void> {
+  await openBilingualPreview(name, sourceLang, genre, path, destinationWorkId, false, null, () =>
+    previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false, null, destinationWorkId),
+  )
+}
+
+/**
+ * Opens the bilingual preview of a lone `.docx` from the preview `preview_docx_import` or
+ * `switch_docx_import_shape` already answered with; calls no preview wire. Column roles, header
+ * and table start like a fresh open.
+ */
+export async function openBilingualImportPreviewFromDocx(
+  name: string,
+  sourceLang: string,
+  genre: string,
+  path: string,
+  destinationWorkId: string | null,
+  answered: BilingualImportEncodingPreview,
+  chapterPattern: ChapterPatternInput | null,
+): Promise<void> {
+  await openBilingualPreview(name, sourceLang, genre, path, destinationWorkId, true, chapterPattern, () =>
+    Promise.resolve({ preview: answered, error: null }),
+  )
+}
+
+async function openBilingualPreview(
+  name: string,
+  sourceLang: string,
+  genre: string,
+  path: string,
+  destinationWorkId: string | null,
+  fromDocx: boolean,
+  carriedChapterPattern: ChapterPatternInput | null,
+  call: () => Promise<BilingualImportEncodingPreviewResult>,
+): Promise<void> {
   if (opening.value) return
   opening.value = true
   sequence += 1
@@ -397,8 +439,11 @@ export async function openBilingualImportPreview(
   targetColumn.value = 1
   hasHeader.value = false
   tableIndex.value = null
-  chapterPatternText.value = ''
-  chapterPatternKind.value = 'literal'
+  chapterPatternText.value = carriedChapterPattern?.pattern ?? ''
+  chapterPatternKind.value = carriedChapterPattern?.kind ?? 'literal'
+  docxSource.value = fromDocx
+  docxSwitchBusy.value = false
+  docxSwitchError.value = null
   confirming.value = false
   confirmError.value = null
   regroupings.value = new Map()
@@ -409,7 +454,7 @@ export async function openBilingualImportPreview(
   chapterFilterActive.value = false
   chapterCursor.value = 0
 
-  const result = await previewBilingualImportFromFile(path, sourceLang, null, 0, 1, false, null, destinationWorkId)
+  const result = await call()
   if (mySequence !== sequence) return
   opening.value = false
   overlayOpen.value = true
@@ -756,4 +801,32 @@ export function resetBilingualImportPreview(): void {
   chapterFilterActive.value = false
   chapterCursor.value = 0
   mismatchFocusSignal.value = 0
+  docxSource.value = false
+  docxSwitchBusy.value = false
+  docxSwitchError.value = null
+}
+
+/** What the docx shape switch carries to the other preview. */
+export function bilingualImportPreviewDocxCarry(): {
+  name: string
+  sourceLang: string
+  genre: string
+  destinationWorkId: string | null
+  path: string
+  chapterPattern: ChapterPatternInput | null
+} | null {
+  if (!docxSource.value) return null
+  return {
+    name: pendingName.value,
+    sourceLang: pendingSourceLang.value,
+    genre: pendingGenre.value,
+    destinationWorkId: pendingDestinationWorkId.value,
+    path: pendingPath.value,
+    chapterPattern: chapterPatternWire(),
+  }
+}
+
+export function setBilingualImportPreviewDocxSwitch(busy: boolean, error: IpcError | null): void {
+  docxSwitchBusy.value = busy
+  docxSwitchError.value = error
 }

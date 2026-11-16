@@ -32,8 +32,6 @@ import {
   pickedDestinationWork,
   setDestinationMode,
   setDestinationWorkId,
-  setDocxReadAsBilingual,
-  docxAsBilingual,
   sourceLang,
   destinationExistingWorkAvailable,
 } from './modes/libraryImport'
@@ -102,16 +100,8 @@ function fileKindKey(file: ClassifiedImportFile): string {
   if (file.problem === 'unsupported') return 'mode.library.file_kind_unsupported'
   if (file.problem === 'kind_mismatch') return 'mode.library.file_kind_bilingual_mismatch'
   if (file.problem === 'one_bilingual_only') return 'mode.library.file_kind_bilingual_extra'
+  if (file.kind === 'docx') return 'mode.library.file_kind_docx'
   return file.kind === 'bilingual' ? 'mode.library.file_kind_bilingual' : 'mode.library.file_kind_text'
-}
-
-function docxChecked(path: string): boolean {
-  return docxAsBilingual.value.includes(path)
-}
-
-function onDocxToggle(path: string, event: Event): void {
-  const box = event.target
-  if (box instanceof HTMLInputElement) void setDocxReadAsBilingual(path, box.checked)
 }
 
 function aimFileRow(event: Event): void {
@@ -408,10 +398,6 @@ function trapTab(event: KeyboardEvent): void {
               <span class="li-file-name" :title="file.path">{{ importFileName(file.path) }}</span>
               <!-- aura-allow-text: qua t(). -->
               <span class="li-file-kind">{{ t(fileKindKey(file)) }}</span>
-              <label v-if="file.is_docx" class="li-file-toggle ui-check">
-                <input type="checkbox" :checked="docxChecked(file.path)" @change="onDocxToggle(file.path, $event)" />
-                <span>{{ t('mode.library.file_docx_as_bilingual') }}</span>
-              </label>
               <button
                 type="button"
                 class="li-file-remove ui-btn ui-btn--quiet"
@@ -698,8 +684,7 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
-.li-file-kind,
-.li-file-toggle {
+.li-file-kind {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);

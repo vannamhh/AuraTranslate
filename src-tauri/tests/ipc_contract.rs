@@ -1189,6 +1189,8 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
         "preview_import_encoding_from_text",
         "preview_import_encoding_from_file",
         "preview_bilingual_import_from_file",
+        "preview_docx_import",
+        "switch_docx_import_shape",
     ] {
         let signature = format!("pub fn {wire}(");
         let start = src
@@ -3445,4 +3447,61 @@ fn reviewer_import_summary_wire_carries_per_chapter_match_counts_in_snake_case()
         .collect();
     keys.sort_unstable();
     assert_eq!(keys, vec!["harvest_candidate_count", "harvest_error"]);
+}
+
+/// The docx shape switch rebuilds from the stash: it registers by name and never reads the path.
+#[test]
+fn the_docx_import_wires_are_registered_and_the_switch_never_reads_the_file() {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let lib_src = fs::read_to_string(manifest.join("lib.rs")).expect("read lib.rs");
+    for wire in ["preview_docx_import", "switch_docx_import_shape"] {
+        let registered = format!("crate::commands::project::wire::{wire}");
+        assert!(
+            lib_src
+                .lines()
+                .map(str::trim_start)
+                .filter(|l| !l.starts_with("//"))
+                .any(|l| l.contains(&registered)),
+            "`{registered}` must be registered, uncommented, in generate_handler!"
+        );
+    }
+    let code_lines = |path: &str, signature: &str| -> Vec<String> {
+        let src = fs::read_to_string(manifest.join(path)).expect("read source");
+        let start = src.find(signature).expect("signature present");
+        let rest = &src[start + signature.len()..];
+        let end = rest.find("\npub fn ").unwrap_or(rest.len());
+        rest[..end]
+            .lines()
+            .map(str::trim_start)
+            .filter(|l| !l.starts_with("//") && !l.starts_with("* ") && !l.starts_with("/*"))
+            .map(str::to_owned)
+            .collect()
+    };
+    let wire_switch = code_lines(
+        "commands/project/wire.rs",
+        "pub fn switch_docx_import_shape(",
+    );
+    let core_switch = code_lines(
+        "commands/project/docx_shape.rs",
+        "pub fn switch_docx_import_shape(",
+    );
+    assert!(
+        core_switch.iter().any(|l| l.contains(".docx_source")),
+        "the switch must clone the docx source out of the pending state"
+    );
+    for forbidden in [
+        "read_docx_source",
+        "docx_source_from_bytes",
+        "import_files",
+        "import_file(",
+        "import_bilingual_file",
+        "std::fs",
+    ] {
+        for lines in [&wire_switch, &core_switch] {
+            assert!(
+                !lines.iter().any(|l| l.contains(forbidden)),
+                "the docx shape switch must not call `{forbidden}`: it rebuilds from the stash"
+            );
+        }
+    }
 }

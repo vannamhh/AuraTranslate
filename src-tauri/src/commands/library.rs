@@ -881,7 +881,7 @@ pub fn search_library_scoped(
 }
 
 /// One row of the import entry list: the verdict of [`classify_import_files`] for one path.
-/// `kind`: `text` / `bilingual` / `unsupported`; `problem`: `None` or the reason the row blocks
+/// `kind`: `text` / `bilingual` / `docx` / `unsupported`; `problem`: `None` or the reason the row blocks
 /// the batch (`unsupported` / `kind_mismatch` / `one_bilingual_only`).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClassifiedImportFileWire {
@@ -889,11 +889,10 @@ pub struct ClassifiedImportFileWire {
     pub stem: String,
     pub kind: String,
     pub problem: Option<String>,
-    pub is_docx: bool,
 }
 
-/// `verdict`: `empty` / `text` / `bilingual` / `has_unsupported` / `mixed_kinds` /
-/// `multiple_bilingual`; only `text` and `bilingual` let the primary button go on.
+/// `verdict`: `empty` / `text` / `bilingual` / `docx` / `has_unsupported` / `mixed_kinds` /
+/// `multiple_bilingual`; only `text`, `bilingual` and `docx` let the primary button go on.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ImportClassificationWire {
     pub files: Vec<ClassifiedImportFileWire>,
@@ -901,11 +900,8 @@ pub struct ImportClassificationWire {
 }
 
 /// The one classification both entry points (OS dialog and drop) end in.
-pub fn classify_import_files(
-    paths: &[String],
-    docx_as_bilingual: &[String],
-) -> ImportClassificationWire {
-    let classified = crate::core::segment::import::classify_import_paths(paths, docx_as_bilingual);
+pub fn classify_import_files(paths: &[String]) -> ImportClassificationWire {
+    let classified = crate::core::segment::import::classify_import_paths(paths);
     ImportClassificationWire {
         files: classified
             .files
@@ -915,7 +911,6 @@ pub fn classify_import_files(
                 stem: file.stem,
                 kind: file.kind.as_str().to_owned(),
                 problem: file.problem.map(|p| p.as_str().to_owned()),
-                is_docx: file.is_docx,
             })
             .collect(),
         verdict: classified.verdict.as_str().to_owned(),
@@ -1046,7 +1041,6 @@ pub mod wire {
     #[tauri::command(async)]
     pub fn library_pick_import_files(
         app: tauri::AppHandle,
-        docx_as_bilingual: Vec<String>,
     ) -> Result<Option<super::ImportClassificationWire>, IpcError> {
         let Some(picked) = app
             .dialog()
@@ -1063,18 +1057,12 @@ pub mod wire {
             .into_iter()
             .map(picked_to_wire)
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Some(super::classify_import_files(
-            &paths,
-            &docx_as_bilingual,
-        )))
+        Ok(Some(super::classify_import_files(&paths)))
     }
 
     #[tauri::command]
-    pub fn library_classify_import_paths(
-        paths: Vec<String>,
-        docx_as_bilingual: Vec<String>,
-    ) -> super::ImportClassificationWire {
-        super::classify_import_files(&paths, &docx_as_bilingual)
+    pub fn library_classify_import_paths(paths: Vec<String>) -> super::ImportClassificationWire {
+        super::classify_import_files(&paths)
     }
 
     /// `(async)`: `blocking_pick_folder()` blocks the calling thread.

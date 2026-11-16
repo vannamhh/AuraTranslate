@@ -953,6 +953,71 @@ export async function previewBilingualImportFromFile(
   }
 }
 
+const CMD_PREVIEW_DOCX_IMPORT = 'preview_docx_import'
+const CMD_SWITCH_DOCX_IMPORT_SHAPE = 'switch_docx_import_shape'
+
+export type DocxImportShape = 'text' | 'bilingual'
+
+/** Matches `commands::project::DocxImportPreviewWire`: `shape` names the filled half. */
+export type DocxImportPreviewWire = {
+  shape: DocxImportShape
+  text: FileImportBatchWire | null
+  bilingual: BilingualImportEncodingPreview | null
+}
+
+export type DocxImportPreviewResult = { response: DocxImportPreviewWire | null; error: IpcError | null }
+
+export function isDocxImportPreviewWire(value: unknown): value is DocxImportPreviewWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<DocxImportPreviewWire>
+  if (v.shape === 'text') return v.bilingual === null && isFileImportBatchWire(v.text)
+  if (v.shape === 'bilingual') return v.text === null && isBilingualImportEncodingPreview(v.bilingual)
+  return false
+}
+
+async function callDocxImport(cmd: string, args: Record<string, unknown>): Promise<DocxImportPreviewResult> {
+  try {
+    const response = await invoke<unknown>(cmd, args)
+    if (!isDocxImportPreviewWire(response)) {
+      console.error(`[project] \`${cmd}\` tra ve mot hinh dang khong dung DocxImportPreviewWire`)
+      return { response: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { response, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { response: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[project] \`${cmd}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { response: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[project] không gọi được \`${cmd}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { response: null, error: null }
+  }
+}
+
+/** Opens a lone `.docx`: Rust reads it once and answers with the preview of the shape it detected. */
+export async function previewDocxImport(
+  path: string,
+  sourceLang: string,
+  chapterPattern: ChapterPatternInput | null,
+  destinationWorkId: string | null,
+): Promise<DocxImportPreviewResult> {
+  return callDocxImport(CMD_PREVIEW_DOCX_IMPORT, {
+    path,
+    sourceLang,
+    chapterPattern,
+    destination: destinationWorkId,
+  })
+}
+
+/** Rebuilds the other shape of the pending `.docx` from Rust's stash; sends no path. */
+export async function switchDocxImportShape(
+  shape: DocxImportShape,
+  sourceLang: string,
+  chapterPattern: ChapterPatternInput | null,
+): Promise<DocxImportPreviewResult> {
+  return callDocxImport(CMD_SWITCH_DOCX_IMPORT_SHAPE, { shape, sourceLang, chapterPattern })
+}
+
 /** Dựng lại màn xem trước song ngữ trên nguồn ĐANG CHỜ phía Rust (Story 6.16) — cho mọi lượt
  * đổi cột, đảo vai, bật/tắt tiêu đề, sửa mẫu phân tách. KHÔNG gửi `path`: Rust clone byte đã
  * cất lúc mở (`PendingImportSourceState`), không đọc lại tệp (Quyết định Ice 2026-09-11:

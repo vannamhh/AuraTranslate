@@ -293,6 +293,7 @@ pub enum ImportError {
         column: usize,
     },
     BilingualNoTwoColumnTable,
+    BilingualNeedsSourceLang,
     BilingualTableOutOfRange {
         index: usize,
         count: usize,
@@ -403,6 +404,9 @@ impl std::fmt::Display for ImportError {
                     f,
                     "import[bilingual]: no top-level table with at least 2 columns"
                 )
+            }
+            ImportError::BilingualNeedsSourceLang => {
+                write!(f, "import[bilingual]: source language must be chosen")
             }
             ImportError::BilingualTableOutOfRange { index, count } => {
                 write!(
@@ -634,6 +638,12 @@ impl From<ImportError> for IpcError {
             ImportError::BilingualNoTwoColumnTable => IpcError::new(
                 "import.bilingual_no_table",
                 MessageKey::ImportBilingualNoTable,
+                BTreeMap::new(),
+                false,
+            ),
+            ImportError::BilingualNeedsSourceLang => IpcError::new(
+                "import.bilingual_needs_source_lang",
+                MessageKey::ImportBilingualNeedsSourceLang,
                 BTreeMap::new(),
                 false,
             ),
@@ -881,24 +891,9 @@ pub fn import_file(path: &Path) -> Result<(PipelineShape, Option<DocxSidecar>), 
         .to_ascii_lowercase();
 
     if ext == "docx" {
-        let path_display = path.display().to_string();
-        let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| match e {
-            crate::core::docx::DocxError::EmptyText => ImportError::DocxEmptyText {
-                path: path_display.clone(),
-            },
-            other => ImportError::DocxUnreadable {
-                path: path_display.clone(),
-                detail: other.to_string(),
-            },
-        })?;
-        let sidecar = DocxSidecar {
-            blocks: parsed.blocks,
-            images: parsed.images,
-        };
-        return Ok((
-            PipelineShape::Blob(ChapterInput::AlreadyText(parsed.text)),
-            Some(sidecar),
-        ));
+        let (shape, sidecar) =
+            docx_source_from_bytes(&bytes, path.display().to_string())?.text_shape();
+        return Ok((shape, Some(sidecar)));
     }
 
     Ok((
@@ -1056,6 +1051,8 @@ pub const IMPORT_ENTRY_EXTENSIONS: [&str; 5] = ["txt", "md", "docx", "csv", "tsv
 pub enum ImportFileKind {
     Text,
     Bilingual,
+    /// A lone `.docx`: its shape is detected when the preview opens.
+    Docx,
     Unsupported,
 }
 
@@ -1064,6 +1061,7 @@ impl ImportFileKind {
         match self {
             Self::Text => "text",
             Self::Bilingual => "bilingual",
+            Self::Docx => "docx",
             Self::Unsupported => "unsupported",
         }
     }
@@ -1092,6 +1090,7 @@ pub enum ImportBatchVerdict {
     Empty,
     Text,
     Bilingual,
+    Docx,
     HasUnsupported,
     MixedKinds,
     MultipleBilingual,
@@ -1103,6 +1102,7 @@ impl ImportBatchVerdict {
             Self::Empty => "empty",
             Self::Text => "text",
             Self::Bilingual => "bilingual",
+            Self::Docx => "docx",
             Self::HasUnsupported => "has_unsupported",
             Self::MixedKinds => "mixed_kinds",
             Self::MultipleBilingual => "multiple_bilingual",
@@ -1117,8 +1117,6 @@ pub struct ClassifiedImportPath {
     pub stem: String,
     pub kind: ImportFileKind,
     pub problem: Option<ImportFileProblem>,
-    /// A `.docx` row carries the temporary *read as bilingual* toggle until detection replaces it.
-    pub is_docx: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1127,20 +1125,11 @@ pub struct ImportClassification {
     pub verdict: ImportBatchVerdict,
 }
 
-/// `.csv`/`.tsv` are always bilingual; `.txt`/`.md` always text; `.docx` is text unless its
-/// path is listed in `docx_as_bilingual`. Text files may be many; a bilingual file travels
-/// alone and never with text files, so with both kinds present the bilingual rows are the
-/// rejected ones.
-pub fn classify_import_paths(
-    paths: &[String],
-    docx_as_bilingual: &[String],
-) -> ImportClassification {
-    let is_docx = |path: &str| -> bool {
-        Path::new(path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("docx"))
-    };
+/// `.csv`/`.tsv` are always bilingual; `.txt`/`.md` always text; a lone `.docx` is detected
+/// when the preview opens, and a `.docx` among several files counts as text (the batch
+/// refuses it per item). Text files may be many; a bilingual file travels alone and never
+/// with text files, so with both kinds present the bilingual rows are the rejected ones.
+pub fn classify_import_paths(paths: &[String]) -> ImportClassification {
     let kind_of = |path: &str| -> ImportFileKind {
         let ext = Path::new(path)
             .extension()
@@ -1149,9 +1138,7 @@ pub fn classify_import_paths(
         match ext.as_deref() {
             Some("txt" | "md") => ImportFileKind::Text,
             Some("csv" | "tsv") => ImportFileKind::Bilingual,
-            Some("docx") if docx_as_bilingual.iter().any(|p| p == path) => {
-                ImportFileKind::Bilingual
-            }
+            Some("docx") if paths.len() == 1 => ImportFileKind::Docx,
             Some("docx") => ImportFileKind::Text,
             _ => ImportFileKind::Unsupported,
         }
@@ -1184,7 +1171,6 @@ pub fn classify_import_paths(
                 .to_owned(),
             kind: *kind,
             problem: problem_of(*kind),
-            is_docx: is_docx(path),
         })
         .collect();
 
@@ -1198,6 +1184,8 @@ pub fn classify_import_paths(
         ImportBatchVerdict::MultipleBilingual
     } else if bilingual == 1 {
         ImportBatchVerdict::Bilingual
+    } else if count(ImportFileKind::Docx) == 1 {
+        ImportBatchVerdict::Docx
     } else {
         ImportBatchVerdict::Text
     };
@@ -1251,6 +1239,114 @@ pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineSha
 }
 
 fn import_bilingual_docx(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
+    read_docx_source(path)?.bilingual_shape()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DocxShape {
+    Text,
+    Bilingual,
+}
+
+/// One `read_docx` result, kept so either import shape can be built without reading the file again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocxSource {
+    label: String,
+    text: String,
+    sidecar: DocxSidecar,
+    tables: Vec<Vec<super::bilingual::BilingualRow>>,
+    pub byte_len: u64,
+    pub detected: DocxShape,
+}
+
+impl DocxSource {
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub fn text_shape(&self) -> (super::pipeline::PipelineShape, DocxSidecar) {
+        (
+            super::pipeline::PipelineShape::Blob(ChapterInput::AlreadyText(self.text.clone())),
+            self.sidecar.clone(),
+        )
+    }
+
+    pub fn bilingual_shape(&self) -> Result<super::pipeline::PipelineShape, ImportError> {
+        if self.tables.is_empty() {
+            return Err(ImportError::BilingualNoTwoColumnTable);
+        }
+        Ok(super::pipeline::PipelineShape::BilingualTables {
+            label: self.label.clone(),
+            tables: self.tables.clone(),
+        })
+    }
+}
+
+/// Bilingual when the top-level tables that qualify for import (see [`qualifying_table_rows`])
+/// hold at least half of the document's non-whitespace characters (paragraphs plus top-level
+/// table cells).
+pub fn detect_docx_shape(parsed: &crate::core::docx::DocxParsed) -> DocxShape {
+    let count = |text: &str| text.chars().filter(|c| !c.is_whitespace()).count();
+    let mut table_chars = 0usize;
+    let mut total_chars = 0usize;
+    for (i, item) in parsed.body.iter().enumerate() {
+        match item {
+            crate::core::docx::DocxBodyItem::Paragraph(text) => total_chars += count(text),
+            crate::core::docx::DocxBodyItem::Table(rows) => {
+                if parsed.nested_table_body_indexes.contains(&i) {
+                    continue;
+                }
+                let chars: usize = rows.iter().flatten().map(|cell| count(cell)).sum();
+                total_chars += chars;
+                if qualifying_table_rows(rows).is_some() {
+                    table_chars += chars;
+                }
+            }
+        }
+    }
+    if table_chars > 0 && table_chars * 2 >= total_chars {
+        DocxShape::Bilingual
+    } else {
+        DocxShape::Text
+    }
+}
+
+fn qualifying_table_rows(rows: &[Vec<String>]) -> Option<Vec<super::bilingual::BilingualRow>> {
+    let rows = docx_table_rows(rows);
+    (super::bilingual::widest_row_column_count(&rows) >= 2).then_some(rows)
+}
+
+pub fn docx_source_from_bytes(bytes: &[u8], label: String) -> Result<DocxSource, ImportError> {
+    let parsed = crate::core::docx::read_docx(bytes).map_err(|e| match e {
+        crate::core::docx::DocxError::EmptyText => ImportError::DocxEmptyText {
+            path: label.clone(),
+        },
+        other => ImportError::DocxUnreadable {
+            path: label.clone(),
+            detail: other.to_string(),
+        },
+    })?;
+    let detected = detect_docx_shape(&parsed);
+    let tables: Vec<Vec<super::bilingual::BilingualRow>> = parsed
+        .top_level_tables()
+        .into_iter()
+        .filter_map(|rows| qualifying_table_rows(rows))
+        .collect();
+    Ok(DocxSource {
+        label,
+        text: parsed.text,
+        sidecar: DocxSidecar {
+            blocks: parsed.blocks,
+            images: parsed.images,
+        },
+        tables,
+        byte_len: bytes.len() as u64,
+        detected,
+    })
+}
+
+/// Reads a `.docx` once: size guard, bytes, parse, detection.
+pub fn read_docx_source(path: &Path) -> Result<DocxSource, ImportError> {
     let size = std::fs::metadata(path)
         .map_err(|e| ImportError::ReadFailed {
             path: path.display().to_string(),
@@ -1267,29 +1363,7 @@ fn import_bilingual_docx(path: &Path) -> Result<super::pipeline::PipelineShape, 
         path: path.display().to_string(),
         detail: e.to_string(),
     })?;
-    let path_display = path.display().to_string();
-    let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| match e {
-        crate::core::docx::DocxError::EmptyText => ImportError::DocxEmptyText {
-            path: path_display.clone(),
-        },
-        other => ImportError::DocxUnreadable {
-            path: path_display.clone(),
-            detail: other.to_string(),
-        },
-    })?;
-    let tables: Vec<Vec<super::bilingual::BilingualRow>> = parsed
-        .top_level_tables()
-        .into_iter()
-        .map(|rows| docx_table_rows(rows))
-        .filter(|rows| super::bilingual::widest_row_column_count(rows) >= 2)
-        .collect();
-    if tables.is_empty() {
-        return Err(ImportError::BilingualNoTwoColumnTable);
-    }
-    Ok(super::pipeline::PipelineShape::BilingualTables {
-        label: path_display,
-        tables,
-    })
+    docx_source_from_bytes(&bytes, path.display().to_string())
 }
 
 fn docx_table_rows(rows: &[Vec<String>]) -> Vec<super::bilingual::BilingualRow> {
@@ -1365,10 +1439,7 @@ mod classify_tests {
 
     #[test]
     fn a_classified_row_carries_its_file_stem_without_the_last_extension_only() {
-        let c = classify_import_paths(
-            &paths(&["a.b.txt", "tuyet-trung.TXT", "noext", "x.pdf"]),
-            &[],
-        );
+        let c = classify_import_paths(&paths(&["a.b.txt", "tuyet-trung.TXT", "noext", "x.pdf"]));
         assert_eq!(
             c.files.iter().map(|f| f.stem.as_str()).collect::<Vec<_>>(),
             vec!["a.b", "tuyet-trung", "noext", "x"]
@@ -1378,14 +1449,14 @@ mod classify_tests {
     #[test]
     fn an_empty_batch_has_the_empty_verdict() {
         assert_eq!(
-            classify_import_paths(&[], &[]).verdict,
+            classify_import_paths(&[]).verdict,
             ImportBatchVerdict::Empty
         );
     }
 
     #[test]
     fn text_files_of_any_count_are_one_text_batch() {
-        let c = classify_import_paths(&paths(&["a.txt", "b.TXT", "c.md"]), &[]);
+        let c = classify_import_paths(&paths(&["a.txt", "b.TXT", "c.md"]));
         assert_eq!(c.verdict, ImportBatchVerdict::Text);
         assert!(
             c.files
@@ -1396,7 +1467,7 @@ mod classify_tests {
 
     #[test]
     fn one_csv_is_a_bilingual_batch() {
-        let c = classify_import_paths(&paths(&["a.csv"]), &[]);
+        let c = classify_import_paths(&paths(&["a.csv"]));
         assert_eq!(c.verdict, ImportBatchVerdict::Bilingual);
         assert_eq!(c.files[0].kind, ImportFileKind::Bilingual);
         assert_eq!(c.files[0].problem, None);
@@ -1404,7 +1475,7 @@ mod classify_tests {
 
     #[test]
     fn a_csv_beside_text_files_is_the_rejected_row() {
-        let c = classify_import_paths(&paths(&["a.txt", "b.txt", "c.csv"]), &[]);
+        let c = classify_import_paths(&paths(&["a.txt", "b.txt", "c.csv"]));
         assert_eq!(c.verdict, ImportBatchVerdict::MixedKinds);
         assert_eq!(
             problems(&c),
@@ -1414,7 +1485,7 @@ mod classify_tests {
 
     #[test]
     fn a_csv_listed_first_is_still_the_rejected_row_beside_text() {
-        let c = classify_import_paths(&paths(&["c.tsv", "a.txt"]), &[]);
+        let c = classify_import_paths(&paths(&["c.tsv", "a.txt"]));
         assert_eq!(c.verdict, ImportBatchVerdict::MixedKinds);
         assert_eq!(
             problems(&c),
@@ -1424,7 +1495,7 @@ mod classify_tests {
 
     #[test]
     fn two_bilingual_files_are_both_rejected() {
-        let c = classify_import_paths(&paths(&["a.csv", "b.tsv"]), &[]);
+        let c = classify_import_paths(&paths(&["a.csv", "b.tsv"]));
         assert_eq!(c.verdict, ImportBatchVerdict::MultipleBilingual);
         assert_eq!(
             problems(&c),
@@ -1437,7 +1508,7 @@ mod classify_tests {
 
     #[test]
     fn an_unsupported_extension_locks_the_batch() {
-        let c = classify_import_paths(&paths(&["a.txt", "b.pdf", "noext"]), &[]);
+        let c = classify_import_paths(&paths(&["a.txt", "b.pdf", "noext"]));
         assert_eq!(c.verdict, ImportBatchVerdict::HasUnsupported);
         assert_eq!(
             problems(&c),
@@ -1451,35 +1522,20 @@ mod classify_tests {
     }
 
     #[test]
-    fn a_docx_is_text_until_its_path_is_marked_bilingual() {
-        let docx = paths(&["t.docx"]);
-        assert_eq!(
-            classify_import_paths(&docx, &[]).verdict,
-            ImportBatchVerdict::Text
-        );
-        let marked = classify_import_paths(&docx, &docx);
-        assert_eq!(marked.verdict, ImportBatchVerdict::Bilingual);
-        assert_eq!(marked.files[0].kind, ImportFileKind::Bilingual);
+    fn a_lone_docx_is_detected_when_the_preview_opens() {
+        let c = classify_import_paths(&paths(&["t.docx"]));
+        assert_eq!(c.verdict, ImportBatchVerdict::Docx);
+        assert_eq!(c.files[0].kind, ImportFileKind::Docx);
+        assert_eq!(c.files[0].problem, None);
     }
 
     #[test]
-    fn a_docx_marked_bilingual_beside_a_txt_is_the_mixed_case() {
-        let all = paths(&["t.docx", "a.txt"]);
-        let c = classify_import_paths(&all, &all[..1]);
-        assert_eq!(c.verdict, ImportBatchVerdict::MixedKinds);
-        assert_eq!(
-            problems(&c),
-            vec![Some(ImportFileProblem::KindMismatch), None]
-        );
-    }
-
-    #[test]
-    fn only_a_docx_row_carries_the_bilingual_toggle() {
-        let c = classify_import_paths(&paths(&["a.txt", "b.DOCX", "c.pdf"]), &[]);
-        assert_eq!(
-            c.files.iter().map(|f| f.is_docx).collect::<Vec<_>>(),
-            vec![false, true, false]
-        );
+    fn a_docx_beside_other_files_stays_text_for_the_batch_to_refuse() {
+        let c = classify_import_paths(&paths(&["t.docx", "a.txt"]));
+        assert_eq!(c.verdict, ImportBatchVerdict::Text);
+        assert_eq!(c.files[0].kind, ImportFileKind::Text);
+        let mixed = classify_import_paths(&paths(&["t.docx", "a.csv"]));
+        assert_eq!(mixed.verdict, ImportBatchVerdict::MixedKinds);
     }
 
     #[test]

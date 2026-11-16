@@ -729,12 +729,27 @@ pub fn preview_import_encoding_from_file(
     // hợp lệ, `PendingImportSourceState` chưa từng dọn) sống sót qua lượt gọi TRƯỢT này và
     // vẫn xác nhận được, dù màn hình vừa báo lỗi. Dọn Ô ĐANG CHỜ trên đường lỗi này, cùng
     // khuôn `cancel_import_preview` ở nhánh "còn mục hỏng" ngay dưới.
-    let outcome = match super::import_files(&paths) {
-        Ok(outcome) => outcome,
-        Err(err) => {
-            cancel_import_preview(&state);
-            return Err(err.into());
+    let lone_docx = match paths.as_slice() {
+        [only] if is_docx_path(only) => {
+            match crate::core::segment::import::read_docx_source(std::path::Path::new(only)) {
+                Ok(source) => Some(source),
+                Err(err) => {
+                    cancel_import_preview(&state);
+                    return Err(err.into());
+                }
+            }
         }
+        _ => None,
+    };
+    let outcome = match &lone_docx {
+        Some(source) => super::docx_text_outcome(source),
+        None => match super::import_files(&paths) {
+            Ok(outcome) => outcome,
+            Err(err) => {
+                cancel_import_preview(&state);
+                return Err(err.into());
+            }
+        },
     };
     // Story 6.9 — cùng lý do nhánh DÁN VĂN BẢN ở trên: đường tệp KHÔNG BAO GIỜ bóc nội
     // dung chính (kể cả `.docx` — Story 6.12: nó không đi qua `dom_smoothie`).
@@ -759,10 +774,11 @@ pub fn preview_import_encoding_from_file(
         pattern.as_ref(),
     );
     if all_ok {
-        super::stash_pending_import_source_for(
+        super::stash_pending_docx_import_source(
             &state,
             outcome.shape,
             outcome.docx_sidecar,
+            lone_docx,
             destination,
         );
     } else {
@@ -1122,6 +1138,86 @@ pub fn preview_bilingual_import_from_file(
     };
     super::stash_pending_import_source_for(&state, shape, None, destination);
     Ok(preview)
+}
+
+fn is_docx_path(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("docx"))
+}
+
+/// Opens a lone `.docx`: one read, shape detected from its content, both shapes buildable from
+/// the stash afterwards. The envelope names the shape of the preview that was built.
+/// `(async)`: reads and unzips the file, then locks `PendingImportSourceState`.
+#[tauri::command(async)]
+pub fn preview_docx_import(
+    app: tauri::AppHandle,
+    path: String,
+    source_lang: String,
+    chapter_pattern: Option<super::ChapterPatternWire>,
+    destination: Option<String>,
+) -> Result<super::DocxImportPreviewWire, IpcError> {
+    use tauri::Manager as _;
+    let Some(state) = app.try_state::<PendingImportSourceState>() else {
+        return Err(no_pending_import_source());
+    };
+    let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
+    let result = (|| {
+        let source = crate::core::segment::import::read_docx_source(std::path::Path::new(&path))?;
+        let shape = source.detected;
+        let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
+        super::preview_docx_import_shape(
+            &state,
+            source,
+            shape,
+            &source_lang,
+            &cleanup_rules,
+            pattern.as_ref(),
+            destination,
+        )
+    })();
+    match result {
+        Ok(wire) => {
+            reset_tier2_block_overrides(&app);
+            reset_chapter_origin_overrides(&app);
+            Ok(wire)
+        }
+        Err(err) => {
+            cancel_import_preview(&state);
+            Err(err)
+        }
+    }
+}
+
+/// Rebuilds the other preview of the pending `.docx` from the stash, without reading the file
+/// path; a refusal leaves the pending source as it was. `(async)`: locks
+/// `PendingImportSourceState`.
+#[tauri::command(async)]
+pub fn switch_docx_import_shape(
+    app: tauri::AppHandle,
+    shape: String,
+    source_lang: String,
+    chapter_pattern: Option<super::ChapterPatternWire>,
+) -> Result<super::DocxImportPreviewWire, IpcError> {
+    use tauri::Manager as _;
+    let Some(state) = app.try_state::<PendingImportSourceState>() else {
+        return Err(no_pending_import_source());
+    };
+    let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
+    let Some(shape) = super::docx_shape_from_wire(&shape) else {
+        return Err(no_pending_import_source());
+    };
+    let wire = super::switch_docx_import_shape(
+        &state,
+        shape,
+        &source_lang,
+        &|destination| resolve_cleanup_rules_for(&app, destination),
+        pattern.as_ref(),
+    )?;
+    reset_tier2_block_overrides(&app);
+    reset_chapter_origin_overrides(&app);
+    Ok(wire)
 }
 
 /// Vỏ IPC — DỰNG LẠI màn xem trước song ngữ trên nguồn ĐANG CHỜ (Story 6.16, FR115), cho

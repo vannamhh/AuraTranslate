@@ -123,3 +123,27 @@ ${extra}  </w:body>
     { name: 'word/media/image1.png', data: TINY_PNG },
   ])
 }
+
+function documentZip(bodyXml) {
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+${bodyXml}  </w:body>
+</w:document>`
+  return buildStoreZip([{ name: 'word/document.xml', data: Buffer.from(documentXml, 'utf8') }])
+}
+
+const paragraphXml = (text) => `    <w:p><w:r><w:t>${text}</w:t></w:r></w:p>\n`
+
+/** A `.docx` of paragraphs only, no table. */
+export function buildPlainDocx(paragraphs = ['Doan mot khong bang.', 'Doan hai ket thuc cau nay.']) {
+  return documentZip(paragraphs.map(paragraphXml).join(''))
+}
+
+/** A `.docx` whose whole text sits in one table; `rows` is `[[source, target], …]`. */
+export function buildDocxWithTable(rows) {
+  const cell = (text) => `<w:tc><w:tcPr><w:tcW w:w="2400" w:type="dxa"/></w:tcPr>${paragraphXml(text).trim()}</w:tc>`
+  const grid = `<w:tblGrid>${rows[0].map(() => '<w:gridCol w:w="2400"/>').join('')}</w:tblGrid>`
+  const body = rows.map((row) => `<w:tr>${row.map(cell).join('')}</w:tr>`).join('')
+  return documentZip(`    <w:tbl><w:tblPr/>${grid}${body}</w:tbl>\n`)
+}

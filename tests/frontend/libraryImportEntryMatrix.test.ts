@@ -15,6 +15,8 @@ import { seedGenres } from './support/genreSeed'
 const previewFileMock = vi.fn()
 const previewTextMock = vi.fn()
 const previewBilingualMock = vi.fn()
+const previewDocxMock = vi.fn()
+const switchDocxMock = vi.fn()
 const pickFilesMock = vi.fn()
 const mockInvoke = vi.fn()
 
@@ -25,6 +27,8 @@ vi.mock('../../src/config/project', async (importOriginal) => {
     previewImportEncodingFromFile: (...args: unknown[]) => previewFileMock(...args),
     previewImportEncodingFromText: (...args: unknown[]) => previewTextMock(...args),
     previewBilingualImportFromFile: (...args: unknown[]) => previewBilingualMock(...args),
+    previewDocxImport: (...args: unknown[]) => previewDocxMock(...args),
+    switchDocxImportShape: (...args: unknown[]) => switchDocxMock(...args),
   }
 })
 
@@ -33,8 +37,8 @@ vi.mock('../../src/config/library', async (importOriginal) => {
   return {
     ...actual,
     pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
-    classifyImportPaths: async (paths: string[], docx: string[]) => ({
-      classification: fakeClassification(paths, docx),
+    classifyImportPaths: async (paths: string[]) => ({
+      classification: fakeClassification(paths),
       error: null,
     }),
   }
@@ -87,6 +91,8 @@ async function open() {
   previewFileMock.mockReset()
   previewTextMock.mockReset()
   previewBilingualMock.mockReset()
+  previewDocxMock.mockReset()
+  switchDocxMock.mockReset()
   pickFilesMock.mockReset()
   mockInvoke.mockImplementation((cmd: string) =>
     cmd === 'library_list_works'
@@ -208,23 +214,177 @@ describe('Tệp tab — mixed kinds, bilingual limits and unsupported rows', () 
     expect(previewBilingualMock.mock.calls[0][0]).toBe('/d/song-ngu.csv')
   })
 
-  it('a .docx row carries "Đọc như song ngữ", off by default; on, it counts as bilingual and the one-kind rule applies', async () => {
+  it('a lone .docx row reads ".docx, dò khi xem trước" with no toggle; beside another file it is a text row', async () => {
     const { nhap, view } = await open()
     await pick(nhap, ['/d/bang.docx'])
-    expect(nhap.importFilesVerdict.value).toBe('text')
-    const toggle = view.get('[data-import-file-path="/d/bang.docx"] input[type="checkbox"]')
-    expect((toggle.element as HTMLInputElement).checked).toBe(false)
-
-    await toggle.setValue(true)
-    await flushPromises()
-    expect(nhap.importFilesVerdict.value).toBe('bilingual')
-    expect(rows(view)[0].attributes('data-import-file-kind')).toBe('bilingual')
+    expect(nhap.importFilesVerdict.value).toBe('docx')
+    expect(rows(view)[0].text()).toContain('.docx, dò khi xem trước')
+    expect(view.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(primary(view).disabled).toBe(false)
 
     await pick(nhap, ['/d/more.txt'])
-    expect(nhap.importFilesVerdict.value).toBe('mixed_kinds')
-    expect(rows(view)[0].attributes('data-import-file-problem')).toBe('kind_mismatch')
-    expect(view.find('[data-import-file-path="/d/more.txt"] input[type="checkbox"]').exists()).toBe(false)
-    expect(primary(view).disabled).toBe(true)
+    expect(nhap.importFilesVerdict.value).toBe('text')
+    expect(rows(view)[0].attributes('data-import-file-kind')).toBe('text')
+  })
+
+  const fakeBilingualPreview = {
+    confidence: 'self_declared',
+    selected_encoding: 'UTF-8',
+    candidates: [],
+    sample_rows: [],
+    row_count: 0,
+    column_count: 2,
+    source_tables: [],
+    table_index: 0,
+    table_choice_required: false,
+  }
+  const textAnswer = { shape: 'text', text: batchFor(['/d/bang.docx']).batch, bilingual: null }
+  const bilingualAnswer = { shape: 'bilingual', text: null, bilingual: fakeBilingualPreview }
+
+  it('a lone .docx opens the preview the single Rust answer names, without the old per-shape wires', async () => {
+    const { nhap, view } = await open()
+    const text = await import('../../src/importPreviewState')
+    const bilingual = await import('../../src/bilingualImportPreviewState')
+    await pick(nhap, ['/d/bang.docx'])
+
+    previewDocxMock.mockResolvedValue({ response: bilingualAnswer, error: null })
+    await view.get('[data-import-preview-open]').trigger('click')
+    await flushPromises()
+    expect(previewDocxMock).toHaveBeenCalledTimes(1)
+    expect(previewDocxMock.mock.calls[0][0]).toBe('/d/bang.docx')
+    expect(bilingual.bilingualImportPreviewIsOpen.value).toBe(true)
+    expect(bilingual.bilingualImportPreviewIsDocx.value).toBe(true)
+    expect(text.importPreviewIsOpen.value).toBe(false)
+
+    bilingual.resetBilingualImportPreview()
+    previewDocxMock.mockResolvedValue({ response: textAnswer, error: null })
+    await view.get('[data-import-preview-open]').trigger('click')
+    await flushPromises()
+    expect(text.importPreviewIsOpen.value).toBe(true)
+    expect(text.importPreviewIsDocx.value).toBe(true)
+    expect(bilingual.bilingualImportPreviewIsOpen.value).toBe(false)
+    expect(previewFileMock).not.toHaveBeenCalled()
+    expect(previewBilingualMock).not.toHaveBeenCalled()
+  })
+
+  it('Tự dò on a bilingual .docx opens nothing and shows the needs-language error; picking a language and pressing again opens it', async () => {
+    const { nhap, view } = await open()
+    const bilingual = await import('../../src/bilingualImportPreviewState')
+    await pick(nhap, ['/d/bang.docx'])
+    nhap.sourceLang.value = 'auto'
+    previewDocxMock.mockResolvedValue({
+      response: null,
+      error: {
+        code: 'import.bilingual_needs_source_lang',
+        message_key: 'err.import.bilingual_needs_source_lang',
+        params: {},
+        retryable: false,
+      },
+    })
+    await view.get('[data-import-preview-open]').trigger('click')
+    await flushPromises()
+    expect(nhap.lastError.value?.code).toBe('import.bilingual_needs_source_lang')
+    expect(bilingual.bilingualImportPreviewIsOpen.value).toBe(false)
+
+    nhap.sourceLang.value = 'zh'
+    previewDocxMock.mockResolvedValue({ response: bilingualAnswer, error: null })
+    await view.get('[data-import-preview-open]').trigger('click')
+    await flushPromises()
+    expect(previewDocxMock).toHaveBeenCalledTimes(2)
+    expect(previewDocxMock.mock.calls[1][1]).toBe('zh')
+    expect(bilingual.bilingualImportPreviewIsOpen.value).toBe(true)
+  })
+
+  it('flipping the switch twice swaps the overlays and back, keeping Name, language, genre and destination, without choosing the file again', async () => {
+    const { nhap, view } = await open()
+    const text = await import('../../src/importPreviewState')
+    const bilingual = await import('../../src/bilingualImportPreviewState')
+    await pick(nhap, ['/d/bang.docx'])
+    nhap.setDestinationMode('existing')
+    nhap.setDestinationWorkId('w-1')
+    await flushPromises()
+    previewDocxMock.mockResolvedValue({ response: textAnswer, error: null })
+    await view.get('[data-import-preview-open]').trigger('click')
+    await flushPromises()
+    expect(text.importPreviewIsOpen.value).toBe(true)
+
+    switchDocxMock.mockResolvedValue({ response: bilingualAnswer, error: null })
+    await nhap.switchDocxPreviewShape('bilingual')
+    await flushPromises()
+    expect(switchDocxMock).toHaveBeenLastCalledWith('bilingual', 'zh', null)
+    expect(bilingual.bilingualImportPreviewIsOpen.value).toBe(true)
+    expect(text.importPreviewIsOpen.value).toBe(false)
+    expect(bilingual.bilingualImportPreviewPendingName.value).toBe('Kiem Lai')
+    expect(bilingual.bilingualImportPreviewPendingGenre.value).toBe('action')
+    expect(bilingual.bilingualImportPreviewDestinationWorkId.value).toBe('w-1')
+    expect(bilingual.bilingualImportPreviewPendingSourceLang.value).toBe('zh')
+
+    switchDocxMock.mockResolvedValue({ response: textAnswer, error: null })
+    await nhap.switchDocxPreviewShape('text')
+    await flushPromises()
+    expect(switchDocxMock).toHaveBeenLastCalledWith('text', 'zh', null)
+    expect(text.importPreviewIsOpen.value).toBe(true)
+    expect(bilingual.bilingualImportPreviewIsOpen.value).toBe(false)
+    expect(text.importPreviewPendingName.value).toBe('Kiem Lai')
+    expect(text.importPreviewPendingGenre.value).toBe('action')
+    expect(text.importPreviewDestinationWorkId.value).toBe('w-1')
+    expect(previewDocxMock).toHaveBeenCalledTimes(1)
+    expect(previewFileMock).not.toHaveBeenCalled()
+  })
+
+  it('with Tự dò, the text → bilingual switch sends the language the text preview detected, not auto', async () => {
+    const { nhap, view } = await open()
+    await pick(nhap, ['/d/bang.docx'])
+    nhap.sourceLang.value = 'auto'
+    const detected = {
+      shape: 'text',
+      bilingual: null,
+      text: {
+        items: [{ path: '/d/bang.docx', ok: true, byte_len: 10, error: null }],
+        encoding_preview: {
+          source_lang: 'zh',
+          source_lang_auto: true,
+          confidence: 'high',
+          selected_encoding: 'UTF-8',
+          candidates: [],
+          self_declared_normalized: null,
+          self_declared_cleanup: null,
+          self_declared_chapters: null,
+        },
+      },
+    }
+    previewDocxMock.mockResolvedValue({ response: detected, error: null })
+    await view.get('[data-import-preview-open]').trigger('click')
+    await flushPromises()
+    expect(previewDocxMock.mock.calls[0][1]).toBe('auto')
+
+    switchDocxMock.mockResolvedValue({ response: bilingualAnswer, error: null })
+    await nhap.switchDocxPreviewShape('bilingual')
+    await flushPromises()
+    expect(switchDocxMock).toHaveBeenLastCalledWith('bilingual', 'zh', null)
+  })
+
+  it('a refused switch keeps the shown preview and reports the error beside the switch', async () => {
+    const { nhap, view } = await open()
+    const text = await import('../../src/importPreviewState')
+    await pick(nhap, ['/d/bang.docx'])
+    nhap.sourceLang.value = 'zh'
+    previewDocxMock.mockResolvedValue({ response: textAnswer, error: null })
+    await view.get('[data-import-preview-open]').trigger('click')
+    await flushPromises()
+
+    const refusal = {
+      code: 'import.bilingual_no_table',
+      message_key: 'err.import.bilingual_no_table',
+      params: {},
+      retryable: false,
+    }
+    switchDocxMock.mockResolvedValue({ response: null, error: refusal })
+    await nhap.switchDocxPreviewShape('bilingual')
+    await flushPromises()
+    expect(text.importPreviewIsOpen.value).toBe(true)
+    expect(text.importPreviewDocxSwitchError.value?.code).toBe('import.bilingual_no_table')
+    expect(text.importPreviewDocxSwitchBusy.value).toBe(false)
   })
 
   it('a .txt row has no toggle', async () => {
