@@ -1,11 +1,5 @@
 <script setup lang="ts">
-// Dải "Chờ chốt lần đầu gặp" — Story 3.6, FR114.
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 DẢI, KHÔNG PANEL — chèn ở CHÂN WORKSPACE, ngay dưới `<GlossaryQuickAdd />` và ngay
-// trên `<StatusBar />` (App.vue) — cùng slot, cùng khuôn `GlossaryQuickAdd.vue:1-13`.
-// ─────────────────────────────────────────────────────────────────────────────
-// Nó KHÔNG đăng ký `FocusOwner` (`commands/index.ts::FOCUS_OWNERS` — dải không thêm vào
+// Dải chờ chốt KHÔNG đăng ký `FocusOwner` (`commands/index.ts::FOCUS_OWNERS` — dải không thêm vào
 // đó, nó không phải panel — tiền lệ `GlossaryQuickAdd.vue:12-13`).
 //
 // `v-if` TỰ QUẢN qua `topmostStrip(...) === 'glossary_confirm'` — sổ ưu tiên
@@ -20,7 +14,6 @@ import { t, tError } from './i18n'
 import {
   aimGlossaryConfirmOption,
   confirmStripAimedOption,
-  confirmStripCategory,
   confirmStripEmptyInputError,
   confirmStripFocusRequest,
   confirmStripIsOpen,
@@ -30,7 +23,6 @@ import {
   confirmStripSaving,
   confirmStripSourceTerm,
   confirmStripSuggestionStatus,
-  confirmStripTermOrigin,
   confirmStripTier,
   confirmStripTmError,
   confirmStripTmHiddenCount,
@@ -97,30 +89,13 @@ const statusMessageId = computed<string | undefined>(() =>
 const translationInputEl = useTemplateRef<HTMLInputElement>('translationInputEl')
 const root = useTemplateRef<HTMLElement>('root')
 
-const metaText = computed(() =>
+const occurrenceText = computed<string | null>(() =>
   confirmStripOccurrenceCount.value === null
-    ? t('glossary.confirm.meta_pending')
+    ? null
     : t('glossary.confirm.meta_occurrences', { count: String(confirmStripOccurrenceCount.value) }),
 )
 
-const ORIGIN_KEYS: Readonly<Partial<Record<string, string>>> = {
-  manual: 'glossary.manage.origin_manual',
-  import_scan: 'glossary.manage.origin_import_scan',
-  review_harvest: 'glossary.manage.origin_review_harvest',
-  file_import: 'glossary.manage.origin_file_import',
-}
-
-const originLine = computed(() => {
-  const parts: string[] = []
-  const originKey = ORIGIN_KEYS[confirmStripTermOrigin.value ?? '']
-  if (originKey !== undefined) parts.push(t('glossary.confirm.origin_clause', { term_origin: t(originKey) }))
-  if (confirmStripCategory.value !== null) {
-    parts.push(
-      t('glossary.confirm.category_clause', { category: t(`glossary.manage.category_${confirmStripCategory.value}`) }),
-    )
-  }
-  return parts.join(' · ')
-})
+const noticeShown = computed(() => confirmStripUndo.value !== null || confirmStripUndoError.value !== null)
 
 const undoChord = computed(() => {
   const row = shortcutRows.value.find((r) => r.id === 'glossary.confirm.undo')
@@ -171,140 +146,142 @@ watch(confirmStripFocusRequest, () => {
 </script>
 
 <template>
-  <div
-    v-if="confirmStripUndo !== null || confirmStripUndoError !== null"
-    class="gcs-done"
-    role="status"
-    data-glossary-confirm-done
-  >
-    <template v-if="confirmStripUndo !== null">
-      <!-- aura-allow-text: result of t() over user data. -->
-      <span class="gcs-done-text">
-        {{ t('glossary.confirm.done', { source_term: confirmStripUndo.sourceTerm, translation: confirmStripUndo.translation }) }}
-      </span>
-      <button
-        type="button"
-        class="gcs-act gcs-undo ui-btn ui-btn--quiet"
-        :disabled="confirmStripUndoing"
-        @click="dispatch('glossary.confirm.undo')"
-      >
-        <!-- aura-allow-text: result of t() computed in the script. -->
-        {{ undoLabel }}
-      </button>
-      <!-- aura-allow-text: the user's bound chord. -->
-      <kbd v-if="undoChord !== null" class="gcs-key">{{ undoChord }}</kbd>
-    </template>
-    <span v-if="confirmStripUndoError !== null" class="gcs-error" role="alert">
-      {{ tError(confirmStripUndoError) }}
-    </span>
-  </div>
-  <form
-    v-if="isVisible"
-    ref="root"
-    class="glossary-confirm-strip"
-    tabindex="-1"
-    :aria-label="t('glossary.confirm.title', { source_term: confirmStripSourceTerm ?? '' })"
-    @submit.prevent="dispatch('glossary.confirm.save')"
-    @keydown.esc.prevent="dispatch('glossary.confirm.defer')"
-    @keydown="onKeydown"
-  >
-    <fieldset class="gcs-fieldset" :disabled="confirmStripSaving">
-      <div class="gcs-row gcs-title-row">
-        <!-- aura-allow-text: the Glossary source term, user data. -->
-        <span class="gcs-title">{{ confirmStripSourceTerm }}</span>
-        <!-- aura-allow-text: result of t(). -->
-        <span class="gcs-tier">
-          {{ confirmStripTier === 'work' ? t('glossary.quick_add.tier_work') : t('glossary.quick_add.tier_global') }}
+  <div v-if="noticeShown || isVisible" class="gcs-popup">
+    <div
+      v-if="noticeShown"
+      class="gcs-done"
+      role="status"
+      data-glossary-confirm-done
+    >
+      <template v-if="confirmStripUndo !== null">
+        <!-- aura-allow-text: result of t() over user data. -->
+        <span class="gcs-done-text">
+          {{ t('glossary.confirm.done', { source_term: confirmStripUndo.sourceTerm, translation: confirmStripUndo.translation }) }}
         </span>
-        <!-- aura-allow-text: result of t() computed in the script. -->
-        <span class="gcs-occurrence">{{ metaText }}</span>
-        <!-- aura-allow-text: result of t() computed in the script. -->
-        <span v-if="originLine !== ''" class="gcs-origin">{{ originLine }}</span>
-      </div>
+        <button
+          type="button"
+          class="gcs-act gcs-undo ui-btn ui-btn--quiet"
+          :disabled="confirmStripUndoing"
+          @click="dispatch('glossary.confirm.undo')"
+        >
+          <!-- aura-allow-text: result of t() computed in the script. -->
+          {{ undoLabel }}
+        </button>
+        <!-- aura-allow-text: the user's bound chord. -->
+        <kbd v-if="undoChord !== null" class="gcs-key">{{ undoChord }}</kbd>
+      </template>
+      <span v-if="confirmStripUndoError !== null" class="gcs-error" role="alert">
+        {{ tError(confirmStripUndoError) }}
+      </span>
+    </div>
+    <form
+      v-if="isVisible"
+      ref="root"
+      class="glossary-confirm-strip"
+      tabindex="-1"
+      :aria-label="t('glossary.confirm.title', { source_term: confirmStripSourceTerm ?? '' })"
+      @submit.prevent="dispatch('glossary.confirm.save')"
+      @keydown.esc.prevent="dispatch('glossary.confirm.defer')"
+      @keydown="onKeydown"
+    >
+      <fieldset class="gcs-fieldset" :disabled="confirmStripSaving">
+        <div class="gcs-row gcs-title-row">
+          <!-- aura-allow-text: the Glossary source term, user data. -->
+          <span class="gcs-title">{{ confirmStripSourceTerm }}</span>
+          <!-- aura-allow-text: result of t(). -->
+          <span class="gcs-tier">
+            {{ confirmStripTier === 'work' ? t('glossary.quick_add.tier_work') : t('glossary.quick_add.tier_global') }}
+          </span>
+          <!-- aura-allow-text: result of t() computed in the script. -->
+          <span v-if="occurrenceText !== null" class="gcs-occurrence">{{ occurrenceText }}</span>
+        </div>
 
-      <ol v-if="confirmStripOptions.length > 0" class="gcs-options">
-        <li v-for="(option, i) in confirmStripOptions" :key="option.text">
-          <button
-            type="button"
-            class="gcs-option"
-            :class="{ 'gcs-option-aimed': i === confirmStripAimedOption }"
-            :aria-keyshortcuts="String(i + 1)"
-            @focus="aimGlossaryConfirmOption(i)"
-            @mousedown="aimGlossaryConfirmOption(i)"
-            @click="dispatch('glossary.confirm.save')"
-          >
-            <!-- aura-allow-text: the option's ordinal, not a sentence. -->
-            <kbd class="gcs-key">{{ i + 1 }}</kbd>
-            <!-- aura-allow-text: a proposed translation, user or dictionary data. -->
-            <span class="gcs-option-text">{{ option.text }}</span>
-            <!-- aura-allow-text: result of t() computed in the script. -->
-            <span class="gcs-option-source">{{ optionSource(option) }}</span>
-          </button>
-        </li>
-      </ol>
+        <ol v-if="confirmStripOptions.length > 0" class="gcs-options">
+          <li v-for="(option, i) in confirmStripOptions" :key="option.text">
+            <button
+              type="button"
+              class="gcs-option"
+              :class="{ 'gcs-option-aimed': i === confirmStripAimedOption }"
+              :aria-keyshortcuts="String(i + 1)"
+              @focus="aimGlossaryConfirmOption(i)"
+              @mousedown="aimGlossaryConfirmOption(i)"
+              @click="dispatch('glossary.confirm.save')"
+            >
+              <!-- aura-allow-text: the option's ordinal, not a sentence. -->
+              <kbd class="gcs-key">{{ i + 1 }}</kbd>
+              <!-- aura-allow-text: a proposed translation, user or dictionary data. -->
+              <span class="gcs-option-text">{{ option.text }}</span>
+              <!-- aura-allow-text: result of t() computed in the script. -->
+              <span class="gcs-option-source">{{ optionSource(option) }}</span>
+            </button>
+          </li>
+        </ol>
 
-      <p v-if="confirmStripTmHiddenCount > 0" class="gcs-origin" role="status" data-tm-hidden-note>
-        {{ t('tm.policy.hidden_note', { count: String(confirmStripTmHiddenCount) }) }}
-      </p>
+        <p v-if="confirmStripTmHiddenCount > 0" class="gcs-note" role="status" data-tm-hidden-note>
+          {{ t('tm.policy.hidden_note', { count: String(confirmStripTmHiddenCount) }) }}
+        </p>
 
-      <label class="gcs-field">
-        <span class="gcs-field-label">{{ t('glossary.confirm.translation_label') }}</span>
         <input
           ref="translationInputEl"
           v-model="confirmStripTranslationInput"
           type="text"
           class="gcs-input ui-field"
           autocomplete="off"
+          :aria-label="t('glossary.confirm.translation_label')"
           :placeholder="t('glossary.confirm.type_other_placeholder')"
           :aria-describedby="statusMessageId"
           @focus="aimGlossaryConfirmOption(null)"
           @input="aimGlossaryConfirmOption(null)"
         />
-      </label>
 
-      <p v-if="confirmStripTmError !== null" class="gcs-status gcs-error" role="alert">
-        {{ tError(confirmStripTmError) }}
-      </p>
-      <p v-if="confirmStripSaveError !== null" id="gcs-status-msg" class="gcs-status gcs-error" role="alert">
-        {{ tError(confirmStripSaveError) }}
-      </p>
-      <p v-else-if="confirmStripEmptyInputError" id="gcs-status-msg" class="gcs-status gcs-error" role="alert">
-        {{ t('glossary.confirm.empty_error') }}
-      </p>
-      <p v-else-if="confirmStripSaving" id="gcs-status-msg" class="gcs-status" role="status">
-        {{ t('glossary.confirm.saving') }}
-      </p>
-      <p
-        v-else-if="confirmStripSuggestionStatus === 'dict_unavailable'"
-        id="gcs-status-msg"
-        class="gcs-status"
-        role="status"
-      >
-        {{ t('glossary.confirm.suggestion_unavailable') }}
-      </p>
+        <p v-if="confirmStripTmError !== null" class="gcs-status gcs-error" role="alert">
+          {{ tError(confirmStripTmError) }}
+        </p>
+        <p v-if="confirmStripSaveError !== null" id="gcs-status-msg" class="gcs-status gcs-error" role="alert">
+          {{ tError(confirmStripSaveError) }}
+        </p>
+        <p v-else-if="confirmStripEmptyInputError" id="gcs-status-msg" class="gcs-status gcs-error" role="alert">
+          {{ t('glossary.confirm.empty_error') }}
+        </p>
+        <p v-else-if="confirmStripSaving" id="gcs-status-msg" class="gcs-status" role="status">
+          {{ t('glossary.confirm.saving') }}
+        </p>
+        <p
+          v-else-if="confirmStripSuggestionStatus === 'dict_unavailable'"
+          id="gcs-status-msg"
+          class="gcs-status"
+          role="status"
+        >
+          {{ t('glossary.confirm.suggestion_unavailable') }}
+        </p>
 
-      <div class="gcs-row gcs-actions">
-        <button type="submit" class="gcs-act gcs-act-primary ui-btn ui-btn--primary">{{ t('glossary.confirm.save') }}</button>
-        <button type="button" class="gcs-act ui-btn" @click="dispatch('glossary.confirm.defer')">
-          {{ t('glossary.confirm.defer') }}
-        </button>
-        <span class="gcs-status">{{ t('glossary.confirm.defer_hint') }}</span>
-      </div>
-
-      <p class="gcs-status gcs-why">{{ t('glossary.confirm.rag_note') }}</p>
-    </fieldset>
-  </form>
+        <div class="gcs-row gcs-actions">
+          <button type="submit" class="gcs-act gcs-act-primary ui-btn ui-btn--primary">{{ t('glossary.confirm.save') }}</button>
+          <button type="button" class="gcs-act ui-btn" @click="dispatch('glossary.confirm.defer')">
+            {{ t('glossary.confirm.defer') }}
+          </button>
+          <span class="gcs-status">{{ t('glossary.confirm.defer_hint') }}</span>
+        </div>
+      </fieldset>
+    </form>
+  </div>
 </template>
 
 <style scoped>
+.gcs-popup {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-default);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+
 .gcs-done {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
-  padding: 13px 14px 14px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
-  border-top: 1px solid var(--color-outline);
-  background: var(--color-surface);
+  padding: 14px;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -315,27 +292,25 @@ watch(confirmStripFocusRequest, () => {
   font-weight: var(--weight-ui-md-strong);
 }
 
-/*
- * AC — dải ĐẨY nội dung workspace lên, không phủ lên nó: KHÔNG `position: fixed`, KHÔNG
- * `z-index`, KHÔNG `box-shadow` — cùng khuôn `GlossaryQuickAdd.vue`. Màu và cỡ chữ CHỈ qua
- * token (`check:tokens` Kiểm B/B2/F).
- */
 .glossary-confirm-strip {
   display: flex;
   flex-direction: column;
   gap: var(--space-panel-block);
-  padding: 13px 14px 14px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
-  border-top: 1px solid var(--color-outline);
-  background: var(--color-surface);
+  padding: 14px;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
 }
 
+.gcs-done + .glossary-confirm-strip {
+  padding-top: 13px; /* aura-allow-spacing: 1px divider sits inside the 14px inset */
+  border-top: 1px solid var(--color-outline);
+}
+
 .glossary-confirm-strip:focus-visible {
-  outline: none;
-  border-top-color: var(--color-primary);
+  border-radius: var(--radius-default);
+  outline: 1px solid var(--color-primary);
 }
 
 .gcs-fieldset {
@@ -373,22 +348,7 @@ watch(confirmStripFocusRequest, () => {
   color: var(--color-on-surface-variant);
 }
 
-.gcs-field {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  flex: 1;
-  min-width: 8rem;
-}
-
-.gcs-field-label {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.gcs-origin {
+.gcs-note {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -441,10 +401,6 @@ watch(confirmStripFocusRequest, () => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.gcs-why {
-  margin: 0;
 }
 
 .gcs-status {

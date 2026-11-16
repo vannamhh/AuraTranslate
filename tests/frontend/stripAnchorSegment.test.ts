@@ -136,14 +136,23 @@ describe('inlineStripAnchorSegmentId', () => {
 })
 
 describe('stripTrackFloats', () => {
-  it('floats the track only while the TM strip wins', () => {
+  it('floats the track while the TM strip wins and stays flat while Quick Add wins', () => {
     expect(stripTrackFloats.value).toBe(false)
     tmEligible.value = true
     tmSegmentId.value = 5
     expect(stripTrackFloats.value).toBe(true)
+    quickAddOpen.value = true
+    expect(stripTrackFloats.value).toBe(false)
+  })
+
+  it('floats the Glossary confirm strip and its confirmed notice as a popup', () => {
     confirmOpen.value = true
     caret.value = 9
-    expect(stripTrackFloats.value).toBe(false)
+    expect(stripTrackFloats.value).toBe(true)
+    confirmOpen.value = false
+    confirmNotice.value = true
+    confirmNoticeSegment.value = 9
+    expect(stripTrackFloats.value).toBe(true)
   })
 
   it('floats a Proofreader strip on the caret sentence as a popup', () => {

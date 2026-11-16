@@ -338,7 +338,7 @@ describe('`.gcs-occurrence` — số lần chỉ hiện khi `occurrence_count` K
     wrapper.unmount()
   })
 
-  it('mục nhập tay/nhập CSV (occurrence_count là `null`) ⇒ chỉ "chờ chốt bản dịch", không phải "0 lần" giả', async () => {
+  it('mục nhập tay/nhập CSV (occurrence_count là `null`) ⇒ không in số lần, không phải "0 lần" giả', async () => {
     const { marksState, i18n, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
     const segs: Segment[] = [{ id: 1, source_text: '萧炎登场' }]
     segments.value = segs
@@ -354,7 +354,8 @@ describe('`.gcs-occurrence` — số lần chỉ hiện khi `occurrence_count` K
     const wrapper = mount(GlossaryConfirmStrip)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.get('.gcs-occurrence').text()).toBe(i18n.t('glossary.confirm.meta_pending'))
+    expect(wrapper.find('.gcs-occurrence').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain(i18n.t('glossary.confirm.meta_occurrences', { count: '0' }))
     wrapper.unmount()
   })
 })

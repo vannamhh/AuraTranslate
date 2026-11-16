@@ -68,10 +68,16 @@ export const proofreaderStripPlace = computed<ProofreaderStripPlace | null>(() =
   return editorCaretSegmentId.value === null ? null : 'track'
 })
 
-/** The TM and Proofreader strips float over the rows below their anchor instead of pushing them down. */
+/** Every grid-track strip floats over the rows below its anchor instead of pushing them down. */
 export const stripTrackFloats = computed(() => {
   const top = topmostStrip(eligibleInlineStrips.value)
-  return top === 'tm_fuzzy' || top === 'proofreader' || top === 'convention' || top === 'proofreader_summary'
+  return (
+    top === 'glossary_confirm' ||
+    top === 'tm_fuzzy' ||
+    top === 'proofreader' ||
+    top === 'convention' ||
+    top === 'proofreader_summary'
+  )
 })
 
 /** Segment whose row the winning strip grows under; `null` when no strip takes a grid track. */

@@ -40,7 +40,6 @@ import {
   unconfirmGlossaryTranslation,
 } from './config/glossary'
 import type {
-  GlossaryCategory,
   GlossaryMark,
   GlossaryTierWire,
   GlossaryTmSuggestion,
@@ -66,8 +65,6 @@ type CurrentTarget = {
   hanVietSuggestion: string | null
   hanVietStatus: HanVietSuggestionStatus
   occurrenceCount: number | null
-  termOrigin: string
-  category: GlossaryCategory
 }
 
 /**
@@ -174,8 +171,6 @@ export const confirmStripSourceTerm = computed<string | null>(() => current.valu
 export const confirmStripSuggestionStatus = computed<HanVietSuggestionStatus | null>(
   () => current.value?.hanVietStatus ?? null,
 )
-export const confirmStripTermOrigin = computed<string | null>(() => current.value?.termOrigin ?? null)
-export const confirmStripCategory = computed<GlossaryCategory | null>(() => current.value?.category ?? null)
 export const confirmStripTmHiddenCount: DeepReadonly<Ref<number>> = readonly(tmHiddenCount)
 export const confirmStripTmError: DeepReadonly<Ref<IpcError | null>> = readonly(tmSuggestionError)
 export const confirmStripOptions = computed<ConfirmStripOption[]>(() => {
@@ -261,8 +256,6 @@ function selectPendingSpan(
         hanVietSuggestion: next.hanVietSuggestion,
         hanVietStatus: next.hanVietStatus,
         occurrenceCount: next.occurrenceCount,
-        termOrigin: next.termOrigin,
-        category: next.category,
       }
 }
 

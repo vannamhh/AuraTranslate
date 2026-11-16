@@ -233,19 +233,16 @@ describe('digit keys', () => {
 })
 
 describe('mark meta line', () => {
-  it('shows origin and category, and drops a clause it cannot name', async () => {
-    const full = await mountStrip()
-    expect(full.wrapper.get('.gcs-origin').text()).toBe('xuất xứ: Quét khi nhập · phân loại: Địa danh')
-    full.wrapper.unmount()
-
-    const unknown = await mountStrip({ mark: { term_origin: 'something_new' } })
-    expect(unknown.wrapper.get('.gcs-origin').text()).toBe('phân loại: Địa danh')
-    unknown.wrapper.unmount()
+  it('names neither origin nor category', async () => {
+    const { wrapper } = await mountStrip()
+    expect(wrapper.text()).not.toContain('Quét khi nhập')
+    expect(wrapper.text()).not.toContain('Địa danh')
+    wrapper.unmount()
   })
 
-  it('shows the occurrence count inside the pending line', async () => {
+  it('shows the occurrence count beside the term', async () => {
     const { wrapper } = await mountStrip()
-    expect(wrapper.get('.gcs-occurrence').text()).toBe('chờ chốt bản dịch · xuất hiện 644 lần trong Tác phẩm')
+    expect(wrapper.get('.gcs-title-row .gcs-occurrence').text()).toBe('644 lần trong Tác phẩm')
     wrapper.unmount()
   })
 })
