@@ -2,20 +2,12 @@
  * Thêm Chương… in the real webview: the Work card's `⋯` menu opens the import overlay with
  * Đưa vào = that Work and the three fields locked to its values.
  */
-import { createWorkThroughForm } from '../support/importForm.mjs'
+import { createWorkThroughForm, waitLibraryReady } from '../support/importForm.mjs'
 import { aimWork, openAimedWork } from '../support/libraryGrid.mjs'
 import { realClick } from '../support/pointer.mjs'
 
 const OPEN_BTN = '[data-library-import-open]'
 const PANEL = '.li-panel'
-
-async function ready() {
-  await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
-    timeout: 30_000,
-    interval: 250,
-  })
-  await $(OPEN_BTN).waitForDisplayed({ timeout: 30_000 })
-}
 
 // The paste helper creates a Work with no genre; the overlay keeps a picked genre and language across a close.
 async function pickGenreThenClose() {
@@ -68,7 +60,7 @@ describe('Story 6-27: Thêm Chương… on the Work card', () => {
   let picked
 
   it('opens the overlay on Tác phẩm đã có with the Work picked and its fields disabled', async () => {
-    await ready()
+    await waitLibraryReady()
     picked = await pickGenreThenClose()
     await createWorkThroughForm('Kiếm Lai 627')
     await $('[data-library-work-name]').waitForDisplayed({ timeout: 30_000 })

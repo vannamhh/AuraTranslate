@@ -83,6 +83,8 @@ import { aiTranslateActivity, aiTranslateActivityError } from './config/aiTransl
 import { QUICK_AUTO_WAIT_MS } from './glossaryQueueState'
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
+import { importFileName } from './importFormat'
+import type { DocxCarry } from './importPreview/docxCarry'
 
 /**
  * Vị từ *"…HasLoaded"* — BỐN trạng thái, cùng khuôn `GlossaryImportStatus`:
@@ -169,7 +171,7 @@ const pendingGenre = ref('')
 
 /**
  * Nhánh đã mở lượt xem trước ĐANG HIỆN — `libraryImport.ts::finishImportSubmission` đọc ô
- * này để biết xoá `pastedText` hay `filePath` sau một lượt xác nhận THÀNH CÔNG.
+ * này để biết xoá `pastedText` hay danh sách tệp sau một lượt xác nhận THÀNH CÔNG.
  *
  * 🔴 **SỐNG Ở ĐÂY, không ở `libraryImport.ts`** (sửa 2026-09-04, phản biện Ice) — bản đầu
  * đặt ô này trong `libraryImport.ts` làm module đó cần một MIỄN TRỪ `check:panel-refs` (file
@@ -633,7 +635,7 @@ watch([overlayOpen, status, preview, selectedEncoding, confirming], scheduleGlos
 /** Names of the files behind a `'file'` source, in the order they were submitted. */
 export const importPreviewSourceFileNames = computed<string[]>(() => {
   if (lastSubmittedFrom.value !== 'file') return []
-  return pendingPaths.value.map((path) => path.split(/[\\/]/).pop() ?? path)
+  return pendingPaths.value.map(importFileName)
 })
 
 /** Total size of a `'file'` source; `null` when any file's size is unknown. */
@@ -2957,15 +2959,7 @@ export function resetImportPreview(): void {
   docxSwitchError.value = null
 }
 
-/** What the docx shape switch carries to the other preview. */
-export function importPreviewDocxCarry(): {
-  name: string
-  sourceLang: string
-  genre: string
-  destinationWorkId: string | null
-  path: string
-  chapterPattern: ChapterPatternInput | null
-} | null {
+export function importPreviewDocxCarry(): DocxCarry | null {
   if (!docxSource.value || pendingPaths.value.length !== 1) return null
   return {
     name: pendingName.value,

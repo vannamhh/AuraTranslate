@@ -11,8 +11,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use auratranslate_lib::commands::project::{
-    AppendInProgressState, OpenWork, OpenWorkState, PendingImportSourceState,
-    URL_IMPORT_IMAGE_PROGRESS_EVENT, create_work_from_text, stash_pending_import_source_for, wire,
+    AppendInProgressState, ChapterOriginOverridesState, OpenWork, OpenWorkState,
+    PendingImportSourceState, Tier2BlockOverridesState, URL_IMPORT_IMAGE_PROGRESS_EVENT,
+    create_work_from_text, stash_pending_import_source_for, wire,
 };
 use auratranslate_lib::core::library::indexer::Indexer;
 use auratranslate_lib::core::scope::save_value;
@@ -354,5 +355,55 @@ fn an_append_into_the_open_work_registers_the_append_guard_while_its_images_are_
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .is_empty(),
         "sau luot goi, guard phai da nha"
+    );
+}
+
+#[test]
+fn a_lone_docx_whose_language_cannot_be_guessed_resets_the_overrides_and_keeps_nothing_pending() {
+    let h = Harness::new("docx-auto-lang");
+    h.app
+        .manage(Tier2BlockOverridesState::new(vec![Some(true)]));
+    h.app.manage(ChapterOriginOverridesState::new(vec![None]));
+    h.stash_append(
+        PipelineShape::Blob(ChapterInput::AlreadyText("Cau cu.".to_owned())),
+        None,
+        "stale",
+    );
+    let path = h.side.join("trong.docx");
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    docx_rs::Docx::new()
+        .add_paragraph(
+            docx_rs::Paragraph::new().add_run(docx_rs::Run::new().add_text("123 456 789.")),
+        )
+        .build()
+        .pack(&mut bytes)
+        .expect("dong goi docx");
+    fs::write(&path, bytes.into_inner()).expect("ghi docx");
+
+    let refused = wire::preview_import_encoding_from_file(
+        h.app.handle().clone(),
+        vec![path.display().to_string()],
+        "auto".to_owned(),
+        None,
+        None,
+    )
+    .expect_err("chi co chu so thi khong doan duoc ngon ngu");
+
+    assert_eq!(refused.code(), "import.source_lang_undetectable");
+    let pending = h.app.state::<PendingImportSourceState>();
+    assert!(pending.lock().expect("lock").is_none());
+    assert!(
+        h.app
+            .state::<Tier2BlockOverridesState>()
+            .lock()
+            .expect("lock")
+            .is_empty()
+    );
+    assert!(
+        h.app
+            .state::<ChapterOriginOverridesState>()
+            .lock()
+            .expect("lock")
+            .is_empty()
     );
 }

@@ -11,7 +11,7 @@
  * there."*
  * Tệp này đóng đúng lỗ đó: nó mô phỏng THẬT lượt kéo-thả qua bộ nghe sự kiện thật
  * (`listen()` bị giả lập để BẮT LẠI handler, rồi gọi handler đó với payload N đường dẫn —
- * không gọi tắt `droppedFilePaths.value = […]`), rồi đi tới tận `submitFilePath()`.
+ * không gọi tắt `importFiles.value = […]`), rồi đi tới tận `submitFilePath()`.
  *
  * ⚠️ Khuôn `libraryImportBlocksResubmitWhilePreviewOpen.test.ts`: gọi THẲNG các hàm module
  * (không qua DOM/`.vue`), `config/project`/`config/segment` giả lập bằng `vi.mock`.
@@ -35,16 +35,11 @@ vi.mock('../../src/config/project', async (importOriginal) => {
 const pickFilesMock = vi.fn()
 
 vi.mock('../../src/config/library', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/config/library')>()
-  const { fakeClassification } = await import('./support/importClassify')
-  return {
-    ...actual,
-    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
-    classifyImportPaths: async (paths: string[]) => ({
-      classification: fakeClassification(paths),
-      error: null,
-    }),
-  }
+  const { mockImportLibrary } = await import('./support/importClassify')
+  return mockImportLibrary(
+    importOriginal as () => Promise<typeof import('../../src/config/library')>,
+    (...args) => pickFilesMock(...args),
+  )
 })
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
@@ -103,6 +98,8 @@ async function freshModule() {
   confirmMock.mockReset()
   pickFilesMock.mockReset()
   const nhap = await import('../../src/modes/libraryImport')
+  const overlay = await import('../../src/modes/libraryImportOverlayState')
+  overlay.openLibraryImportOverlay()
   nhap.wireDragDropOnce()
   await Promise.resolve() // để `listen(...).then(...)` (microtask) đăng ký xong handler
   return nhap
@@ -179,7 +176,6 @@ describe('libraryImport — kéo-thả N tệp cùng lúc (Story 6.6b, 6.25)', (
     await nhap.chooseImportFiles()
 
     expect(listedPaths(nhap)).toEqual(['/tmp/dropped-a.txt', '/tmp/chon/a.txt', '/tmp/chon/b.md'])
-    expect(nhap.noticeKey.value).toBeNull()
     const all = listedPaths(nhap)
     previewFileMock.mockResolvedValue(batchFor(all))
     await nhap.submitFilePath()
@@ -251,6 +247,32 @@ describe('libraryImport — kéo-thả N tệp cùng lúc (Story 6.6b, 6.25)', (
     nhap.finishImportSubmission(created, null)
 
     expect(listedPaths(nhap)).toEqual([])
+  })
+
+  it('thả khi màn nhập đang đóng: danh sách Tệp, tab và lỗi giữ nguyên', async () => {
+    const nhap = await freshModule()
+    const overlay = await import('../../src/modes/libraryImportOverlayState')
+    overlay.closeLibraryImportOverlay()
+    nhap.selectImportTab('urls')
+
+    await fireDrop(['/tmp/a.txt', '/tmp/b.txt'])
+
+    expect(listedPaths(nhap)).toEqual([])
+    expect(nhap.importActiveTab.value).toBe('urls')
+    expect(nhap.lastError.value).toBeNull()
+
+    overlay.openLibraryImportOverlay()
+    expect(listedPaths(nhap)).toEqual([])
+  })
+
+  it('thả khi màn nhập đang mở: tệp vào danh sách Tệp', async () => {
+    const nhap = await freshModule()
+    nhap.selectImportTab('urls')
+
+    await fireDrop(['/tmp/a.txt', '/tmp/b.txt'])
+
+    expect(listedPaths(nhap)).toEqual(['/tmp/a.txt', '/tmp/b.txt'])
+    expect(nhap.importActiveTab.value).toBe('files')
   })
 
   it('bỏ qua phần tử thả rỗng một cách phòng thủ, không panic', async () => {

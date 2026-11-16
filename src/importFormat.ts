@@ -15,3 +15,7 @@ export function formatByteSize(bytes: number): string {
   }
   return `${value.toFixed(1).replace('.', ',')}${NBSP}${units[unit]}`
 }
+
+export function importFileName(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path
+}

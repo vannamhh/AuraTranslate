@@ -34,3 +34,27 @@ export function fakeClassification(paths: string[]): ImportClassification {
   else if (kinds.filter((k) => k === 'docx').length === 1) verdict = 'docx'
   return { files, verdict }
 }
+
+export async function mockImportLibrary(
+  importOriginal: () => Promise<typeof import('../../../src/config/library')>,
+  pickImportFiles: (...args: unknown[]) => unknown,
+): Promise<typeof import('../../../src/config/library')> {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    pickImportFiles: pickImportFiles as typeof actual.pickImportFiles,
+    classifyImportPaths: async (paths: string[]) => ({
+      classification: fakeClassification(paths),
+      error: null,
+    }),
+  }
+}
+
+export async function seedImportFiles(
+  nhap: { chooseImportFiles: () => Promise<unknown> },
+  pickFilesMock: { mockResolvedValue: (value: unknown) => unknown },
+  paths: string[],
+): Promise<void> {
+  pickFilesMock.mockResolvedValue({ classification: fakeClassification(paths), error: null })
+  await nhap.chooseImportFiles()
+}

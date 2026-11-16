@@ -20,7 +20,7 @@ use super::*;
 // `preview_import_encoding`/`confirm_import_with_encoding` (Story 6.3) đã biết xử từ
 // `chapters.first()` (xem `PipelineShape::Chapters` trong `preview_import_encoding` —
 // "danh sách URL là Story 6.7", nhánh đó viết sẵn từ Story 6.3). [`start_url_import`] vì
-// thế KHÔNG gọi [`create_work`] trực tiếp: nó `stash_pending_import_source` đúng như hai
+// thế KHÔNG gọi [`create_work`] trực tiếp: nó `stash_pending_import_source_for` đúng như hai
 // nhánh dán-văn-bản/tệp, và màn xác nhận CUỐI CÙNG đi qua [`confirm_import_with_encoding`]
 // KHÔNG ĐỔI MỘT DÒNG — dải năm ứng viên bảng mã, khối làm sạch (tầng 3), khối tách Chương
 // (tầng 4, ở đây luôn hiện ĐÚNG N Chương vì `already_chaptered = true` khiến bước 5 bỏ qua)
@@ -85,7 +85,7 @@ impl From<&UrlImportItem> for UrlImportItemWire {
 /// Progress event name for the page-fetch phase (`wire::start_url_import`).
 pub const URL_IMPORT_PAGE_PROGRESS_EVENT: &str = "url_import_page_progress";
 /// Progress event name for the image-download phase (`create_work`/
-/// `append_chapters_to_work`'s image loop, after every link has been fetched).
+/// `append_chapters_to_work_with_progress`'s image loop, after every link has been fetched).
 pub const URL_IMPORT_IMAGE_PROGRESS_EVENT: &str = "url_import_image_progress";
 
 /// Shared payload for both progress events above. `completed`/`total` count in that

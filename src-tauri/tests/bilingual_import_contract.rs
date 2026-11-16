@@ -1,6 +1,6 @@
 //! Cổng HỢP ĐỒNG của Story 6.16 (FR115, AD-39 · AD-37/46 · AD-47 ③) — nhập tài liệu song
 //! ngữ hai cột (`.csv`/`.tsv`), trên ĐÚNG đường sản phẩm (`import_bilingual_file` →
-//! `stash_pending_import_source` → `confirm_bilingual_import` → `create_work`), không một
+//! `stash_pending_import_source_for` → `confirm_bilingual_import` → `create_work`), không một
 //! hàm chỉ-test nào bọc ngoài. Mỗi hàng của §I/O & Edge-Case Matrix có mặt ở đây.
 //!
 //! Bốn đối chứng đỏ mà §Verification đòi (record trong §Implementation Notes của spec):
@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::project::{
     BilingualMismatchWire, BilingualRegroupingWire, PendingImportSourceState, ReviewCauseWire,
     cancel_import_preview, confirm_bilingual_import, preview_bilingual_import,
-    stash_pending_import_source,
+    stash_pending_import_source_for,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::i18n::MessageKey;
@@ -174,7 +174,7 @@ fn a_pattern_matching_three_rows_yields_one_work_with_three_in_progress_chapters
     assert!(selected.mismatches.is_empty());
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     assert_eq!(
         entry_count(&root),
@@ -226,7 +226,7 @@ fn equal_sentence_counts_write_both_texts_with_bilingual_origin_and_draft_status
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     let opened = confirm_bilingual_import(
         &root,
@@ -283,7 +283,7 @@ fn row_flags_are_off_off_on_within_a_row_and_the_chapters_last_segment_is_always
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     let opened = confirm_bilingual_import(
         &root,
@@ -332,7 +332,7 @@ fn a_quoted_cell_with_an_internal_line_break_never_sets_a_flag() {
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     let opened = confirm_bilingual_import(
         &root,
@@ -404,7 +404,7 @@ fn a_mismatched_row_is_listed_in_preview_and_confirm_is_refused_writing_nothing(
     assert_eq!(selected.mismatches[0].target_line, "Chi mot cau thoi.");
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let err = confirm_bilingual_import(
         &root,
         &state,
@@ -448,7 +448,7 @@ fn confirm_unlinked_fixture(
     let path = write_file(&root, "lech.csv", csv.as_bytes());
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let result = auratranslate_lib::commands::project::confirm_bilingual_import_with_policy(
         &root,
         &state,
@@ -683,7 +683,7 @@ fn the_header_checkbox_drops_row_1_and_toggling_rebuilds_without_rereading_the_f
     );
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -721,7 +721,7 @@ fn swapping_columns_runs_the_pattern_on_the_newly_chosen_source_column() {
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     // source_column=1, target_column=0 -- vai đã đảo so với mặc định 0/1.
     let opened = confirm_bilingual_import(
@@ -783,7 +783,7 @@ fn choosing_a_non_utf8_encoding_candidate_re_decodes_and_re_parses_the_same_stas
     );
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -826,7 +826,7 @@ fn an_unterminated_quoted_field_is_refused_with_its_row_number_and_writes_nothin
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     let err = confirm_bilingual_import(
         &root,
@@ -871,7 +871,7 @@ fn a_file_with_fewer_than_two_columns_is_refused_before_anything_is_written() {
     let shape = import_bilingual_file(&path)
         .expect("tep hop le phai doc duoc (loi thuoc ve TABLE PARSE, khong phai doc tep)");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     let err = confirm_bilingual_import(
         &root,
@@ -908,7 +908,7 @@ fn cancelling_the_preview_then_confirming_writes_nothing() {
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     cancel_import_preview(&state);
 
     let err = confirm_bilingual_import(
@@ -1338,7 +1338,7 @@ fn an_enabled_cleanup_rule_runs_on_both_cells_in_preview_and_on_disk() {
     );
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -1431,7 +1431,7 @@ fn split_target_resolves_using_the_machine_proposal_and_writes_two_paired_segmen
     );
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -1493,7 +1493,7 @@ fn join_target_removes_a_machine_boundary_and_merges_the_first_two_target_senten
     let kept_cut = m.initial_cuts[1];
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let regrouping = cuts_regrouping(m, vec![kept_cut]);
     let opened = confirm_bilingual_import(
         &root,
@@ -1543,7 +1543,7 @@ fn still_unequal_after_a_bad_cut_count_keeps_the_row_listed_and_confirm_refused(
     // 0 cho cat -- van 3 manh may, khong ve dung 2 nhu nguon can.
     let regrouping = cuts_regrouping(m, Vec::new());
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let err = confirm_bilingual_import(
         &root,
         &state,
@@ -1715,7 +1715,7 @@ fn a_regrouping_for_one_row_does_not_disturb_a_second_untouched_mismatched_row()
     assert_eq!(rebuilt_selected.mismatches[0].row_number, row_b.row_number);
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let err = confirm_bilingual_import(
         &root,
         &state,
@@ -1768,7 +1768,7 @@ fn bulk_accept_resolves_three_proposal_rows_and_a_fourth_skip_only_row_in_one_co
         .collect();
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -1823,7 +1823,7 @@ fn skip_on_a_blank_target_writes_one_untranslated_segment_with_no_bilingual_impo
     assert_eq!(m.target_line, "");
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -1904,7 +1904,7 @@ fn skip_on_a_blank_source_drops_the_translation_and_yields_zero_segments() {
     assert_eq!(rebuilt_selected.skipped_target_sentence_count, 2);
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -1967,7 +1967,7 @@ fn skip_on_a_row_with_sentences_on_both_sides_is_refused_with_a_typed_error() {
     );
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let confirm_err = confirm_bilingual_import(
         &root,
         &state,
@@ -2014,7 +2014,7 @@ fn a_computed_regrouping_never_writes_unless_the_very_confirm_call_carries_it() 
     let _regrouping = cuts_regrouping(m, m.proposed_cuts.clone()); // nguoi dung da bam mot cho cat...
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     cancel_import_preview(&state); // ...roi huy truoc khi xac nhan.
 
     let err = confirm_bilingual_import(
@@ -2094,7 +2094,7 @@ fn a_regrouping_survives_a_header_toggle_that_does_not_touch_its_row() {
     );
 
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_bilingual_import(
         &root,
         &state,
@@ -2157,7 +2157,7 @@ fn two_concurrent_bilingual_confirms_on_the_same_pending_source_produce_exactly_
 
     let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
     let state = pending_state();
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
 
     // 🔵 THEM 2026-09-15 (AI-4, vong ra 3) -- truoc do hai `spawn` chay khong co diem hen, nen
     // ket qua cua ca nay phu thuoc vao lich dinh thoi: neu luong 1 kip xong `create_work` va
@@ -2746,13 +2746,14 @@ mod docx_source {
         assert!(entry_count(&root) == 2, "0 byte .atproj truoc xac nhan");
 
         let state = pending_state();
-        stash_pending_import_source(&state, shape, None);
+        stash_pending_import_source_for(&state, shape, None, None);
         let from_docx = confirm(&root, &state, "Tu Docx", false, None).expect("xac nhan docx");
 
         let csv_state = pending_state();
-        stash_pending_import_source(
+        stash_pending_import_source_for(
             &csv_state,
             import_bilingual_file(&csv_path).expect("csv"),
+            None,
             None,
         );
         let from_csv = confirm(&root, &csv_state, "Tu Csv", false, None).expect("xac nhan csv");
@@ -2804,7 +2805,7 @@ mod docx_source {
         assert!(preview.candidates.is_empty());
 
         let state = pending_state();
-        stash_pending_import_source(&state, shape, None);
+        stash_pending_import_source_for(&state, shape, None, None);
         let before = entry_count(&root);
         let err = confirm(&root, &state, "Chua Chon", false, None)
             .expect_err("chua chon phai bi tu choi");
@@ -2837,7 +2838,7 @@ mod docx_source {
         );
 
         let state = pending_state();
-        stash_pending_import_source(&state, shape, None);
+        stash_pending_import_source_for(&state, shape, None, None);
         let opened = confirm(&root, &state, "Bang Hai", false, Some(1)).expect("xac nhan");
         let chapters = read_chapters(&opened.store);
         let segments = read_segments(&opened.store, chapters[0].id);
@@ -2868,7 +2869,7 @@ mod docx_source {
         assert_eq!(err.params().get("count").map(String::as_str), Some("2"));
 
         let state = pending_state();
-        stash_pending_import_source(&state, shape, None);
+        stash_pending_import_source_for(&state, shape, None, None);
         let before = entry_count(&root);
         let err = confirm(&root, &state, "Ngoai Khoang", false, Some(7))
             .expect_err("xac nhan cung bi tu choi");
@@ -3014,7 +3015,7 @@ mod docx_source {
         );
 
         let state = pending_state();
-        stash_pending_import_source(&state, shape, None);
+        stash_pending_import_source_for(&state, shape, None, None);
         let err = confirm(&root, &state, "Lech", false, None).expect_err("lech cap khoa xac nhan");
         assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
 
@@ -3144,9 +3145,10 @@ fn a_bilingual_append_adds_in_progress_chapters_after_the_last_one_and_leaves_ol
                CHUONG HAI,CHAPTER TWO\nCau hai day.,Second line.\n";
     let path = write_file(&root, "them.csv", csv.as_bytes());
     let state = pending_state();
-    stash_pending_import_source(
+    stash_pending_import_source_for(
         &state,
         import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
         None,
     );
 
@@ -3204,9 +3206,10 @@ fn a_bilingual_append_with_the_unlinked_policy_imports_the_mismatched_row_as_one
     let mut open = existing_work(&root, 1);
     let path = write_file(&root, "lech.csv", UNLINKED_CSV.as_bytes());
     let state = pending_state();
-    stash_pending_import_source(
+    stash_pending_import_source_for(
         &state,
         import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
         None,
     );
 
@@ -3237,9 +3240,10 @@ fn a_mismatched_bilingual_append_writes_nothing_and_keeps_the_pending_source() {
     let before = snapshot_chapters(&open.store);
     let path = write_file(&root, "lech.csv", UNLINKED_CSV.as_bytes());
     let state = pending_state();
-    stash_pending_import_source(
+    stash_pending_import_source_for(
         &state,
         import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
         None,
     );
 
@@ -3280,9 +3284,10 @@ fn the_destination_stashed_at_preview_time_is_read_back_and_the_new_work_path_st
         Some("work-id-1")
     );
 
-    stash_pending_import_source(
+    stash_pending_import_source_for(
         &state,
         import_bilingual_file(&path).expect("tep hop le phai doc duoc"),
+        None,
         None,
     );
     assert_eq!(current_pending_destination(&state), None);

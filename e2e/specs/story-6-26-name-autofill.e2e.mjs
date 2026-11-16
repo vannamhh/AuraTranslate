@@ -7,21 +7,13 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { dropFiles, selectImportTab } from '../support/importForm.mjs'
+import { dropFiles, selectImportTab, waitLibraryReady } from '../support/importForm.mjs'
 import { realClick } from '../support/pointer.mjs'
 
 const OPEN_BTN = '[data-library-import-open]'
 const PANEL = '.li-panel'
 const PRIMARY = `${PANEL} [data-import-preview-open]`
 const NAME = `${PANEL} [data-import-name]`
-
-async function ready() {
-  await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
-    timeout: 30_000,
-    interval: 250,
-  })
-  await $(OPEN_BTN).waitForDisplayed({ timeout: 30_000 })
-}
 
 async function listWorks() {
   const result = await browser.execute(async () => {
@@ -80,7 +72,7 @@ describe('Story 6-26: Work name auto-fill', () => {
   writeFileSync(csv, 'hello,xin chao\n', 'utf8')
 
   it('a dropped file fills the Name field and the preview Name; Nhập creates the Work with the stem and a preview genre', async () => {
-    await ready()
+    await waitLibraryReady()
     await openOverlay()
     await selectImportTab('files')
     await dropFiles([txt])

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
-import { fakeClassification } from './support/importClassify'
+import { seedImportFiles } from './support/importClassify'
 import { pickSelectOption } from './support/selectMenu'
 import { seedGenres } from './support/genreSeed'
 
@@ -33,15 +33,11 @@ vi.mock('../../src/config/project', async (importOriginal) => {
 })
 
 vi.mock('../../src/config/library', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/config/library')>()
-  return {
-    ...actual,
-    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
-    classifyImportPaths: async (paths: string[]) => ({
-      classification: fakeClassification(paths),
-      error: null,
-    }),
-  }
+  const { mockImportLibrary } = await import('./support/importClassify')
+  return mockImportLibrary(
+    importOriginal as () => Promise<typeof import('../../src/config/library')>,
+    (...args) => pickFilesMock(...args),
+  )
 })
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
@@ -123,8 +119,7 @@ async function open() {
 }
 
 async function pick(nhap: Awaited<ReturnType<typeof open>>['nhap'], paths: string[]) {
-  pickFilesMock.mockResolvedValue({ classification: fakeClassification(paths), error: null })
-  await nhap.chooseImportFiles()
+  await seedImportFiles(nhap, pickFilesMock, paths)
   await flushPromises()
 }
 

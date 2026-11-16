@@ -14,6 +14,7 @@
  * điều kiện) bị bắt ở ĐÚNG chỗ người dùng chạm tới, không chỉ ở tầng state bên dưới.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { seedImportFiles } from './support/importClassify'
 
 const previewFileMock = vi.fn()
 const confirmMock = vi.fn()
@@ -31,26 +32,12 @@ vi.mock('../../src/config/project', async (importOriginal) => {
 const pickFilesMock = vi.fn()
 
 vi.mock('../../src/config/library', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/config/library')>()
-  const { fakeClassification } = await import('./support/importClassify')
-  return {
-    ...actual,
-    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
-    classifyImportPaths: async (paths: string[]) => ({
-      classification: fakeClassification(paths),
-      error: null,
-    }),
-  }
+  const { mockImportLibrary } = await import('./support/importClassify')
+  return mockImportLibrary(
+    importOriginal as () => Promise<typeof import('../../src/config/library')>,
+    (...args) => pickFilesMock(...args),
+  )
 })
-
-async function seedImportFiles(
-  nhap: typeof import('../../src/modes/libraryImport'),
-  paths: string[],
-): Promise<void> {
-  const { fakeClassification } = await import('./support/importClassify')
-  pickFilesMock.mockResolvedValue({ classification: fakeClassification(paths), error: null })
-  await nhap.chooseImportFiles()
-}
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
@@ -76,7 +63,7 @@ describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường 
     const preview = await import('../../src/importPreviewState')
 
     nhap.name.value = 'Tac pham moi'
-    await seedImportFiles(nhap, ['/tmp/gbk.txt'])
+    await seedImportFiles(nhap, pickFilesMock, ['/tmp/gbk.txt'])
     previewFileMock.mockResolvedValue({
       batch: {
         items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }],

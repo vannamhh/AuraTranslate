@@ -16,7 +16,7 @@
  * ⚠️ Cùng lý do, tệp này KHÔNG được `import` vào `src/commands/index.ts` trực tiếp — nó
  * dùng `ref` của Vue, và Kiểm C/D/E của `npm run check:commands` nạp tệp đó bằng Node
  * thuần. Hai hàm [`selectSourceTab`]/[`toggleHanVietView`] được TIÊM VÀO qua `CommandDeps`
- * ở `src/main.ts` — cùng cửa mà `applyPreset`/`togglePanel`/`submitPastedText` đã đi qua.
+ * ở `src/main.ts` — cùng cửa mà `applyPreset`/`togglePanel`/`submitActiveImportTab` đã đi qua.
  */
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'

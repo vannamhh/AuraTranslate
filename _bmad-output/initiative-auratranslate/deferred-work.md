@@ -14214,6 +14214,7 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-man-nhap-mot-khoi-chung-ba-tab-dan-tep-url-mot-nut-chinh-plan.md`
   summary: Thả tệp lên trang Library khi lớp phủ nhập đang đóng thì tệp vào danh sách tab Tệp ẩn, màn hình không báo gì; chỉ lộ khi mở lớp phủ.
   evidence: `wireDragDropOnce` sống suốt lúc LibraryMode mount (`LibraryMode.vue:130`), khung thả nằm trong lớp phủ chưa render. Có từ trước 6.25 (đường thả cũ cũng điền danh sách ẩn). Chủ: Story 6.30.
+  → ✅ ĐÃ ĐÓNG 2026-11-16 (Story 6.30) — bộ nghe thả trả về sớm khi `libraryImportOverlayIsOpen` là false; vitest `libraryImportDropMultiple` có ca đóng/mở, ca đóng đỏ khi gỡ dòng kiểm.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-man-nhap-mot-khoi-chung-ba-tab-dan-tep-url-mot-nut-chinh-plan.md`
   summary: e2e `story-6-24` ca `.txt path` đỏ ở assert `:focus-visible` (dòng 266), hai lượt cùng binary, sau khi 6.25 sửa xong bước nhập.
   evidence: chưa rõ lỗi sản phẩm hay bàn đo. Probe: `keys('Tab')` của driver tới webview với `isTrusted: false`, tiêu điểm đứng ở `.ip-panel`; đặt tiêu điểm vào ô văn bản trước vẫn đỏ. Nightly xanh cuối 7e6b6b1e có trước 3f42865b (commit đã làm gãy bước nhập của ca). Chốt bằng: chạy ca trên 7e6b6b1e kèm probe, hoặc Tab thật trong app. Chủ: Epic 6.

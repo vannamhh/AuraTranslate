@@ -6,10 +6,10 @@
  * VÌ SAO HÀM NÀY TỒN TẠI — G2 (`deferred-work.md §*Deferred from: 6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai (2026-09-09)*`)
  * ═════════════════════════════════════════════════════════════════════════════════
  * Trước Story 6.3 (`d20fe67`), bấm nút nộp dán-văn-bản GHI Tác phẩm ngay. Từ Story 6.3,
- * `submitPastedText` (`src/modes/libraryImport.ts:332-358`) chỉ MỞ `ImportPreviewOverlay.vue`;
+ * `submitPastedText` (`src/modes/libraryImport.ts`) chỉ MỞ `ImportPreviewOverlay.vue`;
  * Tác phẩm chỉ được ghi khi người dùng bấm "Xác nhận" trong đó
  * (`.ip-act-primary` → `dispatch('import.preview.confirm')` → `confirmImportPreview()` →
- * `finishImportSubmission()`, `src/main.ts:465-472`). Hai spec trên mỗi tệp từng giữ MỘT bản
+ * `finishImportSubmission()`, `src/main.ts`). Hai spec trên mỗi tệp từng giữ MỘT bản
  * sao của một hàm bấm `form.$('button')` KHÔNG có tên — sau Story 6.3 đó là nút MỞ màn xem
  * trước, không phải nút ghi — nên cả ba ca đỏ với "hàng ... không xuất hiện sau 30 giây". Hàm
  * này đi trọn đường thật: mở → chờ nút xác nhận BẬT → bấm xác nhận → chờ màn đóng — MỘT chỗ
@@ -156,4 +156,17 @@ export async function dropFiles(paths) {
   await browser.execute(async (list) => {
     await window.__TAURI_INTERNALS__.invoke('plugin:event|emit', { event: 'aura://file-dropped', payload: list })
   }, paths)
+}
+
+export async function waitLibraryReady() {
+  await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
+    timeout: 30_000,
+    interval: 250,
+  })
+  await $(IMPORT_OPEN_BTN).waitForDisplayed({ timeout: 30_000 })
+}
+
+export async function backToLibrary() {
+  await browser.keys(['Meta', '1'])
+  await $(IMPORT_OPEN_BTN).waitForDisplayed({ timeout: 30_000 })
 }

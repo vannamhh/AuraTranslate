@@ -7,7 +7,7 @@
 mod fixtures_docx;
 
 use auratranslate_lib::commands::project::{
-    append_chapters_to_work, create_work, create_work_from_file,
+    BilingualParams, append_chapters_to_work_with_progress, create_work, create_work_from_file,
 };
 use auratranslate_lib::core::docx::{DocxError, read_docx};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
@@ -843,7 +843,7 @@ fn each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_o
 }
 
 /// APPEND counterpart of the CREATE test right above — same fixture, split into the same two
-/// Chương by the same pattern, but landed on an already-open Work via `append_chapters_to_work`
+/// Chương by the same pattern, but landed on an already-open Work via `append_chapters_to_work_with_progress`
 /// instead of `create_work`. `distribute_docx_blocks_across_chapters` must run on this path too.
 #[test]
 fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_in_its_own_chapter()
@@ -883,7 +883,7 @@ fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_
     let (shape, docx_sidecar) = import_file(&path).expect("nhap .docx hai chuong phai thanh cong");
     let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
 
-    let appended_count = append_chapters_to_work(
+    let appended_count = append_chapters_to_work_with_progress(
         &mut opened,
         "en",
         shape,
@@ -894,6 +894,9 @@ fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_
         &[],
         &domain_log_state,
         docx_sidecar,
+        &BilingualParams::NEUTRAL,
+        &mut |_, _| {},
+        &|| false,
     )
     .expect("them Chuong tu .docx hai chuong that bai");
     assert_eq!(appended_count, 2, "phai them dung hai Chuong moi tu .docx");

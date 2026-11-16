@@ -8,20 +8,12 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { dropFiles, selectImportTab } from '../support/importForm.mjs'
+import { dropFiles, selectImportTab, waitLibraryReady } from '../support/importForm.mjs'
 import { realClick } from '../support/pointer.mjs'
 
 const OPEN_BTN = '[data-library-import-open]'
 const PANEL = '.li-panel'
 const PRIMARY = `${PANEL} [data-import-preview-open]`
-
-async function ready() {
-  await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
-    timeout: 30_000,
-    interval: 250,
-  })
-  await $(OPEN_BTN).waitForDisplayed({ timeout: 30_000 })
-}
 
 async function rowProblems() {
   return browser.execute(() =>
@@ -49,7 +41,7 @@ describe('Story 6-25: import entry', () => {
   }
 
   it('opens on Dán with no website button, and the URL tab shows the counter, the promise and "Tải 3 link"', async () => {
-    await ready()
+    await waitLibraryReady()
     await realClick(await $(OPEN_BTN))
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })
     expect(await $(`${PANEL} [data-import-tab="paste"]`).getAttribute('aria-selected')).toBe('true')

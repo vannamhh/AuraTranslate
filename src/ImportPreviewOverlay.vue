@@ -11,6 +11,7 @@ import { quickAiAutoEnabled, quickAiConfigReadiness, refreshQuickAiConfigReadine
 import { useSelectionSurface } from './panels/selectionContract'
 import ChapterOrigin from './ChapterOrigin.vue'
 import SelectMenu from './SelectMenu.vue'
+import DocxShapeSwitch from './importPreview/DocxShapeSwitch.vue'
 import { switchDocxPreviewShape } from './modes/libraryImport'
 import {
   importPreviewDocxSwitchBusy,
@@ -1128,15 +1129,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   })
 })
 
-
-const docxShapeOptions = computed(() => [
-  { value: 'text', label: t('mode.library.preview.docx_shape_text') },
-  { value: 'bilingual', label: t('mode.library.preview.docx_shape_bilingual') },
-])
-
-function onDocxShapeChange(raw: string): void {
-  if (raw === 'bilingual') void switchDocxPreviewShape('bilingual')
-}
 </script>
 
 <template>
@@ -1145,22 +1137,14 @@ function onDocxShapeChange(raw: string): void {
       <header class="ip-head">
         <h2 id="ip-title" class="ip-title">{{ t('mode.library.preview.title') }}</h2>
         <p class="ip-head-note">{{ t('mode.library.preview.screen_subtitle') }}</p>
-        <div v-if="importPreviewIsDocx" class="ip-docx-shape" data-ip-docx-shape>
-          <SelectMenu
-            id="ip-docx-shape-select"
-            variant="field"
-            option-attr="data-docx-shape-option"
-            model-value="text"
-            :options="docxShapeOptions"
-            :label="t('mode.library.preview.docx_shape_label')"
-            :disabled="importPreviewConfirming || importPreviewDocxSwitchBusy"
-            @change="onDocxShapeChange"
-          />
-          <p v-if="importPreviewDocxSwitchError !== null" class="ip-status ip-error" role="alert">
-            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-            {{ tError(importPreviewDocxSwitchError) }}
-          </p>
-        </div>
+        <DocxShapeSwitch
+          v-if="importPreviewIsDocx"
+          current="text"
+          prefix="ip"
+          :disabled="importPreviewConfirming || importPreviewDocxSwitchBusy"
+          :error="importPreviewDocxSwitchError"
+          @change="(target) => void switchDocxPreviewShape(target)"
+        />
       </header>
 
       <p v-if="importPreviewStatus === 'unknown'" class="ip-status" role="status">

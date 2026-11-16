@@ -44,7 +44,7 @@ use std::time::Instant;
 
 use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::{
-    OpenWork, PendingImportSourceState, confirm_bilingual_import, stash_pending_import_source,
+    OpenWork, PendingImportSourceState, confirm_bilingual_import, stash_pending_import_source_for,
 };
 use auratranslate_lib::core::library::indexer::{Indexer, WorkQuery};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
@@ -310,7 +310,7 @@ fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
             .unwrap_or_else(|e| panic!("ghi {}: {e}", source_path.display()));
 
         let shape = import_bilingual_file(&source_path).expect("đọc tệp nguồn hợp lệ");
-        stash_pending_import_source(&state, shape, None);
+        stash_pending_import_source_for(&state, shape, None, None);
 
         let work_name = format!("NFR Story 6.18 Work {work_idx:02}");
         let mut opened = confirm_bilingual_import(

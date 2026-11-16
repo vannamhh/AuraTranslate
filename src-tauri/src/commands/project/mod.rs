@@ -7,7 +7,7 @@
 //! Cùng khuôn `commands::config`: hàm thuần trước, `#[tauri::command]` chỉ là vỏ mỏng
 //! trong `wire`.
 //!
-//! `create_work`/`append_chapters_to_work` và pha tải ảnh nhúng sống ở [`work_creation`]; nhập
+//! `create_work`/`append_chapters_to_work_with_progress` và pha tải ảnh nhúng sống ở [`work_creation`]; nhập
 //! song ngữ ở [`bilingual`]; nhập từ URL ở [`url_import`]. Ba mối quan tâm đan xen (bảng mã/
 //! Tầng 2/xuất xứ Chương) VẪN ở lại đây — xem doc-comment của các mô-đun con và
 //! `deferred-work.md` cho lý do không tách tiếp.
@@ -139,7 +139,7 @@ pub struct OpenWork {
     // đường THÀNH CÔNG — một lượt trượt (đĩa đầy giữa lúc ghi ảnh) làm nó biến mất, vi phạm
     // §Always "kể cả lượt trượt". `create_work` nay nhận thẳng `&DomainLogState` và mỗi lời
     // gọi `fetch` push NGAY khi hoàn tất — không còn gì để mà "mang" qua `OpenWork` nữa.
-    /// `chapter.id` của MỌI Chương vừa ghi bởi lượt [`create_work`]/[`append_chapters_to_work`]
+    /// `chapter.id` của MỌI Chương vừa ghi bởi lượt [`create_work`]/[`append_chapters_to_work_with_progress`]
     /// NÀY — cùng ngữ nghĩa "của ĐÚNG lượt gọi này" mà `images_saved`/`source_lang_mismatch` đã
     /// theo. Rỗng cho [`open_work`] (mở lại không ghi Chương nào). Tách khỏi `chapter_id` ở
     /// trên (Chương ĐANG MỞ trong Editor, một khái niệm khác — Story 2.11) vì một lượt nhập
@@ -2691,36 +2691,13 @@ fn no_pending_import_source() -> IpcError {
     )
 }
 
-/// **Hàm thuần** — ghi `shape` vào `state`, ghi ĐÈ lượt xem trước cũ nếu có. Đúng khuôn hai
-/// lớp `src-tauri/AGENTS.md`: nhận thẳng `&PendingImportSourceState`, không `AppHandle`, để
-/// `tests::` gọi được không cần webview. Gọi bởi `wire::preview_import_encoding_from_text`/
-/// `_from_file`, NGAY SAU [`preview_import_encoding`] — đúng thứ tự "đọc rồi mới cất" (§Always
-/// spec 6.3: byte đọc đúng một lần).
-pub fn stash_pending_import_source(
-    state: &PendingImportSourceState,
-    shape: PipelineShape,
-    // 🔴 **THÊM 2026-09-09 (Story 6.12).** `.docx` là đường DUY NHẤT truyền `Some` —
-    // `preview_import_encoding_from_text` và mọi đường KHÁC truyền `None`.
-    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
-) {
-    stash_pending_import_source_for(state, shape, docx_sidecar, None);
-}
-
-/// **Hàm thuần** — [`stash_pending_import_source`] cộng đích. **THÊM 2026-09-16 (Story
-/// 6.7b)** — xem doc-comment [`PendingImportSource::destination_work_id`]. Tách khỏi
-/// [`stash_pending_import_source`] (thay vì thêm tham số vào chính nó) để giữ chữ ký GỐC ổn
-/// định cho mọi chỗ gọi chưa mang khái niệm đích — 35+ lời gọi trực tiếp trong `tests/**`
-/// (`cleanup_contract.rs`/`bilingual_import_contract.rs`/`segment_contract.rs`/
-/// `project_contract.rs`/`story_6_18_library.rs`) đi thẳng vào hàm thuần này (đúng khuôn hai
-/// lớp — không cần `tauri::AppHandle`), và thêm một tham số bắt buộc vào nó sẽ là một lượt
-/// đổi DÂY phá vỡ TOÀN BỘ những chỗ gọi đó, không liên quan gì tới đích của story này. Cùng
-/// lý lẽ đúng khuôn `resolve_cleanup_rules`/`resolve_cleanup_rules_for` (`wire.rs`): hàm GỐC
-/// giữ nguyên chữ ký, hàm MỚI cộng thêm.
+/// **Hàm thuần** — ghi `shape` vào `state`, ghi ĐÈ lượt xem trước cũ nếu có, cùng đích
+/// (xem [`PendingImportSource::destination_work_id`]). `docx_sidecar` là `Some` chỉ ở đường
+/// `.docx`. Gọi ngay SAU [`preview_import_encoding`] — đúng thứ tự "đọc rồi mới
+/// cất" (byte đọc đúng một lần).
 ///
-/// Ba lượt MỞ phiên (dán/tệp/URL) truyền giá trị người dùng vừa chọn; mọi lượt gọi lại TRONG
-/// một phiên đã mở (đổi mục URL, đổi override) phải truyền LẠI giá trị ĐÃ CÓ trong state —
-/// đọc qua [`current_pending_destination`] trước khi gọi hàm này — không phải một giá trị
-/// mới, nếu không đích sẽ "quên" giữa hai lượt gọi giữa phiên.
+/// Mọi lượt gọi lại TRONG một phiên đã mở (đổi mục URL, đổi override) phải truyền LẠI đích
+/// ĐÃ CÓ trong state, đọc qua [`current_pending_destination`], nếu không đích sẽ "quên".
 pub fn stash_pending_import_source_for(
     state: &PendingImportSourceState,
     shape: PipelineShape,
@@ -2934,7 +2911,7 @@ pub fn confirm_import_with_encoding(
 
 /// **Hàm thuần** — lõi của lượt xác nhận đường APPEND (Story 6.7b, FR122 nửa hai). Cùng
 /// khuôn [`confirm_import_with_encoding`] ngay trên (giải `encoding_wire_id`, CLONE nguồn
-/// đang chờ, dọn ô đang chờ CHỈ KHI thành công), nhưng gọi [`append_chapters_to_work`] +
+/// đang chờ, dọn ô đang chờ CHỈ KHI thành công), nhưng gọi [`append_chapters_to_work_with_progress`] +
 /// [`crate::commands::lifecycle::write_lifecycle_after_change`] — bước 1-2-3 của khuôn bốn
 /// bước AD-8 (`ARCHITECTURE-SPINE.md`) — thay vì [`create_work`]. Bước 4
 /// (`reindex_after_lifecycle_write`) chạy Ở LỚP VỎ, sau khi khoá `OpenWorkState` (nếu đích
@@ -2943,10 +2920,10 @@ pub fn confirm_import_with_encoding(
 ///
 /// `open` là đích ĐÃ PHÂN GIẢI — chỗ gọi (`wire::confirm_import_with_encoding`) chịu trách
 /// nhiệm lấy nó ra (tái dùng `OpenWorkState` hoặc [`open_work`], xem doc-comment
-/// [`append_chapters_to_work`]).
+/// [`append_chapters_to_work_with_progress`]).
 ///
 /// # Lỗi
-/// Y hệt [`confirm_import_with_encoding`] cộng lỗi của [`append_chapters_to_work`]/
+/// Y hệt [`confirm_import_with_encoding`] cộng lỗi của [`append_chapters_to_work_with_progress`]/
 /// `write_lifecycle_after_change`; KHÔNG một nhánh nào xoá `open` (§Never spec 6.7b) — một
 /// lỗi để `open` NGUYÊN VẸN, ô đang chờ GIỮ NGUYÊN để thử lại với một ứng viên bảng mã khác.
 #[expect(
@@ -2966,22 +2943,63 @@ pub fn confirm_append_import_with_encoding_with_progress(
     on_image_progress: &mut dyn FnMut(usize, usize),
     should_cancel: &dyn Fn() -> bool,
 ) -> Result<(), IpcError> {
+    append_pending_import(
+        open,
+        state,
+        source_lang,
+        encoding_wire_id,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        &origin_overrides,
+        domain_log_state,
+        &BilingualParams::NEUTRAL,
+        |pending| Ok((pending.shape.clone(), pending.docx_sidecar.clone())),
+        on_image_progress,
+        should_cancel,
+    )
+}
+
+/// Shared by the text and bilingual append confirms: `pick` reads the shape (and `.docx`
+/// sidecar) out of the pending source. The pending source is cleared only after a successful
+/// append, under the lock taken before reading it.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
+pub(super) fn append_pending_import(
+    open: &mut OpenWork,
+    state: &PendingImportSourceState,
+    source_lang: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    block_overrides: Vec<Option<bool>>,
+    origin_overrides: &[Option<ChapterOriginOverride>],
+    domain_log_state: &webimport::DomainLogState,
+    bilingual: &BilingualParams<'_>,
+    pick: impl FnOnce(
+        &PendingImportSource,
+    ) -> Result<
+        (
+            PipelineShape,
+            Option<crate::core::segment::import::DocxSidecar>,
+        ),
+        IpcError,
+    >,
+    on_image_progress: &mut dyn FnMut(usize, usize),
+    should_cancel: &dyn Fn() -> bool,
+) -> Result<(), IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding {
             wire_id: encoding_wire_id.to_owned(),
         })
     })?;
 
-    // Cùng lý lẽ khoá xuyên suốt của `confirm_import_with_encoding` ngay trên (vòng rà đối
-    // kháng 2, mục 14) — giữ NGUYÊN một `MutexGuard` cho trọn phần đọc-rồi-ghi.
     let mut guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let shape = guard
-        .as_ref()
-        .map(|p| p.shape.clone())
-        .ok_or_else(no_pending_import_source)?;
-    let docx_sidecar = guard.as_ref().and_then(|p| p.docx_sidecar.clone());
+    let (shape, docx_sidecar) = pick(guard.as_ref().ok_or_else(no_pending_import_source)?)?;
 
     append_chapters_to_work_with_progress(
         open,
@@ -2991,57 +3009,19 @@ pub fn confirm_append_import_with_encoding_with_progress(
         cleanup_rules,
         chapter_pattern,
         block_overrides,
-        &origin_overrides,
+        origin_overrides,
         domain_log_state,
         docx_sidecar,
-        0,
-        1,
-        false,
-        &[],
-        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
+        bilingual,
         on_image_progress,
         should_cancel,
     )?;
 
-    // Thanh cong -- don o dang cho, VAN duoi CUNG mot khoa da giu tu dau ham.
     *guard = None;
     drop(guard);
 
-    // Buoc 2-3 cua khuon bon buoc AD-8 -- cap nhat open.meta tai cho.
     crate::commands::lifecycle::write_lifecycle_after_change(open)?;
     Ok(())
-}
-
-/// Thin wrapper over [`confirm_append_import_with_encoding_with_progress`] with a no-op
-/// progress/cancel pair.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
-)]
-pub fn confirm_append_import_with_encoding(
-    open: &mut OpenWork,
-    state: &PendingImportSourceState,
-    source_lang: &str,
-    encoding_wire_id: &str,
-    cleanup_rules: Vec<CleanupRule>,
-    chapter_pattern: Option<ChapterPattern>,
-    block_overrides: Vec<Option<bool>>,
-    origin_overrides: Vec<Option<ChapterOriginOverride>>,
-    domain_log_state: &webimport::DomainLogState,
-) -> Result<(), IpcError> {
-    confirm_append_import_with_encoding_with_progress(
-        open,
-        state,
-        source_lang,
-        encoding_wire_id,
-        cleanup_rules,
-        chapter_pattern,
-        block_overrides,
-        origin_overrides,
-        domain_log_state,
-        &mut |_, _| {},
-        &|| false,
-    )
 }
 
 /// **THÊM 2026-09-07 (Story 6.9)** — trạng thái giữ/loại người dùng đã ĐẶT BẰNG TAY cho khối

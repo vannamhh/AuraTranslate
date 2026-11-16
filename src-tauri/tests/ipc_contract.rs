@@ -1192,9 +1192,9 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
         "preview_docx_import",
         "switch_docx_import_shape",
     ] {
-        let signature = format!("pub fn {wire}(");
-        let start = src
-            .find(&signature)
+        let (start, signature) = [format!("pub fn {wire}("), format!("pub fn {wire}<")]
+            .into_iter()
+            .find_map(|signature| src.find(&signature).map(|start| (start, signature)))
             .unwrap_or_else(|| panic!("khong tim thay vo `{wire}` trong commands/project/wire.rs"));
         // Than vo = tu chu ky toi chu ky `pub fn` KE TIEP (hoac het tep).
         let rest = &src[start + signature.len()..];
@@ -1401,7 +1401,7 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
         // cũng đổi rộng ra thành `FileImportBatchWire` (envelope per-item cho MỌI N).
         (
             "preview_import_encoding_from_file",
-            "app: tauri::AppHandle,\n        paths: Vec<String>,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,\n        destination: Option<String>,",
+            "app: tauri::AppHandle<R>,\n        paths: Vec<String>,\n        source_lang: String,\n        chapter_pattern: Option<super::ChapterPatternWire>,\n        destination: Option<String>,",
         ),
         (
             "confirm_import_with_encoding",
@@ -2053,6 +2053,9 @@ fn reading_mark_wire_fields_stay_snake_case() {
 /// `:905`, `:1102`) mang ĐÚNG cùng một chuỗi này (đo lại 2026-09-16, sau Phase 1-4).
 const REINDEX_LIBRARY_CALL_LINE: &str = "reindex_library(&app, &root);";
 
+/// Same call inside `append_into_destination`, whose `app`/`root` are already borrowed.
+const REINDEX_LIBRARY_BORROWED_CALL_LINE: &str = "reindex_library(app, root);";
+
 /// Dòng KHÔNG phải chú thích — cùng khuôn `webimport_boundary.rs::code_lines`.
 fn code_lines(text: &str) -> impl Iterator<Item = &str> {
     text.lines().map(str::trim).filter(|code| {
@@ -2070,7 +2073,9 @@ fn code_lines(text: &str) -> impl Iterator<Item = &str> {
 /// `str::contains`/`grep` trần sẽ bị nó lừa.
 fn count_reindex_library_calls(text: &str) -> usize {
     code_lines(text)
-        .filter(|&code| code == REINDEX_LIBRARY_CALL_LINE)
+        .filter(|&code| {
+            code == REINDEX_LIBRARY_CALL_LINE || code == REINDEX_LIBRARY_BORROWED_CALL_LINE
+        })
         .count()
 }
 

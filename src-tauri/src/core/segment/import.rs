@@ -302,7 +302,7 @@ pub enum ImportError {
         count: usize,
     },
     /// `source_lang` ngoài `zh`/`en`, ở CẢ đường tạo (`create_work`)
-    /// lẫn đường thêm Chương (`append_chapters_to_work`). Trước bản vá này chỉ webview kiểm
+    /// lẫn đường thêm Chương (`append_chapters_to_work_with_progress`). Trước bản vá này chỉ webview kiểm
     /// (`=== 'zh'`); một `.atproj` sửa tay hoặc một lời gọi `invoke` trần với giá trị lạ ghi
     /// thẳng xuống đĩa, không một dòng nào chặn.
     UnsupportedSourceLang {
@@ -1043,8 +1043,8 @@ fn reject_batch_unsupported_extension(path: &Path) -> Result<(), ImportError> {
 
 pub(crate) const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 3] = ["csv", "tsv", "docx"];
 
-/// The one extension list of the import entry: it feeds the OS dialog filter and the drop
-/// classification, so the two entry points cannot disagree.
+/// The extension list of the OS file dialog filter. [`classify_import_paths`] reads the two
+/// pipeline lists instead; a test keeps the three in agreement.
 pub const IMPORT_ENTRY_EXTENSIONS: [&str; 5] = ["txt", "md", "docx", "csv", "tsv"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1136,10 +1136,9 @@ pub fn classify_import_paths(paths: &[String]) -> ImportClassification {
             .and_then(|e| e.to_str())
             .map(str::to_ascii_lowercase);
         match ext.as_deref() {
-            Some("txt" | "md") => ImportFileKind::Text,
-            Some("csv" | "tsv") => ImportFileKind::Bilingual,
             Some("docx") if paths.len() == 1 => ImportFileKind::Docx,
-            Some("docx") => ImportFileKind::Text,
+            Some(ext) if SUPPORTED_EXTENSIONS.contains(&ext) => ImportFileKind::Text,
+            Some(ext) if BILINGUAL_SUPPORTED_EXTENSIONS.contains(&ext) => ImportFileKind::Bilingual,
             _ => ImportFileKind::Unsupported,
         }
     };
@@ -1208,7 +1207,7 @@ pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineSha
     let delimiter = match ext.as_str() {
         "csv" => crate::core::glossary::exchange::Delimiter::Csv,
         "tsv" => crate::core::glossary::exchange::Delimiter::Tsv,
-        _ => return import_bilingual_docx(path),
+        _ => return read_docx_source(path)?.bilingual_shape(),
     };
 
     let size = std::fs::metadata(path)
@@ -1238,8 +1237,11 @@ pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineSha
     })
 }
 
-fn import_bilingual_docx(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
-    read_docx_source(path)?.bilingual_shape()
+/// True for a path whose extension is `.docx`, in any letter case.
+pub fn is_docx(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("docx"))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1284,31 +1286,38 @@ impl DocxSource {
 
 /// Bilingual when the top-level tables that qualify for import (see [`qualifying_table_rows`])
 /// hold at least half of the document's non-whitespace characters (paragraphs plus top-level
-/// table cells).
-pub fn detect_docx_shape(parsed: &crate::core::docx::DocxParsed) -> DocxShape {
-    let count = |text: &str| text.chars().filter(|c| !c.is_whitespace()).count();
-    let mut table_chars = 0usize;
-    let mut total_chars = 0usize;
-    for (i, item) in parsed.body.iter().enumerate() {
-        match item {
-            crate::core::docx::DocxBodyItem::Paragraph(text) => total_chars += count(text),
-            crate::core::docx::DocxBodyItem::Table(rows) => {
-                if parsed.nested_table_body_indexes.contains(&i) {
-                    continue;
-                }
-                let chars: usize = rows.iter().flatten().map(|cell| count(cell)).sum();
-                total_chars += chars;
-                if qualifying_table_rows(rows).is_some() {
-                    table_chars += chars;
-                }
-            }
-        }
-    }
-    if table_chars > 0 && table_chars * 2 >= total_chars {
+/// table cells). `qualifying_chars` is the character count of those qualifying tables.
+fn detect_docx_shape(parsed: &crate::core::docx::DocxParsed, qualifying_chars: usize) -> DocxShape {
+    let paragraph_chars: usize = parsed
+        .body
+        .iter()
+        .map(|item| match item {
+            crate::core::docx::DocxBodyItem::Paragraph(text) => non_whitespace_chars(text),
+            crate::core::docx::DocxBodyItem::Table(_) => 0,
+        })
+        .sum();
+    let table_chars: usize = parsed
+        .top_level_tables()
+        .into_iter()
+        .map(|rows| table_non_whitespace_chars(rows))
+        .sum();
+    let total_chars = paragraph_chars + table_chars;
+    if qualifying_chars > 0 && qualifying_chars * 2 >= total_chars {
         DocxShape::Bilingual
     } else {
         DocxShape::Text
     }
+}
+
+fn non_whitespace_chars(text: &str) -> usize {
+    text.chars().filter(|c| !c.is_whitespace()).count()
+}
+
+fn table_non_whitespace_chars(rows: &[Vec<String>]) -> usize {
+    rows.iter()
+        .flatten()
+        .map(|cell| non_whitespace_chars(cell))
+        .sum()
 }
 
 fn qualifying_table_rows(rows: &[Vec<String>]) -> Option<Vec<super::bilingual::BilingualRow>> {
@@ -1326,12 +1335,15 @@ pub fn docx_source_from_bytes(bytes: &[u8], label: String) -> Result<DocxSource,
             detail: other.to_string(),
         },
     })?;
-    let detected = detect_docx_shape(&parsed);
-    let tables: Vec<Vec<super::bilingual::BilingualRow>> = parsed
-        .top_level_tables()
-        .into_iter()
-        .filter_map(|rows| qualifying_table_rows(rows))
-        .collect();
+    let mut qualifying_chars = 0usize;
+    let mut tables: Vec<Vec<super::bilingual::BilingualRow>> = Vec::new();
+    for rows in parsed.top_level_tables() {
+        if let Some(qualifying) = qualifying_table_rows(rows) {
+            qualifying_chars += table_non_whitespace_chars(rows);
+            tables.push(qualifying);
+        }
+    }
+    let detected = detect_docx_shape(&parsed, qualifying_chars);
     Ok(DocxSource {
         label,
         text: parsed.text,
@@ -1536,6 +1548,32 @@ mod classify_tests {
         assert_eq!(c.files[0].kind, ImportFileKind::Text);
         let mixed = classify_import_paths(&paths(&["t.docx", "a.csv"]));
         assert_eq!(mixed.verdict, ImportBatchVerdict::MixedKinds);
+    }
+
+    #[test]
+    fn is_docx_ignores_letter_case_and_rejects_other_extensions() {
+        assert!(is_docx(Path::new("a/B.DOCX")));
+        assert!(is_docx(Path::new("b.docx")));
+        assert!(!is_docx(Path::new("c.doc")));
+        assert!(!is_docx(Path::new("docx")));
+    }
+
+    #[test]
+    fn classifier_kinds_follow_the_extension_lists() {
+        for ext in IMPORT_ENTRY_EXTENSIONS {
+            let kind = classify_import_paths(&paths(&[&format!("f.{ext}")])).files[0].kind;
+            let expected = if ext == "docx" {
+                ImportFileKind::Docx
+            } else if SUPPORTED_EXTENSIONS.contains(&ext) {
+                ImportFileKind::Text
+            } else {
+                assert!(BILINGUAL_SUPPORTED_EXTENSIONS.contains(&ext), "{ext}");
+                ImportFileKind::Bilingual
+            };
+            assert_eq!(kind, expected, "{ext}");
+        }
+        let pdf = classify_import_paths(&paths(&["f.pdf"]));
+        assert_eq!(pdf.files[0].kind, ImportFileKind::Unsupported);
     }
 
     #[test]

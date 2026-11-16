@@ -24,13 +24,13 @@ use auratranslate_lib::commands::chapter::{
 };
 use auratranslate_lib::commands::lifecycle::set_work_status_override;
 use auratranslate_lib::commands::project::{
-    BlockIndexOutOfRange, ChapterPatternWire, OpenWork, PendingImportSourceState,
-    Tier2BlockOverridesState, UrlImportItem, UrlImportItemsState, append_chapters_to_work,
-    block_overrides_for_range, build_file_import_batch_wire, chapters_shape_if_all_ok,
-    clear_url_import_items_after_successful_confirm, confirm_append_import_with_encoding,
-    create_work, create_work_from_file, create_work_from_text,
-    mutated_index_invalidates_tier2_blocks, reset_block_overrides, resolve_chapter_pattern,
-    set_block_override, stash_pending_import_source,
+    BilingualParams, BlockIndexOutOfRange, ChapterPatternWire, OpenWork, PendingImportSourceState,
+    Tier2BlockOverridesState, UrlImportItem, UrlImportItemsState,
+    append_chapters_to_work_with_progress, block_overrides_for_range, build_file_import_batch_wire,
+    chapters_shape_if_all_ok, clear_url_import_items_after_successful_confirm,
+    confirm_append_import_with_encoding_with_progress, create_work, create_work_from_file,
+    create_work_from_text, mutated_index_invalidates_tier2_blocks, reset_block_overrides,
+    resolve_chapter_pattern, set_block_override, stash_pending_import_source_for,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
@@ -1280,7 +1280,7 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
 }
 
 /// AC — còn MỘT mục hỏng trong danh sách ⇒ `chapters_shape_if_all_ok` trả `None`, và vì
-/// `commands::project::sync_pending_from_url_items` chỉ `stash_pending_import_source` khi
+/// `commands::project::sync_pending_from_url_items` chỉ `stash_pending_import_source_for` khi
 /// hàm này trả `Some`, một lượt `confirm_import_with_encoding` kế tiếp sẽ luôn trả
 /// `import.no_pending_source` — **0 hàng ghi xuống**, không có `create_work` nào từng chạy.
 #[test]
@@ -5718,7 +5718,7 @@ fn append_writes_new_chapters_at_max_ord_plus_one_all_not_started_with_segments_
         ChapterInput::AlreadyText("Chuong moi bon. Cau mot.".to_owned()),
         ChapterInput::AlreadyText("Chuong moi nam. Cau mot.".to_owned()),
     ]);
-    let appended_count = append_chapters_to_work(
+    let appended_count = append_chapters_to_work_with_progress(
         &mut opened,
         "en",
         new_shape,
@@ -5729,6 +5729,9 @@ fn append_writes_new_chapters_at_max_ord_plus_one_all_not_started_with_segments_
         &[],
         &std::sync::Mutex::new(Vec::new()),
         None,
+        &BilingualParams::NEUTRAL,
+        &mut |_, _| {},
+        &|| false,
     )
     .expect("them Chuong that bai");
     assert_eq!(appended_count, 2, "phai bao dung SO Chuong vua them");
@@ -5826,7 +5829,7 @@ fn append_leaves_every_pre_existing_chapter_and_segment_row_byte_identical() {
 
     let new_shape =
         PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi ba.".to_owned())]);
-    append_chapters_to_work(
+    append_chapters_to_work_with_progress(
         &mut opened,
         "en",
         new_shape,
@@ -5837,6 +5840,9 @@ fn append_leaves_every_pre_existing_chapter_and_segment_row_byte_identical() {
         &[],
         &std::sync::Mutex::new(Vec::new()),
         None,
+        &BilingualParams::NEUTRAL,
+        &mut |_, _| {},
+        &|| false,
     )
     .expect("them Chuong that bai");
 
@@ -5930,8 +5936,8 @@ fn status_re_derives_to_in_progress_after_append_and_only_on_the_right_work() {
     let pending = PendingImportSourceState::new(None);
     let new_shape =
         PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
-    stash_pending_import_source(&pending, new_shape, None);
-    confirm_append_import_with_encoding(
+    stash_pending_import_source_for(&pending, new_shape, None, None);
+    confirm_append_import_with_encoding_with_progress(
         &mut x,
         &pending,
         "en",
@@ -5941,6 +5947,8 @@ fn status_re_derives_to_in_progress_after_append_and_only_on_the_right_work() {
         Vec::new(),
         Vec::new(),
         &std::sync::Mutex::new(Vec::new()),
+        &mut |_, _| {},
+        &|| false,
     )
     .expect("xac nhan append vao X that bai");
 
@@ -5980,8 +5988,8 @@ fn status_override_survives_an_append_that_would_otherwise_re_derive_status() {
     let pending = PendingImportSourceState::new(None);
     let new_shape =
         PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
-    stash_pending_import_source(&pending, new_shape, None);
-    confirm_append_import_with_encoding(
+    stash_pending_import_source_for(&pending, new_shape, None, None);
+    confirm_append_import_with_encoding_with_progress(
         &mut opened,
         &pending,
         "en",
@@ -5991,6 +5999,8 @@ fn status_override_survives_an_append_that_would_otherwise_re_derive_status() {
         Vec::new(),
         Vec::new(),
         &std::sync::Mutex::new(Vec::new()),
+        &mut |_, _| {},
+        &|| false,
     )
     .expect("xac nhan append that bai");
 
@@ -6015,7 +6025,7 @@ fn status_override_survives_an_append_that_would_otherwise_re_derive_status() {
 /// without_touching_a_single_byte` (Story 5.7), áp cho đường gọi MỚI mà Story 6.7b mở
 /// (`wire::confirm_import_with_encoding`'s nhánh APPEND, `wire.rs:882-883`, gọi `open_work`
 /// theo ĐÚNG thứ tự tái hiện dưới đây). Vế "0 rows written" ở đây là một mệnh đề TẦNG KIỂU,
-/// không phải một suy luận: `confirm_append_import_with_encoding` đòi một `&mut OpenWork`
+/// không phải một suy luận: `confirm_append_import_with_encoding_with_progress` đòi một `&mut OpenWork`
 /// SỐNG — không có giá trị nào như vậy tồn tại trên nhánh `Err` của `open_work`, nên chương
 /// trình không thể gọi nó (không biên dịch được nếu cố), không cần một quan sát runtime nào
 /// thêm để chứng minh "chưa từng chạy tới đó".
@@ -6082,14 +6092,14 @@ fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_
     let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
         "Chuong moi mot.".to_owned(),
     )]);
-    stash_pending_import_source(&pending, new_shape, None);
+    stash_pending_import_source_for(&pending, new_shape, None, None);
 
     {
         let mut guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let open = guard.as_mut().expect("OpenWorkState phai dang giu dung W");
-        confirm_append_import_with_encoding(
+        confirm_append_import_with_encoding_with_progress(
             open,
             &pending,
             "en",
@@ -6099,6 +6109,8 @@ fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_
             Vec::new(),
             Vec::new(),
             &std::sync::Mutex::new(Vec::new()),
+            &mut |_, _| {},
+            &|| false,
         )
         .expect("append vao chinh Tac pham dang mo (trong OpenWorkState) phai thanh cong");
     }
@@ -6175,7 +6187,7 @@ fn an_unconfirmed_preview_leaves_the_destinations_stores_unchanged() {
     let library_index_before =
         fs::read(side.join("library-index.db")).expect("doc library-index.db truoc");
 
-    // Mô phỏng một màn xem trước THẬT cho đích này: dán lại (`stash_pending_import_source`,
+    // Mô phỏng một màn xem trước THẬT cho đích này: dán lại (`stash_pending_import_source_for`,
     // thuần trong bộ nhớ) VÀ đọc luật tầng Work cho đích qua ĐÚNG hàm xem trước dùng
     // (`resolve_work_tier_cleanup_rules_for_destination`, mở lại `project.db` qua `open_work`
     // đúng khuôn `wire` làm khi đích KHÔNG phải Tác phẩm đang mở) — cả hai đều là ĐỌC, không
@@ -6184,7 +6196,7 @@ fn an_unconfirmed_preview_leaves_the_destinations_stores_unchanged() {
     let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
         "Chuong se KHONG bao gio duoc ghi.".to_owned(),
     )]);
-    stash_pending_import_source(&pending, new_shape, None);
+    stash_pending_import_source_for(&pending, new_shape, None, None);
 
     let reopened = auratranslate_lib::commands::project::open_work(&work_id, Some(&indexed))
         .expect("mo lai dich de doc luat xem truoc that bai");
@@ -6226,7 +6238,7 @@ fn an_unconfirmed_preview_leaves_the_destinations_stores_unchanged() {
 /// §I/O Matrix "Destination unreadable" — `meta.json` của đích mang một schema MỚI HƠN ứng
 /// dụng này hiểu, HOẶC chính `project.db` bị HỎNG — cả hai đều phải bị TỪ CHỐI bằng một lỗi
 /// CÓ TÊN qua ĐÚNG đường giải đích mà nhánh APPEND của `wire::confirm_import_with_encoding`
-/// đi qua TRƯỚC KHI `confirm_append_import_with_encoding` bao giờ được gọi
+/// đi qua TRƯỚC KHI `confirm_append_import_with_encoding_with_progress` bao giờ được gọi
 /// (`indexer.find_work(&work_id)?` rồi `open_destination_for_append(&work_id,
 /// indexed.as_ref())?`) — xem doc-comment của
 /// `confirm_append_is_refused_and_writes_zero_rows_when_the_destination_project_db_has_vanished`
@@ -6344,7 +6356,7 @@ fn confirm_append_is_refused_with_a_named_message_key_when_the_destination_is_un
 /// lần xoá thư mục nào xảy ra (khác hẳn `create_work`'s 10 điểm `remove_folder`, một điểm
 /// trong đó chạy SAU KHI giao dịch đã commit).
 ///
-/// Ép giao dịch của CHÍNH `append_chapters_to_work` thất bại giữa chừng bằng một cơ chế
+/// Ép giao dịch của CHÍNH `append_chapters_to_work_with_progress` thất bại giữa chừng bằng một cơ chế
 /// KHÔNG cần sửa sản phẩm: `PRAGMA max_page_count` đặt một ngân sách trang THẤP lên chính
 /// kết nối ghi (một pragma phiên, không phải một cột lược đồ) NGAY TRƯỚC lượt append — ba
 /// Chương mới, mỗi Chương vài trăm câu, chắc chắn cần nhiều trang hơn ngân sách +3 trang
@@ -6386,7 +6398,7 @@ fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_i
         ChapterInput::AlreadyText(big_chapter("ba")),
     ]);
 
-    let err = append_chapters_to_work(
+    let err = append_chapters_to_work_with_progress(
         &mut opened,
         "en",
         new_shape,
@@ -6397,6 +6409,9 @@ fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_i
         &[None, None, None],
         &std::sync::Mutex::new(Vec::new()),
         None,
+        &BilingualParams::NEUTRAL,
+        &mut |_, _| {},
+        &|| false,
     )
     .expect_err("mot giao dich vuot ngan sach trang PHAI truot, khong duoc am tham thanh cong");
     assert!(
@@ -6449,7 +6464,7 @@ fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_i
 /// vẫn thấy đúng tập Chương CŨ, không bao giờ thấy Chương vừa thêm. Ca này đo ĐÚNG mệnh đề
 /// đó qua CẢ HAI cửa sổ chỉ mục: `library_work.chapter_count` VÀ tìm kiếm toàn văn.
 ///
-/// 🔴 Ghép `finish_lifecycle_write(confirm_append_import_with_encoding(..))` đúng như
+/// 🔴 Ghép `finish_lifecycle_write(confirm_append_import_with_encoding_with_progress(..))` đúng như
 /// `wire::append_into_destination` — KHÔNG tự gọi
 /// `Indexer::rebuild`/`reindex_after_lifecycle_write` rời sau đó: một ca tự reindex thì
 /// không canh gì (đúng bẫy mà correction Phase 1 đã gọi tên cho AC3, áp lại ở đây cho bước 4).
@@ -6509,17 +6524,17 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
         "tu khoa cua Chuong CHUA TUNG duoc them khong duoc khop gi ca truoc luot append"
     );
 
-    // Duong APPEND THAT -- qua PendingImportSourceState + confirm_append_import_with_encoding + finish_lifecycle_write,
+    // Duong APPEND THAT -- qua PendingImportSourceState + confirm_append_import_with_encoding_with_progress + finish_lifecycle_write,
     // KHONG chen thang SQL. Chuong moi mang marker duy nhat de tim kiem toan van phan biet
     // duoc "Chuong CU da co" voi "Chuong MOI vua them".
     let pending = PendingImportSourceState::new(None);
     let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(format!(
         "Chuong moi mang tu khoa {marker} de tim kiem toan van tim thay."
     ))]);
-    stash_pending_import_source(&pending, new_shape, None);
+    stash_pending_import_source_for(&pending, new_shape, None, None);
 
     auratranslate_lib::commands::lifecycle::finish_lifecycle_write(
-        confirm_append_import_with_encoding(
+        confirm_append_import_with_encoding_with_progress(
             &mut opened,
             &pending,
             "en",
@@ -6529,6 +6544,8 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
             Vec::new(),
             Vec::new(),
             &std::sync::Mutex::new(Vec::new()),
+            &mut |_, _| {},
+            &|| false,
         ),
         Some(&indexer),
         Some(&global),
@@ -6562,7 +6579,7 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
 }
 
 /// Đối chứng dương/âm cho ca ngay trên — chứng minh ca đó ĐỎ THẬT khi bước 4 bị gỡ, không
-/// chỉ trông giống một cổng canh. Gọi thẳng [`confirm_append_import_with_encoding`] (KHÔNG
+/// chỉ trông giống một cổng canh. Gọi thẳng [`confirm_append_import_with_encoding_with_progress`] (KHÔNG
 /// qua `_indexed`, tức bỏ qua bước 4 y hệt phép gỡ mà coordinator đã làm ở tầng vỏ) rồi khẳng
 /// định `library_work.chapter_count`/tìm kiếm toàn văn vẫn đứng ở trạng thái CŨ — đúng mô tả
 /// "0 ca đỏ" mà đo 2026-08-27 từng ghi cho lớp lỗi này.
@@ -6596,11 +6613,11 @@ fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_mea
     let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(format!(
         "Chuong moi mang {marker} nhung KHONG duoc reindex."
     ))]);
-    stash_pending_import_source(&pending, new_shape, None);
+    stash_pending_import_source_for(&pending, new_shape, None, None);
 
     // Cùng bước 1-3, KHÔNG bước 4 -- tái hiện đúng phép gỡ của coordinator (bỏ lời gọi
     // reindex sau lượt xác nhận append) tại tầng hàm thuần này.
-    confirm_append_import_with_encoding(
+    confirm_append_import_with_encoding_with_progress(
         &mut opened,
         &pending,
         "en",
@@ -6610,8 +6627,10 @@ fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_mea
         Vec::new(),
         Vec::new(),
         &std::sync::Mutex::new(Vec::new()),
+        &mut |_, _| {},
+        &|| false,
     )
-    .unwrap_or_else(|e| panic!("confirm_append_import_with_encoding: {e:?}"));
+    .unwrap_or_else(|e| panic!("confirm_append_import_with_encoding_with_progress: {e:?}"));
 
     let chapter_count_of = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
         indexer
@@ -6756,7 +6775,7 @@ fn append_chapters_to_work_rejects_a_source_lang_outside_zh_or_en_and_writes_not
     let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
         "Chuong moi. Cau mot.".to_owned(),
     )]);
-    let err = append_chapters_to_work(
+    let err = append_chapters_to_work_with_progress(
         &mut opened,
         "ja",
         new_shape,
@@ -6767,6 +6786,9 @@ fn append_chapters_to_work_rejects_a_source_lang_outside_zh_or_en_and_writes_not
         &[],
         &std::sync::Mutex::new(Vec::new()),
         None,
+        &BilingualParams::NEUTRAL,
+        &mut |_, _| {},
+        &|| false,
     )
     .expect_err("source_lang ngoai zh/en phai bi tu choi o duong append");
 
@@ -6977,7 +6999,7 @@ fn append_chapters_to_work_warns_when_content_does_not_match_the_declared_source
          du de heuristic ti le chu do duoc tin hieu that."
             .to_owned(),
     )]);
-    append_chapters_to_work(
+    append_chapters_to_work_with_progress(
         &mut opened,
         "zh",
         new_shape,
@@ -6988,6 +7010,9 @@ fn append_chapters_to_work_warns_when_content_does_not_match_the_declared_source
         &[],
         &std::sync::Mutex::new(Vec::new()),
         None,
+        &BilingualParams::NEUTRAL,
+        &mut |_, _| {},
+        &|| false,
     )
     .expect("noi dung lech source_lang van phai them Chuong duoc -- canh bao KHONG CHAN");
 
@@ -7018,7 +7043,7 @@ fn append_chapters_to_work_flags_a_source_lang_mismatch_when_only_the_second_new
                 .to_owned(),
         ),
     ]);
-    append_chapters_to_work(
+    append_chapters_to_work_with_progress(
         &mut opened,
         "zh",
         new_shape,
@@ -7029,6 +7054,9 @@ fn append_chapters_to_work_flags_a_source_lang_mismatch_when_only_the_second_new
         &[],
         &std::sync::Mutex::new(Vec::new()),
         None,
+        &BilingualParams::NEUTRAL,
+        &mut |_, _| {},
+        &|| false,
     )
     .expect("them hai Chuong that bai");
 

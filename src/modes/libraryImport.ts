@@ -13,7 +13,7 @@
  * ⇒ Thao tác nộp form (`library.import.submit`) đăng ký ở
  * `src/commands/index.ts` như một `CommandDeps` TIÊM VÀO — cùng khuôn `applyPreset` /
  * `togglePanel` của `src/layout/dockController.ts`. Module này là **phía cung cấp**:
- * `LibraryMode.vue` đọc/ghi các `ref` ở đây qua `v-model`; `src/main.ts` nối
+ * `LibraryImportOverlay.vue` đọc/ghi các `ref` ở đây qua `v-model`; `src/main.ts` nối
  * `submitActiveImportTab` vào `installCommands({...})`.
  *
  * ─────────────────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@
  * `submitPastedText`/`submitFilePath` giờ mở màn xem trước bảng mã
  * (`src/importPreviewState.ts::openImportPreviewFromText`/`openImportPreviewFromFile`) —
  * đúng bất biến "không byte nào xuống đĩa trước khi người dùng xác nhận"
- * (`libraryImport.ts:276-330` cũ, nay ÁP CẢ cho nhánh dán văn bản, không chỉ nhánh tệp).
+ * (nay ÁP CẢ cho nhánh dán văn bản, không chỉ nhánh tệp).
  * Việc TẠO Tác phẩm thật (`create_work`) chỉ xảy ra sau khi người dùng bấm "Xác nhận" trong
  * `ImportPreviewOverlay.vue`, đi qua `confirmImportPreview()` rồi tới
  * [`finishImportSubmission`] (đổi tên từ `finishSubmit` cũ, giờ EXPORT vì `main.ts` gọi nó
@@ -93,7 +93,7 @@ import type { ChapterPatternInput, CreatedWork, DocxImportPreviewWire, DocxImpor
 import { classifyImportPaths, listLibraryWorks, pickImportFiles } from '../config/library'
 import type { ClassifiedImportFile, ImportBatchVerdict, ImportClassification, WorkRow } from '../config/library'
 import type { IpcError } from '../i18n'
-import { closeLibraryImportOverlay } from './libraryImportOverlayState'
+import { closeLibraryImportOverlay, libraryImportOverlayIsOpen } from './libraryImportOverlayState'
 
 /** Khớp `src-tauri/src/lib.rs::DRAG_DROP_EVENT`. */
 const DRAG_DROP_EVENT = 'aura://file-dropped'
@@ -342,12 +342,13 @@ function setImportClassification(classification: ImportClassification): void {
   importClassification.value = classification
 }
 
-function baseName(path: string): string {
-  return path.split(/[\\/]/).pop() ?? path
+function mergeImportPaths(added: string[]): string[] {
+  const known = importFiles.value.map((f) => f.path)
+  return [...known, ...added.filter((path) => !known.includes(path))]
 }
 
-export function importFileName(path: string): string {
-  return baseName(path)
+function isSubmittableVerdict(verdict: ImportBatchVerdict): boolean {
+  return verdict === 'text' || verdict === 'bilingual' || verdict === 'docx'
 }
 
 export async function chooseImportFiles(): Promise<void> {
@@ -358,14 +359,11 @@ export async function chooseImportFiles(): Promise<void> {
   }
   if (classification === null) return
   lastError.value = null
-  noticeKey.value = null
-  const known = importFiles.value.map((f) => f.path)
-  const added = classification.files.map((f) => f.path).filter((path) => !known.includes(path))
-  if (known.length === 0) {
+  if (importFiles.value.length === 0) {
     setImportClassification(classification)
     return
   }
-  await applyImportFilePaths([...known, ...added])
+  await applyImportFilePaths(mergeImportPaths(classification.files.map((f) => f.path)))
 }
 
 /** The row the pointer or focus is on; `library.import.file_remove` acts on it. */
@@ -454,14 +452,6 @@ export const lastError = ref<IpcError | null>(null)
  */
 export const createdWork = ref<CreatedWork | null>(null)
 
-/**
- * Khoá i18n của một lời nhắn không phải lỗi (ví dụ: thả nhiều tệp một lúc).
- *
- * Giữ **KHOÁ**, không giữ CÂU — NFR16/AD-21: không một câu tiếng Việt nào sống
- * trong mã.
- */
-export const noticeKey = ref<string | null>(null)
-
 
 /**
  * Lượt flush bản dịch cũ trượt ⇒ **dừng** lượt tạo Tác phẩm. Story 2.3 · code review 2026-08-13.
@@ -494,7 +484,6 @@ function surfaceUndetectableLang(): void {
 async function beginSubmit(): Promise<boolean> {
   busy.value = true
   lastError.value = null
-  noticeKey.value = null
   // Một lượt nộp mới xoá xác nhận cũ — không để dòng "Đã tạo…" của lần trước đứng cạnh
   // kết quả của lần này và nói dối về cái vừa xảy ra.
   createdWork.value = null
@@ -739,7 +728,7 @@ export async function submitPastedText(): Promise<void> {
 export async function submitFilePath(): Promise<void> {
   if (busy.value || importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value) return
   const verdict = importFilesVerdict.value
-  if (verdict !== 'text' && verdict !== 'bilingual' && verdict !== 'docx') return
+  if (!isSubmittableVerdict(verdict)) return
   if (destinationPending.value) return
   const paths = importFiles.value.map((f) => f.path)
   if (!(await beginSubmit())) return
@@ -883,11 +872,7 @@ export const importSubmitReady = computed<boolean>(() => {
     case 'paste':
       return pastedText.value.trim() !== ''
     case 'files':
-      return (
-        importFilesVerdict.value === 'text' ||
-        importFilesVerdict.value === 'bilingual' ||
-        importFilesVerdict.value === 'docx'
-      )
+      return isSubmittableVerdict(importFilesVerdict.value)
     case 'urls':
       return pastedUrlCount.value > 0
   }
@@ -920,24 +905,11 @@ export async function submitPastedUrls(): Promise<void> {
 /**
  * Gắn ba bộ nghe kéo-thả — gọi từ `LibraryMode.vue::onMounted`, gỡ ở `onBeforeUnmount`.
  *
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 THẢ MỘT TỆP ĐỔ VÀO Ô ĐƯỜNG DẪN — NÓ KHÔNG GHI XUỐNG ĐĨA
- * ─────────────────────────────────────────────────────────────────────────────
- * AC1 nguyên văn: *"**không có gì được ghi xuống đĩa trước khi người dùng xác nhận**"*
- * (bất biến của mọi đường nhập — `EXPERIENCE.md#KF-1`). Bản trước gọi thẳng lệnh tạo ngay
- * trong bộ nghe, nên một cú thả **bất kỳ đâu trong cửa sổ** — kể cả khi đang ở Workspace
- * và màn Library chưa từng hiện — ghi ngay một `.atproj` xuống đĩa với `name`/`genre`
- * còn sót lại trong ref. Đó là AC1 bị phá ở đúng bất biến nó tồn tại để giữ.
- * Code review 2026-08-06.
+ * 🔴 Thả chỉ NỐI đường dẫn vào danh sách Tệp rồi để Rust phân loại; không có gì ghi xuống
+ * đĩa trước khi người dùng bấm nút chính và xác nhận ở màn xem trước (`EXPERIENCE.md#KF-1`).
+ * Khi lớp phủ nhập đóng thì cú thả bị bỏ qua. Rust chỉ chuyển tiếp ĐƯỜNG DẪN (AD-1/AD-16).
  *
- * ⇒ Thả **điền đường dẫn vào ô**, rồi người dùng bấm nút. Cùng một nút, cùng một hàm, cùng
- * một bước xác nhận với đường bàn phím — và không đường nào giữ bản sao pipeline
- * (AD-39:498).
- *
- * ⚠️ Rust chỉ chuyển tiếp ĐƯỜNG DẪN (AD-1/AD-16) — nội dung tệp chưa từng chạm webview.
- *
- * Không ném nếu không có cầu IPC (`npm run dev` ngoài Tauri) — cùng nhánh "không có cầu
- * IPC" của `loadBootstrapConfig`.
+ * Không ném nếu không có cầu IPC (`npm run dev` ngoài Tauri).
  */
 export function wireDragDropOnce(): void {
   if (dragDropWired) return
@@ -964,23 +936,22 @@ export function wireDragDropOnce(): void {
   wire<string[]>(DRAG_DROP_EVENT, (paths) => {
     isDragOver.value = false
     dragFileCount.value = 0
+    if (!libraryImportOverlayIsOpen.value) return
 
     const valid = Array.isArray(paths)
       ? paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
       : []
     if (valid.length === 0) return
     selectImportTab('files')
-    noticeKey.value = null
     lastError.value = null
-    const known = importFiles.value.map((f) => f.path)
-    void applyImportFilePaths([...known, ...valid.filter((path) => !known.includes(path))])
+    void applyImportFilePaths(mergeImportPaths(valid))
   })
 }
 
 /**
  * Gỡ ba bộ nghe — gọi từ `LibraryMode.vue::onBeforeUnmount`.
  *
- * ⚠️ Có nó vì bộ nghe là **tầng cửa sổ**, không phải của phần tử `.dropzone`: để nó
+ * ⚠️ Có nó vì bộ nghe là **tầng cửa sổ**, không phải của một phần tử: để nó
  * sống sau khi chế độ bị tháo nghĩa là một cú thả ở Workspace vẫn điền vào một form không
  * không còn trên màn hình.
  */

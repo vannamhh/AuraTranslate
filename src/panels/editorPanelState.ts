@@ -2204,7 +2204,7 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
  * **Chương sau** — AC1. Đây là thứ `commands/index.ts` gọi *(qua `CommandDeps`)*.
  *
  * ⚠️ `void`, không `Promise<boolean>`: `CommandRegistry.run` là đồng bộ, và khuôn
- * fire-and-forget này đã có tiền lệ ở `submitPastedText`/`submitFilePath` *(`index.ts:207`)*.
+ * fire-and-forget này đã có tiền lệ ở `submitActiveImportTab`.
  * Mọi kết quả — kể cả một lượt bị chặn — đã đi ra bằng thanh trạng thái bên trong
  * [`switchChapter`].
  */

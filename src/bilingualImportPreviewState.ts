@@ -40,6 +40,8 @@ import type {
   CreatedWork,
 } from './config/project'
 import type { IpcError } from './i18n'
+import { importFileName } from './importFormat'
+import type { DocxCarry } from './importPreview/docxCarry'
 
 /** Bốn trạng thái, cùng khuôn `ImportPreviewStatus`. */
 export type BilingualImportPreviewStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
@@ -141,7 +143,7 @@ export const bilingualImportPreviewPendingName: DeepReadonly<Ref<string>> = read
 export const bilingualImportPreviewPendingSourceLang: DeepReadonly<Ref<string>> = readonly(pendingSourceLang)
 export const bilingualImportPreviewPendingGenre: DeepReadonly<Ref<string>> = readonly(pendingGenre)
 export const bilingualImportPreviewSourceFileName = computed<string>(
-  () => pendingPath.value.split(/[\\/]/).pop() ?? pendingPath.value,
+  () => importFileName(pendingPath.value),
 )
 
 /** Ứng viên bảng mã ĐANG CHỌN — `null` khi chưa có `preview` hoặc không ứng viên nào khớp
@@ -383,7 +385,7 @@ async function refresh(holdRow: BilingualMismatchWire | null = null): Promise<vo
 }
 
 /** Mở lớp phủ — nhánh DUY NHẤT của đường song ngữ (§Boundaries: chỉ `.csv`/`.tsv`, người
- * dùng đã chọn CHẾ ĐỘ song ngữ tường minh trước khi tới đây, xem `libraryImport.ts::submitBilingualFilePath`). */
+ * dùng đã chọn CHẾ ĐỘ song ngữ tường minh trước khi tới đây, xem `libraryImport.ts::openBilingualFromFiles`). */
 export async function openBilingualImportPreview(
   name: string,
   sourceLang: string,
@@ -806,15 +808,7 @@ export function resetBilingualImportPreview(): void {
   docxSwitchError.value = null
 }
 
-/** What the docx shape switch carries to the other preview. */
-export function bilingualImportPreviewDocxCarry(): {
-  name: string
-  sourceLang: string
-  genre: string
-  destinationWorkId: string | null
-  path: string
-  chapterPattern: ChapterPatternInput | null
-} | null {
+export function bilingualImportPreviewDocxCarry(): DocxCarry | null {
   if (!docxSource.value) return null
   return {
     name: pendingName.value,

@@ -25,7 +25,7 @@ use auratranslate_lib::commands::project::{
     BlockBodyWire, OpenWork, PendingImportSourceState, UrlImportItem, chapter_detail_for_index,
     chapters_shape_if_all_ok, cleanup_and_chapters_preview_for, confirm_import_with_encoding,
     create_work, preview_import_encoding, resolve_work_tier_cleanup_rules_for_destination,
-    set_block_override, stash_pending_import_source,
+    set_block_override, stash_pending_import_source_for,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::i18n::MessageKey;
@@ -584,7 +584,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
     );
 
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_import_with_encoding(
         &root,
         &state,
@@ -732,7 +732,7 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         label: url,
     }]);
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape_for_confirm, None);
+    stash_pending_import_source_for(&state, shape_for_confirm, None, None);
     let opened = confirm_import_with_encoding(
         &root,
         &state,
@@ -1894,7 +1894,7 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_import_with_encoding(
         &root,
         &state,
@@ -1987,7 +1987,7 @@ fn preview_and_confirm_agree_byte_for_byte_when_n_chapters_come_from_n_files() {
 
     let shape = PipelineShape::Files(units);
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let opened = confirm_import_with_encoding(
         &root,
         &state,

@@ -444,7 +444,7 @@ pub fn create_work_with_progress(
     let final_segments = final_segments;
     let saved_assets = saved_assets;
     // Lấy mẫu TRƯỚC khi `chapters` bị `move` vào giao dịch dưới đây — `source_text` ở đây đã
-    // qua pipeline (giải mã đúng bảng mã thật), cùng khuôn `append_chapters_to_work`.
+    // qua pipeline (giải mã đúng bảng mã thật), cùng khuôn `append_chapters_to_work_with_progress`.
     let source_lang_mismatch = chapters
         .iter()
         .any(|chapter| source_lang_looks_mismatched(&source_lang_owned, &chapter.source_text));
@@ -679,10 +679,30 @@ pub fn create_work(
     )
 }
 
+/// Bilingual-column options of an append; [`BilingualParams::NEUTRAL`] is what text imports pass.
+#[derive(Clone, Copy)]
+pub struct BilingualParams<'a> {
+    pub source_column: usize,
+    pub target_column: usize,
+    pub has_header: bool,
+    pub regroupings: &'a [crate::core::segment::bilingual::BilingualRegrouping],
+    pub mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy,
+}
+
+impl BilingualParams<'static> {
+    pub const NEUTRAL: Self = Self {
+        source_column: 0,
+        target_column: 1,
+        has_header: false,
+        regroupings: &[],
+        mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
+    };
+}
+
 /// **Hàm thuần** — Story 6.7b (FR122, nửa hai: "hoặc thêm Chương vào một Tác phẩm sẵn có").
 /// Em sinh của [`create_work`]: ghi thêm N Chương vào một Tác phẩm ĐÃ CÓ, tại
 /// `ord = MAX(ord)+1`, tái dùng ĐÚNG khuôn chèn chapter/segment/asset của `create_work`
-/// (`:722-795`) TRONG MỘT giao dịch.
+/// TRONG MỘT giao dịch.
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
 /// 🔴 KHÁC `create_work` Ở ĐÚNG MỘT ĐIỂM SỐNG CÒN — KHÔNG TẠO, KHÔNG XOÁ
@@ -733,11 +753,7 @@ pub fn append_chapters_to_work_with_progress(
     origin_overrides: &[Option<ChapterOriginOverride>],
     domain_log_state: &webimport::DomainLogState,
     docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
-    bilingual_source_column: usize,
-    bilingual_target_column: usize,
-    bilingual_has_header: bool,
-    regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
-    mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy,
+    bilingual: &BilingualParams<'_>,
     on_image_progress: &mut dyn FnMut(usize, usize),
     should_cancel: &dyn Fn() -> bool,
 ) -> Result<usize, IpcError> {
@@ -772,12 +788,12 @@ pub fn append_chapters_to_work_with_progress(
             .with_extract_main_content(extract_main_content)
             .with_block_overrides(block_overrides)
             .with_bilingual_columns(
-                bilingual_source_column,
-                bilingual_target_column,
-                bilingual_has_header,
+                bilingual.source_column,
+                bilingual.target_column,
+                bilingual.has_header,
             )
-            .with_bilingual_regroupings(regroupings.to_vec())
-            .with_bilingual_mismatched_rows(mismatched_rows),
+            .with_bilingual_regroupings(bilingual.regroupings.to_vec())
+            .with_bilingual_mismatched_rows(bilingual.mismatched_rows),
     )?;
     if !outcome.bilingual_mismatches.is_empty() {
         let count = outcome.bilingual_mismatches.len();
@@ -978,45 +994,6 @@ pub fn append_chapters_to_work_with_progress(
     open.new_chapter_ids = appended_chapter_ids;
 
     Ok(appended_count)
-}
-
-/// Thin wrapper over [`append_chapters_to_work_with_progress`] with a no-op progress/cancel
-/// pair.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
-)]
-pub fn append_chapters_to_work(
-    open: &mut OpenWork,
-    source_lang: &str,
-    shape: PipelineShape,
-    encoding: &'static encoding_rs::Encoding,
-    cleanup_rules: Vec<crate::core::cleanup::CleanupRule>,
-    chapter_pattern: Option<ChapterPattern>,
-    block_overrides: Vec<Option<bool>>,
-    origin_overrides: &[Option<ChapterOriginOverride>],
-    domain_log_state: &webimport::DomainLogState,
-    docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
-) -> Result<usize, IpcError> {
-    append_chapters_to_work_with_progress(
-        open,
-        source_lang,
-        shape,
-        encoding,
-        cleanup_rules,
-        chapter_pattern,
-        block_overrides,
-        origin_overrides,
-        domain_log_state,
-        docx_sidecar,
-        0,
-        1,
-        false,
-        &[],
-        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
-        &mut |_, _| {},
-        &|| false,
-    )
 }
 
 /// **THÊM 2026-09-16 (Story 6.7b, Phase 4)** — lõi THUẦN của việc chọn tầng Tác phẩm cho
@@ -1766,7 +1743,7 @@ fn fetch_and_write_one_asset(
     write_local_asset_bytes(&bytes, &content_type, assets_dir)
 }
 
-/// Danh mục ĐÓNG — `create_work`/`append_chapters_to_work` từ chối MỌI
+/// Danh mục ĐÓNG — `create_work`/`append_chapters_to_work_with_progress` từ chối MỌI
 /// `source_lang` ngoài hai giá trị này, không ghi một byte nào. Trước bản vá này chỉ webview
 /// kiểm (`=== 'zh'`, `src/modes/libraryImport.ts`); một `.atproj` sửa tay hoặc một lời gọi
 /// `invoke` trần với giá trị lạ đi thẳng xuống đĩa.

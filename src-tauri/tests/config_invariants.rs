@@ -1824,7 +1824,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn preview_import_encoding_from_file(\n    app: tauri::AppHandle",
+            "pub fn preview_import_encoding_from_file<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
             "cung tran 100 MB qua `import_file` -- doc TRON tep cong giai nen `.docx` ngay o \
              luot XEM TRUOC, truoc khi nguoi dung xac nhan bat cu dieu gi",
         ),

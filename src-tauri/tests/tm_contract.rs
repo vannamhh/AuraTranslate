@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{
     OpenWork, OpenWorkState, confirm_bilingual_import, create_work_from_text,
-    stash_pending_import_source,
+    stash_pending_import_source_for,
 };
 use auratranslate_lib::commands::segment::{
     SegmentTargetEdit, TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_OTHER,
@@ -495,7 +495,7 @@ fn bilingual_work(tag: &str, rows: usize) -> (PathBuf, OpenWork) {
     fs::write(&path, csv).expect("ghi csv");
     let shape = import_bilingual_file(&path).expect("doc csv");
     let state = std::sync::Mutex::new(None);
-    stash_pending_import_source(&state, shape, None);
+    stash_pending_import_source_for(&state, shape, None, None);
     let open = confirm_bilingual_import(
         &root,
         &state,

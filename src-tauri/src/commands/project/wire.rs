@@ -19,9 +19,7 @@ use crate::core::webimport;
 /// đoán — cùng khuôn `resolve_configured_library_root`: luật làm sạch là một tiện ích
 /// bổ trợ, một sự cố ở đây không được phép làm cả màn xem trước sập.
 ///
-/// Takes no destination: used by the URL-session refinement shells
-/// (`reload_url_import_item`, `remove_url_import_item`, `tier2_block_*`, `preview_chapter_detail`).
-/// Import paths that have a destination call [`resolve_cleanup_rules_for`].
+/// Takes no destination: only [`resolve_cleanup_rules_for`] calls it, for a new-Work destination.
 fn resolve_cleanup_rules<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<CleanupRule> {
     use tauri::Manager as _;
 
@@ -44,8 +42,7 @@ fn resolve_cleanup_rules<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<Cl
 }
 
 /// **THÊM 2026-09-16 (Story 6.7b, AC3)** — luật làm sạch cho một chỗ gọi CÓ khái niệm
-/// đích (the text/file/URL previews, `confirm_import_with_encoding` and the three bilingual
-/// shells). `Some(work_id)` ⇒ tầng Tác
+/// đích (every import preview and confirm shell). `Some(work_id)` ⇒ tầng Tác
 /// phẩm phân giải từ ĐÍCH đó, KHÔNG từ `OpenWorkState` — xem
 /// [`resolve_cleanup_rules_for_destination`]. `None` (đích = Tác phẩm MỚI) uỷ thác
 /// NGUYÊN VẸN cho [`resolve_cleanup_rules`] ở trên — giữ đúng hành vi hôm nay: hợp nhất
@@ -595,7 +592,7 @@ pub fn create_work_from_file(
 /// thể trượt bằng chính lượt đọc (`Result` vẫn cần: xem lỗi "state chưa quản lý" dưới
 /// đây).
 /// **Không một quy tắc nào sống ở đây** — đọc [`super::preview_import_encoding`] và
-/// [`super::stash_pending_import_source`].
+/// [`super::stash_pending_import_source_for`].
 ///
 /// 🔵 **THÊM 2026-09-04 (Story 6.4) — tham số `source_lang`.** KHÔNG phải một command
 /// mới, KHÔNG một lượt đọc thêm: `sourceLang` đã có sẵn ở form phía frontend TRƯỚC khi
@@ -620,7 +617,7 @@ pub fn create_work_from_file(
 /// này đều nạp lại lúc xác nhận, cùng khuôn `cleanup_rules`/`chapter_pattern`).
 ///
 /// 🔴 **`(async)`.** Vỏ này `.lock()`
-/// [`PendingImportSourceState`] (qua [`super::stash_pending_import_source`]) TRÊN LUỒNG
+/// [`PendingImportSourceState`] (qua [`super::stash_pending_import_source_for`]) TRÊN LUỒNG
 /// CHÍNH nếu còn đồng bộ, trong khi `confirm_import_with_encoding`/`confirm_bilingual_import`
 /// (đã `(async)`) GIỮ khoá đó xuyên suốt phần đọc-rồi-ghi — có thể tới N × 20 giây khi đang
 /// tải ảnh (xem doc-comment `confirm_import_with_encoding`). Một vỏ ĐỒNG BỘ gọi `.lock()`
@@ -710,8 +707,8 @@ pub fn preview_import_encoding_from_text(
 /// 🔴 **THÊM 2026-09-16 (Story 6.7b) — tham số `destination`**, cùng lý do nhánh DÁN
 /// VĂN BẢN (`preview_import_encoding_from_text`).
 #[tauri::command(async)]
-pub fn preview_import_encoding_from_file(
-    app: tauri::AppHandle,
+pub fn preview_import_encoding_from_file<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     paths: Vec<String>,
     source_lang: String,
     chapter_pattern: Option<super::ChapterPatternWire>,
@@ -730,7 +727,7 @@ pub fn preview_import_encoding_from_file(
     // vẫn xác nhận được, dù màn hình vừa báo lỗi. Dọn Ô ĐANG CHỜ trên đường lỗi này, cùng
     // khuôn `cancel_import_preview` ở nhánh "còn mục hỏng" ngay dưới.
     let lone_docx = match paths.as_slice() {
-        [only] if is_docx_path(only) => {
+        [only] if crate::core::segment::import::is_docx(std::path::Path::new(only)) => {
             match crate::core::segment::import::read_docx_source(std::path::Path::new(only)) {
                 Ok(source) => Some(source),
                 Err(err) => {
@@ -830,7 +827,7 @@ pub fn preview_import_encoding_from_file(
 /// `OpenWorkState` nếu nó TRÙNG Tác phẩm đang mở (tái dùng `Store`, không mở kết nối ghi
 /// thứ hai tới cùng `project.db` — `src-tauri/AGENTS.md:30`), ngược lại qua
 /// [`super::open_work`] (đúng khuôn `wire::open_work` ngay dưới) — rồi gọi
-/// [`super::confirm_append_import_with_encoding`]. Đích được đọc LẠI ở đây qua
+/// [`super::confirm_append_import_with_encoding_with_progress`]. Đích được đọc LẠI ở đây qua
 /// [`super::current_pending_destination`] (không phải một cache của lớp gọi) và
 /// [`super::open_work`]/`Indexer::find_work` chạy LẠI, nghiêm túc — đích có thể đã biến
 /// mất giữa lượt xem trước và lượt xác nhận này (§I/O Matrix "Destination vanished") —
@@ -949,22 +946,21 @@ pub fn confirm_import_with_encoding<R: tauri::Runtime>(
     };
 
     // Đường APPEND (Story 6.7b) — choreography dùng chung với song ngữ: `append_into_destination`.
-    let (created, new_chapter_ids) =
-        append_into_destination(app.clone(), root.clone(), &work_id, |open| {
-            super::confirm_append_import_with_encoding_with_progress(
-                open,
-                &pending_state,
-                &source_lang,
-                &encoding,
-                cleanup_rules,
-                pattern,
-                block_overrides,
-                origin_overrides,
-                domain_log_state_ref,
-                &mut on_image_progress,
-                &should_cancel_images,
-            )
-        })?;
+    let (created, new_chapter_ids) = append_into_destination(&app, &root, &work_id, |open| {
+        super::confirm_append_import_with_encoding_with_progress(
+            open,
+            &pending_state,
+            &source_lang,
+            &encoding,
+            cleanup_rules,
+            pattern,
+            block_overrides,
+            origin_overrides,
+            domain_log_state_ref,
+            &mut on_image_progress,
+            &should_cancel_images,
+        )
+    })?;
 
     reset_tier2_block_overrides(&app);
     reset_chapter_origin_overrides(&app);
@@ -984,8 +980,8 @@ pub fn confirm_import_with_encoding<R: tauri::Runtime>(
 }
 
 fn append_into_destination<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
-    root: std::path::PathBuf,
+    app: &tauri::AppHandle<R>,
+    root: &std::path::Path,
     work_id: &str,
     write: impl FnOnce(&mut OpenWork) -> Result<(), IpcError>,
 ) -> Result<(CreatedWork, Vec<i64>), IpcError> {
@@ -1007,26 +1003,23 @@ fn append_into_destination<R: tauri::Runtime>(
             .is_some_and(|open| open.meta.work_id == work_id)
     });
 
+    let changed_under_us = || -> IpcError {
+        crate::core::library::WorkError::OpenFailed {
+            name: work_id.to_owned(),
+            detail: "OpenWorkState da doi Tac pham giua luc kiem tra va luc khoa lai".to_string(),
+        }
+        .into()
+    };
     let (created, new_chapter_ids) = if already_open {
         let Some(state) = open_state.as_ref() else {
-            return Err(crate::core::library::WorkError::OpenFailed {
-                name: work_id.to_owned(),
-                detail: "OpenWorkState da doi Tac pham giua luc kiem tra va luc khoa lai"
-                    .to_string(),
-            }
-            .into());
+            return Err(changed_under_us());
         };
         let mut guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         // The lock was released since the check above, so the open Work may have changed.
         let Some(open) = guard.as_mut().filter(|open| open.meta.work_id == work_id) else {
-            return Err(crate::core::library::WorkError::OpenFailed {
-                name: work_id.to_owned(),
-                detail: "OpenWorkState da doi Tac pham giua luc kiem tra va luc khoa lai"
-                    .to_string(),
-            }
-            .into());
+            return Err(changed_under_us());
         };
         write(open)?;
         (CreatedWork::from_open(open), open.new_chapter_ids.clone())
@@ -1044,11 +1037,11 @@ fn append_into_destination<R: tauri::Runtime>(
             write(&mut opened),
             Some(indexer.inner()),
             global.as_deref(),
-            &root,
+            root,
         )?;
         let created = CreatedWork::from_open(&opened);
         let new_chapter_ids = opened.new_chapter_ids.clone();
-        replace_open_work(&app, opened);
+        replace_open_work(app, opened);
         (created, new_chapter_ids)
     };
     drop(append_in_progress_guard);
@@ -1056,14 +1049,14 @@ fn append_into_destination<R: tauri::Runtime>(
     // The open-Work branch reindexes here, after the OpenWorkState lock is gone, so the
     // lock is not held across a Library disk scan.
     if already_open {
-        reindex_library(&app, &root);
+        reindex_library(app, root);
     }
     Ok((created, new_chapter_ids))
 }
 
 /// Vỏ IPC — màn xem trước bảng mã của đường nhập song ngữ (Story 6.16, FR115). Cùng
 /// khuôn `preview_import_encoding_from_file`: **không một quy tắc nào sống ở đây** — đọc
-/// [`super::preview_bilingual_import`] và [`super::stash_pending_import_source`] (tái
+/// [`super::preview_bilingual_import`] và [`super::stash_pending_import_source_for`] (tái
 /// dùng, KHÔNG một state thứ ba — §Design Notes đầu mục Story 6.16 của `commands::project`).
 ///
 /// Chỉ lượt MỞ đi qua vỏ này. Mọi lượt đổi cột, đảo vai, bật/tắt tiêu đề, sửa mẫu phân
@@ -1138,13 +1131,6 @@ pub fn preview_bilingual_import_from_file(
     };
     super::stash_pending_import_source_for(&state, shape, None, destination);
     Ok(preview)
-}
-
-fn is_docx_path(path: &str) -> bool {
-    std::path::Path::new(path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case("docx"))
 }
 
 /// Opens a lone `.docx`: one read, shape detected from its content, both shapes buildable from
@@ -1262,16 +1248,14 @@ pub fn rebuild_bilingual_import_preview(
         return Err(no_pending_import_source());
     };
     let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
-    let shape = {
+    let (shape, destination) = {
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        guard
-            .as_ref()
-            .map(|p| p.shape.clone())
-            .ok_or_else(no_pending_import_source)?
+        let p = guard.as_ref().ok_or_else(no_pending_import_source)?;
+        (p.shape.clone(), p.destination_work_id.clone())
     };
-    let cleanup_rules = resolve_cleanup_rules_for(&app, pending_destination(&app).as_deref());
+    let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
     let resolved: Vec<crate::core::segment::bilingual::BilingualRegrouping> =
         regroupings.into_iter().map(Into::into).collect();
     super::preview_bilingual_import(
@@ -1350,7 +1334,7 @@ pub fn confirm_bilingual_import(
         crate::core::segment::bilingual::MismatchedRowPolicy::Refuse
     };
     if let Some(work_id) = destination_work_id {
-        let (created, _) = append_into_destination(app.clone(), root.clone(), &work_id, |open| {
+        let (created, _) = append_into_destination(&app, &root, &work_id, |open| {
             super::confirm_bilingual_append_import_with_policy(
                 open,
                 &pending_state,

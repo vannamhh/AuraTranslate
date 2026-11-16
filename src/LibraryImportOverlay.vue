@@ -4,6 +4,7 @@ import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { recordImportOpener } from './importOpener'
+import { importFileName } from './importFormat'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
   aimImportFile,
@@ -17,14 +18,12 @@ import {
   genre,
   importActiveTab,
   importAutoName,
-  importFileName,
   importFiles,
   importFilesLockKey,
   importSubmitReady,
   isDragOver,
   lastError,
   name,
-  noticeKey,
   pastedText,
   pastedUrlCount,
   pastedUrlDomainCount,
@@ -456,8 +455,6 @@ function trapTab(event: KeyboardEvent): void {
         </div>
       </form>
 
-      <!-- aura-allow-text: qua t(). -->
-      <p class="notice" role="status">{{ noticeKey ? t(noticeKey) : '' }}</p>
       <!-- aura-allow-text: qua tError(). -->
       <p class="error" role="status">{{ lastError ? tError(lastError) : '' }}</p>
 
@@ -476,7 +473,7 @@ function trapTab(event: KeyboardEvent): void {
           </button>
           <button
             type="button"
-            class="btn li-primary ui-btn ui-btn--lg ui-btn--primary"
+            class="btn ui-btn ui-btn--lg ui-btn--primary"
             data-import-preview-open
             :disabled="!importSubmitReady"
             @pointerdown="recordImportOpener"
@@ -563,20 +560,6 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.pick-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.pick-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .field-group {
@@ -796,15 +779,6 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong);
   pointer-events: none;
-}
-
-.notice {
-  margin: 7px 0 0;
-  min-height: 21px;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
 .error {

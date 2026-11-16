@@ -8,22 +8,27 @@ import {
   resetPresetImportDestination,
   selectImportTab,
 } from './libraryImport'
+import type { ImportTab } from './libraryImport'
 import { openLibraryImportOverlay } from './libraryImportOverlayState'
 import { libraryWorkPageWork } from './libraryChapters'
 import { currentLibraryWork } from './libraryWorks'
 import { openWorkId } from '../openWorkIdentity'
 
+function showImportOverlay(): void {
+  setMode('library')
+  openLibraryImportOverlay()
+}
+
 export function openLibraryImportForm(): void {
   try {
     resetPresetImportDestination()
-    setMode('library')
-    openLibraryImportOverlay()
+    showImportOverlay()
   } catch (err) {
     console.error('[library] opening the import form failed:', err)
   }
 }
 
-export function openLibraryImportOnTab(tab: 'paste' | 'files'): void {
+export function openLibraryImportOnTab(tab: ImportTab): void {
   selectImportTab(tab)
   openLibraryImportForm()
 }
@@ -44,8 +49,7 @@ export async function openLibraryImportToAddChapters(): Promise<void> {
       destinationWorksError.value !== null ||
       (target !== null && !destinationWorks.value.some((w) => w.work_id === target))
     if (listIsStale) await loadDestinationWorks()
-    setMode('library')
-    openLibraryImportOverlay()
+    showImportOverlay()
   } catch (err) {
     console.error('[library] opening the import form to add chapters failed:', err)
   }

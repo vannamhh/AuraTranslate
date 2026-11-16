@@ -15,7 +15,7 @@ use super::*;
 // Vai cột (`source_column`/`target_column`) và cờ tiêu đề là tham số MỖI LƯỢT xem trước/xác
 // nhận, cùng khuôn `chapter_pattern` — KHÔNG một `Mutex<...>` mới cạnh
 // `Tier2BlockOverridesState`/`ChapterOriginOverridesState`. `PendingImportSourceState` (đã
-// có, Story 6.3) giữ nguyên vai trò: `stash_pending_import_source`/`cancel_import_preview`
+// có, Story 6.3) giữ nguyên vai trò: `stash_pending_import_source_for`/`cancel_import_preview`
 // dùng ĐƯỢC NGUYÊN cho `PipelineShape::Bilingual` — chỉ byte thô của tệp được cất, đổi vai
 // cột/tiêu đề không đọc lại đĩa (§I/O Matrix "Swap columns"/"Header checkbox on": "counts
 // rebuild"/"rebuilds the preview in memory").
@@ -551,44 +551,25 @@ pub fn confirm_bilingual_append_import_with_policy(
     table_index: Option<usize>,
     mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy,
 ) -> Result<(), IpcError> {
-    let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
-        IpcError::from(ImportError::UnrecognizedEncoding {
-            wire_id: encoding_wire_id.to_owned(),
-        })
-    })?;
-
-    let mut guard = state
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let shape = guard
-        .as_ref()
-        .map(|p| p.shape.clone())
-        .ok_or_else(no_pending_import_source)?;
-    let shape = select_bilingual_table(&shape, table_index)?;
-
-    append_chapters_to_work_with_progress(
+    append_pending_import(
         open,
+        state,
         source_lang,
-        shape,
-        chosen,
+        encoding_wire_id,
         cleanup_rules,
         chapter_pattern,
         Vec::new(),
         &[],
         &webimport::DomainLogState::default(),
-        None,
-        bilingual_source_column,
-        bilingual_target_column,
-        bilingual_has_header,
-        &regroupings,
-        mismatched_rows,
+        &BilingualParams {
+            source_column: bilingual_source_column,
+            target_column: bilingual_target_column,
+            has_header: bilingual_has_header,
+            regroupings: &regroupings,
+            mismatched_rows,
+        },
+        |pending| Ok((select_bilingual_table(&pending.shape, table_index)?, None)),
         &mut |_, _| {},
         &|| false,
-    )?;
-
-    *guard = None;
-    drop(guard);
-
-    crate::commands::lifecycle::write_lifecycle_after_change(open)?;
-    Ok(())
+    )
 }

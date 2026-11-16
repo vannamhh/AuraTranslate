@@ -131,7 +131,7 @@ async function callCreateWork(cmd: string, args: Record<string, unknown>): Promi
 // chú thích còn nhắc TÊN chúng.
 //
 // ⚠️ **VỎ RUST (`wire::create_work_from_text`/`wire::create_work_from_file`) KHÔNG bị xoá**
-// — chúng vẫn đăng ký trong `generate_handler!` (`lib.rs:638-639`) và vẫn là hạ tầng test
+// — chúng vẫn đăng ký trong `generate_handler!` (`lib.rs`) và vẫn là hạ tầng test
 // SỐNG: 15+ tệp `e2e/specs/**` gọi thẳng `internals.invoke('create_work_from_text', {...})`
 // để dựng fixture nhanh (đi ĐƯỜNG IPC trực tiếp, cố ý BỎ QUA UI — xem
 // `e2e/support/workspace.mjs`). Xoá vỏ Rust sẽ phá TOÀN BỘ hạ tầng fixture đó.

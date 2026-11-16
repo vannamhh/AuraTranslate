@@ -6,7 +6,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createWorkThroughForm, dropFiles, selectImportTab } from '../support/importForm.mjs'
+import { backToLibrary, createWorkThroughForm, dropFiles, selectImportTab, waitLibraryReady } from '../support/importForm.mjs'
 import { aimWork, openAimedWork } from '../support/libraryGrid.mjs'
 import { realClick } from '../support/pointer.mjs'
 
@@ -29,14 +29,6 @@ async function ipcValue(command, args = {}) {
   const out = JSON.parse(json)
   if (!out.ok) throw new Error(`${command} failed: ${out.text}`)
   return out.value
-}
-
-async function ready() {
-  await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
-    timeout: 30_000,
-    interval: 250,
-  })
-  await $('[data-library-import-open]').waitForDisplayed({ timeout: 30_000 })
 }
 
 function writeCsv(file, row) {
@@ -93,11 +85,6 @@ async function expectChapterOnScreen(workName, chapterId, translation = null) {
   )
 }
 
-async function backToLibrary() {
-  await browser.keys(['Meta', '1'])
-  await $('[data-library-import-open]').waitForDisplayed({ timeout: 30_000 })
-}
-
 async function workIdByName(name) {
   const { works } = await ipcValue('library_list_works', { filter: null, genre: null, sourceLang: null, sort: null })
   return works.find((w) => w.name === name).work_id
@@ -105,7 +92,7 @@ async function workIdByName(name) {
 
 describe('Story 6-28: bilingual import into an existing Work', () => {
   it('open destination: previews against the Work without the old notice, and Nhập appends a Chapter', async () => {
-    await ready()
+    await waitLibraryReady()
     await createWorkThroughForm('Song ngu them 628')
     await $('[data-library-work-name]').waitForDisplayed({ timeout: 30_000 })
     const before = await ipcValue('list_chapters')

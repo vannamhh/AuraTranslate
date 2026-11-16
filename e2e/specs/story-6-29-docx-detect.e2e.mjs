@@ -6,7 +6,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { dropFiles, selectImportTab } from '../support/importForm.mjs'
+import { backToLibrary, dropFiles, selectImportTab, waitLibraryReady } from '../support/importForm.mjs'
 import { realClick } from '../support/pointer.mjs'
 import { buildDocxWithTable, buildPlainDocx } from '../support/miniDocx.mjs'
 
@@ -15,14 +15,6 @@ const PANEL = '.li-panel'
 const TEXT_SCREEN = '.ip-screen'
 const BILINGUAL_SCREEN = '.bip-screen'
 const dir = mkdtempSync(join(tmpdir(), 'e2e-629-'))
-
-async function ready() {
-  await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
-    timeout: 30_000,
-    interval: 250,
-  })
-  await $(OPEN_BTN).waitForDisplayed({ timeout: 30_000 })
-}
 
 async function openFilesTabWith(file, bytes) {
   const path = join(dir, file)
@@ -46,14 +38,9 @@ async function flipSwitchTo(screenPrefix, shape) {
   await realClick(await option.$('..'))
 }
 
-async function backToLibrary() {
-  await browser.keys(['Meta', '1'])
-  await $(OPEN_BTN).waitForDisplayed({ timeout: 30_000 })
-}
-
 describe('Story 6-29: a lone .docx is detected when the preview opens', () => {
   it('a plain .docx opens the text preview, the checkbox is gone, and a refused switch keeps it', async () => {
-    await ready()
+    await waitLibraryReady()
     await openFilesTabWith('van-ban.docx', buildPlainDocx())
     const row = await $('[data-import-file-path]')
     expect(await row.getText()).toContain('.docx, dò khi xem trước')

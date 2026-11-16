@@ -24,6 +24,7 @@ import type { WorkRow } from '../../src/config/library'
 import type { CommandDeps } from '../../src/commands'
 import type { CreatedWork } from '../../src/config/project'
 import { pickSelectOption } from './support/selectMenu'
+import { seedImportFiles } from './support/importClassify'
 
 const previewTextMock = vi.fn()
 // 🔵 THÊM (vòng rà, mục B10/B11) — trước bản sửa này chỉ `previewImportEncodingFromText` có
@@ -49,26 +50,12 @@ vi.mock('../../src/config/project', async (importOriginal) => {
 const pickFilesMock = vi.fn()
 
 vi.mock('../../src/config/library', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/config/library')>()
-  const { fakeClassification } = await import('./support/importClassify')
-  return {
-    ...actual,
-    pickImportFiles: (...args: unknown[]) => pickFilesMock(...args),
-    classifyImportPaths: async (paths: string[]) => ({
-      classification: fakeClassification(paths),
-      error: null,
-    }),
-  }
+  const { mockImportLibrary } = await import('./support/importClassify')
+  return mockImportLibrary(
+    importOriginal as () => Promise<typeof import('../../src/config/library')>,
+    (...args) => pickFilesMock(...args),
+  )
 })
-
-async function seedImportFiles(
-  nhap: typeof import('../../src/modes/libraryImport'),
-  paths: string[],
-): Promise<void> {
-  const { fakeClassification } = await import('./support/importClassify')
-  pickFilesMock.mockResolvedValue({ classification: fakeClassification(paths), error: null })
-  await nhap.chooseImportFiles()
-}
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
@@ -693,7 +680,7 @@ describe('libraryImport.ts::submitFilePath — đích đã chọn đi trọn t�
     nhap.destinationMode.value = 'existing'
     nhap.destinationWorkId.value = 'w-1'
     nhap.sourceLang.value = 'zh' // ô gõ tay khác hẳn đích -- một hồi quy đọc nhầm ô này sẽ lộ ở đây
-    await seedImportFiles(nhap, ['/tmp/mot-tep.txt'])
+    await seedImportFiles(nhap, pickFilesMock, ['/tmp/mot-tep.txt'])
 
     await nhap.submitFilePath()
 
@@ -796,7 +783,7 @@ describe('LibraryMode.vue — ô Tên rỗng không khoá nút chính, tên tự
     expect(wrapper.find('[data-import-name-hint]').exists()).toBe(true)
 
     nhap.selectImportTab('files')
-    await seedImportFiles(nhap, ['/tmp/tuyet-trung.txt', '/tmp/khac.txt'])
+    await seedImportFiles(nhap, pickFilesMock, ['/tmp/tuyet-trung.txt', '/tmp/khac.txt'])
     await wrapper.vm.$nextTick()
     expect(primary().disabled).toBe(false)
     expect(nameValue()).toBe('tuyet-trung')
@@ -838,7 +825,7 @@ describe('LibraryMode.vue — ô Tên rỗng không khoá nút chính, tên tự
     const state = await import('../../src/importPreviewState')
     commands.installCommands({ submitActiveImportTab: () => void nhap.submitActiveImportTab() } as unknown as CommandDeps)
     nhap.selectImportTab('files')
-    await seedImportFiles(nhap, ['/tmp/tuyet-trung.txt'])
+    await seedImportFiles(nhap, pickFilesMock, ['/tmp/tuyet-trung.txt'])
     await wrapper.vm.$nextTick()
 
     await wrapper.get('.li-scrim').trigger('keydown', { key: 'Enter', metaKey: true })

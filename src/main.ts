@@ -622,7 +622,7 @@ async function boot(): Promise<void> {
       },
       toggleToolsMenu,
       // Story 6.3 — màn xem trước bảng mã (FR126). `confirmImportPreview` KHÔNG bỏ qua kết
-      // quả (khác `submitPastedText`): thành công hay trượt đều phải đóng vòng nộp form
+      // quả (khác `submitActiveImportTab`): thành công hay trượt đều phải đóng vòng nộp form
       // qua `finishImportSubmission` — reset panel/nạp lại Chương chỉ chạy SAU khi Rust đã
       // ghi (hoặc từ chối) thật.
       openImportPreviewCandidatePicker,

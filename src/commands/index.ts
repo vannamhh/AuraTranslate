@@ -236,7 +236,7 @@ export type CommandDeps = {
 
   // ── Story 6.3 — màn xem trước bảng mã (FR126) ───────────────────────────────────
   //
-  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitActiveImportTab`: state sống ở
   // `src/importPreviewState.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
   // Kiểm C/D/E.
 
@@ -246,7 +246,7 @@ export type CommandDeps = {
   openImportPreviewCandidatePicker?: () => void
   /** Xác nhận lượt nhập với ứng viên đang chọn. Handler của `import.preview.confirm`
    * (`Mod+Alt+Enter`) — `async`, kết quả TIÊU THỤ ở `main.ts` (đóng vòng nộp form qua
-   * `finishImportSubmission`), không bỏ qua như `submitPastedText`. */
+   * `finishImportSubmission`), không bỏ qua như `submitActiveImportTab`. */
   confirmImportPreview?: () => void
   /** Huỷ lượt xem trước — 0 lượt ghi. Handler của `import.preview.cancel`. */
   cancelImportPreview?: () => void
@@ -367,7 +367,7 @@ export type CommandDeps = {
 
   // ── Story 5.3 — "Quét lại thư mục" (FR99) ───────────────────────────────────────
   //
-  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitPastedText`: state sống ở
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `submitActiveImportTab`: state sống ở
   // `src/modes/libraryRescan.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
   // Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
 
@@ -513,7 +513,7 @@ export type CommandDeps = {
   toggleCurrentLibrarySearchGroup?: () => void
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
   //
-  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitPastedText`: state sống ở
+  // ⚠️ TIÊM VÀO, cùng cửa và cùng lý do với `applyPreset`/`submitActiveImportTab`: state sống ở
   // `src/panels/sourcePanelState.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây
   // giết Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
 
@@ -533,7 +533,7 @@ export type CommandDeps = {
    * Chạy một lượt tra Panel Lookup. Handler của `lookup.lookup_selection` (Quyết định #1a).
    *
    * ⚠️ `runLookup` thật là `async`; kiểu `() => void` ở đây khớp cùng khuôn
-   * `submitPastedText`/`submitFilePath` — promise trả về bị bỏ qua có chủ ý (fire-and-forget,
+   * `submitActiveImportTab` — promise trả về bị bỏ qua có chủ ý (fire-and-forget,
    * state cập nhật qua `ref` module-level).
    */
   runLookup?: (query: string) => void
@@ -614,7 +614,7 @@ export type CommandDeps = {
    *
    * ⇒ Mọi kết cục — chặn vì flush trượt, biên Chương, lỗi IPC — đi ra bằng **thanh trạng
    * thái** bên trong `editorPanelState.ts::switchChapter`, không bằng giá trị trả về. Khuôn
-   * fire-and-forget này đã có tiền lệ ở [`submitPastedText`]/[`submitFilePath`].
+   * fire-and-forget này đã có tiền lệ ở [`submitActiveImportTab`].
    */
   goToNextChapter?: () => void
   /** Xem [`goToNextChapter`]. */

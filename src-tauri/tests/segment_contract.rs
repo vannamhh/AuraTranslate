@@ -30,7 +30,7 @@ use auratranslate_lib::commands::project::{
     ChapterSplitPreviewWire, ConfidenceWire, EncodingCandidateWire, ImportEncodingPreview,
     NormalizedPreviewWire, PendingImportSourceState, ReviewCauseWire, cancel_import_preview,
     cleanup_and_chapters_preview_for, confirm_import_with_encoding, create_work,
-    create_work_from_text, preview_import_encoding, stash_pending_import_source,
+    create_work_from_text, preview_import_encoding, stash_pending_import_source_for,
 };
 use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
 use auratranslate_lib::commands::segment::{
@@ -10167,7 +10167,7 @@ fn an_empty_order_is_rejected() {
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // Hành vi LÚC CHẠY của `commands::project::{preview_import_encoding,
-// confirm_import_with_encoding, cancel_import_preview, stash_pending_import_source,
+// confirm_import_with_encoding, cancel_import_preview, stash_pending_import_source_for,
 // create_work}` cộng `core::segment::encoding`. Phép kiểm TĨNH trên cây nguồn sống ở
 // `segment_encoding_boundary.rs`.
 
@@ -10382,7 +10382,7 @@ fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
     });
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape, None);
+    stash_pending_import_source_for(&pending, shape, None, None);
 
     let opened = confirm_import_with_encoding(
         &root,
@@ -10425,7 +10425,7 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
     });
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape, None);
+    stash_pending_import_source_for(&pending, shape, None, None);
 
     let results = std::thread::scope(|scope| {
         let h1 = scope.spawn(|| {
@@ -10525,7 +10525,7 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     );
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape, None);
+    stash_pending_import_source_for(&pending, shape, None, None);
     let opened = confirm_import_with_encoding(
         &root,
         &pending,
@@ -10560,7 +10560,7 @@ fn cancelling_then_confirming_creates_zero_works() {
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("van ban dan tay".to_owned()));
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape, None);
+    stash_pending_import_source_for(&pending, shape, None, None);
     cancel_import_preview(&pending);
 
     let err = confirm_import_with_encoding(
@@ -10605,7 +10605,7 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
     });
 
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape, None);
+    stash_pending_import_source_for(&pending, shape, None, None);
 
     // 1) chọn NHẦM UTF-8 -- ngữ pháp byte UTF-8 chặt, byte GBK cua chu Han hau nhu chac
     // chan vi pham no.
@@ -10663,7 +10663,7 @@ fn confirming_with_an_unrecognized_encoding_wire_id_is_refused_explicitly() {
     let root = temp_dir("6-3-unrecognized-encoding");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned()));
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape, None);
+    stash_pending_import_source_for(&pending, shape, None, None);
 
     let err = confirm_import_with_encoding(
         &root,
@@ -10693,7 +10693,7 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
     let root = temp_dir("6-3-shift-jis-outside-fr126");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("abc".to_owned()));
     let pending = fresh_pending_source();
-    stash_pending_import_source(&pending, shape, None);
+    stash_pending_import_source_for(&pending, shape, None, None);
 
     let err = confirm_import_with_encoding(
         &root,

@@ -136,7 +136,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   releaseFocus('mode.library')
-  // ⚠️ Bộ nghe kéo-thả là tầng CỬA SỔ, không phải của `.dropzone` — để nó sống sau khi
+  // ⚠️ Bộ nghe kéo-thả là tầng CỬA SỔ, không phải của vùng thả trong lớp phủ nhập — để nó sống sau khi
   // chế độ bị tháo nghĩa là một cú thả ở Workspace vẫn điền vào một form không còn trên
   // màn hình. Code review 2026-08-06.
   unwireDragDrop()
