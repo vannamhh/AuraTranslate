@@ -1898,7 +1898,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/aiconfig.rs",
-            "pub fn ai_config_get(app: tauri::AppHandle",
+            "pub fn ai_config_get<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "do keychain he dieu hanh (`keychain::configured()`), co the cho hop thoai mo khoa/cap quyen -- Story 11.7 lo B",
         ),
         (

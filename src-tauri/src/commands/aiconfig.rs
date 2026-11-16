@@ -189,6 +189,17 @@ pub fn ai_config_get(
     global: Option<&Store>,
     open: Option<&OpenWork>,
 ) -> Result<AiConfigGetWire, IpcError> {
+    // `.ok()`, not `?`: a keychain that refuses must not hide the plaintext fields.
+    ai_config_get_with_key(global, open, keychain::configured().ok())
+}
+
+/// [`ai_config_get`] with the keychain answer supplied by the caller, so the probe can run
+/// before the caller takes the open-Work lock.
+pub fn ai_config_get_with_key(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    key_configured: Option<bool>,
+) -> Result<AiConfigGetWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
     let resolver = open
         .map(|w| w.scope.clone())
@@ -201,9 +212,6 @@ pub fn ai_config_get(
         .map(|&field| AiConfigFieldWire::from_resolved(field, resolved.get(field.as_str())))
         .collect();
 
-    // `.ok()`, KHONG `?` -- mot keychain tu choi tra loi khong duoc phep lam nam truong
-    // plaintext ben tren bien mat theo (xem khoi doc-comment SUA o tren).
-    let key_configured = keychain::configured().ok();
     let resolved_value = |field: AiConfigField| {
         resolved
             .get(field.as_str())
@@ -598,17 +606,22 @@ pub mod wire {
     /// (`global.db`) và `app.manage(OpenWorkState)` có thể chưa từng chạy.
     /// Async: the OS keychain probe can wait on an unlock prompt.
     #[tauri::command(async)]
-    pub fn ai_config_get(app: tauri::AppHandle) -> Result<AiConfigGetWire, IpcError> {
+    pub fn ai_config_get<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<AiConfigGetWire, IpcError> {
         use tauri::Manager as _;
 
+        // The probe can block on a keychain access prompt; under the open-Work lock that
+        // stalls every main-thread command needing the Work, and the whole app freezes.
+        let key_configured = super::keychain::configured().ok();
         let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::ai_config_get(global.as_deref(), None);
+            return super::ai_config_get_with_key(global.as_deref(), None, key_configured);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::ai_config_get(global.as_deref(), guard.as_ref())
+        super::ai_config_get_with_key(global.as_deref(), guard.as_ref(), key_configured)
     }
 
     #[tauri::command]

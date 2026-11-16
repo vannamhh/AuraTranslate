@@ -94,7 +94,7 @@ async function expectChapterOnScreen(workName, chapterId, translation = null) {
 }
 
 async function backToLibrary() {
-  await realClick(await $('.titlebar .mode-tab:first-child'))
+  await browser.keys(['Meta', '1'])
   await $('[data-library-import-open]').waitForDisplayed({ timeout: 30_000 })
 }
 
@@ -124,7 +124,7 @@ describe('Story 6-28: bilingual import into an existing Work', () => {
     const loaded = await ipcValue('read_open_chapter_segments')
     expect(JSON.stringify(loaded.segments)).toContain('xin chao the gioi')
 
-    await expectChapterOnScreen('Song ngu them 628', added.chapter_id)
+    await expectChapterOnScreen('Song ngu them 628', added.chapter_id, 'xin chao the gioi')
     await backToLibrary()
   })
 

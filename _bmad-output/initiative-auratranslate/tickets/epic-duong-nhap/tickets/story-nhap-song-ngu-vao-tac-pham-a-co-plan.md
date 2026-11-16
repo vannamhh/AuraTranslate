@@ -97,7 +97,7 @@ context:
 - The destination travels only on `preview_bilingual_import_from_file` (`destination`); rebuild and confirm read it from the pending source. A failed preview open cancels the pending source and so drops the destination (unchanged behaviour).
 - The bilingual preview shows the destination line with the existing keys `destination_new_work` / `destination_existing_work`.
 - Counter-check: with the `insert_bilingual_segments` branch removed from the append core, the Append and Unlinked cases go red at `translation_origin` / segment count; green again after restore.
-- e2e `story-6-28-bilingual-into-existing`: two cases (destination open, destination closed), 2/2 green outside the sandbox. `browser.keys(['Meta','1'])` timed out after the workspace opened on an appended Chapter; the spec returns to the Library by clicking the mode tab, and the timeout is an owned debt item (`Chủ: Epic 6`).
+- e2e `story-6-28-bilingual-into-existing`: two cases (destination open, destination closed), 2/2 green outside the sandbox. `browser.keys(['Meta','1'])` timed out after the workspace opened on an appended Chapter; the spec returns to the Library by clicking the mode tab, and the timeout is an owned debt item (`Chủ: Epic 6`). 🔵 2026-11-16: the timeout was a product hang — `ai_config_get` held `OpenWorkState` across a keychain probe waiting on an access prompt, so `read_work_lifecycle` on Library entry blocked the main thread; the probe now runs before the lock (`tests/aiconfig_wire.rs`), the spec uses Meta+1 again and the debt item is closed.
 
 ## Plan Change Log
 

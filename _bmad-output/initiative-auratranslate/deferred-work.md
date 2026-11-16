@@ -14224,3 +14224,4 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-nhap-song-ngu-vao-tac-pham-a-co-plan.md`
   summary: Trong e2e, `browser.keys(['Meta','1'])` hết giờ (POST actions của WebDriver) ngay sau khi không gian dịch mở một Chương vừa nối bằng song ngữ, ba lượt liên tiếp; spec 6-28 tránh bằng realClick lên tab chế độ.
   evidence: chưa rõ lỗi sản phẩm hay bàn đo; chín spec khác dùng cùng phím sau khi mở không gian dịch. Chốt bằng: chạy `Meta+1` sau khi mở một Chương thường trong cùng spec, và bấm Cmd-1 thật trong app sau một lượt nối song ngữ. Chủ: Epic 6.
+  → ✅ ĐÃ ĐÓNG 2026-11-16 (Story 6.28) — lỗi sản phẩm, không phải bàn đo: `ai_config_get` giữ khoá `OpenWorkState` trong lúc gọi Keychain, Keychain đứng chờ hộp thoại quyền nên `read_work_lifecycle` (lệnh đồng bộ chạy khi vào Thư viện) treo luồng chính. Lời dò nay chạy trước khi khoá; `tests/aiconfig_wire.rs` canh, spec 6-28 dùng lại Meta+1.
