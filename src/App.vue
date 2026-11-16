@@ -209,7 +209,7 @@ onMounted(async () => {
       {{ tError(configError) }}
     </p>
 
-    <header class="titlebar" :data-tauri-drag-region="titlebarDragRegion">
+    <header class="titlebar" :class="{ 'titlebar--workspace': currentMode === 'workspace' }" :data-tauri-drag-region="titlebarDragRegion">
       <div class="titlebar-line ui-row">
         <nav class="modes">
           <button
@@ -474,6 +474,10 @@ onMounted(async () => {
   user-select: none;
 }
 
+.titlebar--workspace {
+  border-bottom-width: calc(1px - var(--panel-border-width));
+}
+
 :root[data-platform='mac'] .titlebar {
   padding-left: var(--space-traffic-light-inset);
 }
@@ -489,7 +493,6 @@ onMounted(async () => {
   align-items: baseline;
   gap: 0;
   padding: 0;
-  border: 1px solid var(--color-outline);
   border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
 }
@@ -536,9 +539,9 @@ onMounted(async () => {
 .mode-tab {
   box-sizing: border-box;
   height: calc(var(--space-unit) * 4);
-  padding: 0 calc(var(--space-unit) * 2);
+  padding: 0 calc(var(--space-unit) * 3);
   background: none;
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--color-on-surface-variant);
@@ -559,14 +562,9 @@ onMounted(async () => {
   color: var(--color-on-primary);
 }
 
-.mode-tab.on:hover {
-  border-color: var(--color-on-primary);
-}
-
 .mode-tab:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
-  border-color: var(--color-on-primary);
 }
 
 .stage {

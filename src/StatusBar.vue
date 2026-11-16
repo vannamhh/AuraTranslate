@@ -508,7 +508,7 @@ const conventionNoticeText = computed<string | null>(() => {
     cả thanh: vị trí câu và bộ đếm đổi theo từng cú gõ, và một vùng sống bọc chúng sẽ bắt trình
     đọc màn hình đọc lại mỗi lần. `aria-live` để mặc định (`polite`).
   -->
-  <footer class="status">
+  <footer class="status" :class="{ 'status--workspace': currentMode === 'workspace' }">
     <div class="status-line ui-row">
       <template v-if="currentMode === 'library'">
         <div class="status-info" data-status-info data-status-library>
@@ -745,6 +745,10 @@ const conventionNoticeText = computed<string | null>(() => {
  * Permanent items truncate with an ellipsis before they can push the live notice out; the
  * notice keeps its own width, so the row never overflows the 34px bar.
  */
+.status--workspace {
+  border-top-width: calc(1px - var(--panel-border-width));
+}
+
 .status-line {
   flex: 1;
   min-width: 0;
