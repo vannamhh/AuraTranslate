@@ -50,6 +50,56 @@ async function previewState() {
   }))
 }
 
+/** Runs in the page: baselines and edges of the export screen's option rows and format cards. */
+function alignmentReport() {
+  const baselineOf = (el) => {
+    const probe = document.createElement('span')
+    probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'
+    el.prepend(probe)
+    const y = probe.getBoundingClientRect().top
+    probe.remove()
+    return y
+  }
+  const label = (el) => el.textContent.replace(/\s+/g, ' ').trim()
+  const rows = [
+    ...Array.from(document.querySelectorAll('.ex-opt')).map((row) => ({
+      main: row.querySelector('.ex-choice > span:not(.ex-meta), .ui-seg__item > span'),
+      side: row.querySelector(':scope > .ex-meta, :scope > .ex-why'),
+    })),
+    ...Array.from(document.querySelectorAll('.ex-card-head')).map((row) => ({
+      main: row.querySelector('.ex-grow'),
+      side: row.querySelector('.ex-tag'),
+    })),
+  ].filter((r) => r.main !== null && r.side !== null)
+  const baselineOff = rows
+    .map((r) => ({ row: label(r.main), delta: Math.round((baselineOf(r.side) - baselineOf(r.main)) * 100) / 100 }))
+    .filter((r) => Math.abs(r.delta) > 0.5)
+
+  const cardInputLeft = document.querySelector('.ex-card input').getBoundingClientRect().left
+  const leftOff = Array.from(document.querySelectorAll('.ex-opt .ex-choice > input'))
+    .map((input) => ({ row: label(input.parentElement), delta: input.getBoundingClientRect().left - cardInputLeft }))
+    .filter((r) => Math.abs(r.delta) > 0.5)
+
+  const tagRight = document.querySelector('.ex-tag').getBoundingClientRect().right
+  const rightOff = Array.from(document.querySelectorAll('.ex-opt:has(> .ex-choice) > .ex-meta, .ex-opt:has(> .ex-choice) > .ex-why'))
+    .map((side) => ({ row: label(side), delta: side.getBoundingClientRect().right - tagRight }))
+    .filter((r) => Math.abs(r.delta) > 0.5)
+
+  const ctx = document.createElement('canvas').getContext('2d')
+  const boxCentre = Array.from(document.querySelectorAll('.ex-opt .ex-choice')).map((choice) => {
+    const input = choice.querySelector('input').getBoundingClientRect()
+    const text = choice.querySelector('span')
+    const style = getComputedStyle(text)
+    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    const base = baselineOf(text)
+    const xHeight = ctx.measureText('x').actualBoundingBoxAscent
+    const capHeight = ctx.measureText('H').actualBoundingBoxAscent
+    const centre = (input.top + input.bottom) / 2
+    return { row: label(text), toXHeight: Math.round((centre - (base - xHeight / 2)) * 100) / 100, toCap: Math.round((centre - (base - capHeight / 2)) * 100) / 100 }
+  })
+  return { baselineOff, leftOff, rightOff, boxCentre }
+}
+
 async function checked(selector) {
   return browser.execute((sel) => document.querySelector(sel)?.checked === true, selector)
 }
@@ -97,6 +147,13 @@ describe('Story 12-17 -- export content options', () => {
     expect(frame.runBottom).not.toBeNull()
     expect(frame.runBottom).toBeLessThanOrEqual(frame.height)
     expect(frame.segOverflow).toEqual([])
+    await browser.waitUntil(async () => (await previewState()).wordTable, { timeout: 15_000 })
+    const align = await browser.execute(alignmentReport)
+    console.log(`[12-17] export alignment ${JSON.stringify(align)}`)
+    expect(align.baselineOff).toEqual([])
+    expect(align.leftOff).toEqual([])
+    expect(align.rightOff).toEqual([])
+    expect(align.boxCentre.filter((r) => Math.abs(r.toXHeight) > 1)).toEqual([])
     expect(await checked('[data-export-number-toggle]')).toBe(false)
     expect(await checked('[data-export-appendix-toggle]')).toBe(false)
     expect(await checked('[data-export-mark-toggle]')).toBe(false)

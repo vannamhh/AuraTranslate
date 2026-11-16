@@ -58,6 +58,7 @@ async function fresh() {
     error: null,
   })
   folderMock.mockResolvedValue({ outcome: 'picked', path: '/tmp/out' })
+  docxMock.mockResolvedValue({ file: { path: '/tmp/out/a.docx', chapter_count: 2, segment_count: 6, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
   const state = await import('../../src/exportState')
   const commands = await import('../../src/commands')
   const { exportCommandDeps } = await import('../../src/exportCommandDeps')
@@ -99,7 +100,6 @@ describe('running the export', () => {
     docxMock.mockResolvedValue({ file: { path: '/tmp/out/Tac Pham-hai-cot.docx', chapter_count: 2, segment_count: 6, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
-    await state.chooseExportFolder()
     await settle(wrapper)
 
     commands.dispatch('export.run')
@@ -111,24 +111,73 @@ describe('running the export', () => {
     wrapper.unmount()
   })
 
-  it('cannot run without a folder, and the button says why', async () => {
+  it('asks for the folder only when Export is pressed, with no folder button on the screen', async () => {
     const { state, commands, Overlay } = await fresh()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
     await settle(wrapper)
 
-    expect(wrapper.get('[data-export-run]').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('Chọn thư mục đích để xuất.')
+    expect(wrapper.get('[data-export-run]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.findAll('.ex-footer button')).toHaveLength(2)
+    expect(folderMock).not.toHaveBeenCalled()
     commands.dispatch('export.run')
+    await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
+    expect(folderMock).toHaveBeenCalledTimes(1)
+    expect(folderMock.mock.invocationCallOrder[0]).toBeLessThan(docxMock.mock.invocationCallOrder[0])
+    wrapper.unmount()
+  })
+
+  it('writes nothing and says nothing when the folder dialog is cancelled', async () => {
+    const { state, Overlay } = await fresh()
+    folderMock.mockResolvedValue({ outcome: 'cancelled' })
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await state.openExport()
+    await state.runExport()
     await settle(wrapper)
     expect(docxMock).not.toHaveBeenCalled()
+    expect(state.exportRunStatus.value).toBe('idle')
+    expect(wrapper.find('.ex-foot-info [role="alert"]').exists()).toBe(false)
     wrapper.unmount()
+  })
+
+  it('asks for the folder again on every export', async () => {
+    const { state } = await fresh()
+    await state.openExport()
+    await state.runExport()
+    folderMock.mockResolvedValue({ outcome: 'picked', path: '/tmp/two' })
+    await state.runExport()
+    expect(folderMock).toHaveBeenCalledTimes(2)
+    expect(docxMock).toHaveBeenLastCalledWith({ kind: 'work' }, 'file', '/tmp/two', false, OFF)
+  })
+
+  it('ignores a second press while the folder dialog is open', async () => {
+    const { state } = await fresh()
+    let release: (v: unknown) => void = () => undefined
+    folderMock.mockImplementationOnce(() => new Promise((r) => (release = r)))
+    await state.openExport()
+    const first = state.runExport()
+    void state.runExport()
+    expect(folderMock).toHaveBeenCalledTimes(1)
+    release({ outcome: 'picked', path: '/tmp/out' })
+    await first
+    expect(docxMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('writes nothing when the screen closed while the dialog was open', async () => {
+    const { state } = await fresh()
+    let release: (v: unknown) => void = () => undefined
+    folderMock.mockImplementationOnce(() => new Promise((r) => (release = r)))
+    await state.openExport()
+    const run = state.runExport()
+    state.closeExport()
+    release({ outcome: 'picked', path: '/tmp/out' })
+    await run
+    expect(docxMock).not.toHaveBeenCalled()
   })
 
   it('cannot run while nothing is selected', async () => {
     const { state } = await fresh()
     await state.openExport()
-    await state.chooseExportFolder()
     await state.setExportScopeKind('chapters')
 
     await state.runExport()
@@ -136,18 +185,18 @@ describe('running the export', () => {
     expect(state.exportRunStatus.value).toBe('idle')
   })
 
-  it('still shows a folder-picker error after a finished export', async () => {
-    const { state, commands, Overlay } = await fresh()
+  it('shows a folder-picker error in place of the previous result and writes nothing', async () => {
+    const { state, Overlay } = await fresh()
     docxMock.mockResolvedValue({ file: { path: '/tmp/out/a.docx', chapter_count: 1, segment_count: 1, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
-    await state.chooseExportFolder()
-    commands.dispatch('export.run')
-    await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
-    folderMock.mockResolvedValue({ outcome: 'error', error: ipcError('export.folder_invalid') })
-    await state.chooseExportFolder()
-    await settle(wrapper)
+    await state.runExport()
     expect(state.exportRunStatus.value).toBe('done')
+    folderMock.mockResolvedValue({ outcome: 'error', error: ipcError('export.folder_invalid') })
+    await state.runExport()
+    await settle(wrapper)
+    expect(docxMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-export-result]').exists()).toBe(false)
     expect(wrapper.find('.ex-foot-info [role="alert"]').exists()).toBe(true)
     wrapper.unmount()
   })
@@ -157,7 +206,6 @@ describe('running the export', () => {
     docxMock.mockResolvedValue({ file: null, error: ipcError('export.write_failed') })
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
-    await state.chooseExportFolder()
     await state.runExport()
     await settle(wrapper)
 
@@ -172,7 +220,6 @@ describe('running the export', () => {
     const { state } = await fresh()
     docxMock.mockResolvedValue({ file: null, error: null })
     await state.openExport()
-    await state.chooseExportFolder()
     await state.runExport()
     expect(state.exportRunStatus.value).toBe('ipc_unavailable')
   })
@@ -182,9 +229,10 @@ describe('running the export', () => {
     let release: (v: unknown) => void = () => undefined
     docxMock.mockImplementationOnce(() => new Promise((r) => (release = r)))
     await state.openExport()
-    await state.chooseExportFolder()
     const first = state.runExport()
-    void state.runExport()
+    await vi.waitFor(() => expect(docxMock).toHaveBeenCalledTimes(1))
+    await state.runExport()
+    expect(folderMock).toHaveBeenCalledTimes(1)
     expect(docxMock).toHaveBeenCalledTimes(1)
     release({ file: { path: '/tmp/out/a.docx', chapter_count: 2, segment_count: 6, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
     await first
@@ -195,7 +243,6 @@ describe('running the export', () => {
     const { state } = await fresh()
     docxMock.mockResolvedValue({ file: { path: '/tmp/out/a.docx', chapter_count: 2, segment_count: 6, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
     await state.openExport()
-    await state.chooseExportFolder()
     await state.runExport()
     expect(state.exportRunStatus.value).toBe('done')
 

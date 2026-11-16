@@ -1,6 +1,6 @@
 /**
  * State of the export screen (FR89): which Chapters go out, the counts Rust computed for that
- * scope, and the destination folder. Counting is Rust's; this file only holds UI state. Do NOT
+ * scope, and the export run. Counting is Rust's; this file only holds UI state. Do NOT
  * import this file from `src/commands/index.ts`; handlers are injected through `CommandDeps`
  * (`exportCommandDeps.ts`).
  */
@@ -49,7 +49,6 @@ const selectedChapterIds = ref<number[]>([])
 const counts = ref<ExportScopeCounts | null>(null)
 const countsStatus = ref<ExportCountsStatus>('unknown')
 const countsError = ref<IpcError | null>(null)
-const folder = ref<string | null>(null)
 const folderError = ref<IpcError | null>(null)
 const folderUnavailable = ref(false)
 const choosingFolder = ref(false)
@@ -82,7 +81,6 @@ export const exportSelectedChapterIds: DeepReadonly<Ref<number[]>> = readonly(se
 export const exportCounts: DeepReadonly<Ref<ExportScopeCounts | null>> = readonly(counts)
 export const exportCountsStatus: DeepReadonly<Ref<ExportCountsStatus>> = readonly(countsStatus)
 export const exportCountsError: DeepReadonly<Ref<IpcError | null>> = readonly(countsError)
-export const exportFolder: DeepReadonly<Ref<string | null>> = readonly(folder)
 export const exportFolderError: DeepReadonly<Ref<IpcError | null>> = readonly(folderError)
 export const exportFolderUnavailable: DeepReadonly<Ref<boolean>> = readonly(folderUnavailable)
 export const exportChoosingFolder: DeepReadonly<Ref<boolean>> = readonly(choosingFolder)
@@ -331,21 +329,17 @@ export async function toggleExportChapter(chapterId: number): Promise<void> {
   await refreshCounts()
 }
 
-export async function chooseExportFolder(): Promise<void> {
-  if (choosingFolder.value) return
-
+async function pickFolder(): Promise<string | null> {
   choosingFolder.value = true
   folderError.value = null
   folderUnavailable.value = false
   const result = await exportChooseFolder()
   choosingFolder.value = false
 
-  if (result.outcome === 'picked') {
-    folder.value = result.path
-    clearRun()
-  }
-  else if (result.outcome === 'error') folderError.value = result.error
+  if (result.outcome === 'picked') return result.path
+  if (result.outcome === 'error') folderError.value = result.error
   else if (result.outcome === 'ipc_unavailable') folderUnavailable.value = true
+  return null
 }
 
 function writeFormat(
@@ -363,11 +357,14 @@ function writeFormat(
     : exportDocxTwoColumn(scope, mode, target, withAttribution, options)
 }
 
-/** Writes the selected format for the current scope into the chosen folder. */
+/** Asks Rust for a destination folder, then writes the selected format for the current scope into it. */
 export async function runExport(): Promise<void> {
+  if (runStatus.value === 'running' || choosingFolder.value || currentExportScope() === null) return
+
+  clearRun()
+  const target = await pickFolder()
   const scope = currentExportScope()
-  const target = folder.value
-  if (runStatus.value === 'running' || scope === null || target === null) return
+  if (target === null || scope === null || !overlayOpen.value) return
 
   runStatus.value = 'running'
   runResult.value = null
@@ -395,7 +392,6 @@ export function resetExport(): void {
   counts.value = null
   countsStatus.value = 'unknown'
   countsError.value = null
-  folder.value = null
   folderError.value = null
   folderUnavailable.value = false
   choosingFolder.value = false

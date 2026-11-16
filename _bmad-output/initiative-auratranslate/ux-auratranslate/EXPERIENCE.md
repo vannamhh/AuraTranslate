@@ -459,7 +459,7 @@ Cùng khuôn với §Đường nhập — màn xem trước hợp nhất:
 |---|---|---|
 | **Cột cấu hình** (trái, 344 px) | Phạm vi (điều khiển đoạn ba lựa chọn, danh sách Chương cao tối đa 5 hàng) · Định dạng (bốn thẻ) · Nội dung (bốn hộp kiểm một dòng) · Ảnh (điều khiển đoạn hai lựa chọn) · Ghi nguồn (công tắc) | Dài hơn khung thì tự cuộn riêng; tổ hợp dài nhất trên mockup (Nhiều Chương + theo link gốc có ảnh thiếu link + bật ghi nguồn) tràn 44 px |
 | **Cột xem trước** (phải) | Tiêu đề *Xem trước · Chương N* và tên tệp; trang kiểu Word hoặc khối chữ đơn cách theo định dạng | Dựng lại ngay khi đổi bất kỳ lựa chọn nào; cuộn riêng |
-| **Chân dính** | Dòng tóm tắt · *Ghi vào {thư mục}/{tên tệp}* · `Đổi thư mục…` · `Huỷ` · `Xuất N Chương ra {đuôi} ⌘↵` | Luôn hiện |
+| **Chân dính** | Dòng tóm tắt · `Huỷ` · `Xuất N Chương ra {đuôi} ⌘↵` · sau khi xuất: *Đã lưu … vào {đường dẫn}* | Luôn hiện. 🔵 2026-11-16 (Ice): bỏ *Ghi vào …* và `Đổi thư mục…`; bấm Xuất mới mở hộp chọn thư mục, huỷ hộp thì không ghi gì |
 
 **Bản xem trước thay cho câu mô tả.** Tuỳ chọn Nội dung, Ảnh và Ghi nguồn không còn câu mô tả bên dưới: bật Đánh số câu thì cột trái bản xem trước hiện `[n]`; bật Glossary thì phụ lục hiện ở đầu trang; bật ghi nguồn thì khối ghi nguồn hiện ở đầu trang; đánh dấu câu chưa xác nhận hiện đúng dòng sẽ ghi vào tệp. Cạnh mỗi tuỳ chọn chỉ còn số đếm của nó (*1 thuật ngữ*, *5 câu*). Ghi nguồn tắt thì ghi *mặc định tắt*; bật thì ghi *Người dịch: {tên} · Toàn cục*, chưa đặt tên thì ghi điều đó và chỗ đặt.
 
@@ -474,6 +474,8 @@ Cùng khuôn với §Đường nhập — màn xem trước hợp nhất:
 **Không thêm token, không dùng `primary` cho trạng thái chọn.** Điều khiển đoạn là `ui-seg` sẵn có, hộp kiểm và nút chọn là `ui-check`; thẻ định dạng đang chọn dùng viền `on-surface` như mục đang chọn của `ui-seg`. Nhãn *nhập lại được* / *chỉ để đăng* là chữ `on-surface-variant` trên `surface-sunken`; chỉ *không nhập lại được* mang `error`, vì nhập ngược tệp đó sẽ lệch cột. Trang kiểu Word dùng họ token xem trước `.docx` đã có (Decision 2026-10-07 của epic Cầu nối Reviewer).
 
 **Nhiều Chương:** bản xem trước dựng Chương đầu của phạm vi, tiêu đề ghi *(Chương đầu của phạm vi)*.
+
+🔵 2026-11-16 (Ice): nhóm Ghi nguồn không có nhãn nhóm, công tắc *Ghi nguồn đầu mỗi Chương* tự nói đủ. Khung có viền (thẻ định dạng, danh sách Chương, điều khiển đoạn) đứng ở mép ngoài cột; ô kiểm và chữ hai bên của hàng lùi vào bằng mép trong của thẻ. Chữ bên phải mỗi hàng chung baseline với nhãn của hàng đó.
 
 ## Quy ước chữ Việt — FR159
 

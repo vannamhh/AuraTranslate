@@ -119,7 +119,6 @@ describe('attribution toggle', () => {
   ] as const)('sends attribution=true on %s', async (format, which) => {
     const { state } = await fresh('Ice')
     await state.openExport()
-    await state.chooseExportFolder()
     state.setExportFormat(format)
     state.setExportAttribution(true)
     await state.runExport()

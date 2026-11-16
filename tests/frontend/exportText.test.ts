@@ -157,7 +157,6 @@ describe('run', () => {
   ] as const)('sends %s to the text command as %s and not to the docx ones', async (format, wire) => {
     const { state } = await fresh()
     await state.openExport()
-    await state.chooseExportFolder()
     state.setExportFormat(format)
     await state.runExport()
 

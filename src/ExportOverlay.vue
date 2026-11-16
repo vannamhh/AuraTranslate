@@ -23,7 +23,6 @@ import {
   exportPreviewData,
   exportPreviewError,
   exportPreviewLoading,
-  exportFolder,
   exportFolderError,
   exportFolderUnavailable,
   exportFormat,
@@ -70,7 +69,7 @@ const scopeChoices: readonly { kind: ExportScopeKind; labelKey: string }[] = [
 const listVisible = computed(() => exportScopeKind.value !== 'work')
 
 const canRun = computed(
-  () => exportFolder.value !== null && exportCountsStatus.value === 'loaded' && exportRunStatus.value !== 'running',
+  () => exportCountsStatus.value === 'loaded' && exportRunStatus.value !== 'running' && !exportChoosingFolder.value,
 )
 
 function chapterLabel(row: ChapterRow): string {
@@ -435,8 +434,7 @@ function trapTab(event: KeyboardEvent): void {
               </template>
             </fieldset>
 
-            <fieldset class="ex-group" data-export-attribution>
-              <legend class="ex-legend">{{ t('export.attribution.legend') }}</legend>
+            <div class="ex-group" data-export-attribution>
               <div class="ex-opt">
                 <label class="ex-choice ui-check">
                   <input
@@ -468,7 +466,7 @@ function trapTab(event: KeyboardEvent): void {
                   {{ t('export.attribution.translator_missing') }}
                 </p>
               </template>
-            </fieldset>
+            </div>
           </div>
 
           <section class="ex-preview" aria-labelledby="ex-preview-title">
@@ -605,26 +603,15 @@ function trapTab(event: KeyboardEvent): void {
                 </template>
               </p>
             </template>
-            <p v-else-if="exportFolder === null" class="ex-status">{{ t('export.run.need_folder') }}</p>
-            <p v-else class="ex-status" data-export-write-to>
-              {{ t('export.folder.write_to') }}
-              <!-- aura-allow-text: data (folder path chosen by the user). -->
-              <span class="ex-path" data-export-folder>{{ exportFolder }}</span>
-              <!-- aura-allow-text: data (file name Rust would write). -->
-              <span v-if="exportPreviewData !== null" class="ex-path">/{{ exportPreviewData.file_name }}</span>
-            </p>
           </div>
-          <button type="button" class="ex-act ui-btn ui-btn--lg" data-export-choose-folder :disabled="exportChoosingFolder" @click="dispatch('export.choose_folder')">
-            {{ t('command.export.choose_folder') }}
-          </button>
           <button type="button" class="ex-act ui-btn ui-btn--lg ui-btn--pair" data-export-cancel @click="dispatch('export.close')">
             {{ t('export.run.cancel') }}
           </button>
           <button type="button" class="ex-act ui-btn ui-btn--lg ui-btn--primary ui-btn--pair" data-export-run :disabled="!canRun" @click="dispatch('export.run')">
             <!-- aura-allow-text: result of t() with chapter count and extension interpolated. -->
-            {{ runLabel }}
+            <span data-export-run-label>{{ runLabel }}</span>
+            <span class="ex-kbd" data-export-run-shortcut>{{ t('export.run.shortcut') }}</span>
           </button>
-          <span class="ex-meta" data-export-run-shortcut>{{ t('export.run.shortcut') }}</span>
         </footer>
       </template>
     </section>
@@ -782,7 +769,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-choice {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
 }
 
@@ -793,9 +780,19 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-opt {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
   gap: calc(var(--space-unit) * 1);
+  padding-inline: 8px; /* aura-allow-spacing: 1px card border + 7px card inset, so rows line up with the card contents */
+}
+
+.ex-opt:has(> .ui-seg) {
+  padding-left: 0;
+}
+
+.ex-group > .ex-note,
+.ex-group > .ex-status {
+  padding-inline: 8px; /* aura-allow-spacing: same inset as .ex-opt */
 }
 
 .ex-why,
@@ -809,7 +806,6 @@ function trapTab(event: KeyboardEvent): void {
 .ex-why {
   flex: none;
   max-width: 50%;
-  padding-top: calc(var(--space-unit) * 1);
   text-align: right;
 }
 
@@ -824,7 +820,6 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-opt > .ex-meta {
   flex: none;
-  padding-top: calc(var(--space-unit) * 1);
 }
 
 .ex-card {
@@ -840,13 +835,12 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
 }
 
 .ex-tag {
   flex: none;
-  margin-top: calc(var(--space-unit) * 1);
   padding: 0 calc(var(--space-unit) * 1);
   background: var(--color-surface-sunken);
   font-family: var(--face-ui-sm);
@@ -913,6 +907,12 @@ function trapTab(event: KeyboardEvent): void {
   padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface-sunken);
+}
+
+.ex-kbd {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  font-weight: var(--weight-ui-sm);
 }
 
 .ex-foot-info {

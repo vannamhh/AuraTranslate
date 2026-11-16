@@ -200,7 +200,6 @@ describe('warnings before exporting one block', () => {
     summaryMock.mockResolvedValue(counts({ unconfirmed_translated_count: 1, untranslated_count: 1 }))
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
-    await state.chooseExportFolder()
     state.setExportFormat('docx_one_block')
     await settle(wrapper)
     expect(wrapper.get('[data-export-run]').attributes('disabled')).toBeUndefined()
@@ -213,7 +212,6 @@ describe('running the one-block export', () => {
     const { state, commands, Overlay } = await fresh()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
-    await state.chooseExportFolder()
     await wrapper.findAll('input[name="export-format"]')[1].setValue(true)
     await settle(wrapper)
 
@@ -230,7 +228,6 @@ describe('running the one-block export', () => {
   it('still sends the two-column command when that format is selected', async () => {
     const { state, commands } = await fresh()
     await state.openExport()
-    await state.chooseExportFolder()
 
     commands.dispatch('export.run')
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
@@ -243,7 +240,6 @@ describe('running the one-block export', () => {
     const { state } = await fresh()
     summaryMock.mockResolvedValue(counts({ image_count: 2 }))
     await state.openExport()
-    await state.chooseExportFolder()
     state.setExportFormat('docx_one_block')
     state.setExportImageMode('link')
 

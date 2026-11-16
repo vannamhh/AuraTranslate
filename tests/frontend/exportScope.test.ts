@@ -1,5 +1,5 @@
 /**
- * Export screen (FR89): scope choice, counts, the unconfirmed-segment warning, the folder dialog
+ * Export screen (FR89): scope choice, counts, the unconfirmed-segment warning, the folder dialog on Export
  * and the Word-like preview. `config/export.ts` and `config/chapter.ts` are the IPC boundary and
  * are mocked; the command registry, the state and the overlay are real.
  */
@@ -197,43 +197,25 @@ describe('unconfirmed-segment warning', () => {
 })
 
 describe('destination folder', () => {
-  it('keeps the previous folder when the dialog is cancelled and replaces it when one is picked', async () => {
+  it('tells a dialog error and an absent bridge apart when Export is pressed', async () => {
     const { state } = await fresh()
-    folderMock.mockResolvedValue({ outcome: 'picked', path: '/tmp/out' })
-    await state.chooseExportFolder()
-    expect(state.exportFolder.value).toBe('/tmp/out')
-
-    folderMock.mockResolvedValue({ outcome: 'cancelled' })
-    await state.chooseExportFolder()
-    expect(state.exportFolder.value).toBe('/tmp/out')
-
-    folderMock.mockResolvedValue({ outcome: 'picked', path: '/tmp/two' })
-    await state.chooseExportFolder()
-    expect(state.exportFolder.value).toBe('/tmp/two')
-  })
-
-  it('tells an error and an absent bridge apart, and ignores a second press while the dialog is open', async () => {
-    const { state } = await fresh()
-    let release: (v: unknown) => void = () => undefined
-    folderMock.mockImplementationOnce(() => new Promise((r) => (release = r)))
-    const first = state.chooseExportFolder()
-    void state.chooseExportFolder()
-    expect(folderMock).toHaveBeenCalledTimes(1)
-    release({ outcome: 'error', error: ipcError('export.folder_invalid') })
-    await first
+    await state.openExport()
+    folderMock.mockResolvedValue({ outcome: 'error', error: ipcError('export.folder_invalid') })
+    await state.runExport()
     expect(state.exportFolderError.value?.code).toBe('export.folder_invalid')
 
     folderMock.mockResolvedValue({ outcome: 'ipc_unavailable' })
-    await state.chooseExportFolder()
+    await state.runExport()
     expect(state.exportFolderError.value).toBeNull()
     expect(state.exportFolderUnavailable.value).toBe(true)
   })
 
-  it('is reached through the registered command and the dialog is opened from Rust, not from the webview', async () => {
+  it('is opened from Rust through the export.run command, not from the webview', async () => {
     const { state, commands } = await fresh()
+    await state.openExport()
     folderMock.mockResolvedValue({ outcome: 'picked', path: '/tmp/cmd' })
-    commands.dispatch('export.choose_folder')
-    await vi.waitFor(() => expect(state.exportFolder.value).toBe('/tmp/cmd'))
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(folderMock).toHaveBeenCalledTimes(1))
 
     const adapter = readFileSync(resolve(__dirname, '../../src/config/export.ts'), 'utf8')
     expect(adapter).not.toMatch(/plugin-dialog|plugin-fs/)

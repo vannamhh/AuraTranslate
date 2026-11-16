@@ -80,6 +80,7 @@ context:
 - Nhãn phạm vi "Nhiều Chương đã chọn" thành "Nhiều Chương" (theo mockup) và đệm mục `ui-seg` 7 px: ở cột 343 px ba nhãn cũ tràn và bị `ui-seg` cắt.
 - Dòng tóm tắt mang dấu `·` trong chuỗi i18n chứ không ở `::before`, để văn bản `role="status"` đọc được.
 - Phép đo e2e liệt kê mọi `.ex-seg` có `scrollWidth > clientWidth`: font thật chỉ có trong webview, Playwright WebKit chạy font dự phòng.
+- 🔵 2026-11-16 (Ice xem app thật): bỏ nhãn nhóm Ghi nguồn; hàng tuỳ chọn canh baseline (trước lệch 3,5 px) và lùi 8 px cho thẳng mép với nội dung thẻ; bỏ nút `Đổi thư mục…` cùng lệnh `export.choose_folder`, bấm Xuất mới mở hộp chọn thư mục (Ice chọn thư mục thay vì hộp Lưu thành, Rust giữ nguyên). e2e 12-17 canh baseline, mép trái/phải và tâm ô kiểm (lệch 0,34 px so với tâm chữ thường).
 - Lượt dùng thật của Ice (vị trí cuộn khi đổi lựa chọn, tổ hợp dài nhất) ghi nợ `Chủ: Epic 8` trong `deferred-work.md`.
 
 ## Plan Change Log

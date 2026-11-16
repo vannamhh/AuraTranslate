@@ -973,9 +973,7 @@ export type CommandDeps = {
   openExportForReadingChapter?: () => void
   /** Closes the export screen. Handler of `export.close`. */
   closeExport?: () => void
-  /** Opens the destination-folder dialog in Rust. Handler of `export.choose_folder`. */
-  chooseExportFolder?: () => void
-  /** Writes the selected export format into the chosen folder. Handler of `export.run`. */
+  /** Asks Rust for a destination folder, then writes the selected export format into it. Handler of `export.run`. */
   runExport?: () => void
   /** Opens the reviewer-copy file dialog and previews the import. Handler of `export.reviewer_import.open`. */
   openReviewerImportPreview?: () => void
@@ -4281,15 +4279,6 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.closeExport === undefined) return portMissing('export.close', 'closeExport')
       deps.closeExport()
-    },
-  })
-  target.register({
-    id: 'export.choose_folder',
-    labelKey: 'command.export.choose_folder',
-    keys: undefined,
-    run: () => {
-      if (deps.chooseExportFolder === undefined) return portMissing('export.choose_folder', 'chooseExportFolder')
-      deps.chooseExportFolder()
     },
   })
   target.register({

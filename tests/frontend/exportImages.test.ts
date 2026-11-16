@@ -136,7 +136,6 @@ describe('image mode choice', () => {
     expect(state.exportImageMode.value).toBe('link')
     expect((radio(wrapper, 'link').element as HTMLInputElement).checked).toBe(true)
 
-    await state.chooseExportFolder()
     commands.dispatch('export.run')
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
     expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false, OFF)
@@ -146,7 +145,6 @@ describe('image mode choice', () => {
   it('sends file by default', async () => {
     const { state } = await fresh()
     await state.openExport()
-    await state.chooseExportFolder()
     await state.runExport()
     expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false, OFF)
   })
@@ -248,7 +246,6 @@ describe('result of a run', () => {
     const { state, Overlay } = await fresh()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
-    await state.chooseExportFolder()
     await state.runExport()
     await settle(wrapper)
 
@@ -266,7 +263,6 @@ describe('result of a run', () => {
     })
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
-    await state.chooseExportFolder()
     await state.runExport()
     await settle(wrapper)
 
