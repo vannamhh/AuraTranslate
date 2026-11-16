@@ -3,679 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AuraTranslate — Nơi bản dịch của bạn thực sự được sống</title>
-  <meta name="description" content="Translation Workstation Local-first dành riêng cho người dịch Anh/Trung → Việt coi trọng chất lượng hơn tốc độ. Không cloud, không telemetry, tra cứu Hán Việt tức thì.">
-  
-  <!-- Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237fb3ba'/><text x='50%' y='55%' dominant-baseline='central' text-anchor='middle' font-size='60' font-family='sans-serif' font-weight='bold' fill='%23121316'>A</text></svg>">
-  
-  <!-- Fonts -->
+  <title>AuraTranslate — Không gian dịch Anh/Trung sang Việt</title>
+  <meta name="description" content="Tra từ, sửa bản dịch và quản lý tác phẩm ngay trên máy. AuraTranslate hỗ trợ Anh/Trung sang Việt, thuật ngữ, bộ nhớ dịch và AI tùy chọn.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%237fb3ba'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='central' text-anchor='middle' font-size='60' font-family='sans-serif' font-weight='bold' fill='%23121316'%3EA%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
-  
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&amp;family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@400;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
-<body>
-
-  <!-- Site Header -->
+<body id="top">
+  <a class="skip-link" href="#main">Đến nội dung chính</a>
   <header class="site-header">
     <div class="container nav-inner">
-      <a href="#" class="logo-wrapper">
-        <div class="logo-icon">A</div>
-        <span>AuraTranslate</span>
-      </a>
-
-      <nav>
-        <ul class="nav-links">
-          <li><a href="#features">Trụ cột cốt lõi</a></li>
-          <li><a href="#showcase">Không gian làm việc</a></li>
-          <li><a href="#comparison">So sánh</a></li>
-          <li><a href="#playground">Trải nghiệm thử</a></li>
-          <li><a href="#faq">Hỏi đáp</a></li>
-        </ul>
-      </nav>
-
-      <div class="nav-actions">
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Đổi giao diện">
-          <!-- Icon injected by JS -->
-        </button>
-        <a href="https://github.com/ice/AuraTranslate" target="_blank" rel="noreferrer" class="btn btn-secondary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-          </svg>
-          <span>GitHub</span>
-        </a>
-        <a href="#download" class="btn btn-primary">Tải về</a>
-      </div>
+      <a href="#top" class="logo-wrapper"><span class="logo-icon">A</span><span>AuraTranslate</span></a>
+      <nav aria-label="Điều hướng chính"><ul class="nav-links">
+        <li><a href="#features">Tính năng</a></li><li><a href="#showcase">Giao diện</a></li>
+        <li><a href="#workflow">Cách dùng</a></li><li><a href="#playground">Ví dụ</a></li><li><a href="#faq">Hỏi đáp</a></li>
+      </ul></nav>
+      <div class="nav-actions"><button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Bật giao diện sáng" aria-pressed="false">☀</button><a href="#download" class="btn btn-primary">Tải về</a></div>
     </div>
   </header>
-
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="container">
-      <div class="hero-badge">
-        <span>✨ Thế hệ kế nhiệm QuickTranslator • 100% Local-first • GPL-3.0</span>
-      </div>
-
-      <h1 class="hero-title">
-        Nơi bản dịch của bạn<br>
-        <span class="gradient-text">thực sự được sống.</span>
-      </h1>
-
-      <p class="hero-subtitle">
-        Trạm làm việc dịch thuật (Translation Workstation) Local-first chuyên sâu Anh/Trung → Việt. 
-        Không còn cảnh mở 5 cửa sổ tra từ rời rạc. Tích hợp từ điển Hán Việt khổng lồ, quản lý thuật ngữ (Glossary) thông minh, và AI đóng vai trò trợ lý — bạn luôn là người làm chủ câu chữ.
-      </p>
-
-      <div class="hero-ctas">
-        <a href="#download" id="primary-download-btn" class="btn btn-primary btn-lg">
-          Tải AuraTranslate Miễn Phí
-        </a>
-        <a href="#playground" class="btn btn-secondary btn-lg">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          Thử nghiệm tương tác
-        </a>
-      </div>
-
-      <div class="hero-meta">
-        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Hoàn toàn miễn phí</span>
-        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Chạy offline 100%</span>
-        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> macOS & Windows</span>
-      </div>
-
-      <!-- App Mockup Preview -->
-      <div class="showcase-wrapper" id="showcase">
-        <div class="window-frame">
-          <div class="window-titlebar">
-            <div class="traffic-lights">
-              <span class="traffic-light light-close"></span>
-              <span class="traffic-light light-min"></span>
-              <span class="traffic-light light-max"></span>
-            </div>
-            <div class="window-title">
-              <span>AuraTranslate</span>
-              <span style="color: var(--text-dim)">—</span>
-              <span>Phàm Nhân Tu Tiên • Chương 1024: Phong Vân Tái Khởi</span>
-            </div>
-            <div class="window-actions">
-              <span class="window-tag">LOCAL SQLite</span>
-              <span class="window-tag">TAURI v2 + RUST</span>
-            </div>
+  <main id="main">
+    <section class="hero-section">
+      <div class="container">
+        <p class="hero-badge">Anh / Trung → Việt · Mã nguồn mở GPL-3.0-or-later</p>
+        <h1 class="hero-title">Một nơi để tra từ,<br>dịch và đọc lại.</h1>
+        <p class="hero-subtitle">Đặt nguyên văn cạnh bản dịch, giữ tên riêng nhất quán và tìm lại những câu đã dịch. Tác phẩm, từ điển và công việc biên tập nằm ngay trên máy bạn.</p>
+        <div class="hero-ctas"><a href="https://github.com/vannamhh/AuraTranslate/releases" id="primary-download-btn" class="btn btn-primary btn-lg">Xem bản phát hành</a><a href="#showcase" class="btn btn-secondary btn-lg">Xem giao diện thật</a></div>
+        <p class="hero-meta">Tra từ, biên tập và lưu trữ dùng ngoại tuyến. AI là tùy chọn; AI trực tuyến gửi nội dung đến nhà cung cấp bạn cấu hình.</p>
+        <figure class="showcase-wrapper" id="showcase">
+          <img id="gallery-image" class="app-screenshot" src="assets/screenshots/workspace.png" width="2560" height="1720" alt="AuraTranslate: lưới đối chiếu nguyên văn tiếng Trung và bản dịch tiếng Việt của tác phẩm minh họa.">
+          <figcaption id="gallery-caption">Đối chiếu nguyên văn và bản dịch theo từng câu.</figcaption>
+          <div class="gallery-controls" role="group" aria-label="Chọn ảnh giao diện">
+            <button type="button" class="gallery-button active" data-screen="workspace" aria-pressed="true">Đối chiếu</button>
+            <button type="button" class="gallery-button" data-screen="glossary" aria-pressed="false">Thuật ngữ</button>
+            <button type="button" class="gallery-button" data-screen="translation-memory" aria-pressed="false">Bộ nhớ dịch</button>
+            <button type="button" class="gallery-button" data-screen="reading" aria-pressed="false">Đọc lại</button>
+            <button type="button" class="gallery-button" data-screen="export" aria-pressed="false">Xuất bản dịch</button>
           </div>
-
-          <div class="workspace-grid">
-            <!-- Left Sidebar: Library -->
-            <div class="sidebar-left">
-              <div class="sidebar-title">Thư viện tác phẩm</div>
-              <div class="chapter-item">
-                <span>Chương 1022: Bí cảnh</span>
-                <span style="color: var(--green-confirmed); font-size: 0.7rem;">✓ Xong</span>
-              </div>
-              <div class="chapter-item">
-                <span>Chương 1023: Giao chiến</span>
-                <span style="color: var(--green-confirmed); font-size: 0.7rem;">✓ Xong</span>
-              </div>
-              <div class="chapter-item active">
-                <span>Chương 1024: Phong vân</span>
-                <span style="color: var(--amber-accent); font-size: 0.7rem;">● Đang dịch</span>
-              </div>
-              <div class="chapter-item">
-                <span>Chương 1025: Lôi kiếp</span>
-                <span style="color: var(--text-dim); font-size: 0.7rem;">Chờ</span>
-              </div>
-
-              <div class="sidebar-title" style="margin-top: 1.5rem;">Thống kê tiến độ</div>
-              <div style="font-size: 0.813rem; color: var(--text-muted); display:flex; flex-direction:column; gap:0.35rem;">
-                <div>Từ gốc: <b>2,840</b> chữ</div>
-                <div>Đã duyệt: <b>78%</b></div>
-                <div>Glossary nhận diện: <b>14</b> từ</div>
-              </div>
-            </div>
-
-            <!-- Center: Bilingual Editor -->
-            <div class="editor-center">
-              <div style="font-size: 0.75rem; color: var(--text-dim); border-bottom: 1px dashed var(--border-subtle); padding-bottom: 0.4rem;">
-                💡 <i>Nhấp vào các từ có gạch chân màu cam để xem mô phỏng tra cứu tức thì:</i>
-              </div>
-
-              <!-- Segment 1 -->
-              <div class="segment-row active">
-                <div class="source-text">
-                  <span class="interactive-word highlight-lookup">韩立</span>
-                  缓缓抬起头来，望向天际那一片
-                  <span class="interactive-word">星河灿烂</span>
-                  的幽夜，
-                  <span class="interactive-word">心神激荡</span>
-                  难平。
-                </div>
-                <div class="target-text">
-                  Hàn Lập chầm chậm ngẩng đầu lên, phóng tầm mắt nhìn về phía màn đêm u tịch với dải ngân hà xán lạn muôn vì sao nơi chân trời, tâm thần kích đãng khó nỗi nguôi ngoai.
-                </div>
-
-                <!-- Floating Lookup Popover -->
-                <div id="hero-lookup-popover" class="lookup-popover">
-                  <div class="lookup-head">
-                    <span id="lookup-term" class="lookup-term">韩立</span>
-                    <span id="lookup-pinyin" class="lookup-pinyin">hán lì</span>
-                    <span id="lookup-hanviet" class="lookup-hanviet">Hàn Lập</span>
-                  </div>
-                  <div id="lookup-def" class="lookup-def">
-                    Nhân vật chính trong Phàm Nhân Tu Tiên. Tâm tính cẩn trọng, kiên nghị, sát phạt quyết đoán.
-                  </div>
-                  <span id="lookup-badge" class="lookup-badge">Glossary: Tên nhân vật (Nhớ tự động)</span>
-                </div>
-              </div>
-
-              <!-- Segment 2 -->
-              <div class="segment-row">
-                <div class="source-text">
-                  青竹蜂云剑在丹田之中轻鸣微颤，似是在回应着远处那道撕裂苍穹的劫雷。
-                </div>
-                <div class="target-text">
-                  Thanh Trúc Phong Vân Kiếm trong đan điền khẽ rung lên từng hồi thanh thúy, như thể đang đáp lời lại tia thiên kiếp lôi đình vừa xé toạc thương khung nơi phương xa.
-                </div>
-              </div>
-            </div>
-
-            <!-- Right: Glossary & Tools Panel -->
-            <div class="panel-right">
-              <div class="tool-tab-strip">
-                <button class="tool-tab active">Glossary</button>
-                <button class="tool-tab">AI Trợ lý</button>
-                <button class="tool-tab">So sánh</button>
-              </div>
-
-              <div class="glossary-card">
-                <div class="glossary-term">
-                  <span>韩立</span>
-                  <span class="glossary-role">Hàn Lập</span>
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-dim);">Quy ước: Nhân vật chính (Chương 1 → Hiện tại)</div>
-              </div>
-
-              <div class="glossary-card">
-                <div class="glossary-term">
-                  <span>青竹蜂云剑</span>
-                  <span class="glossary-role">Thanh Trúc Phong Vân Kiếm</span>
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-dim);">Quy ước: Pháp bảo bản mệnh</div>
-              </div>
-
-              <div class="glossary-card">
-                <div class="glossary-term">
-                  <span>丹田</span>
-                  <span class="glossary-role">Đan Điền</span>
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-dim);">Hán Việt: Đan Điền • Thuật ngữ tu tiên</div>
-              </div>
-
-              <div style="margin-top: 1.5rem; padding: 0.75rem; background: rgba(127,179,186,0.08); border-radius: 6px; font-size: 0.813rem; border: 1px solid rgba(127,179,186,0.15);">
-                <div style="font-weight: 700; color: var(--teal-primary); margin-bottom: 0.25rem;">⚡ AI Assistant</div>
-                <div style="color: var(--text-muted); font-size: 0.78rem;">Đã kiểm tra tính nhất quán: 100% tên nhân vật và bảo vật khớp hoàn hảo với quy ước dịch thuật.</div>
-              </div>
-            </div>
-          </div>
-        </div>
+          <p class="sample-label">Ảnh chụp ứng dụng thật với tác phẩm tự soạn “Một buổi sáng bên sông — bản minh họa”, tạo riêng cho trang này. Các con số trong ảnh thuộc dữ liệu mẫu.</p>
+          <a id="gallery-original" href="assets/screenshots/workspace.png">Mở ảnh gốc</a>
+        </figure>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Section 2: Four Pillars -->
-  <section class="section" id="features">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-subtitle">Triết lý thiết kế</div>
-        <h2 class="section-title">Bốn trụ cột tạo nên sự khác biệt</h2>
-        <p class="section-desc">
-          Các công cụ khác chỉ giúp bạn dịch xong rồi rời đi. AuraTranslate được kiến tạo như một ngôi nhà bền vững cho toàn bộ sự nghiệp dịch thuật của bạn.
-        </p>
+    <section class="section" id="features"><div class="container">
+      <div class="section-head"><h2 class="section-title">Giữ mạch dịch từ câu đầu đến chương cuối</h2><p class="section-desc">Công cụ đi cùng từng bước đọc, chọn từ, sửa câu và xác nhận bản dịch.</p></div>
+      <div class="features-grid">
+        <article class="feature-card"><h3>Tra cứu ngay bên câu đang dịch</h3><p>Tra Trung–Việt, Anh–Việt, âm Hán Việt và Pinyin. Chọn các nguồn từ điển, gồm Thiều Chửu, Trần Văn Chánh và VietPhrase, theo nhu cầu của bạn. Mỗi kết quả có thông tin nguồn để đối chiếu.</p></article>
+        <article class="feature-card"><h3>Thư viện tác phẩm và chương</h3><p>Quản lý nhiều tác phẩm, chia chương và đối chiếu nguyên văn với bản dịch. Bản soạn tự động được lưu. Phân biệt câu chưa dịch, chưa xác nhận và đã xác nhận để biết phần nào cần đọc lại. Sắp xếp các bảng theo thói quen; bố cục làm việc được ghi nhớ.</p></article>
+        <article class="feature-card"><h3>Thuật ngữ có người chốt</h3><p>Lưu tên riêng và cách dịch trong Glossary của tác phẩm hoặc dùng chung. Nhập, xuất CSV/TSV để trao đổi thuật ngữ; xem và quyết định từng đề xuất trước khi nhận.</p></article>
+        <article class="feature-card"><h3>Bộ nhớ dịch và tìm ngữ cảnh</h3><p>Tìm lại các cặp câu đã xác nhận và gợi ý câu gần giống trong bộ nhớ dịch. Nhập, xuất TMX; dùng Concordance để xem một từ hoặc cụm từ đã xuất hiện và được dịch ra sao.</p></article>
+        <article class="feature-card"><h3>Đọc lại và trở về bản đã chốt</h3><p>Chế độ đọc giúp xem liền mạch bản dịch, đánh dấu chỗ cần sửa và quay về đúng câu trong màn dịch. Lịch sử lưu các phiên bản đã xác nhận của câu; có thể xem lại và khôi phục khi cần.</p></article>
+        <article class="feature-card"><h3>Quy ước tiếng Việt</h3><p>Quản lý những cụm cần tránh và cách viết ưu tiên. Kết hợp quy ước với thuật ngữ đã chốt để giữ giọng văn nhất quán khi dịch và soát lại.</p></article>
       </div>
-
-      <div class="pillars-grid">
-        <div class="pillar-card">
-          <div class="pillar-num">01 / TRỌNG TÂM</div>
-          <h3 class="pillar-title">Người dịch là trung tâm, AI là công cụ</h3>
-          <p class="pillar-text">
-            AI chỉ đưa ra đề xuất và hỗ trợ câu khó; bạn là người biên tập quyết định linh hồn câu chữ. Hệ thống ghi nhớ mọi quyết định của bạn để lần sau gợi ý chuẩn xác và sát phong cách của bạn hơn.
-          </p>
-        </div>
-
-        <div class="pillar-card">
-          <div class="pillar-num">02 / KHÔNG GIAN</div>
-          <h3 class="pillar-title">Bản dịch có nơi để sống</h3>
-          <p class="pillar-text">
-            Thư viện (Library) quản lý toàn bộ tác phẩm, hàng trăm chương hồi, lưu vết từng bản sửa (diff history). Không còn cảnh tài liệu dịch trôi dạt vô định trên Google Docs hay những file Notepad rời rạc.
-          </p>
-        </div>
-
-        <div class="pillar-card">
-          <div class="pillar-num">03 / HIỆU SUẤT</div>
-          <h3 class="pillar-title">Tra cứu tức thì, không độ trễ</h3>
-          <p class="pillar-text">
-            Chỉ cần rê chuột hoặc bôi đen là hiển thị ngay Pinyin, Hán Việt cổ, nghĩa từ điển Thiều Chửu, Trần Văn Chánh, từ điển Anh-Việt. Tạm biệt vĩnh viễn thói quen copy-paste qua lại giữa nhiều cửa sổ.
-          </p>
-        </div>
-
-        <div class="pillar-card">
-          <div class="pillar-num">04 / BẢO MẬT</div>
-          <h3 class="pillar-title">Local-first thật sự & Quyền sở hữu</h3>
-          <p class="pillar-text">
-            Không tài khoản, không cloud sync, không telemetry theo dõi người dùng. Toàn bộ từ điển và tác phẩm nằm an toàn trong SQLite trên máy bạn. Dữ liệu của bạn sẽ sống lâu hơn cả phần mềm.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 3: Deep Dives -->
-  <section class="section" style="border-top: 1px solid var(--border-subtle); background: var(--bg-secondary);">
-    <div class="container">
-      <!-- Deep Dive 1: QuickTranslator successor -->
       <div class="deepdive-block">
-        <div>
-          <div class="deepdive-tag">Kế thừa & Đột phá</div>
-          <h2 class="deepdive-title">Người kế nhiệm xứng tầm cho QuickTranslator sau 10 năm</h2>
-          <p class="deepdive-desc">
-            QuickTranslator từng là huyền thoại của cộng đồng dịch thuật tiếng Trung tại Việt Nam suốt hơn một thập kỷ, nhưng đã dừng phát triển từ 2022 và chỉ chạy trên Windows. AuraTranslate giữ trọn thói quen tra cứu quen tay của dịch giả, nhưng nâng cấp toàn diện lên tầm cao hiện đại.
-          </p>
-          <ul class="feature-check-list">
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>Chạy native mượt mà trên cả <b>macOS (Apple Silicon & Intel)</b> lẫn <b>Windows</b>.</span>
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>Xây dựng bằng <b>Tauri v2 + Rust</b>: Siêu nhẹ (&lt;30MB), khởi động &lt;200ms, tiêu tốn cực ít RAM.</span>
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>Hỗ trợ nhập trực tiếp kho dữ liệu cũ: <b>Names.txt, Vietphrase.txt</b> dễ dàng.</span>
-            </li>
-          </ul>
-        </div>
-        <div class="deepdive-visual">
-          <div style="font-weight: 700; margin-bottom: 1rem; color: var(--amber-accent); font-size: 0.938rem;">
-            ⚡ ĐO THỰC TẾ TRÊN MÁY TÍNH
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.875rem;">
-            <div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                <span>Thời gian khởi động ứng dụng</span>
-                <span style="color: var(--teal-primary); font-weight: 700;">140ms</span>
-              </div>
-              <div style="height: 6px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow:hidden;">
-                <div style="width: 15%; height: 100%; background: var(--teal-primary);"></div>
-              </div>
-            </div>
-            <div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                <span>Mức tiêu thụ RAM khi mở truyện 1,000 chương</span>
-                <span style="color: var(--teal-primary); font-weight: 700;">~75 MB</span>
-              </div>
-              <div style="height: 6px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow:hidden;">
-                <div style="width: 18%; height: 100%; background: var(--teal-primary);"></div>
-              </div>
-            </div>
-            <div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                <span>Tốc độ tra cứu từ điển SQLite offline</span>
-                <span style="color: var(--green-confirmed); font-weight: 700;">&lt; 5ms / từ</span>
-              </div>
-              <div style="height: 6px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow:hidden;">
-                <div style="width: 9%; height: 100%; background: var(--green-confirmed);"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div><h2 class="deepdive-title">AI hỗ trợ theo cấu hình của bạn</h2><p>Chọn nhà cung cấp, mô hình và bộ prompt. Thư viện prompt giúp giữ các chỉ dẫn thường dùng; màn xem prompt cho biết nội dung chuẩn bị gửi. Có thể nhờ AI dịch, tra nhanh hoặc soát bản dịch rồi tự quyết định nhận sửa đổi.</p><p>Chức năng dịch nhanh có trong hàng đợi Glossary và màn xem trước nhập URL. Việc này không tự động dịch toàn bộ các chương.</p></div>
+        <aside class="privacy-note"><h3>Khi nào cần mạng?</h3><p>Từ điển đi kèm, sửa câu và lưu tác phẩm hoạt động ngoại tuyến. Nhập nội dung từ URL cần mạng. Khi dùng AI trực tuyến, văn bản và ngữ cảnh trong yêu cầu được gửi đến nhà cung cấp đã cấu hình; có thể phát sinh phí theo dịch vụ.</p><p>Muốn dùng AI cục bộ, bạn cần tự cài và chạy mô hình, rồi cấu hình kết nối. Mô hình AI không nằm trong bộ cài.</p></aside>
       </div>
+    </div></section>
 
-      <!-- Deep Dive 2: Reviewer Bridge & Export -->
-      <div class="deepdive-block" style="margin-bottom: 0;">
-        <div class="deepdive-visual">
-          <div style="font-size: 0.813rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 0.75rem;">
-            Màn hình So sánh & Soát lỗi (Reviewer Diff)
-          </div>
-          <div style="background: var(--bg-primary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1rem; font-family: 'Source Serif 4', serif; font-size: 0.95rem;">
-            <div style="color: var(--text-muted); margin-bottom: 0.5rem; text-decoration: line-through; opacity: 0.7;">
-              Hàn Lập ngẩng đầu nhìn lên bầu trời đầy sao, lòng tràn ngập cảm xúc.
-            </div>
-            <div style="color: var(--text-main); font-weight: 600;">
-              Hàn Lập chầm chậm ngẩng đầu lên, phóng tầm mắt nhìn về phía dải ngân hà xán lạn nơi chân trời, tâm thần kích đãng khó nỗi nguôi ngoai.
-            </div>
-            <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--amber-accent); font-family: sans-serif;">
-              ✓ Đã thay thế: chuốt lại sắc thái cổ phong theo Glossary của tác phẩm
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="deepdive-tag">Chuyên nghiệp hóa</div>
-          <h2 class="deepdive-title">Cầu nối vững chắc giữa Dịch giả & Biên tập viên</h2>
-          <p class="deepdive-desc">
-            Không còn tình trạng "tam sao thất bản" hay đứt gãy phản hồi khi gửi bản dịch qua Google Docs hoặc email. Mọi sửa đổi, ghi chú của reviewer đều được lưu vết chi tiết từng phân đoạn câu.
-          </p>
-          <ul class="feature-check-list">
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>So sánh song ngữ song song, cuộn đồng bộ trực quan giữa bản gốc và bản dịch.</span>
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>Xuất bản linh hoạt: <b>Microsoft Word (.docx)</b>, Markdown, Text, Song ngữ kèm chú giải.</span>
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>Đánh dấu trạng thái rõ ràng: Bản nháp, Chờ biên tập, Đã phê duyệt.</span>
-            </li>
-          </ul>
-        </div>
+    <section class="section workflow-section" id="workflow"><div class="container">
+      <div class="section-head"><h2 class="section-title">Từ bản gốc đến bản gửi biên tập</h2></div>
+      <ol class="workflow-steps">
+        <li><h3>Cài và mở ứng dụng</h3><p>Chọn bản cài phù hợp trong mục phát hành, đối chiếu SHA-256 và làm theo <a href="https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md">hướng dẫn cài đặt</a>. Các từ điển được đóng kèm bản cài phát hành.</p></li>
+        <li><h3>Tạo tác phẩm, nhập bản gốc</h3><p>Nhập tệp hoặc dán nội dung, chọn tiếng Trung hoặc tiếng Anh rồi xem trước cách chia chương, chia câu. Với dữ liệu song ngữ, chọn cột nguồn và cột bản dịch.</p></li>
+        <li><h3>Tra từ, sửa và xác nhận</h3><p>Đọc nguyên văn cạnh bản dịch, chốt thuật ngữ và xác nhận câu đã hài lòng. Nếu cần AI, cấu hình nhà cung cấp và xem prompt trước khi gửi.</p></li>
+        <li><h3>Đọc lại rồi xuất</h3><p>Kiểm tra câu chưa xác nhận trong chế độ đọc, chọn định dạng xuất và xem trước. Có thể nhận lại bản biên tập đúng định dạng để so sánh và chọn sửa đổi.</p></li>
+      </ol>
+      <div class="format-wrap"><table class="format-table"><caption>Định dạng và cách trao đổi dữ liệu</caption>
+        <thead><tr><th scope="col">Công việc</th><th scope="col">Định dạng / cách dùng</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Nhập nguyên văn</th><td>TXT, Markdown (.md), DOCX; dán văn bản hoặc nhập từ URL có bước xem trước.</td></tr>
+          <tr><th scope="row">Nhập song ngữ</th><td>CSV, TSV hoặc bảng hai cột trong DOCX; xem và khớp các câu trước khi nhận.</td></tr>
+          <tr><th scope="row">Xuất bản dịch</th><td>DOCX một khối hoặc hai cột, Markdown và văn bản thuần (.txt). Có tùy chọn phụ lục thuật ngữ, đánh số câu và đánh dấu câu chưa xác nhận theo định dạng hỗ trợ.</td></tr>
+          <tr><th scope="row">Nhận bản biên tập</th><td>Nhận lại DOCX hai cột hoặc Markdown theo mẫu ứng dụng xuất để đối chiếu và chọn thay đổi. Bản xuất có đánh số câu hoặc đánh dấu câu chưa xác nhận không dùng để nhập lại.</td></tr>
+          <tr><th scope="row">Trao đổi thuật ngữ</th><td>Glossary qua CSV/TSV; bộ nhớ dịch qua TMX.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="deepdive-block reviewer-block">
+        <figure><img class="app-screenshot" src="assets/screenshots/export.png" width="2560" height="1720" loading="lazy" alt="Màn xuất bản dịch với bản xem trước DOCX hai cột của tác phẩm minh họa."><figcaption>Ảnh thật: xem trước DOCX hai cột, sử dụng dữ liệu mẫu tự soạn.</figcaption></figure>
+        <div><h2 class="deepdive-title">Gửi bản dịch để biên tập, rồi đối chiếu khi nhận lại</h2><p>Xuất bản hai cột để người biên tập đọc cả nguyên văn lẫn bản dịch. Khi nhận lại tệp đúng mẫu, xem các điểm khác biệt và chọn sửa đổi muốn áp dụng trong tác phẩm.</p><p>Giữ một bản xuất không đánh số câu và không đánh dấu câu chưa xác nhận nếu bạn định nhập lại bản biên tập.</p></div>
       </div>
-    </div>
-  </section>
+    </div></section>
 
-  <!-- Section 4: Interactive Playground -->
-  <section class="section" id="playground">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-subtitle">Tương tác trực tiếp</div>
-        <h2 class="section-title">Trải nghiệm cảm giác dịch ngay trên trình duyệt</h2>
-        <p class="section-desc">
-          Xem cách AuraTranslate tự động phân tích từ vựng, gợi ý âm Hán Việt và hỗ trợ giữ vững văn phong.
-        </p>
-      </div>
+    <section class="section" id="playground"><div class="container">
+      <div class="section-head"><h2 class="section-title">Đọc thử một ví dụ song ngữ</h2><p class="section-desc">Nguồn, bản dịch và ghi chú dưới đây được soạn sẵn để minh họa cách đọc đối chiếu. Trang này không tra từ hoặc gọi AI.</p></div>
+      <div class="playground-box"><div class="playground-tabs" role="group" aria-label="Chọn ví dụ song ngữ">
+        <button type="button" class="pg-tab-btn active" data-preset="chinese" aria-pressed="true">Trung → Việt</button><button type="button" class="pg-tab-btn" data-preset="english" aria-pressed="false">Anh → Việt</button>
+      </div><div class="workspace-grid" id="prepared-demo">
+        <div><h3>Nguyên văn mẫu</h3><p id="pg-source-text" class="source-text" lang="zh">清晨，河面上飘着一层薄雾。林安走到旧码头，看见一只蓝色的小船。</p><h3>Bản dịch mẫu đã soạn sẵn</h3><p id="pg-target-text" class="target-text">Sáng sớm, một làn sương mỏng lững lờ trên mặt sông. Lâm An bước ra bến cũ, trông thấy một chiếc thuyền nhỏ màu xanh.</p></div>
+        <div><h3>Ghi chú từ vựng mẫu</h3><div id="pg-inspector-content"><p>薄雾 · bó wù · Hán Việt: bạc vụ. Nghĩa trong câu: sương mỏng.</p><p>林安 · lín ān · Tên riêng mẫu: Lâm An.</p></div></div>
+      </div></div>
+    </div></section>
 
-      <div class="playground-box">
-        <div class="playground-header">
-          <div class="playground-tabs">
-            <button class="pg-tab-btn active" data-preset="xianxia">Tu tiên / Kiếm hiệp (Trung → Việt)</button>
-            <button class="pg-tab-btn" data-preset="english">Kỳ ảo / Văn học (Anh → Việt)</button>
-          </div>
-          <div style="font-size: 0.813rem; color: var(--text-dim);">
-            Mô phỏng động cơ phân tích ngữ cảnh của AuraTranslate
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" class="workspace-grid">
-          <div>
-            <div style="font-size: 0.813rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">
-              Văn bản gốc
-            </div>
-            <div id="pg-source-text" class="source-text" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.25rem; min-height: 140px;">
-              <!-- Filled by JS -->
-            </div>
-
-            <div style="font-size: 0.813rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem;">
-              Bản dịch được gợi ý & trau chuốt
-            </div>
-            <div id="pg-target-text" class="target-text" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.25rem; min-height: 140px;">
-              <!-- Filled by JS -->
-            </div>
-          </div>
-
-          <div id="pg-inspector-content" style="background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1.25rem;">
-            <!-- Filled by JS -->
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 5: Comparison Table -->
-  <section class="section" id="comparison" style="border-top: 1px solid var(--border-subtle);">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-subtitle">Đối chiếu toàn diện</div>
-        <h2 class="section-title">Vì sao AuraTranslate là lựa chọn vượt trội?</h2>
-        <p class="section-desc">
-          So sánh khách quan giữa AuraTranslate với các công cụ dịch thuật phổ biến hiện nay.
-        </p>
-      </div>
-
-      <div class="comparison-card">
-        <table class="comp-table">
-          <thead>
-            <tr>
-              <th>Tiêu chí so sánh</th>
-              <th class="highlight-col">AuraTranslate (2026)</th>
-              <th>QuickTranslator</th>
-              <th>Cloud AI (ChatGPT / DeepL)</th>
-              <th>CAT Tool (Trados / MemoQ)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><b>Mục tiêu phục vụ</b></td>
-              <td class="highlight-col"><b>Người dịch muốn dịch hay</b></td>
-              <td>Người đọc & dịch nhanh</td>
-              <td>Độc giả đọc lướt nhanh</td>
-              <td>Dịch thuật doanh nghiệp / Bản địa hóa</td>
-            </tr>
-            <tr>
-              <td><b>Hệ điều hành</b></td>
-              <td class="highlight-col"><span class="comp-badge-good">macOS & Windows Native</span></td>
-              <td><span class="comp-badge-mid">Chỉ Windows (Dừng 2022)</span></td>
-              <td>Web Browser</td>
-              <td>Chủ yếu Windows</td>
-            </tr>
-            <tr>
-              <td><b>Từ điển Hán Việt & Pinyin</b></td>
-              <td class="highlight-col"><span class="comp-badge-good">Tích hợp sẵn & Tra tức thì</span></td>
-              <td>Có tích hợp</td>
-              <td><span class="comp-badge-bad">Không có tra cứu tức thì</span></td>
-              <td><span class="comp-badge-bad">Phải tự cấu hình phức tạp</span></td>
-            </tr>
-            <tr>
-              <td><b>Quyền riêng tư & Offline</b></td>
-              <td class="highlight-col"><span class="comp-badge-good">100% Offline (SQLite Local)</span></td>
-              <td>Offline</td>
-              <td><span class="comp-badge-bad">Đưa dữ liệu lên máy chủ Cloud</span></td>
-              <td>Tùy gói cài đặt</td>
-            </tr>
-            <tr>
-              <td><b>Quản lý Thư viện tác phẩm</b></td>
-              <td class="highlight-col"><span class="comp-badge-good">Tích hợp trọn đời theo chương</span></td>
-              <td><span class="comp-badge-bad">Không có (Chỉ từng file rời)</span></td>
-              <td><span class="comp-badge-bad">Không có</span></td>
-              <td>Theo dự án (Project nặng nề)</td>
-            </tr>
-            <tr>
-              <td><b>Giấy phép & Chi phí</b></td>
-              <td class="highlight-col"><b>Mã nguồn mở GPL-3.0 (Miễn phí)</b></td>
-              <td>Miễn phí</td>
-              <td>Thu phí hàng tháng ($20+/tháng)</td>
-              <td>Rất đắt ($500+ bản quyền)</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- Section 6: Downloads -->
-  <section class="section download-section" id="download">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-subtitle">Cài đặt ứng dụng</div>
-        <h2 class="section-title">Bắt đầu hành trình dịch thuật mới ngay hôm nay</h2>
-        <p class="section-desc">
-          Tải miễn phí bản cài đặt chính thức cho hệ điều hành của bạn. Không cần tạo tài khoản.
-        </p>
-      </div>
-
+    <section class="section download-section" id="download"><div class="container">
+      <div class="section-head"><h2 class="section-title">Cài AuraTranslate trên máy của bạn</h2><p class="section-desc">Xem danh sách phát hành để biết các bản cài hiện có. Không cần tài khoản để tra từ, biên tập và lưu tác phẩm.</p></div>
       <div class="download-grid">
-        <!-- Mac -->
-        <div class="download-card" id="dl-mac">
-          <div class="os-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.93-2.85-.9.04-2 .6-2.65 1.35-.58.66-1.09 1.73-.95 2.76.99.08 2.05-.51 2.67-1.26z"/>
-            </svg>
-          </div>
-          <h3 class="download-title">macOS</h3>
-          <div class="download-meta">macOS 12.0 trở lên • Apple Silicon & Intel</div>
-          <div class="download-links">
-            <a href="https://github.com/ice/AuraTranslate/releases/latest" class="btn btn-primary">
-              Tải .dmg (Apple Silicon M1/M2/M3/M4)
-            </a>
-            <a href="https://github.com/ice/AuraTranslate/releases/latest" class="btn btn-secondary">
-              Tải .dmg (Intel x64)
-            </a>
-          </div>
-        </div>
-
-        <!-- Windows -->
-        <div class="download-card" id="dl-win">
-          <div class="os-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4h-13.051M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.949"/>
-            </svg>
-          </div>
-          <h3 class="download-title">Windows</h3>
-          <div class="download-meta">Windows 10 / 11 (64-bit)</div>
-          <div class="download-links">
-            <a href="https://github.com/ice/AuraTranslate/releases/latest" class="btn btn-primary">
-              Tải .msi Installer (Khuyên dùng)
-            </a>
-            <a href="https://github.com/ice/AuraTranslate/releases/latest" class="btn btn-secondary">
-              Tải .zip Bản di động (Portable)
-            </a>
-          </div>
-        </div>
-
-        <!-- Linux & Source -->
-        <div class="download-card">
-          <div class="os-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-          <h3 class="download-title">Linux & Mã nguồn</h3>
-          <div class="download-meta">Ubuntu, Debian, Fedora, Arch & Build từ Rust</div>
-          <div class="download-links">
-            <a href="https://github.com/ice/AuraTranslate/releases/latest" class="btn btn-secondary">
-              Tải .AppImage / .deb
-            </a>
-            <a href="https://github.com/ice/AuraTranslate" class="btn btn-secondary">
-              Xem Source trên GitHub
-            </a>
-          </div>
-        </div>
+        <article class="download-card" id="dl-mac"><h3>macOS</h3><p>Một tệp DMG universal dùng cho cả Apple Silicon và Intel.</p><a href="https://github.com/vannamhh/AuraTranslate/releases/download/v1.1.0/AuraTranslate_1.1.0_universal.dmg" class="btn btn-primary">Tải DMG v1.1.0</a></article>
+        <article class="download-card" id="dl-win"><h3>Windows</h3><p>Bản cài MSI có nhúng WebView2, hỗ trợ cài khi không có mạng.</p><a href="https://github.com/vannamhh/AuraTranslate/releases/download/v1.1.0/AuraTranslate_1.1.0_x64_en-US.msi" class="btn btn-primary">Tải MSI v1.1.0</a></article>
+        <article class="download-card"><h3>Mã nguồn và hướng dẫn</h3><p>Đọc cách cài đặt, đối chiếu checksum hoặc xem mã nguồn.</p><a href="https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md" class="btn btn-secondary">Hướng dẫn cài đặt</a><a href="https://github.com/vannamhh/AuraTranslate" class="text-link">Mã nguồn trên GitHub</a></article>
       </div>
-    </div>
-  </section>
+      <p class="installation-note">Bản cài chưa được ký số; macOS chưa được notarize. Hệ điều hành có thể cảnh báo khi mở lần đầu. Hãy đối chiếu SHA-256 và làm theo hướng dẫn cho từng ứng dụng; không cần tắt bảo vệ cho toàn máy.</p>
+      <p><a href="https://github.com/vannamhh/AuraTranslate/releases/tag/v1.1.0">Ghi chú bản v1.1.0</a> · <a href="https://github.com/vannamhh/AuraTranslate/releases/download/v1.1.0/SHA256SUMS.txt">Checksum SHA-256 v1.1.0</a></p><a href="https://github.com/vannamhh/AuraTranslate/releases">Xem tất cả bản phát hành</a>
+    </div></section>
 
-  <!-- Section 7: FAQ -->
-  <section class="section" id="faq">
-    <div class="container">
-      <div class="section-head">
-        <div class="section-subtitle">Giải đáp thắc mắc</div>
-        <h2 class="section-title">Câu hỏi thường gặp</h2>
-      </div>
-
+    <section class="section" id="faq"><div class="container">
+      <div class="section-head"><h2 class="section-title">Câu hỏi thường gặp</h2></div>
       <div class="faq-list">
-        <div class="faq-item open">
-          <button class="faq-question">
-            <span>AuraTranslate có thực sự miễn phí không?</span>
-            <span class="faq-arrow">▼</span>
-          </button>
-          <div class="faq-answer">
-            <b>Có, hoàn toàn miễn phí trọn đời.</b> AuraTranslate là dự án mã nguồn mở theo giấy phép GNU General Public License v3 (GPLv3). Bất kỳ ai cũng có thể tự do tải về sử dụng, đóng góp tính năng hoặc kiểm tra mã nguồn minh bạch.
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button class="faq-question">
-            <span>Ứng dụng có thể dùng offline ở nơi không có mạng internet không?</span>
-            <span class="faq-arrow">▼</span>
-          </button>
-          <div class="faq-answer">
-            <b>100% Offline.</b> Toàn bộ bộ từ điển (Hán Việt, Anh Việt, Pinyin, Thiều Chửu) cùng cơ sở dữ liệu tác phẩm đều lưu trữ trực tiếp trên máy bạn bằng SQLite. Bạn có thể mang laptop lên máy bay, về vùng quê không có mạng và dịch truyện bình thường.
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button class="faq-question">
-            <span>Tôi có thể chuyển dữ liệu từ điển/Name từ QuickTranslator sang không?</span>
-            <span class="faq-arrow">▼</span>
-          </button>
-          <div class="faq-answer">
-            <b>Rất dễ dàng.</b> AuraTranslate tích hợp sẵn tính năng nhập file `Names.txt`, `Vietphrase.txt`, `PhienAm.txt` từ QuickTranslator, giúp bạn giữ nguyên thành quả gây dựng qua nhiều năm mà không phải bắt đầu lại từ con số không.
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button class="faq-question">
-            <span>Dữ liệu bản dịch của tôi có bị gửi đi đâu không?</span>
-            <span class="faq-arrow">▼</span>
-          </button>
-          <div class="faq-answer">
-            <b>Tuyệt đối không.</b> AuraTranslate tuân thủ nguyên tắc Local-first triệt để: không có telemetry, không gửi log hay dữ liệu tác phẩm về bất kỳ máy chủ nào. Bản dịch của bạn hoàn toàn thuộc về bạn.
-          </div>
-        </div>
+        <div class="faq-item open"><h3><button type="button" id="faq-question-1" class="faq-question" aria-expanded="true" aria-controls="faq-answer-1">AuraTranslate có miễn phí không?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-1" class="faq-answer" role="region" aria-labelledby="faq-question-1">Ứng dụng là mã nguồn mở theo GPL-3.0-or-later, được sử dụng miễn phí. Nếu chọn AI trực tuyến, chi phí của nhà cung cấp AI được tính riêng theo dịch vụ bạn dùng.</div></div>
+        <div class="faq-item"><h3><button type="button" id="faq-question-2" class="faq-question" aria-expanded="false" aria-controls="faq-answer-2">Tôi làm được gì khi không có mạng?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-2" class="faq-answer" role="region" aria-labelledby="faq-question-2" hidden>Tra các từ điển đã cài, mở tác phẩm, sửa bản dịch, quản lý thuật ngữ, dùng bộ nhớ dịch và xuất tệp đều thực hiện trên máy. Nhập từ URL và gọi AI trực tuyến cần mạng. AI cục bộ cần được thiết lập riêng.</div></div>
+        <div class="faq-item"><h3><button type="button" id="faq-question-3" class="faq-question" aria-expanded="false" aria-controls="faq-answer-3">Nội dung nào được gửi ra ngoài?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-3" class="faq-answer" role="region" aria-labelledby="faq-question-3" hidden>Tác phẩm và dữ liệu biên tập được lưu trên máy. Khi dùng AI trực tuyến, yêu cầu gồm văn bản và ngữ cảnh được gửi đến nhà cung cấp bạn đã cấu hình. Xem prompt trước khi gửi để biết nội dung của lượt yêu cầu.</div></div>
+        <div class="faq-item"><h3><button type="button" id="faq-question-4" class="faq-question" aria-expanded="false" aria-controls="faq-answer-4">Có chuyển thuật ngữ từ công cụ khác sang được không?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-4" class="faq-answer" role="region" aria-labelledby="faq-question-4" hidden>Bạn có thể chuẩn bị Glossary theo mẫu CSV/TSV rồi nhập và xem trước. Bộ nhớ dịch trao đổi bằng TMX. Các tệp Names.txt, Vietphrase.txt và PhienAm.txt của QuickTranslator chưa có đường nhập trực tiếp.</div></div>
       </div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="site-footer">
-    <div class="container">
-      <div class="footer-top">
-        <div style="max-width: 340px;">
-          <div class="logo-wrapper" style="margin-bottom: 0.85rem;">
-            <div class="logo-icon">A</div>
-            <span>AuraTranslate</span>
-          </div>
-          <p style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.6;">
-            Translation Workstation Local-first dành cho người dịch coi trọng chất lượng hơn tốc độ. Xây dựng bởi dịch giả, vì cộng đồng dịch thuật.
-          </p>
-        </div>
-
-        <div class="footer-col">
-          <div class="footer-title">Sản phẩm</div>
-          <ul class="footer-links">
-            <li><a href="#features">Trụ cột triết lý</a></li>
-            <li><a href="#showcase">Môi trường làm việc</a></li>
-            <li><a href="#comparison">Bảng so sánh</a></li>
-            <li><a href="#download">Tải về cài đặt</a></li>
-          </ul>
-        </div>
-
-        <div class="footer-col">
-          <div class="footer-title">Tài nguyên</div>
-          <ul class="footer-links">
-            <li><a href="auratranslate-guide.html">Sổ tay hướng dẫn v2.0</a></li>
-            <li><a href="https://github.com/ice/AuraTranslate" target="_blank" rel="noreferrer">Mã nguồn GitHub</a></li>
-            <li><a href="https://github.com/ice/AuraTranslate/releases" target="_blank" rel="noreferrer">Nhật ký phát hành (Changelog)</a></li>
-            <li><a href="https://github.com/ice/AuraTranslate/issues" target="_blank" rel="noreferrer">Báo lỗi & Đóng góp</a></li>
-          </ul>
-        </div>
-
-        <div class="footer-col">
-          <div class="footer-title">Cộng đồng</div>
-          <ul class="footer-links">
-            <li><a href="#">Diễn đàn dịch giả</a></li>
-            <li><a href="#">Kho từ điển chia sẻ</a></li>
-            <li><a href="#">Quy chuẩn dịch thuật</a></li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <div>
-          © 2026 AuraTranslate. Giấy phép mã nguồn mở <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer" style="color:var(--teal-primary);">GPL v3</a>.
-        </div>
-        <div>
-          Được thiết kế với tâm huyết dành cho cộng đồng dịch thuật Việt Nam.
-        </div>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Scripts -->
-  <script src="app.js"></script>
+    </div></section>
+  </main>
+  <footer class="site-footer"><div class="container footer-top">
+    <div><a class="logo-wrapper" href="#top"><span class="logo-icon">A</span>AuraTranslate</a><p>Không gian dịch Anh/Trung sang Việt.</p><p>Giấy phép <a href="https://github.com/vannamhh/AuraTranslate/blob/master/COPYING">GPL-3.0-or-later</a>.</p></div>
+    <nav aria-label="Tài nguyên"><a href="https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md">Cài đặt</a><a href="https://github.com/vannamhh/AuraTranslate">Mã nguồn GitHub</a><a href="https://github.com/vannamhh/AuraTranslate/releases">Nhật ký phát hành</a><a href="https://github.com/vannamhh/AuraTranslate/issues">Báo lỗi và góp ý</a></nav>
+  </div></footer>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
