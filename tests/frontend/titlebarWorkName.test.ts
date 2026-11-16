@@ -107,11 +107,4 @@ describe('title bar Work name', () => {
     expect(name).toBeLessThan(header.indexOf('<div class="titlebar-right">'))
   })
 
-  it('the name carries the same transparent underline as a mode tab, so both texts share one centre line', () => {
-    const app = readFileSync(resolve(__dirname, '../../src/App.vue'), 'utf8')
-    const rule = (selector: string) => new RegExp(`\\n${selector} \\{([^}]*)\\}`).exec(app)?.[1] ?? ''
-    const underline = /border-bottom: \d+px solid transparent;/.exec(rule('\\.mode-tab'))?.[0]
-    expect(underline).toBeDefined()
-    expect(rule('\\.titlebar-work')).toContain(underline)
-  })
 })

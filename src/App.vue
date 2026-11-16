@@ -216,6 +216,7 @@ onMounted(async () => {
             type="button"
             class="mode-tab"
             :class="{ on: currentMode === 'library' }"
+            :aria-pressed="currentMode === 'library'"
             @click="dispatch('mode.library')"
           >
             {{ t('command.mode.library') }}
@@ -224,6 +225,7 @@ onMounted(async () => {
             type="button"
             class="mode-tab"
             :class="{ on: currentMode === 'workspace' }"
+            :aria-pressed="currentMode === 'workspace'"
             @click="dispatch('mode.workspace')"
           >
             {{ t('command.mode.workspace') }}
@@ -232,6 +234,7 @@ onMounted(async () => {
             type="button"
             class="mode-tab"
             :class="{ on: currentMode === 'reading' }"
+            :aria-pressed="currentMode === 'reading'"
             @click="dispatch('mode.reading')"
           >
             {{ t('command.mode.reading') }}
@@ -482,7 +485,13 @@ onMounted(async () => {
 
 .modes {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  flex: none;
+  align-items: baseline;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
 }
 
 .titlebar-work {
@@ -491,8 +500,6 @@ onMounted(async () => {
   margin-left: calc(var(--space-unit) * 2);
   padding-left: calc(var(--space-unit) * 2);
   border-left: 1px solid var(--color-outline);
-  /* Same box as `.mode-tab`'s underline so both texts centre on one line. */
-  border-bottom: 2px solid transparent;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -526,43 +533,40 @@ onMounted(async () => {
   background: var(--color-surface);
 }
 
-/*
- * Ba tab chế độ. ⚠️ Chúng là `<button>` chứ không phải `<span>` như mockup vẽ: một tab
- * chế độ là thao tác, nên nó phải vào được thứ tự Tab và nhận được `Enter`/`Space` —
- * NFR17 nói *"mọi thao tác gọi được bằng bàn phím"*, và một `<span @click>` không gọi
- * được bằng bàn phím ở bất kỳ trình duyệt nào.
- *
- * KHÔNG `outline: none` ở đây. `outline: none` chỉ áp cho gốc `tabindex="-1"` của
- * chế độ và panel (§Trap 4); nút bấm giữ nguyên focus ring của trình duyệt, vì đó chính
- * là nửa còn lại của NFR17.
- */
 .mode-tab {
-  padding: 0;
+  box-sizing: border-box;
+  height: calc(var(--space-unit) * 4);
+  padding: 0 calc(var(--space-unit) * 2);
   background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--color-on-surface-variant);
-  /* `<button>` KHÔNG kế thừa chữ của `body` — thiếu ba dòng này là ba tab chạy bằng font
-     mặc định của hệ điều hành, đúng thứ Kiểm B2 của `check-tokens.mjs` tồn tại để chặn. */
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
+  font-weight: var(--weight-ui-md-strong);
   line-height: var(--leading-ui-md);
+  white-space: nowrap;
 }
 
-/*
- * Tab đang hiện — theo `mockups/key-screen-workspace.html:23`. Chữ đậm màu `on-surface`
- * cộng một gạch chân 2px `primary`.
- *
- * `var(--weight-ui-md-strong)` là token thứ 15, thêm ở Story 1.14 · AC10 để đóng
- * `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*`. Trước nó, tab này MƯỢN `--weight-read-title` (một token của
- * tiêu đề Chương, 23px họ `read`) chỉ để lấy con số 600 — rủi ro đã ghi: đổi giá trị
- * `--weight-read-title` thì tab chế độ đổi theo mà không ai biết. Nay không còn mượn.
- */
-.mode-tab.on {
+.mode-tab:hover {
+  background: var(--color-surface);
   color: var(--color-on-surface);
-  font-weight: var(--weight-ui-md-strong);
-  border-bottom-color: var(--color-primary);
+}
+
+.mode-tab.on {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.mode-tab.on:hover {
+  border-color: var(--color-on-primary);
+}
+
+.mode-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-on-primary);
 }
 
 .stage {
