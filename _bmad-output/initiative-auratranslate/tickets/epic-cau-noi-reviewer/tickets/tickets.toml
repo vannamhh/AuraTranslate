@@ -692,3 +692,20 @@ covers = []
 after = [16]
 hitl = false
 risk = "medium"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Màn Xuất gọn: cột cấu hình, cột xem trước, chân dính"
+description = '''
+Người dịch được: thấy bản xem trước và nút Xuất ngay khi mở màn Xuất, không phải cuộn qua bảy nhóm lựa chọn và mười ba câu mô tả. Mục đích: đổi một lựa chọn là thấy ngay tệp sẽ ra sao.
+
+Bố cục, mật độ chữ và hành vi theo EXPERIENCE.md §Màn Xuất (Ice chọn Phương án A và Làm mờ ngày 2026-11-16); mockup `ux-auratranslate/mockups/export-gon.html`. Chỉ đổi bề mặt: lệnh Rust, hình dạng tệp xuất và các lựa chọn hiện có giữ nguyên.
+
+Giữ ba lời hứa của epic: FR121 (nói "không nhập lại được" ngay lúc chọn định dạng, cảnh báo câu chưa xác nhận trước lúc xuất), FR130 (liệt kê từng ảnh thiếu link, không gấp), FR131 (khối ghi nguồn mặc định tắt).
+'''
+verify = "Ở khung 1280×860 trong app thật, bản xem trước và nút Xuất hiện mà không cuộn; mỗi cảnh báo của bản cũ (câu chưa xác nhận, câu chưa dịch, không nhập lại được, ảnh thiếu link) vẫn hiện ở dòng tóm tắt chân dính hoặc dưới lựa chọn của nó, mỗi cảnh báo có một ca vitest; lựa chọn không áp dụng hiện mờ kèm lý do"
+covers = ["FR87", "FR88", "FR89", "FR121", "FR130", "FR131"]
+after = [4, 5, 6, 7]
+hitl = false
+risk = "medium"
