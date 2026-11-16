@@ -3,125 +3,236 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AuraTranslate — Không gian dịch Anh/Trung sang Việt</title>
-  <meta name="description" content="Tra từ, sửa bản dịch và quản lý tác phẩm ngay trên máy. AuraTranslate hỗ trợ Anh/Trung sang Việt, thuật ngữ, bộ nhớ dịch và AI tùy chọn.">
+  <title>AuraTranslate — Không gian dịch thuật Anh, Trung sang Việt</title>
+  <meta name="description" content="Phần mềm dịch Anh, Trung sang Việt cho macOS và Windows. Từ điển ngoại tuyến, Glossary, bộ nhớ dịch, AI theo ngữ cảnh và công cụ soát, nhận biên tập.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%237fb3ba'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='central' text-anchor='middle' font-size='60' font-family='sans-serif' font-weight='bold' fill='%23121316'%3EA%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&amp;family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@400;600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@400;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body id="top">
+  <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><symbol id="icon-book" viewBox="0 0 24 24"><path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Z"/><path d="M12 5v15"/></symbol><symbol id="icon-edit" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14Z"/><path d="M4 14v6h6"/></symbol><symbol id="icon-library" viewBox="0 0 24 24"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="9" y="4" width="4" height="16" rx="1"/><path d="m15 5 4-1 3 15-4 1Z"/></symbol><symbol id="icon-reading" viewBox="0 0 24 24"><path d="M5 3h14v18l-7-5-7 5Z"/><path d="M9 7h6M9 10h6"/></symbol><symbol id="icon-terms" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 8h10M12 5v3M9 8c0 4 3 7 7 8M15 8c-1 4-3 7-7 9"/></symbol><symbol id="icon-memory" viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2 6M4 5v6h6"/><path d="M12 7v5l3 2"/></symbol><symbol id="icon-export" viewBox="0 0 24 24"><path d="M14 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7M14 3v5h5"/><path d="M12 15 22 5m-6 0h6v6M7 16h2M7 12h2"/></symbol><symbol id="icon-check" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7Z"/></symbol><symbol id="icon-rules" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="8" cy="5" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="19" r="2"/></symbol><symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></symbol><symbol id="icon-prompt" viewBox="0 0 24 24"><path d="M5 4h14v16H5Z"/><path d="m9 9-2 3 2 3m6-6 2 3-2 3M12 8l-1 8"/></symbol><symbol id="icon-connect" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><path d="M17 10V7h-3M7 14v3h3M10 7h7M7 10v7"/></symbol><symbol id="icon-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol><symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol><symbol id="icon-mac" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="12" rx="2"/><path d="M2 19h20M9 15l-1 4m7-4 1 4"/></symbol><symbol id="icon-windows" viewBox="0 0 24 24"><path d="m3 5 8-1v7H3Zm10-1 8-1v8h-8ZM3 13h8v7l-8-1Zm10 0h8v8l-8-1Z"/></symbol><symbol id="icon-review" viewBox="0 0 24 24"><path d="M8 4H3v16h5M16 4h5v16h-5M7 8h3m-3 4h3m-3 4h3m4-8h3m-3 4h3m-3 4h3"/><path d="M12 3v18"/></symbol></svg>
   <a class="skip-link" href="#main">Đến nội dung chính</a>
   <header class="site-header">
     <div class="container nav-inner">
       <a href="#top" class="logo-wrapper"><span class="logo-icon">A</span><span>AuraTranslate</span></a>
       <nav aria-label="Điều hướng chính"><ul class="nav-links">
-        <li><a href="#features">Tính năng</a></li><li><a href="#showcase">Giao diện</a></li>
-        <li><a href="#workflow">Cách dùng</a></li><li><a href="#playground">Ví dụ</a></li><li><a href="#faq">Hỏi đáp</a></li>
+        <li><a href="#showcase">Giao diện</a></li><li><a href="#features">Tính năng</a></li>
+        <li><a href="#ai">Trợ lý AI</a></li><li><a href="#workflow">Quy trình</a></li><li><a href="#faq">Hỏi đáp</a></li>
       </ul></nav>
-      <div class="nav-actions"><button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Bật giao diện sáng" aria-pressed="false">☀</button><a href="#download" class="btn btn-primary">Tải về</a></div>
+      <div class="nav-actions"><button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Bật giao diện sáng" aria-pressed="false">☀</button><a href="https://github.com/vannamhh/AuraTranslate/releases/tag/v1.1.0" class="btn btn-primary">Tải về</a></div>
     </div>
   </header>
   <main id="main">
     <section class="hero-section">
       <div class="container">
-        <p class="hero-badge">Anh / Trung → Việt · Mã nguồn mở GPL-3.0-or-later</p>
-        <h1 class="hero-title">Một nơi để tra từ,<br>dịch và đọc lại.</h1>
-        <p class="hero-subtitle">Đặt nguyên văn cạnh bản dịch, giữ tên riêng nhất quán và tìm lại những câu đã dịch. Tác phẩm, từ điển và công việc biên tập nằm ngay trên máy bạn.</p>
-        <div class="hero-ctas"><a href="https://github.com/vannamhh/AuraTranslate/releases" id="primary-download-btn" class="btn btn-primary btn-lg">Xem bản phát hành</a><a href="#showcase" class="btn btn-secondary btn-lg">Xem giao diện thật</a></div>
-        <p class="hero-meta">Tra từ, biên tập và lưu trữ dùng ngoại tuyến. AI là tùy chọn; AI trực tuyến gửi nội dung đến nhà cung cấp bạn cấu hình.</p>
-        <figure class="showcase-wrapper" id="showcase">
-          <img id="gallery-image" class="app-screenshot" src="assets/screenshots/workspace.png" width="2560" height="1720" alt="AuraTranslate: lưới đối chiếu nguyên văn tiếng Trung và bản dịch tiếng Việt của tác phẩm minh họa.">
-          <figcaption id="gallery-caption">Đối chiếu nguyên văn và bản dịch theo từng câu.</figcaption>
+        <p class="hero-badge">Dành cho người dịch trên macOS và Windows</p>
+        <h1 class="hero-title"><span>Không gian dịch thuật</span><span>Anh, Trung sang Việt.</span></h1>
+        <p class="hero-subtitle">Tra cứu từ điển, thống nhất thuật ngữ, tái sử dụng bản dịch và làm việc với AI trong cùng một ứng dụng. Bạn giữ quyền quyết định với từng câu chữ.</p>
+        <div class="hero-ctas"><a href="https://github.com/vannamhh/AuraTranslate/releases/tag/v1.1.0" id="primary-download-btn" class="btn btn-primary btn-lg">Tải về</a></div>
+        <p class="hero-meta">Miễn phí, mã nguồn mở. Tra cứu và biên tập ngoại tuyến; kết nối AI khi bạn cần.</p>
+      </div>
+    </section>
+
+    <section class="showcase-section" id="showcase" aria-label="Giao diện AuraTranslate">
+      <div class="container">
+        <figure class="showcase-wrapper">
           <div class="gallery-controls" role="group" aria-label="Chọn ảnh giao diện">
-            <button type="button" class="gallery-button active" data-screen="workspace" aria-pressed="true">Đối chiếu</button>
-            <button type="button" class="gallery-button" data-screen="glossary" aria-pressed="false">Thuật ngữ</button>
-            <button type="button" class="gallery-button" data-screen="translation-memory" aria-pressed="false">Bộ nhớ dịch</button>
-            <button type="button" class="gallery-button" data-screen="reading" aria-pressed="false">Đọc lại</button>
-            <button type="button" class="gallery-button" data-screen="export" aria-pressed="false">Xuất bản dịch</button>
+            <button type="button" class="gallery-button active" data-screen="workspace" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-edit"></use></svg><span>Đối chiếu</span></button>
+            <button type="button" class="gallery-button" data-screen="glossary" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-terms"></use></svg><span>Thuật ngữ</span></button>
+            <button type="button" class="gallery-button" data-screen="translation-memory" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-memory"></use></svg><span>Bộ nhớ dịch</span></button>
+            <button type="button" class="gallery-button" data-screen="reading" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reading"></use></svg><span>Đọc lại</span></button>
+            <button type="button" class="gallery-button" data-screen="export" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-export"></use></svg><span>Xuất bản dịch</span></button>
           </div>
-          <p class="sample-label">Ảnh chụp ứng dụng thật với tác phẩm tự soạn “Một buổi sáng bên sông — bản minh họa”, tạo riêng cho trang này. Các con số trong ảnh thuộc dữ liệu mẫu.</p>
-          <a id="gallery-original" href="assets/screenshots/workspace.png">Mở ảnh gốc</a>
+          <img id="gallery-image" class="app-screenshot" src="assets/screenshots/workspace.png" width="2560" height="1720" alt="AuraTranslate: đối chiếu nguyên văn tiếng Trung và bản dịch tiếng Việt.">
+          <figcaption id="gallery-caption" aria-live="polite">Đối chiếu nguyên văn và bản dịch theo từng câu.</figcaption>
         </figure>
       </div>
     </section>
 
-    <section class="section" id="features"><div class="container">
-      <div class="section-head"><h2 class="section-title">Giữ mạch dịch từ câu đầu đến chương cuối</h2><p class="section-desc">Công cụ đi cùng từng bước đọc, chọn từ, sửa câu và xác nhận bản dịch.</p></div>
-      <div class="features-grid">
-        <article class="feature-card"><h3>Tra cứu ngay bên câu đang dịch</h3><p>Tra Trung–Việt, Anh–Việt, âm Hán Việt và Pinyin. Chọn các nguồn từ điển, gồm Thiều Chửu, Trần Văn Chánh và VietPhrase, theo nhu cầu của bạn. Mỗi kết quả có thông tin nguồn để đối chiếu.</p></article>
-        <article class="feature-card"><h3>Thư viện tác phẩm và chương</h3><p>Quản lý nhiều tác phẩm, chia chương và đối chiếu nguyên văn với bản dịch. Bản soạn tự động được lưu. Phân biệt câu chưa dịch, chưa xác nhận và đã xác nhận để biết phần nào cần đọc lại. Sắp xếp các bảng theo thói quen; bố cục làm việc được ghi nhớ.</p></article>
-        <article class="feature-card"><h3>Thuật ngữ có người chốt</h3><p>Lưu tên riêng và cách dịch trong Glossary của tác phẩm hoặc dùng chung. Nhập, xuất CSV/TSV để trao đổi thuật ngữ; xem và quyết định từng đề xuất trước khi nhận.</p></article>
-        <article class="feature-card"><h3>Bộ nhớ dịch và tìm ngữ cảnh</h3><p>Tìm lại các cặp câu đã xác nhận và gợi ý câu gần giống trong bộ nhớ dịch. Nhập, xuất TMX; dùng Concordance để xem một từ hoặc cụm từ đã xuất hiện và được dịch ra sao.</p></article>
-        <article class="feature-card"><h3>Đọc lại và trở về bản đã chốt</h3><p>Chế độ đọc giúp xem liền mạch bản dịch, đánh dấu chỗ cần sửa và quay về đúng câu trong màn dịch. Lịch sử lưu các phiên bản đã xác nhận của câu; có thể xem lại và khôi phục khi cần.</p></article>
-        <article class="feature-card"><h3>Quy ước tiếng Việt</h3><p>Quản lý những cụm cần tránh và cách viết ưu tiên. Kết hợp quy ước với thuật ngữ đã chốt để giữ giọng văn nhất quán khi dịch và soát lại.</p></article>
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="section-title">Tra cứu và biên tập ngay trong bản dịch</h2>
+          <p class="section-desc">Nguyên văn, từ điển và bản dịch nằm cạnh nhau. Theo dõi từng câu đã chốt và tiếp tục công việc từ nơi bạn dừng lại.</p>
+        </div>
+        <div class="capability-grid">
+          <article class="capability">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-book"></use></svg></span><h3>Từ điển đa nguồn, dùng ngoại tuyến</h3>
+            <p>Bôi đen từ hoặc cụm trong nguyên văn để tra Trung–Việt, Anh–Việt, âm Hán Việt và Pinyin. Chuyển sang bản Hán Việt để đối chiếu khi dịch tiếng Trung.</p>
+            <p>Xem các nghĩa từ nhiều nguồn, gồm Thiều Chửu, Trần Văn Chánh và VietPhrase. Mỗi kết quả giữ tên nguồn; bạn chọn cách hiểu phù hợp với câu đang dịch.</p>
+          </article>
+          <article class="capability">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-edit"></use></svg></span><h3>Biên tập và xác nhận theo câu</h3>
+            <p>Đặt nguyên văn cạnh bản dịch, gộp hoặc tách câu khi cần. Ngắt đoạn bản dịch theo cách diễn đạt tiếng Việt, đánh dấu những câu muốn cắt khỏi bản xuất.</p>
+            <p>Bản soạn được tự lưu. Mỗi lần xác nhận lưu một phiên bản để bạn so sánh và khôi phục. Phím tắt và bố cục các bảng có thể điều chỉnh theo thói quen làm việc.</p>
+          </article>
+          <article class="capability">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-library"></use></svg></span><h3>Quản lý cả tác phẩm, tìm lại từng câu</h3>
+            <p>Tổ chức tác phẩm theo chương, theo dõi tiến độ và trạng thái đang dịch, tạm ngưng hoặc đã xong. Đổi tên, sắp xếp, gộp và tách chương ngay trong thư viện.</p>
+            <p>Tìm xuyên toàn bộ thư viện trên cả nguyên văn lẫn bản dịch. Kết quả đưa bạn về đúng tác phẩm và chương chứa câu cần xem.</p>
+          </article>
+          <article class="capability">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-reading"></use></svg></span><h3>Đọc lại ngoài màn hình biên tập</h3>
+            <p>Đọc liền mạch theo chương, bật song ngữ để đối chiếu và điều chỉnh cỡ chữ, giãn dòng, giao diện sáng hoặc tối.</p>
+            <p>Đánh dấu chỗ cần sửa khi đọc rồi quay về đúng câu trong Workspace. Các câu chưa xác nhận vẫn được phân biệt để bạn rà soát trước khi xuất.</p>
+          </article>
+        </div>
       </div>
-      <div class="deepdive-block">
-        <div><h2 class="deepdive-title">AI hỗ trợ theo cấu hình của bạn</h2><p>Chọn nhà cung cấp, mô hình và bộ prompt. Thư viện prompt giúp giữ các chỉ dẫn thường dùng; màn xem prompt cho biết nội dung chuẩn bị gửi. Có thể nhờ AI dịch, tra nhanh hoặc soát bản dịch rồi tự quyết định nhận sửa đổi.</p><p>Chức năng dịch nhanh có trong hàng đợi Glossary và màn xem trước nhập URL. Việc này không tự động dịch toàn bộ các chương.</p></div>
-        <aside class="privacy-note"><h3>Khi nào cần mạng?</h3><p>Từ điển đi kèm, sửa câu và lưu tác phẩm hoạt động ngoại tuyến. Nhập nội dung từ URL cần mạng. Khi dùng AI trực tuyến, văn bản và ngữ cảnh trong yêu cầu được gửi đến nhà cung cấp đã cấu hình; có thể phát sinh phí theo dịch vụ.</p><p>Muốn dùng AI cục bộ, bạn cần tự cài và chạy mô hình, rồi cấu hình kết nối. Mô hình AI không nằm trong bộ cài.</p></aside>
-      </div>
-    </div></section>
+    </section>
 
-    <section class="section workflow-section" id="workflow"><div class="container">
-      <div class="section-head"><h2 class="section-title">Từ bản gốc đến bản gửi biên tập</h2></div>
-      <ol class="workflow-steps">
-        <li><h3>Cài và mở ứng dụng</h3><p>Chọn bản cài phù hợp trong mục phát hành, đối chiếu SHA-256 và làm theo <a href="https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md">hướng dẫn cài đặt</a>. Các từ điển được đóng kèm bản cài phát hành.</p></li>
-        <li><h3>Tạo tác phẩm, nhập bản gốc</h3><p>Nhập tệp hoặc dán nội dung, chọn tiếng Trung hoặc tiếng Anh rồi xem trước cách chia chương, chia câu. Với dữ liệu song ngữ, chọn cột nguồn và cột bản dịch.</p></li>
-        <li><h3>Tra từ, sửa và xác nhận</h3><p>Đọc nguyên văn cạnh bản dịch, chốt thuật ngữ và xác nhận câu đã hài lòng. Nếu cần AI, cấu hình nhà cung cấp và xem prompt trước khi gửi.</p></li>
-        <li><h3>Đọc lại rồi xuất</h3><p>Kiểm tra câu chưa xác nhận trong chế độ đọc, chọn định dạng xuất và xem trước. Có thể nhận lại bản biên tập đúng định dạng để so sánh và chọn sửa đổi.</p></li>
-      </ol>
-      <div class="format-wrap"><table class="format-table"><caption>Định dạng và cách trao đổi dữ liệu</caption>
-        <thead><tr><th scope="col">Công việc</th><th scope="col">Định dạng / cách dùng</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">Nhập nguyên văn</th><td>TXT, Markdown (.md), DOCX; dán văn bản hoặc nhập từ URL có bước xem trước.</td></tr>
-          <tr><th scope="row">Nhập song ngữ</th><td>CSV, TSV hoặc bảng hai cột trong DOCX; xem và khớp các câu trước khi nhận.</td></tr>
-          <tr><th scope="row">Xuất bản dịch</th><td>DOCX một khối hoặc hai cột, Markdown và văn bản thuần (.txt). Có tùy chọn phụ lục thuật ngữ, đánh số câu và đánh dấu câu chưa xác nhận theo định dạng hỗ trợ.</td></tr>
-          <tr><th scope="row">Nhận bản biên tập</th><td>Nhận lại DOCX hai cột hoặc Markdown theo mẫu ứng dụng xuất để đối chiếu và chọn thay đổi. Bản xuất có đánh số câu hoặc đánh dấu câu chưa xác nhận không dùng để nhập lại.</td></tr>
-          <tr><th scope="row">Trao đổi thuật ngữ</th><td>Glossary qua CSV/TSV; bộ nhớ dịch qua TMX.</td></tr>
-        </tbody>
-      </table></div>
-      <div class="deepdive-block reviewer-block">
-        <figure><img class="app-screenshot" src="assets/screenshots/export.png" width="2560" height="1720" loading="lazy" alt="Màn xuất bản dịch với bản xem trước DOCX hai cột của tác phẩm minh họa."><figcaption>Ảnh thật: xem trước DOCX hai cột, sử dụng dữ liệu mẫu tự soạn.</figcaption></figure>
-        <div><h2 class="deepdive-title">Gửi bản dịch để biên tập, rồi đối chiếu khi nhận lại</h2><p>Xuất bản hai cột để người biên tập đọc cả nguyên văn lẫn bản dịch. Khi nhận lại tệp đúng mẫu, xem các điểm khác biệt và chọn sửa đổi muốn áp dụng trong tác phẩm.</p><p>Giữ một bản xuất không đánh số câu và không đánh dấu câu chưa xác nhận nếu bạn định nhập lại bản biên tập.</p></div>
+    <section class="section tinted-section" id="terminology">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="section-title">Giữ nhất quán từ chương này sang chương khác</h2>
+          <p class="section-desc">Glossary lưu cách dịch thuật ngữ. Bộ nhớ dịch lưu những câu bạn đã xác nhận. Cả hai có phạm vi riêng cho tác phẩm và phạm vi dùng chung.</p>
+        </div>
+        <div class="knowledge-grid">
+          <article class="knowledge-panel">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-terms"></use></svg></span><h3>Glossary: thống nhất tên riêng và cách gọi</h3>
+            <ul class="feature-list">
+              <li>Lưu tên người, địa danh và thuật ngữ kèm bản dịch, phân loại và ghi chú về xưng hô hoặc cách dùng.</li>
+              <li>Duyệt các ứng viên thuật ngữ được phát hiện trong văn bản, xem câu ngữ cảnh rồi quyết định nhận hoặc bỏ.</li>
+              <li>Với tiếng Trung, tham khảo đề xuất âm Hán Việt; những mục cần cân nhắc có thể để chờ chốt bản dịch.</li>
+              <li>Nhập và xuất CSV/TSV để dùng lại danh sách thuật ngữ hoặc trao đổi với người cùng biên tập.</li>
+            </ul>
+          </article>
+          <article class="knowledge-panel">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-memory"></use></svg></span><h3>Bộ nhớ dịch: dùng lại công sức đã bỏ ra</h3>
+            <ul class="feature-list">
+              <li>Câu đã xác nhận tự trở thành cặp nguyên văn–bản dịch trong Translation Memory (TM).</li>
+              <li>Câu trùng được điền gợi ý để bạn xác nhận. Câu gần giống có tỷ lệ khớp và phần khác biệt để đối chiếu.</li>
+              <li>Dùng Concordance để tìm một cụm từ trong các câu đã dịch và xem lại cách dùng trước đây.</li>
+              <li>Phân biệt cặp do bạn dịch với bản của người khác; chọn chỉ dùng cặp của mình theo từng tác phẩm.</li>
+              <li>Giữ nhiều cách dịch cho cùng câu nguồn và mang bộ nhớ dịch sang công cụ khác bằng TMX.</li>
+            </ul>
+          </article>
+        </div>
       </div>
-    </div></section>
+    </section>
 
-    <section class="section" id="playground"><div class="container">
-      <div class="section-head"><h2 class="section-title">Đọc thử một ví dụ song ngữ</h2><p class="section-desc">Nguồn, bản dịch và ghi chú dưới đây được soạn sẵn để minh họa cách đọc đối chiếu. Trang này không tra từ hoặc gọi AI.</p></div>
-      <div class="playground-box"><div class="playground-tabs" role="group" aria-label="Chọn ví dụ song ngữ">
-        <button type="button" class="pg-tab-btn active" data-preset="chinese" aria-pressed="true">Trung → Việt</button><button type="button" class="pg-tab-btn" data-preset="english" aria-pressed="false">Anh → Việt</button>
-      </div><div class="workspace-grid" id="prepared-demo">
-        <div><h3>Nguyên văn mẫu</h3><p id="pg-source-text" class="source-text" lang="zh">清晨，河面上飘着一层薄雾。林安走到旧码头，看见一只蓝色的小船。</p><h3>Bản dịch mẫu đã soạn sẵn</h3><p id="pg-target-text" class="target-text">Sáng sớm, một làn sương mỏng lững lờ trên mặt sông. Lâm An bước ra bến cũ, trông thấy một chiếc thuyền nhỏ màu xanh.</p></div>
-        <div><h3>Ghi chú từ vựng mẫu</h3><div id="pg-inspector-content"><p>薄雾 · bó wù · Hán Việt: bạc vụ. Nghĩa trong câu: sương mỏng.</p><p>林安 · lín ān · Tên riêng mẫu: Lâm An.</p></div></div>
-      </div></div>
-    </div></section>
-
-    <section class="section download-section" id="download"><div class="container">
-      <div class="section-head"><h2 class="section-title">Cài AuraTranslate trên máy của bạn</h2><p class="section-desc">Xem danh sách phát hành để biết các bản cài hiện có. Không cần tài khoản để tra từ, biên tập và lưu tác phẩm.</p></div>
-      <div class="download-grid">
-        <article class="download-card" id="dl-mac"><h3>macOS</h3><p>Một tệp DMG universal dùng cho cả Apple Silicon và Intel.</p><a href="https://github.com/vannamhh/AuraTranslate/releases/download/v1.1.0/AuraTranslate_1.1.0_universal.dmg" class="btn btn-primary">Tải DMG v1.1.0</a></article>
-        <article class="download-card" id="dl-win"><h3>Windows</h3><p>Bản cài MSI có nhúng WebView2, hỗ trợ cài khi không có mạng.</p><a href="https://github.com/vannamhh/AuraTranslate/releases/download/v1.1.0/AuraTranslate_1.1.0_x64_en-US.msi" class="btn btn-primary">Tải MSI v1.1.0</a></article>
-        <article class="download-card"><h3>Mã nguồn và hướng dẫn</h3><p>Đọc cách cài đặt, đối chiếu checksum hoặc xem mã nguồn.</p><a href="https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md" class="btn btn-secondary">Hướng dẫn cài đặt</a><a href="https://github.com/vannamhh/AuraTranslate" class="text-link">Mã nguồn trên GitHub</a></article>
+    <section class="section" id="ai">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="section-title">AI làm việc với ngữ cảnh của bản dịch</h2>
+          <p class="section-desc">Dịch một câu, một vùng chọn hoặc các câu chưa dịch trong cả chương. Kết quả hiện dần trong bảng đề xuất để bạn đọc, sửa và chủ động đưa vào bản dịch.</p>
+        </div>
+        <div class="ai-layout">
+          <article class="context-panel"><div class="context-inputs"><span>Glossary</span><span>Bộ nhớ dịch</span><span>Ngữ cảnh</span></div>
+            <h3>Kết hợp thuật ngữ và văn phong đã chọn</h3>
+            <p>Bộ prompt hỗ trợ đưa các thuật ngữ Glossary đã chốt, ghi chú đi kèm và những câu tương tự trong TM vào yêu cầu gửi cho AI.</p>
+            <p>Các cặp do bạn dịch được ưu tiên. Cặp của người khác được phân biệt là văn phong tham khảo. Những câu đứng trước trong chương cung cấp thêm mạch văn cho lượt dịch.</p>
+            <p>Bạn có thể xem prompt đã gửi, kiểm tra phần ngữ cảnh được chèn và gửi lại đúng yêu cầu đó khi cần.</p>
+          </article>
+          <div class="ai-options">
+            <article>
+              <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-prompt"></use></svg></span><h3>Prompt theo lĩnh vực và tác phẩm</h3>
+              <p>Tạo bộ chỉ dẫn về giọng văn, xưng hô và cách dịch. Lưu trong thư viện prompt, dùng chung hoặc chọn riêng cho từng tác phẩm; nhập, xuất để tái sử dụng.</p>
+            </article>
+            <article>
+              <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-connect"></use></svg></span><h3>Chọn nhà cung cấp và mô hình</h3>
+              <p>Dùng API key của bạn hoặc kết nối mô hình cục bộ qua Ollama, LM Studio. Cấu hình AI chung có thể được ghi đè theo tác phẩm.</p>
+            </article>
+            <article>
+              <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-activity"></use></svg></span><h3>Kiểm soát từng lượt dịch</h3>
+              <p>Dừng lượt đang chạy và chủ động thử lại khi lỗi. Xem số token khi nhà cung cấp trả số liệu và chi phí ước tính khi có giá mô hình.</p>
+            </article>
+          </div>
+        </div>
+        <div class="quick-reference"><svg class="icon quick-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-spark"></use></svg><div>
+          <h3>Dịch nhanh khi đang duyệt nội dung</h3>
+          <p>Đọc bản dịch tham khảo ngay trong bảng chờ thuật ngữ hoặc màn xem trước nhập URL. Dịch nhanh có cấu hình mô hình riêng và lưu kết quả để dùng lại; bản tham khảo này nằm riêng với bản dịch của tác phẩm.</p>
+          </div>
+        </div>
       </div>
-      <p class="installation-note">Bản cài chưa được ký số; macOS chưa được notarize. Hệ điều hành có thể cảnh báo khi mở lần đầu. Hãy đối chiếu SHA-256 và làm theo hướng dẫn cho từng ứng dụng; không cần tắt bảo vệ cho toàn máy.</p>
-      <p><a href="https://github.com/vannamhh/AuraTranslate/releases/tag/v1.1.0">Ghi chú bản v1.1.0</a> · <a href="https://github.com/vannamhh/AuraTranslate/releases/download/v1.1.0/SHA256SUMS.txt">Checksum SHA-256 v1.1.0</a></p><a href="https://github.com/vannamhh/AuraTranslate/releases">Xem tất cả bản phát hành</a>
-    </div></section>
+    </section>
 
-    <section class="section" id="faq"><div class="container">
-      <div class="section-head"><h2 class="section-title">Câu hỏi thường gặp</h2></div>
-      <div class="faq-list">
-        <div class="faq-item open"><h3><button type="button" id="faq-question-1" class="faq-question" aria-expanded="true" aria-controls="faq-answer-1">AuraTranslate có miễn phí không?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-1" class="faq-answer" role="region" aria-labelledby="faq-question-1">Ứng dụng là mã nguồn mở theo GPL-3.0-or-later, được sử dụng miễn phí. Nếu chọn AI trực tuyến, chi phí của nhà cung cấp AI được tính riêng theo dịch vụ bạn dùng.</div></div>
-        <div class="faq-item"><h3><button type="button" id="faq-question-2" class="faq-question" aria-expanded="false" aria-controls="faq-answer-2">Tôi làm được gì khi không có mạng?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-2" class="faq-answer" role="region" aria-labelledby="faq-question-2" hidden>Tra các từ điển đã cài, mở tác phẩm, sửa bản dịch, quản lý thuật ngữ, dùng bộ nhớ dịch và xuất tệp đều thực hiện trên máy. Nhập từ URL và gọi AI trực tuyến cần mạng. AI cục bộ cần được thiết lập riêng.</div></div>
-        <div class="faq-item"><h3><button type="button" id="faq-question-3" class="faq-question" aria-expanded="false" aria-controls="faq-answer-3">Nội dung nào được gửi ra ngoài?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-3" class="faq-answer" role="region" aria-labelledby="faq-question-3" hidden>Tác phẩm và dữ liệu biên tập được lưu trên máy. Khi dùng AI trực tuyến, yêu cầu gồm văn bản và ngữ cảnh được gửi đến nhà cung cấp bạn đã cấu hình. Xem prompt trước khi gửi để biết nội dung của lượt yêu cầu.</div></div>
-        <div class="faq-item"><h3><button type="button" id="faq-question-4" class="faq-question" aria-expanded="false" aria-controls="faq-answer-4">Có chuyển thuật ngữ từ công cụ khác sang được không?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-4" class="faq-answer" role="region" aria-labelledby="faq-question-4" hidden>Bạn có thể chuẩn bị Glossary theo mẫu CSV/TSV rồi nhập và xem trước. Bộ nhớ dịch trao đổi bằng TMX. Các tệp Names.txt, Vietphrase.txt và PhienAm.txt của QuickTranslator chưa có đường nhập trực tiếp.</div></div>
+    <section class="section tinted-section" id="quality">
+      <div class="container">
+        <div class="section-head"><h2 class="section-title">Soát nghĩa, sửa câu và thống nhất cách viết</h2></div>
+        <div class="capability-grid">
+          <article class="capability">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-check"></use></svg></span><h3>AI Proofreader</h3>
+            <p>Soát một câu, vùng chọn hoặc cả chương để tìm lỗi chính tả, ngữ pháp, sai nghĩa, dịch quá thoát và diễn đạt tối nghĩa.</p>
+            <p>Xem từng đề xuất tại chỗ, chọn nhận, bỏ qua hoặc ghi nhớ là “không phải lỗi”. Có thể hoàn lại quyết định đã nhận và dùng bộ chỉ dẫn soát lỗi riêng theo tác phẩm.</p>
+          </article>
+          <article class="capability">
+            <span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-rules"></use></svg></span><h3>Quy ước chữ Việt</h3>
+            <p>Tự đặt những cụm cần tránh và cách viết ưu tiên. Bộ quy tắc quét trực tiếp trên bản dịch, hoạt động ngoại tuyến.</p>
+            <p>Nhận từng đề xuất hoặc xem trước các chỗ thay trong cả chương. Dùng quy ước chung, bổ sung theo tác phẩm và trao đổi danh sách qua CSV/TSV.</p>
+          </article>
+        </div>
       </div>
-    </div></section>
+    </section>
+
+    <section class="section" id="workflow">
+      <div class="container">
+        <div class="section-head"><h2 class="section-title">Từ bản gốc đến bản biên tập hoàn chỉnh</h2></div>
+        <ol class="workflow-steps">
+          <li><h3>Nhập và kiểm tra bản gốc</h3><p>Chọn nhiều tệp, dán văn bản hoặc nhập danh sách URL theo thứ tự chương. Xem trước cách chia chương, làm sạch nội dung và giữ hoặc loại từng khối lấy từ web.</p></li>
+          <li><h3>Dịch và chốt thuật ngữ</h3><p>Tra cứu trong nguyên văn, tận dụng gợi ý từ TM và AI khi cần. Xác nhận câu đã đạt yêu cầu, giữ cách gọi nhất quán bằng Glossary.</p></li>
+          <li><h3>Soát lỗi và đọc lại</h3><p>Kiểm tra nghĩa, quy ước chữ Việt và các câu chưa xác nhận. Đọc toàn chương trong Chế độ đọc rồi trở về những chỗ đã đánh dấu.</p></li>
+          <li><h3>Xuất và nhận bản biên tập</h3><p>Xuất tài liệu gửi người biên tập hoặc bản để đăng bài. Nhập lại bản sửa, đối chiếu phần thêm, xóa và chọn từng thay đổi muốn nhận.</p></li>
+        </ol>
+        <div class="review-workflow"><span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-review"></use></svg></span><div>
+          <h3>Công sức biên tập trở lại trong lần dịch sau</h3>
+          <p>Review Mode đặt bản dịch của bạn cạnh bản đã được sửa và bôi màu các điểm khác biệt. Khi câu không khớp được tự động, bạn nối lại thủ công trước khi nhận.</p>
+          <p>Các thay đổi thuật ngữ nhất quán trong bản biên tập được đưa vào danh sách đề xuất Glossary. Bạn duyệt cách gọi mới để tiếp tục sử dụng ở những chương sau.</p>
+          </div>
+        </div>
+        <details class="formats-details"><summary><span>Định dạng tệp được hỗ trợ</span><span class="format-types">DOCX, Markdown, TXT, CSV/TSV, TMX</span></summary>
+          <div class="format-wrap"><table class="format-table">
+            <caption class="sr-only">Định dạng nhập, xuất và trao đổi dữ liệu</caption>
+            <thead><tr><th scope="col">Công việc</th><th scope="col">Định dạng và nội dung</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Nhập nguyên văn</th><td>TXT, Markdown, DOCX; dán văn bản hoặc danh sách URL. Có bước xem trước trước khi tạo hoặc bổ sung chương.</td></tr>
+              <tr><th scope="row">Nhập song ngữ</th><td>CSV, TSV và bảng hai cột trong DOCX. Chọn cột nguồn, cột bản dịch và kiểm tra các câu được ghép.</td></tr>
+              <tr><th scope="row">Gửi và nhận biên tập</th><td>DOCX hai cột hoặc Markdown theo mẫu AuraTranslate xuất. Bản dùng để nhập lại cần tắt đánh số câu và đánh dấu câu chưa xác nhận.</td></tr>
+              <tr><th scope="row">Xuất để đăng bài</th><td>DOCX một khối, Markdown hoặc TXT. Chọn phạm vi một chương, nhiều chương hoặc cả tác phẩm; xem trước nội dung xuất.</td></tr>
+              <tr><th scope="row">Ảnh và ghi nguồn</th><td>Giữ ảnh, chú thích; chọn tệp ảnh hoặc URL gốc khi có. Có thể kèm tác giả, website, liên kết bài gốc và tên người dịch.</td></tr>
+              <tr><th scope="row">Mang dữ liệu đi</th><td>Glossary và quy ước chữ Việt qua CSV/TSV; bộ nhớ dịch qua TMX.</td></tr>
+            </tbody>
+          </table></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="section data-section" id="data">
+      <div class="container data-layout">
+        <div><span class="feature-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-lock"></use></svg></span><h2 class="section-title">Lưu trên máy.<br>Chủ động giữ dữ liệu.</h2><p>Tác phẩm được lưu trong thư mục <span class="file-format">.atproj</span> để bạn sao lưu hoặc chuyển máy. Thuật ngữ và bộ nhớ dịch có định dạng trao đổi riêng để tiếp tục dùng ở công cụ khác.</p></div>
+        <div><h3>Làm việc ngoại tuyến, kết nối khi cần</h3><p>Tra từ điển đi kèm, biên tập, quản lý thuật ngữ và xuất bản dịch đều chạy trên máy. Không cần tài khoản AuraTranslate.</p><p>Nhập URL cần kết nối tới website nguồn. AI trực tuyến gửi văn bản và ngữ cảnh trong yêu cầu đến nhà cung cấp bạn cấu hình. Với AI cục bộ, bạn tự cài mô hình và cấu hình kết nối.</p></div>
+      </div>
+    </section>
+
+    <section class="section download-section" id="download">
+      <div class="container">
+        <div class="section-head"><h2 class="section-title">Tải AuraTranslate</h2><p class="section-desc">Miễn phí, mã nguồn mở GPL-3.0-or-later. Các từ điển đi kèm được đóng trong bản cài phát hành.</p></div>
+        <div class="download-grid">
+          <article class="download-card" id="dl-mac"><span class="os-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-mac"></use></svg></span><h3>macOS</h3><p>Bản DMG universal cho Apple Silicon và Intel.</p><a href="https://github.com/vannamhh/AuraTranslate/releases/tag/v1.1.0" class="btn btn-primary">Tải về cho macOS</a></article>
+          <article class="download-card" id="dl-win"><span class="os-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-windows"></use></svg></span><h3>Windows</h3><p>Bản MSI x64 có nhúng WebView2 để cài ngoại tuyến.</p><a href="https://github.com/vannamhh/AuraTranslate/releases/tag/v1.1.0" class="btn btn-primary">Tải về cho Windows</a></article>
+        </div>
+        <p class="installation-note">Bản cài chưa ký số và bản macOS chưa được notarize. Xem <a href="https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md">hướng dẫn cài đặt</a> khi hệ điều hành cảnh báo lần mở đầu.</p>
+        <p><a href="https://github.com/vannamhh/AuraTranslate/releases/tag/v1.1.0">Ghi chú phát hành v1.1.0</a> · <a href="https://github.com/vannamhh/AuraTranslate/releases/download/v1.1.0/SHA256SUMS.txt">Checksum SHA-256</a></p>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-head"><h2 class="section-title">Câu hỏi thường gặp</h2></div>
+        <div class="faq-list">
+          <div class="faq-item open"><h3><button type="button" id="faq-question-1" class="faq-question" aria-expanded="true" aria-controls="faq-answer-1">Tôi có phải cấu hình AI để dùng app không?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-1" class="faq-answer" role="region" aria-labelledby="faq-question-1">Bạn có thể tra từ, dịch tay, dùng Glossary, bộ nhớ dịch, Chế độ đọc và nhập xuất tài liệu mà không cấu hình AI. Dịch AI và AI Proofreader là các công cụ tùy chọn.</div></div>
+          <div class="faq-item"><h3><button type="button" id="faq-question-2" class="faq-question" aria-expanded="false" aria-controls="faq-answer-2">Nội dung nào được gửi ra ngoài?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-2" class="faq-answer" role="region" aria-labelledby="faq-question-2" hidden>Tác phẩm và dữ liệu biên tập được lưu trên máy. Khi dùng AI trực tuyến, văn bản và ngữ cảnh của lượt yêu cầu được gửi tới endpoint bạn cấu hình. Bạn xem được prompt đã gửi. Nhập URL kết nối tới website nguồn để lấy nội dung và ảnh.</div></div>
+          <div class="faq-item"><h3><button type="button" id="faq-question-3" class="faq-question" aria-expanded="false" aria-controls="faq-answer-3">Sử dụng AuraTranslate có mất phí không?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-3" class="faq-answer" role="region" aria-labelledby="faq-question-3" hidden>Phần mềm được sử dụng miễn phí và mã nguồn phát hành theo GPL-3.0-or-later. Khi dùng AI trực tuyến bằng API key riêng, nhà cung cấp AI tính phí theo dịch vụ của họ. Mô hình cục bộ cần được cài và chạy riêng.</div></div>
+          <div class="faq-item"><h3><button type="button" id="faq-question-4" class="faq-question" aria-expanded="false" aria-controls="faq-answer-4">Tôi có thể chuyển dữ liệu từ công cụ khác sang không?<span class="faq-arrow" aria-hidden="true">⌄</span></button></h3><div id="faq-answer-4" class="faq-answer" role="region" aria-labelledby="faq-question-4" hidden>Nhập bản dịch song ngữ qua CSV, TSV hoặc DOCX hai cột; nhập thuật ngữ qua CSV/TSV và bộ nhớ dịch qua TMX. Với kho Names hoặc VietPhrase cũ, cần chuyển thành mẫu Glossary được hỗ trợ trước khi nhập.</div></div>
+        </div>
+      </div>
+    </section>
   </main>
   <footer class="site-footer"><div class="container footer-top">
     <div><a class="logo-wrapper" href="#top"><span class="logo-icon">A</span>AuraTranslate</a><p>Không gian dịch Anh/Trung sang Việt.</p><p>Giấy phép <a href="https://github.com/vannamhh/AuraTranslate/blob/master/COPYING">GPL-3.0-or-later</a>.</p></div>
     <nav aria-label="Tài nguyên"><a href="https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md">Cài đặt</a><a href="https://github.com/vannamhh/AuraTranslate">Mã nguồn GitHub</a><a href="https://github.com/vannamhh/AuraTranslate/releases">Nhật ký phát hành</a><a href="https://github.com/vannamhh/AuraTranslate/issues">Báo lỗi và góp ý</a></nav>
   </div></footer>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

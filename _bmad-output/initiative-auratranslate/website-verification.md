@@ -31,3 +31,10 @@ Kho công khai `vannamhh/AuraTranslate`. GitHub API `/releases/latest` đang tr�
 - [Lượt push 43478764582](https://github.com/vannamhh/AuraTranslate/actions/runs/43478764582), 2026-11-13: macOS và Windows xanh; e2e được bỏ qua theo lịch chạy. Đây là revision `7e6b6b1e5f25a196288123ba889f1075b3514c23`, không phải kiểm chứng cho diff website chưa push.
 - [Nightly 43769215036](https://github.com/vannamhh/AuraTranslate/actions/runs/43769215036), 2026-11-15 UTC: macOS check và macOS e2e xanh. Windows đỏ ở `quick_translation_contract.rs:1267`, ca `purging_all_rows_shrinks_db_plus_wal_on_disk`: `wal_checkpoint(TRUNCATE) was blocked by a reader`. Đây là lỗi đã có trước thay đổi website; không sửa hoặc kết luận nguyên nhân sâu hơn trong lượt này.
 - Đã đọc workflow và kết quả từng job; không có job UTC riêng trong workflow hiện tại. Không chạy lại toàn bộ suite app cho thay đổi website tĩnh. Chưa push nên chưa có CI của commit website.
+
+
+## 🔵 2026-11-16 — viết lại sau phản hồi nội dung
+
+Bổ sung đối chiếu trong `website-feature-map.md`; nội dung public được tổ chức lại theo quy trình dịch, Glossary/TM, AI theo ngữ cảnh, Proofreader, quy ước chữ Việt, Reviewer và dữ liệu. Bỏ phần ví dụ song ngữ soạn sẵn, ảnh xuất lặp và liên kết xem ảnh lớn. Hero giữ một CTA mở trang release, ảnh ở section riêng và tab nằm trên ảnh.
+
+Kiểm tra mới: năm tình huống storage/theme/gallery/FAQ qua với chính script hiện tại; kiểm tra cũ cho ví dụ song ngữ không còn áp dụng vì phần đó đã bỏ. Browser 1440 px có scrollWidth 1425; 375 px có scrollWidth 375, không phần tử vượt mép phải và các bảng tính năng về một cột. Đã xem ảnh phần AI trên desktop và phần soát lỗi trên mobile. Không sử dụng hay chụp thêm dữ liệu trong app thật ở lượt sửa nội dung này.
