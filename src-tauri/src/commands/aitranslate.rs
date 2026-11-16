@@ -386,6 +386,25 @@ pub fn prepare_translate_call(
     prompt_set_name: Option<&str>,
     segment_id: i64,
 ) -> Result<PrepareOutcome, IpcError> {
+    prepare_translate_call_with_key(
+        global,
+        open,
+        record,
+        prompt_set_name,
+        segment_id,
+        &mut ApiKeySource::keychain(),
+    )
+}
+
+/// [`prepare_translate_call`] with the API key taken from `key`.
+pub fn prepare_translate_call_with_key(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    record: &LastAssembledPromptState,
+    prompt_set_name: Option<&str>,
+    segment_id: i64,
+    key: &mut ApiKeySource,
+) -> Result<PrepareOutcome, IpcError> {
     let Some(ResolvedCallConfig {
         global_store,
         open_work,
@@ -412,7 +431,7 @@ pub fn prepare_translate_call(
         return Err(segment_is_omitted(segment_id));
     }
 
-    let Some(api_key) = read_api_key(&provider)? else {
+    let Some(api_key) = key.api_key(&provider)? else {
         return Ok(PrepareOutcome::NotConfigured);
     };
 
@@ -447,6 +466,16 @@ pub fn prepare_resend_call(
     open: Option<&OpenWork>,
     record: &LastAssembledPromptState,
 ) -> Result<(i64, PrepareOutcome), IpcError> {
+    prepare_resend_call_with_key(global, open, record, &mut ApiKeySource::keychain())
+}
+
+/// [`prepare_resend_call`] with the API key taken from `key`.
+pub fn prepare_resend_call_with_key(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    record: &LastAssembledPromptState,
+    key: &mut ApiKeySource,
+) -> Result<(i64, PrepareOutcome), IpcError> {
     let (segment_id, prompt, system) = {
         let guard = record
             .lock()
@@ -467,7 +496,7 @@ pub fn prepare_resend_call(
     else {
         return Ok((segment_id, PrepareOutcome::NotConfigured));
     };
-    let Some(api_key) = read_api_key(&provider)? else {
+    let Some(api_key) = key.api_key(&provider)? else {
         return Ok((segment_id, PrepareOutcome::NotConfigured));
     };
     Ok((
@@ -553,6 +582,23 @@ pub fn prepare_translate_operation(
     prompt_set_name: Option<&str>,
     scope: &AiTranslateScope,
 ) -> Result<PrepareOperationOutcome, IpcError> {
+    prepare_translate_operation_with_key(
+        global,
+        open,
+        prompt_set_name,
+        scope,
+        &mut ApiKeySource::keychain(),
+    )
+}
+
+/// [`prepare_translate_operation`] with the API key taken from `key`.
+pub fn prepare_translate_operation_with_key(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    prompt_set_name: Option<&str>,
+    scope: &AiTranslateScope,
+    key: &mut ApiKeySource,
+) -> Result<PrepareOperationOutcome, IpcError> {
     let Some(ResolvedCallConfig {
         open_work,
         provider,
@@ -608,7 +654,7 @@ pub fn prepare_translate_operation(
     let (api_key, context) = if plan.is_empty() {
         (String::new(), None)
     } else {
-        let Some(api_key) = read_api_key(&provider)? else {
+        let Some(api_key) = key.api_key(&provider)? else {
             return Ok(PrepareOperationOutcome::NotConfigured);
         };
         let context = prepare_operation_prompt(global, Some(open_work), prompt_set_name)?;
@@ -1654,14 +1700,75 @@ fn keychain_unavailable() -> IpcError {
 /// The key to send for `provider`: empty for a local runtime (nothing is stored or read), the
 /// stored key otherwise. `None` is "no key stored".
 pub(crate) fn read_api_key(provider: &str) -> Result<Option<String>, IpcError> {
-    if !provider_needs_key(provider) {
-        return Ok(Some(String::new()));
-    }
+    ApiKeySource::keychain().api_key(provider)
+}
+
+fn read_stored_api_key() -> Result<Option<String>, IpcError> {
     match keychain::read() {
         Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
         Ok(None) => Ok(None),
         Err(_unavailable) => Err(keychain_unavailable()),
     }
+}
+
+/// Where a prepare step takes the API key from. [`prepare_with_api_key`] runs the step first
+/// with a deferred source, so nothing reads the OS keychain while the open-Work lock is held.
+pub struct ApiKeySource(KeySourceMode);
+
+enum KeySourceMode {
+    Keychain,
+    Deferred { wanted: bool },
+    Read(Result<Option<String>, IpcError>),
+}
+
+impl ApiKeySource {
+    /// Reads the OS keychain at the point the step needs the key.
+    pub fn keychain() -> Self {
+        Self(KeySourceMode::Keychain)
+    }
+
+    fn deferred() -> Self {
+        Self(KeySourceMode::Deferred { wanted: false })
+    }
+
+    fn read_now() -> Self {
+        Self(KeySourceMode::Read(read_stored_api_key()))
+    }
+
+    fn wanted(&self) -> bool {
+        matches!(self.0, KeySourceMode::Deferred { wanted: true })
+    }
+
+    /// The key to send for `provider`: empty for a local runtime (nothing is stored or read),
+    /// the stored key otherwise. `None` is "no key stored".
+    pub(crate) fn api_key(&mut self, provider: &str) -> Result<Option<String>, IpcError> {
+        if !provider_needs_key(provider) {
+            return Ok(Some(String::new()));
+        }
+        match &mut self.0 {
+            KeySourceMode::Keychain => read_stored_api_key(),
+            KeySourceMode::Deferred { wanted } => {
+                *wanted = true;
+                Err(internal_failure_error())
+            }
+            KeySourceMode::Read(read) => read.clone(),
+        }
+    }
+}
+
+/// Runs `prepare` (which takes and drops the open-Work lock itself) without touching the
+/// keychain; when it reached the key, reads the keychain with no lock held and runs it again.
+/// A keychain read can wait on an access prompt, and under the lock that freezes every
+/// main-thread command needing the open Work.
+pub(crate) fn prepare_with_api_key<T>(
+    mut prepare: impl FnMut(&mut ApiKeySource) -> Result<T, IpcError>,
+) -> Result<T, IpcError> {
+    let mut deferred = ApiKeySource::deferred();
+    let first = prepare(&mut deferred);
+    if !deferred.wanted() {
+        return first;
+    }
+    prepare(&mut ApiKeySource::read_now())
 }
 
 /// A connection check ready to send. Not `Debug`: `api_key` is a bare secret.
@@ -1688,6 +1795,16 @@ pub fn prepare_connection_check(
     open: Option<&OpenWork>,
     tier: AiConfigTier,
 ) -> Result<ConnectionCheckPrep, IpcError> {
+    prepare_connection_check_with_key(global, open, tier, &mut ApiKeySource::keychain())
+}
+
+/// [`prepare_connection_check`] with the API key taken from `key`.
+pub fn prepare_connection_check_with_key(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: AiConfigTier,
+    key: &mut ApiKeySource,
+) -> Result<ConnectionCheckPrep, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
     let resolved = match tier {
         AiConfigTier::Global => {
@@ -1713,7 +1830,7 @@ pub fn prepare_connection_check(
         return Ok(ConnectionCheckPrep::NotConfigured);
     }
     let api_key = if provider_needs_key(&provider) {
-        match read_api_key(&provider)? {
+        match key.api_key(&provider)? {
             Some(key) => Some(key),
             None => return Ok(ConnectionCheckPrep::NotConfigured),
         }
@@ -2190,6 +2307,15 @@ pub fn resolve_call_settings(
     global: Option<&Store>,
     open: Option<&OpenWork>,
 ) -> Result<Option<CallSettings>, IpcError> {
+    resolve_call_settings_with_key(global, open, &mut ApiKeySource::keychain())
+}
+
+/// [`resolve_call_settings`] with the API key taken from `key`.
+pub fn resolve_call_settings_with_key(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    key: &mut ApiKeySource,
+) -> Result<Option<CallSettings>, IpcError> {
     let Some(ResolvedCallConfig {
         provider,
         endpoint,
@@ -2201,7 +2327,7 @@ pub fn resolve_call_settings(
     else {
         return Ok(None);
     };
-    let Some(api_key) = read_api_key(&provider)? else {
+    let Some(api_key) = key.api_key(&provider)? else {
         return Ok(None);
     };
     Ok(Some(CallSettings {
@@ -2547,22 +2673,21 @@ pub mod wire {
     use super::{
         AiTranslateBatchEventWire, AiTranslateGeneration, AiTranslateOutcomeWire, AiTranslateScope,
         AppStores, OperationCallSource, PrepareOperationOutcome, PrepareOutcome, ResendCallSource,
-        SingleRun, StoreAccess, prepare_resend_call, prepare_translate_call,
-        prepare_translate_operation, resend_plan, send_prepared_operation,
-        send_prepared_translate_call, single_run_outcome_wire,
+        SingleRun, StoreAccess, prepare_resend_call_with_key, prepare_translate_call_with_key,
+        prepare_translate_operation_with_key, prepare_with_api_key, resend_plan,
+        send_prepared_operation, send_prepared_translate_call, single_run_outcome_wire,
     };
     use super::{
         ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire, QuickBatchOutcomeWire,
         QuickBlockEventWire, QuickLookupWire, QuickPurgeScopeWire, QuickPurgeWire, QuickStatsWire,
         QuickSurface, QuickTranslateGeneration, QuickTranslateOutcomeWire, internal_failure_error,
-        prepare_connection_check, prepare_context_reference_call, prepare_quick_call,
+        prepare_connection_check_with_key, prepare_context_reference_call, prepare_quick_call,
         quick_count_older_wire, quick_lookup_many_wire, quick_lookup_wire, quick_purge_wire,
         quick_stats_wire, quick_translate, send_prepared_connection_check,
     };
     use crate::commands::aiprompt::{
         AiCallRecordsState, LastAssembledPromptState, mark_prompt_as_sent,
     };
-    use crate::commands::project::OpenWorkState;
     use crate::core::ai::client::OpenAiChatClient;
     use crate::core::aiconfig::AiConfigTier;
     use crate::core::i18n::{IpcError, state_missing};
@@ -2607,24 +2732,18 @@ pub mod wire {
             let _ = activity_app.emit("ai-translate-activity-v1", snapshot);
         });
 
-        let prepared = {
-            let global = app.try_state::<Store>();
-            let work_state = app.try_state::<OpenWorkState>();
-            let guard = work_state
-                .as_ref()
-                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-            let open = guard.as_ref().and_then(|g| g.as_ref());
-
-            prepare_translate_call(
-                global.as_deref(),
-                open,
-                record_state.inner(),
-                prompt_set_name.as_deref(),
-                segment_id,
-            )?
-            // `guard`/`global` roi khoi pham vi o day -- khong khoa nao cua tien trinh con
-            // song sang phia duoi.
-        };
+        let prepared = prepare_with_api_key(|key| {
+            AppStores(app.clone()).with_stores(|global, open| {
+                prepare_translate_call_with_key(
+                    global,
+                    open,
+                    record_state.inner(),
+                    prompt_set_name.as_deref(),
+                    segment_id,
+                    key,
+                )
+            })
+        })?;
 
         let prepared = match prepared {
             PrepareOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
@@ -2707,16 +2826,11 @@ pub mod wire {
             let _ = activity_app.emit("ai-translate-activity-v1", snapshot);
         });
 
-        let (segment_id, prepared) = {
-            let global = app.try_state::<Store>();
-            let work_state = app.try_state::<OpenWorkState>();
-            let guard = work_state
-                .as_ref()
-                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-            let open = guard.as_ref().and_then(|g| g.as_ref());
-
-            prepare_resend_call(global.as_deref(), open, record_state.inner())?
-        };
+        let (segment_id, prepared) = prepare_with_api_key(|key| {
+            AppStores(app.clone()).with_stores(|global, open| {
+                prepare_resend_call_with_key(global, open, record_state.inner(), key)
+            })
+        })?;
 
         let prepared = match prepared {
             PrepareOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
@@ -2800,8 +2914,16 @@ pub mod wire {
             let _ = activity_app.emit("ai-translate-activity-v1", snapshot);
         });
 
-        let prepared = AppStores(app.clone()).with_stores(|global, open| {
-            prepare_translate_operation(global, open, prompt_set_name.as_deref(), &scope)
+        let prepared = prepare_with_api_key(|key| {
+            AppStores(app.clone()).with_stores(|global, open| {
+                prepare_translate_operation_with_key(
+                    global,
+                    open,
+                    prompt_set_name.as_deref(),
+                    &scope,
+                    key,
+                )
+            })
         })?;
 
         let prepared = match prepared {
@@ -2880,7 +3002,11 @@ pub mod wire {
             return Err(super::no_prompt_to_resend());
         };
 
-        let settings = AppStores(app.clone()).with_stores(super::resolve_call_settings)?;
+        let settings = super::prepare_with_api_key(|key| {
+            AppStores(app.clone()).with_stores(|global, open| {
+                super::resolve_call_settings_with_key(global, open, key)
+            })
+        })?;
         let Some(settings) = settings else {
             return Ok(AiTranslateOutcomeWire::NotConfigured);
         };
@@ -3190,15 +3316,11 @@ pub mod wire {
         let generation_state = generation_state.inner().clone();
         let generation = generation_state.next();
 
-        let prep = {
-            let global = app.try_state::<Store>();
-            let work_state = app.try_state::<OpenWorkState>();
-            let guard = work_state
-                .as_ref()
-                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-            let open = guard.as_ref().and_then(|g| g.as_ref());
-            prepare_connection_check(global.as_deref(), open, tier)?
-        };
+        let prep = prepare_with_api_key(|key| {
+            AppStores(app.clone()).with_stores(|global, open| {
+                prepare_connection_check_with_key(global, open, tier, key)
+            })
+        })?;
         let prepared = match prep {
             ConnectionCheckPrep::NotConfigured => return Ok(ConnectionCheckWire::NotConfigured),
             ConnectionCheckPrep::Ready(p) => p,

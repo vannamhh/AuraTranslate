@@ -6,11 +6,11 @@
 //! grouped into batches, one provider call per batch, run one after another; each batch that
 //! lands is sent over the Channel with every quoted phrase already placed in Rust.
 //! A pure layer takes `Option<&Store>`/`Option<&OpenWork>`; [`wire`] holds the thin commands.
-//! The API key is read through `aitranslate::read_api_key`, never here (AD-13).
+//! The API key is read through `aitranslate::ApiKeySource`, never here (AD-13).
 
 use crate::commands::aiprompt::segment_not_in_chapter;
 use crate::commands::aitranslate::{
-    AiTranslateUsageWire, PreparedTranslateCall, ResolvedCallConfig, read_api_key,
+    AiTranslateUsageWire, ApiKeySource, PreparedTranslateCall, ResolvedCallConfig,
     resolve_call_config,
 };
 use crate::commands::project::OpenWork;
@@ -183,6 +183,16 @@ pub fn prepare_proofread_call(
     open: Option<&OpenWork>,
     segment_ids: &[i64],
 ) -> Result<ProofreadPrepareOutcome, IpcError> {
+    prepare_proofread_call_with_key(global, open, segment_ids, &mut ApiKeySource::keychain())
+}
+
+/// [`prepare_proofread_call`] with the API key taken from `key`.
+pub fn prepare_proofread_call_with_key(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    segment_ids: &[i64],
+    key: &mut ApiKeySource,
+) -> Result<ProofreadPrepareOutcome, IpcError> {
     let Some(ResolvedCallConfig {
         open_work,
         provider,
@@ -228,7 +238,7 @@ pub fn prepare_proofread_call(
         }));
     }
 
-    let Some(api_key) = read_api_key(&provider)? else {
+    let Some(api_key) = key.api_key(&provider)? else {
         return Ok(ProofreadPrepareOutcome::NotConfigured);
     };
 
@@ -715,14 +725,14 @@ async fn send_prepared_proofread_call(
 pub mod wire {
     use super::{
         AiProofreadEventWire, AiProofreadOutcomeWire, ProofreadGeneration,
-        ProofreadIgnoreEntryWire, ProofreadPrepareOutcome, ScanTrace, prepare_proofread_call,
-        send_prepared_proofread_call,
+        ProofreadIgnoreEntryWire, ProofreadPrepareOutcome, ScanTrace,
+        prepare_proofread_call_with_key, send_prepared_proofread_call,
     };
+    use crate::commands::aitranslate::{AppStores, StoreAccess as _, prepare_with_api_key};
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
     use crate::core::i18n::state_missing;
     use crate::core::segment::proofread_kind::ProofreadKind;
-    use crate::core::store::Store;
 
     /// The `OpenWorkState` lock is released before any `.await`.
     #[tauri::command]
@@ -744,15 +754,11 @@ pub mod wire {
         let generation_state = generation_state.inner().clone();
         let generation = generation_state.next();
 
-        let prepared = {
-            let global = app.try_state::<Store>();
-            let work_state = app.try_state::<OpenWorkState>();
-            let guard = work_state
-                .as_ref()
-                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-            let open = guard.as_ref().and_then(|g| g.as_ref());
-            prepare_proofread_call(global.as_deref(), open, &segment_ids)?
-        };
+        let prepared = prepare_with_api_key(|key| {
+            AppStores(app.clone()).with_stores(|global, open| {
+                prepare_proofread_call_with_key(global, open, &segment_ids, key)
+            })
+        })?;
 
         let prepared = match prepared {
             ProofreadPrepareOutcome::NotConfigured => {
