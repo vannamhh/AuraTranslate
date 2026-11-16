@@ -70,6 +70,7 @@ const runStatus = ref<ExportRunStatus>('idle')
 const runResult = ref<ExportedFile | null>(null)
 const runError = ref<IpcError | null>(null)
 let sequence = 0
+let scopeToRestoreOnClose: { kind: ExportScopeKind; chapterId: number | null } | null = null
 
 export const exportOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 export const exportLoadStatus: DeepReadonly<Ref<ExportLoadStatus>> = readonly(loadStatus)
@@ -248,6 +249,14 @@ export async function openExport(): Promise<void> {
   await refreshCounts()
 }
 
+export async function openExportForChapter(chapterId: number): Promise<void> {
+  if (overlayOpen.value) return
+  scopeToRestoreOnClose = { kind: scopeKind.value, chapterId: singleChapterId.value }
+  scopeKind.value = 'chapter'
+  singleChapterId.value = chapterId
+  await openExport()
+}
+
 export function setExportFormat(next: ExportFormat): void {
   format.value = next
   clearRun()
@@ -297,6 +306,11 @@ export function closeExport(): void {
   previewSequence += 1
   overlayOpen.value = false
   choosingFolder.value = false
+  if (scopeToRestoreOnClose !== null) {
+    scopeKind.value = scopeToRestoreOnClose.kind
+    singleChapterId.value = scopeToRestoreOnClose.chapterId
+    scopeToRestoreOnClose = null
+  }
 }
 
 export async function setExportScopeKind(kind: ExportScopeKind): Promise<void> {
@@ -377,6 +391,7 @@ export function resetExport(): void {
   scopeKind.value = 'work'
   singleChapterId.value = null
   selectedChapterIds.value = []
+  scopeToRestoreOnClose = null
   counts.value = null
   countsStatus.value = 'unknown'
   countsError.value = null

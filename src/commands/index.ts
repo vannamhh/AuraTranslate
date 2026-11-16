@@ -969,6 +969,8 @@ export type CommandDeps = {
   // ── Export screen (FR89) ──
   /** Opens the export screen. Handler of `export.open`. */
   openExport?: () => void
+  /** Opens the export screen scoped to the Chapter being read. Handler of `reading.export_chapter`. */
+  openExportForReadingChapter?: () => void
   /** Closes the export screen. Handler of `export.close`. */
   closeExport?: () => void
   /** Opens the destination-folder dialog in Rust. Handler of `export.choose_folder`. */
@@ -2981,6 +2983,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.openUntranslatedReadingBlock === undefined) return portMissing('reading.open_untranslated', 'openUntranslatedReadingBlock')
       deps.openUntranslatedReadingBlock()
+    },
+  })
+  target.register({
+    id: 'reading.export_chapter',
+    labelKey: 'command.reading.export_chapter',
+    keys: undefined,
+    run: () => {
+      if (deps.openExportForReadingChapter === undefined) {
+        return portMissing('reading.export_chapter', 'openExportForReadingChapter')
+      }
+      deps.openExportForReadingChapter()
     },
   })
   target.register({

@@ -2641,6 +2641,7 @@ const HANDLER_TABLE = {
   'src/layout/LookupDrawer.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/modes/ReadingMode.vue::onReadingSegmentEnter': { ids: ['reading.open_aimed'] },
   'src/modes/ReadingMode.vue::trapOverlayTab': { nonCommand: R_FOCUS_TRAP },
+  'src/modes/ReadingMode.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
   'src/modes/ReadingMode.vue::onSegmentTextMouseDown': {
     nonCommand: 'records where the pointer pressed so the mark chip sits under that line — view state, no dispatch',
   },

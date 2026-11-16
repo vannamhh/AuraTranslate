@@ -304,6 +304,7 @@ import { openReadingLookupConcordance, tmConcordanceCommandDeps } from './tmConc
 import { openReadingLookup, resetReadingLookup } from './modes/readingLookupState'
 import { tmFuzzyCommandDeps } from './tmFuzzyCommandDeps'
 import { exportCommandDeps } from './exportCommandDeps'
+import { readingExportCommandDeps } from './readingExportCommandDeps'
 import { libraryWorkPageCommandDeps } from './libraryWorkPageCommandDeps'
 import { chapterMergeOverlayIsOpen } from './chapterMergeState'
 import { chapterSplitOverlayIsOpen } from './chapterSplitState'
@@ -1038,6 +1039,7 @@ async function boot(): Promise<void> {
       ...tmManageCommandDeps(),
       ...paletteCommandDeps({ runLookup }),
       ...exportCommandDeps(),
+      ...readingExportCommandDeps(),
       ...libraryWorkPageCommandDeps(),
       ...reviewerImportCommandDeps(),
       ...alignmentCommandDeps(),

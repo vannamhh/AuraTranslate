@@ -271,6 +271,11 @@ watch([focusedSegmentId, markChipPress], ([segmentId, press]) => {
     segmentId !== null && markChipAtPress.value === null && markChipFitsRightMargin(segmentId) ? segmentId : null
 }, { flush: 'post' })
 
+function focusOnPointerDown(event: MouseEvent): void {
+  const target = event.currentTarget
+  if (target instanceof HTMLElement) target.focus()
+}
+
 function onSegmentTextMouseDown(event: MouseEvent, segmentId: number): void {
   if (event.button !== 0) return
   const text = event.currentTarget as HTMLElement
@@ -725,6 +730,20 @@ function paragraphRuns(
         {{ t('mode.reading.toc') }}
         <!-- aura-allow-text: chord display from the shortcut registry. -->
         <span v-if="chordOf('reading.toc') !== ''" class="ui-kbd">{{ chordOf('reading.toc') }}</span>
+      </button>
+      <button
+        type="button"
+        class="ui-btn ui-btn--quiet"
+        data-reading-export
+        data-export-open
+        :disabled="readingCurrentChapter === null"
+        :title="commandTitle('reading.export_chapter')"
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('reading.export_chapter')"
+      >
+        {{ t('mode.reading.export_chapter') }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.export_chapter') !== ''" class="ui-kbd">{{ chordOf('reading.export_chapter') }}</span>
       </button>
       <button
         type="button"
