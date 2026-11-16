@@ -1365,7 +1365,10 @@ mod classify_tests {
 
     #[test]
     fn a_classified_row_carries_its_file_stem_without_the_last_extension_only() {
-        let c = classify_import_paths(&paths(&["a.b.txt", "tuyet-trung.TXT", "noext", "x.pdf"]), &[]);
+        let c = classify_import_paths(
+            &paths(&["a.b.txt", "tuyet-trung.TXT", "noext", "x.pdf"]),
+            &[],
+        );
         assert_eq!(
             c.files.iter().map(|f| f.stem.as_str()).collect::<Vec<_>>(),
             vec!["a.b", "tuyet-trung", "noext", "x"]
