@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Màn Xuất — gọn</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm:#b99a5e; --tm-text:#7a5d25; --error:#8f2f22;
+  --word-ink:#1f1f1f; --word-page:#ffffff; --word-rule:#bfbfbf; --word-head:#f2f2f2;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:20px}
+.hd{width:1280px;margin:0 auto 10px;color:#f4f1ea;line-height:1.55}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.88;margin-top:4px;max-width:1040px}
+.tabs{width:1280px;margin:0 auto 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tabs button{font:inherit;font-size:12.5px;border:1px solid #8d877b;background:#5e594f;color:#f4f1ea;border-radius:4px;padding:6px 14px;cursor:pointer}
+.tabs button.on{background:#f4f1ea;color:var(--ink);border-color:#f4f1ea;font-weight:600}
+.tabs .sep{width:1px;height:22px;background:#8d877b;margin:0 8px}
+.tabs .cap{color:#f4f1ea;font-size:12px;opacity:.85}
+.meter{width:1280px;margin:0 auto 12px;display:flex;gap:22px;color:#f4f1ea;font-size:12.5px;flex-wrap:wrap}
+.meter b{font-family:var(--mono);font-size:13px}
+.why{width:1280px;margin:14px auto 0;color:#f4f1ea;font-size:12.5px;line-height:1.65}
+.why p{margin:0 0 6px;max-width:1040px}
+.why h3{font-size:13px;margin:14px 0 6px}
+
+.frame{width:1280px;height:860px;margin:0 auto;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3);position:relative}
+.variant{display:none;height:100%}
+.variant.on{display:flex;flex-direction:column}
+
+/* chung */
+.lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin:0 0 7px}
+.btn{font:inherit;border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:6px 14px;font-size:12.5px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn.q{border-color:transparent;background:transparent;color:var(--primary);padding:4px 6px}
+.btn.p{background:var(--primary);border-color:var(--primary);color:#fbfaf6;font-weight:600;padding:8px 16px}
+.btn.p .kp{font-family:var(--mono);font-size:10.5px;color:#d7e3e4;font-weight:400;margin-left:6px}
+.k{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface);white-space:nowrap}
+.meta{color:var(--ink-2);font-size:12px}
+.path{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+.warn{color:var(--tm-text)}
+.err{color:var(--error)}
+
+/* segmented */
+.seg{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--surface)}
+.seg button{flex:1;font:inherit;font-size:12.5px;border:0;border-right:1px solid var(--line);background:transparent;padding:6px 8px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink);color:var(--surface);font-weight:600}
+
+/* thẻ định dạng */
+.cards{display:flex;flex-direction:column;gap:5px}
+.card{display:grid;grid-template-columns:16px 1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:5px;padding:7px 10px;background:var(--surface);cursor:pointer}
+.card .r{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--orn)}
+.card.on{border-color:var(--ink);background:var(--surface)}
+.card.on .r{border:4px solid var(--ink)}
+.card .nm{font-weight:600;font-size:13px}
+.card .ext{font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-left:5px;font-weight:400}
+.tag{font-size:11px;border-radius:3px;padding:1px 6px;white-space:nowrap}
+.tag.ok{color:var(--ink-2);background:var(--sunken)}
+.tag.pub{color:var(--ink-2);background:var(--sunken)}
+.tag.bad{color:var(--error);background:var(--sunken);font-weight:600}
+.card .desc{grid-column:2 / 4;font-size:12px;color:var(--ink-2);line-height:1.45}
+
+/* hộp kiểm một dòng */
+.opt{display:grid;grid-template-columns:16px 1fr auto;gap:8px;align-items:center;padding:4px 0;cursor:pointer}
+.opt .bx{width:13px;height:13px;border:1.5px solid var(--orn);border-radius:3px;background:var(--surface)}
+.opt.on .bx{background:var(--ink);border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--surface)}
+.opt.na{cursor:default}
+.opt.na .tx,.opt.na .bx{opacity:.42}
+.opt.na .bx{border-style:dashed}
+.opt .why-na{font-size:11px;color:var(--ink-2)}
+.opt[hidden]{display:none}
+
+.sw{display:inline-block;width:26px;height:15px;border-radius:8px;background:var(--orn);position:relative;vertical-align:middle}
+.sw:after{content:"";position:absolute;width:11px;height:11px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .12s}
+.sw.on{background:var(--ink)}
+.sw.on:after{left:13px}
+
+/* danh sách Chương */
+.chlist{border:1px solid var(--line);border-radius:5px;background:var(--surface);max-height:136px;overflow:auto}
+.chrow{display:grid;grid-template-columns:16px 1fr auto;gap:8px;align-items:center;padding:5px 10px;border-bottom:1px solid var(--line-2);cursor:pointer}
+.chrow:last-child{border-bottom:0}
+.chrow .bx{width:13px;height:13px;border:1.5px solid var(--orn);border-radius:3px}
+.chrow.on .bx{background:var(--ink);border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--surface)}
+.chrow.radio .bx{border-radius:50%}
+.chrow.radio.on .bx{border:4px solid var(--ink);background:transparent;box-shadow:none}
+.chrow .m{font-size:11.5px;color:var(--ink-2)}
+.chsel{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;background:var(--surface);padding:6px 10px;cursor:pointer}
+
+.missing{margin:6px 0 0;padding:6px 9px;border-left:2px solid var(--tm);background:var(--tm-bg);font-size:12px;line-height:1.5}
+.missing ul{margin:3px 0 0;padding-left:16px}
+
+/* xem trước kiểu Word */
+.pv-head{display:flex;align-items:baseline;gap:10px;padding:0 0 8px}
+.pv-head .t{font-weight:600}
+.page{background:var(--word-page);color:var(--word-ink);box-shadow:0 1px 3px rgba(0,0,0,.12);padding:34px 40px;font-family:"Times New Roman",Georgia,serif;font-size:13.5px;line-height:1.5;margin:0 auto;max-width:820px}
+.page h4{font-size:16px;margin:0 0 10px}
+.page .attr{font-size:12.5px;margin:0 0 12px;line-height:1.45}
+.page .app{font-size:12.5px;margin:0 0 12px;padding:6px 0;border-top:1px solid var(--word-rule);border-bottom:1px solid var(--word-rule)}
+.wt{width:100%;border-collapse:collapse}
+.wt td{border:1px solid var(--word-rule);padding:6px 8px;vertical-align:top;width:50%}
+.wt.nob td{border:0;padding:0 12px 0 0}
+.wt.nob p{margin:0 0 9px}
+.wt .num{color:#666}
+.wt .mk{display:block;color:#7a5d25;font-style:italic;font-size:12px}
+.mono{font-family:var(--mono);font-size:12px;white-space:pre-wrap;line-height:1.6;margin:0}
+
+/* chân dính */
+.foot{flex:none;border-top:1px solid var(--line);background:var(--surface);display:flex;align-items:center;gap:14px;padding:10px 20px;min-height:56px}
+.foot .sum{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.foot .sum .l1{font-size:13px}
+.foot .sum .l2{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== Hiện trạng ===== */
+.cur-wrap{flex:1;overflow:auto;display:flex;justify-content:center;padding:42px 0}
+.cur{width:721px;background:var(--surface);border:1px solid var(--line);padding:22px 13px 22px 13px;height:max-content}
+.cur h2{font-family:var(--read);font-size:24px;margin:0 0 12px;display:flex;justify-content:space-between;align-items:baseline}
+.cur h2 span{font-family:var(--ui);font-size:13px;font-weight:400;color:var(--ink-2)}
+.cur .lg{color:var(--ink-2);margin:16px 0 8px}
+.cur .ch{display:flex;gap:8px;align-items:flex-start;margin:6px 0;line-height:1.5}
+.cur .ch i{flex:none;width:13px;height:13px;border-radius:50%;border:1.5px solid var(--orn);margin-top:3px}
+.cur .ch i.on{border:4px solid var(--ink)}
+.cur .ch i.sq{border-radius:2px}
+.cur .note{color:var(--ink-2);margin:4px 0 12px;line-height:1.5}
+.cur .wn{border-left:2px solid var(--tm);padding:2px 8px;margin:10px 0}
+.cur .na{opacity:.45}
+
+/* ===== A ===== */
+.a-head,.b-head{flex:none;display:flex;align-items:baseline;gap:14px;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+.a-head h2,.b-head h2{font-family:var(--read);font-size:21px;margin:0}
+.a-head .x,.b-head .x{margin-left:auto}
+.a-body{flex:1;display:grid;grid-template-columns:344px 1fr;min-height:0}
+.a-cfg{overflow:auto;padding:16px 18px 20px 20px;border-right:1px solid var(--line);background:var(--bg)}
+.a-cfg section{margin:0 0 15px}
+.a-pv{overflow:auto;padding:16px 24px 24px;background:var(--sunken)}
+
+/* ===== B ===== */
+.b-bar{flex:none;display:flex;gap:8px;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap;position:relative}
+.pill{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);border-radius:15px;padding:5px 12px;cursor:pointer;color:var(--ink);white-space:nowrap}
+.pill b{font-weight:600}
+.pill .lab{color:var(--ink-2);margin-right:4px}
+.pill.open{border-color:var(--ink);background:var(--sunken)}
+.pill.warn{border-color:var(--tm)}
+.b-pv{flex:1;overflow:auto;padding:18px 24px 24px;background:var(--sunken)}
+.pop{position:absolute;top:44px;z-index:3;width:360px;background:var(--surface);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:12px 14px}
+.pop[hidden]{display:none}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Màn Xuất — gọn</b> · khung 1280×860 như ảnh chụp Ice gửi 2026-11-16 · dữ liệu mẫu: Chương 1, 7 câu, 5 câu chưa xác nhận, 1 thuật ngữ đã chốt, 2 ảnh (1 ảnh thiếu link gốc)
+  <div class="sub">Ba tab dùng chung một trạng thái: chọn định dạng hay tuỳ chọn ở tab này rồi sang tab kia sẽ thấy đúng lựa chọn đó. Số đo ở dòng dưới do trang tự tính lại mỗi lần đổi tab hay đổi lựa chọn (đo trên mockup, chưa đo app thật).</div>
+</div>
+<div class="tabs">
+  <button data-v="cur" class="on">Hiện trạng</button>
+  <button data-v="a">Phương án A: hai cột</button>
+  <button data-v="b">Phương án B: xem trước làm nền</button>
+  <span class="sep"></span>
+  <span class="cap">Lựa chọn không áp dụng:</span>
+  <button data-na="dim" class="on">Làm mờ</button>
+  <button data-na="hide">Ẩn</button>
+</div>
+<div class="meter" id="meter"></div>
+
+<div class="frame">
+
+<!-- ===================== HIỆN TRẠNG ===================== -->
+<div class="variant on" id="v-cur">
+  <div class="cur-wrap" data-scroll>
+    <div class="cur">
+      <h2>Xuất bản dịch <span>Đóng màn hình xuất</span></h2>
+      <div class="lg">Phạm vi xuất</div>
+      <div class="ch"><i class="on"></i>Một Chương</div>
+      <div class="ch"><i></i>Nhiều Chương đã chọn</div>
+      <div class="ch"><i></i>Cả Tác phẩm</div>
+      <div class="lg">Chương cần xuất</div>
+      <div class="ch"><i class="on"></i>Chương 1 <span class="meta">7 câu · Đang dịch</span></div>
+      <p style="margin:14px 0 2px">1 Chương</p><p style="margin:0">7 câu sẽ được xuất</p>
+      <div class="wn">Có 5 câu chưa xác nhận trong phạm vi này. Kiểm tra lại trước khi xuất.</div>
+      <div class="lg">Định dạng</div>
+      <div class="ch"><i class="on"></i>Bảng hai cột (.docx): nguyên văn bên trái, bản dịch bên phải, mỗi câu một hàng</div>
+      <p class="note">Đây là định dạng nhập lại được: reviewer sửa cột phải rồi nhập ngược về đúng chỗ.</p>
+      <div class="ch"><i></i>Một khối (.docx): mỗi Chương một bảng hai cột chỉ một hàng, không viền, mỗi ô là các đoạn văn để dán thẳng vào trình soạn thảo</div>
+      <div class="ch"><i></i>Markdown (.md): đoạn theo bản dịch, ảnh kèm alt-text và chú thích đã dịch, để dán vào trình soạn thảo hỗ trợ Markdown</div>
+      <div class="ch"><i></i>Text thuần (.txt): đoạn theo bản dịch, mỗi ảnh một dòng [Ảnh: ...] kèm link hoặc đường dẫn, không ký hiệu Markdown</div>
+      <div class="lg">Nội dung</div>
+      <div class="ch"><i class="sq"></i>Đánh số câu ở cột đầu</div>
+      <p class="note">Mỗi câu mang tiền tố [n] theo thứ tự trong Chương, để reviewer nhắc đúng câu.</p>
+      <div class="ch na"><i class="sq"></i>Đổi ngoặc kép thẳng thành ngoặc cong</div>
+      <p class="note">Trong bản dịch, " thành “ hoặc ” theo ký tự đứng trước. Chỉ đổi trong tệp xuất, bản dịch trong Tác phẩm giữ nguyên.</p>
+      <p class="note">Chỉ dùng được với .docx một khối và .txt: bản rà soát được nhập lại nên không đổi dấu.</p>
+      <div class="ch"><i class="sq"></i>Kèm thuật ngữ Glossary đã chốt <span class="meta">1 thuật ngữ</span></div>
+      <p class="note">Một đoạn ở đầu tệp: mỗi dòng một thuật ngữ và bản dịch đã chốt, để reviewer biết đâu là quy ước.</p>
+      <div class="ch"><i class="sq"></i>Đánh dấu câu chưa xác nhận <span class="meta">5 câu</span></div>
+      <p class="note">Thêm dòng "— câu chưa xác nhận —" cuối ô bản dịch của những câu đó.</p>
+      <div class="lg">Ảnh</div>
+      <p class="note">2 ảnh trong phạm vi</p>
+      <div class="ch"><i class="on"></i>Theo file ảnh: chép ảnh ra thư mục cạnh tệp xuất, mỗi ảnh ghi đường dẫn tới tệp của nó</div>
+      <div class="ch"><i></i>Theo link gốc: mỗi ảnh là một link tới ảnh trên bài gốc</div>
+      <div class="lg">Khối ghi nguồn</div>
+      <div class="ch"><i class="sq"></i>Chèn khối ghi nguồn vào đầu mỗi Chương (tác giả, nguồn, ngày đăng gốc, người dịch)</div>
+      <p class="note">Mặc định tắt. Bản dịch truyện thường không cần khối này; bật khi bàn giao bài cho người khác đăng.</p>
+      <div class="lg">Thư mục đích</div>
+      <p style="margin:0 0 10px"><span class="note">Chưa chọn thư mục.</span> <button class="btn">Chọn thư mục…</button></p>
+      <div class="lg">Xem trước</div>
+      <p class="note">Bản xem trước dựng từ Chương đầu của phạm vi.</p>
+      <p class="note">Xem trước — Chương 1</p>
+      <div data-target="preview"><div class="page" data-pv="cur"></div></div>
+      <p style="margin:14px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="note" style="margin:0">Tên tệp: <span class="path">chuong-1.docx</span></span>
+        <button class="btn">Huỷ</button><button class="btn p" data-target="run">Xuất 1 Chương ra .docx</button><span class="note" style="margin:0">⌘↵</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== A: HAI CỘT ===================== -->
+<div class="variant" id="v-a">
+  <div class="a-head"><h2>Xuất bản dịch</h2><span class="meta">Tác phẩm: Thính Triều Các</span><button class="btn q x">Đóng <span class="k">Esc</span></button></div>
+  <div class="a-body">
+    <div class="a-cfg">
+      <section>
+        <div class="lbl">Phạm vi</div>
+        <div class="seg" data-scope></div>
+        <div style="margin-top:7px" data-chapters></div>
+      </section>
+      <section>
+        <div class="lbl">Định dạng</div>
+        <div class="cards" data-formats></div>
+      </section>
+      <section>
+        <div class="lbl">Nội dung</div>
+        <div data-content></div>
+      </section>
+      <section>
+        <div class="lbl">Ảnh <span style="text-transform:none;letter-spacing:0;font-weight:400" class="meta">· 2 ảnh trong phạm vi</span></div>
+        <div class="seg" data-images></div>
+        <div data-missing></div>
+      </section>
+      <section>
+        <div class="lbl">Ghi nguồn</div>
+        <div data-attr></div>
+      </section>
+    </div>
+    <div class="a-pv" data-scroll>
+      <div class="pv-head" data-target="preview"><span class="t" data-pvtitle></span><span class="meta" data-pvfile></span></div>
+      <div class="page" data-pv="a"></div>
+    </div>
+  </div>
+  <div class="foot" data-foot></div>
+</div>
+
+<!-- ===================== B: XEM TRƯỚC LÀM NỀN ===================== -->
+<div class="variant" id="v-b">
+  <div class="b-head"><h2>Xuất bản dịch</h2><span class="meta">Tác phẩm: Thính Triều Các</span><button class="btn q x">Đóng <span class="k">Esc</span></button></div>
+  <div class="b-bar" data-bar></div>
+  <div class="b-pv" data-scroll>
+    <div class="pv-head" data-target="preview"><span class="t" data-pvtitle></span><span class="meta" data-pvfile></span></div>
+    <div class="page" data-pv="b"></div>
+  </div>
+  <div class="foot" data-foot></div>
+</div>
+
+</div>
+
+<div class="why">
+  <h3>Hai nguyên tắc chung cho A và B</h3>
+  <p><b>Bản xem trước thay cho câu giải thích.</b> Hiện trạng có 10 câu mô tả dưới các lựa chọn. Ở A và B, bật Đánh số câu thì bản xem trước hiện ngay <code>[n]</code>; bật Ghi nguồn thì khối hiện ở đầu trang; bật Glossary thì phụ lục hiện ở đầu tệp. Câu mô tả chỉ còn ở thẻ định dạng đang chọn, và chỉ một dòng.</p>
+  <p><b>Một dòng tóm tắt sát nút Xuất.</b> Ba biến thể cảnh báo câu chưa xác nhận, hai dòng đếm và câu "tệp này không nhập lại được" gộp thành dòng trên của chân dính. FR121 vẫn đủ: thẻ một khối và .txt mang nhãn <i>chỉ để đăng</i> ngay lúc chọn, và cảnh báo câu chưa xác nhận nằm cạnh nút trước lúc bấm. FR130 vẫn đủ: chọn theo link gốc thì ảnh thiếu link được liệt kê từng ảnh ngay dưới lựa chọn, không gấp.</p>
+  <h3>Khác nhau</h3>
+  <p><b>A</b> giữ mọi lựa chọn trên mặt màn, mỗi lựa chọn một cú bấm, cột cấu hình 344 px như màn nhập (Ice chọn 2026-11-02). Vùng xem trước 936×729 px. Cột cấu hình vừa khung ở mọi tổ hợp trừ một: Nhiều Chương + theo link gốc có ảnh thiếu link + bật ghi nguồn thì tràn 44 px, cột tự cuộn riêng như cột cấu hình màn nhập.</p>
+  <p><b>B</b> dồn mọi nhóm vào năm nút trên một dải, mỗi nút ghi sẵn trạng thái; đổi một lựa chọn tốn hai cú bấm (mở, chọn). Vùng xem trước 1280×679 px: rộng hơn A 344 px nhưng thấp hơn 50 px vì có thêm dải nút, và trang Word giới hạn ở 820 px nên phần rộng thêm phần lớn là lề. Trạng thái mọi nhóm vẫn đọc được trên dải mà không mở.</p>
+  <p><b>Làm mờ / Ẩn</b> (nút trên cùng): làm mờ giữ chỗ và ghi lý do bằng 3–4 chữ bên phải; ẩn làm danh sách co lại khi đổi định dạng, tuỳ chọn biến mất mà không nói vì sao.</p>
+</div>
+
+<script>
+const S = {
+  v: 'cur', na: 'dim', scope: 'chapter', chapter: 1, chapters: new Set([1]),
+  fmt: 'two', num: false, curly: false, gloss: false, mark: false,
+  img: 'file', attr: false, open: null,
+};
+const SEG = [
+  ['夜色漸深，聽潮閣外的海風帶著鹹味。','Đêm dần khuya, gió biển ngoài Thính Triều Các mang theo vị mặn.',true],
+  ['林晚站在欄杆邊，望著遠處的燈火。','Lâm Vãn đứng bên lan can, nhìn ánh đèn phía xa.',true],
+  ['「你真的要走？」身後傳來師兄的聲音。','"Muội thật sự muốn đi?" Sau lưng vang lên giọng sư huynh.',false],
+  ['她沒有回頭，只是輕輕點了點頭。','Nàng không quay đầu, chỉ khẽ gật đầu.',false],
+  ['潮聲一陣接一陣，像是在替她回答。','Tiếng sóng hết đợt này đến đợt khác, như đang trả lời thay nàng.',false],
+  ['「三年後，我會回來。」','"Ba năm sau, muội sẽ trở về."',false],
+  ['師兄沉默良久，終於讓開了路。','Sư huynh im lặng hồi lâu, cuối cùng cũng tránh đường.',false],
+];
+const CHAPTERS = Array.from({length:12},(_,i)=>({n:i+1,segs:[7,42,38,51,47,40,36,44,39,45,41,50][i],st:i===0?'Đang dịch':i<5?'Đã xong':'Chưa bắt đầu'}));
+const FMT = {
+  two:  {nm:'Bảng hai cột', ext:'.docx', tag:['ok','nhập lại được'], desc:'Nguyên văn trái, bản dịch phải, mỗi câu một hàng. Reviewer sửa cột phải rồi nhập ngược.'},
+  one:  {nm:'Một khối', ext:'.docx', tag:['pub','chỉ để đăng'], desc:'Một hàng cho cả Chương, không viền: bôi đen cột phải dán thẳng vào trình soạn thảo. Không nhập lại được.'},
+  md:   {nm:'Markdown', ext:'.md', tag:['pub','chỉ để đăng'], desc:'Đoạn theo bản dịch, ảnh kèm alt-text và chú thích. Không nhập lại được.'},
+  txt:  {nm:'Text thuần', ext:'.txt', tag:['pub','chỉ để đăng'], desc:'Đoạn theo bản dịch, mỗi ảnh một dòng [Ảnh: …]. Không nhập lại được.'},
+};
+const OPTS = [
+  {k:'num', nm:'Đánh số câu', meta:()=> '', ok:()=>true, na:''},
+  {k:'gloss', nm:'Kèm Glossary đã chốt', meta:()=>'1 thuật ngữ', ok:()=>true, na:''},
+  {k:'mark', nm:'Đánh dấu câu chưa xác nhận', meta:()=>'5 câu', ok:()=>S.fmt==='two', na:'chỉ bảng hai cột'},
+  {k:'curly', nm:'Ngoặc kép thành ngoặc cong', meta:()=>'', ok:()=>S.fmt==='one'||S.fmt==='txt', na:'chỉ một khối, .txt'},
+];
+const optOn = o => o.ok() && S[o.k];
+const curly = t => optOn(OPTS[3]) ? t.replace(/"([^"]*)"/g,'“$1”') : t;
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const reimport = () => S.fmt==='two' && !(S.num || S.mark);
+const nChap = () => S.scope==='chapter'?1:S.scope==='work'?12:S.chapters.size;
+const nSeg = () => S.scope==='chapter'?CHAPTERS[S.chapter-1].segs:S.scope==='work'?CHAPTERS.reduce((a,c)=>a+c.segs,0):[...S.chapters].reduce((a,n)=>a+CHAPTERS[n-1].segs,0);
+const fileName = () => (S.scope==='chapter'?'chuong-'+S.chapter:S.scope==='work'?'thinh-trieu-cac':'thinh-trieu-cac-'+nChap()+'-chuong')+FMT[S.fmt].ext;
+
+function previewHTML(){
+  let h = '<h4>Chương 1</h4>';
+  if (S.attr) h += '<p class="attr">Tác giả: Mộc Vân · Nguồn: 晉江文學城 · Đăng gốc: 2024-03-11<br>Người dịch: Ice</p>';
+  if (S.gloss) h += '<p class="app"><b>Thuật ngữ đã chốt</b><br>聽潮閣 — Thính Triều Các</p>';
+  if (S.fmt==='two'){
+    h += '<table class="wt">'+SEG.map((s,i)=>`<tr><td>${S.num?'<span class="num">['+(i+1)+']</span> ':''}${esc(s[0])}</td><td>${esc(curly(s[1]))}${optOn(OPTS[2])&&!s[2]?'<span class="mk">— câu chưa xác nhận —</span>':''}</td></tr>`).join('')+'</table>';
+  } else if (S.fmt==='one'){
+    const p = (col) => SEG.map((s,i)=>`<p>${S.num?'['+(i+1)+'] ':''}${esc(col===0?s[0]:curly(s[1]))}</p>`);
+    const L = p(0), R = p(1);
+    L.splice(2,0,'<p><i>[ảnh]</i></p>'); R.splice(2,0,'<p><i>[ảnh: Gác lầu bên biển lúc chiều tà]</i></p>');
+    h += `<table class="wt nob"><tr><td>${L.join('')}</td><td>${R.join('')}</td></tr></table>`;
+  } else {
+    const img = S.fmt==='md'
+      ? (S.img==='file' ? '![Gác lầu bên biển lúc chiều tà](anh/chuong-1-1.jpg)' : '![Gác lầu bên biển lúc chiều tà](https://jjwxc.net/img/8812.jpg)')
+      : (S.img==='file' ? '[Ảnh: Gác lầu bên biển lúc chiều tà — anh/chuong-1-1.jpg]' : '[Ảnh: Gác lầu bên biển lúc chiều tà — https://jjwxc.net/img/8812.jpg]');
+    const lines = SEG.map((s,i)=>(S.num?'['+(i+1)+'] ':'')+curly(s[1]));
+    lines.splice(2,0,img);
+    h += `<pre class="mono">${esc(lines.join('\n\n'))}</pre>`;
+  }
+  return h;
+}
+
+function scopeSeg(){
+  return [['chapter','Một Chương'],['chapters','Nhiều Chương'],['work','Cả Tác phẩm']].map(([k,l])=>`<button class="${S.scope===k?'on':''}" data-set-scope="${k}">${l}</button>`).join('');
+}
+function chaptersHTML(){
+  if (S.scope==='work') return '<div class="meta">12 Chương · '+nSeg()+' câu</div>';
+  if (S.scope==='chapter') return `<div class="chlist">${CHAPTERS.map(c=>`<div class="chrow radio ${S.chapter===c.n?'on':''}" data-ch="${c.n}"><i class="bx"></i><span>Chương ${c.n}</span><span class="m">${c.segs} câu · ${c.st}</span></div>`).join('')}</div>`;
+  return `<div class="chlist">${CHAPTERS.map(c=>`<div class="chrow ${S.chapters.has(c.n)?'on':''}" data-chs="${c.n}"><i class="bx"></i><span>Chương ${c.n}</span><span class="m">${c.segs} câu · ${c.st}</span></div>`).join('')}</div>`;
+}
+function formatsHTML(){
+  return Object.entries(FMT).map(([k,f])=>{
+    let tag = f.tag;
+    if (k==='two' && S.fmt==='two' && !reimport()) tag = ['bad','không nhập lại được'];
+    return `<div class="card ${S.fmt===k?'on':''}" data-fmt="${k}"><i class="r"></i><span class="nm">${f.nm}<span class="ext">${f.ext}</span></span><span class="tag ${tag[0]}">${tag[1]}</span>${S.fmt===k?`<span class="desc">${k==='two'&&!reimport()?'Đánh số câu hoặc dấu chưa xác nhận làm cột trái lệch khi nhập ngược. Tắt cả hai để nhập lại được.':f.desc}</span>`:''}</div>`;
+  }).join('');
+}
+function contentHTML(){
+  return OPTS.map(o=>{
+    const ok = o.ok();
+    if (!ok && S.na==='hide') return '';
+    return `<div class="opt ${ok&&S[o.k]?'on':''} ${ok?'':'na'}" data-opt="${o.k}"><i class="bx"></i><span class="tx">${o.nm}</span><span class="${ok?'meta':'why-na'}">${ok?o.meta():o.na}</span></div>`;
+  }).join('');
+}
+function imagesSeg(){
+  return [['file','Theo file ảnh'],['link','Theo link gốc']].map(([k,l])=>`<button class="${S.img===k?'on':''}" data-set-img="${k}">${l}</button>`).join('');
+}
+function missingHTML(){
+  if (S.img!=='link') return '';
+  return '<div class="missing"><span class="warn">1 ảnh thiếu link gốc, sẽ không có trong tệp:</span><ul><li>Chương 1, ảnh thứ 2 (Bến thuyền buổi sớm)</li></ul></div>';
+}
+function attrHTML(){
+  return `<div class="opt ${S.attr?'on':''}" data-opt="attr" style="grid-template-columns:30px 1fr auto"><i class="sw ${S.attr?'on':''}"></i><span class="tx">Chèn khối ghi nguồn</span><span class="meta">${S.attr?'Người dịch: Ice · Toàn cục':'mặc định tắt'}</span></div>`;
+}
+function footHTML(){
+  const unconf = 5;
+  let l1 = `${nChap()} Chương · ${nSeg()} câu`;
+  if (unconf) l1 += ` · <span class="warn">${unconf} câu chưa xác nhận${S.fmt==='two'?'':', tệp không phân biệt'}</span>`;
+  if (S.fmt==='two' && !reimport()) l1 += ` · <span class="err">không nhập lại được</span>`;
+  if (S.img==='link') l1 += ` · <span class="warn">1 ảnh thiếu link</span>`;
+  const l2 = `Ghi vào <span class="path">~/Documents/Review/${fileName()}</span>`;
+  return `<div class="sum"><span class="l1">${l1}</span><span class="l2">${l2}</span></div><button class="btn">Đổi thư mục…</button><button class="btn">Huỷ</button><button class="btn p" data-target="run">Xuất ${nChap()} Chương ra ${FMT[S.fmt].ext}<span class="kp">⌘↵</span></button>`;
+}
+function barHTML(){
+  const scopeLab = S.scope==='chapter'?'Chương '+S.chapter:S.scope==='work'?'Cả Tác phẩm':nChap()+' Chương';
+  const on = OPTS.filter(o=>optOn(o)).map(o=>({num:'số câu',gloss:'Glossary',mark:'đánh dấu',curly:'ngoặc cong'})[o.k]);
+  const pills = [
+    ['scope','Phạm vi',scopeLab],
+    ['fmt','Định dạng',FMT[S.fmt].nm+' '+FMT[S.fmt].ext+(S.fmt==='two'?(reimport()?' · nhập lại được':' · không nhập lại'):' · chỉ để đăng')],
+    ['content','Nội dung',on.length?on.join(', '):'không thêm gì'],
+    ['img','Ảnh',(S.img==='file'?'theo file':'theo link')+(S.img==='link'?' · 1 thiếu link':'')],
+    ['attr','Ghi nguồn',S.attr?'bật':'tắt'],
+  ];
+  let h = pills.map(([k,l,v])=>`<button class="pill ${S.open===k?'open':''} ${k==='img'&&S.img==='link'?'warn':''}" data-pill="${k}"><span class="lab">${l}:</span><b>${v}</b> ▾</button>`).join('');
+  const lefts = {scope:20,fmt:150,content:430,img:620,attr:800};
+  if (S.open){
+    let inner = '';
+    if (S.open==='scope') inner = `<div class="seg">${scopeSeg()}</div><div style="margin-top:7px">${chaptersHTML()}</div>`;
+    if (S.open==='fmt') inner = `<div class="cards">${formatsHTML()}</div>`;
+    if (S.open==='content') inner = contentHTML();
+    if (S.open==='img') inner = `<div class="seg">${imagesSeg()}</div>${missingHTML()}`;
+    if (S.open==='attr') inner = attrHTML();
+    h += `<div class="pop" style="left:${lefts[S.open]}px">${inner}</div>`;
+  }
+  return h;
+}
+
+function render(){
+  document.querySelectorAll('.variant').forEach(e=>e.classList.toggle('on', e.id==='v-'+S.v));
+  document.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on', b.dataset.v===S.v));
+  document.querySelectorAll('[data-na]').forEach(b=>b.classList.toggle('on', b.dataset.na===S.na));
+  document.querySelectorAll('[data-pv]').forEach(e=>e.innerHTML=previewHTML());
+  document.querySelectorAll('[data-pvtitle]').forEach(e=>e.textContent='Xem trước · Chương '+(S.scope==='chapter'?S.chapter:1)+(nChap()>1?' (Chương đầu của phạm vi)':''));
+  document.querySelectorAll('[data-pvfile]').forEach(e=>e.textContent=fileName());
+  const a = document.getElementById('v-a');
+  a.querySelector('[data-scope]').innerHTML = scopeSeg();
+  a.querySelector('[data-chapters]').innerHTML = chaptersHTML();
+  a.querySelector('[data-formats]').innerHTML = formatsHTML();
+  a.querySelector('[data-content]').innerHTML = contentHTML();
+  a.querySelector('[data-images]').innerHTML = imagesSeg();
+  a.querySelector('[data-missing]').innerHTML = missingHTML();
+  a.querySelector('[data-attr]').innerHTML = attrHTML();
+  document.querySelectorAll('[data-foot]').forEach(e=>e.innerHTML=footHTML());
+  document.querySelector('[data-bar]').innerHTML = barHTML();
+  measure();
+}
+
+function measure(){
+  const v = document.getElementById('v-'+S.v);
+  const sc = v.querySelector('[data-scroll]');
+  const frame = document.querySelector('.frame').getBoundingClientRect();
+  const st = sc.scrollTop; sc.scrollTop = 0;
+  const c = sc.getBoundingClientRect();
+  const need = el => { const r = el.getBoundingClientRect(); return Math.max(0, Math.round(r.top + 60 - c.bottom)); };
+  const pvEl = v.querySelector('[data-target="preview"]');
+  const runEl = v.querySelector('[data-target="run"]');
+  const page = v.querySelector('.page').getBoundingClientRect();
+  const pvTop = pvEl.getBoundingClientRect().top;
+  const pw = S.v==='cur' ? 0 : Math.round(c.width);
+  const ph = S.v==='cur' ? Math.max(0, Math.round(c.bottom - pvTop)) : Math.round(c.bottom - Math.max(c.top, pvTop));
+  const notes = [...v.querySelectorAll('.note, .desc')].filter(e=>e.offsetParent!==null).length;
+  sc.scrollTop = st;
+  const clicks = S.v==='b' ? 2 : 1;
+  const cfg = v.querySelector('.a-cfg');
+  const cfgOver = cfg ? Math.max(0, cfg.scrollHeight - cfg.clientHeight) : 0;
+  document.getElementById('meter').innerHTML =
+    `<span>cuộn tới bản xem trước: <b>${need(pvEl)} px</b></span>`+
+    `<span>cuộn tới nút Xuất: <b>${runEl.closest('.foot')?0:need(runEl)} px</b></span>`+
+    `<span>vùng xem trước thấy ngay: <b>${pw}×${ph} px</b></span>`+
+    `<span>câu mô tả đang hiện: <b>${notes}</b></span>`+
+    `<span>cú bấm để đổi một tuỳ chọn: <b>${clicks}</b></span>`+
+    (cfg ? `<span>cột cấu hình tràn: <b>${cfgOver} px</b></span>` : '');
+  window.__m = {v:S.v, preview:need(pvEl), run:runEl.closest('.foot')?0:need(runEl), pw, ph, notes, clicks, cfgOver};
+}
+
+document.addEventListener('click', e=>{
+  const t = e.target.closest('[data-v],[data-na],[data-set-scope],[data-ch],[data-chs],[data-fmt],[data-opt],[data-set-img],[data-pill]');
+  if (!t) { if (S.open && !e.target.closest('.pop')) { S.open=null; render(); } return; }
+  const d = t.dataset;
+  if (d.v) S.v = d.v;
+  if (d.na) S.na = d.na;
+  if (d.setScope) S.scope = d.setScope;
+  if (d.ch) S.chapter = +d.ch;
+  if (d.chs) { const n=+d.chs; S.chapters.has(n)?S.chapters.delete(n):S.chapters.add(n); }
+  if (d.fmt) S.fmt = d.fmt;
+  if (d.opt) { const o = OPTS.find(x=>x.k===d.opt); if (!o || o.ok()) S[d.opt] = !S[d.opt]; }
+  if (d.setImg) S.img = d.setImg;
+  if (d.pill) S.open = S.open===d.pill ? null : d.pill;
+  render();
+});
+document.addEventListener('keydown', e=>{ if (e.key==='Escape' && S.open){ S.open=null; render(); } });
+const q = new URLSearchParams(location.search);
+for (const [k,v] of q) { if (k in S) S[k] = v==='true'?true:v==='false'?false:v; }
+render();
+</script>
+</body>
+</html>

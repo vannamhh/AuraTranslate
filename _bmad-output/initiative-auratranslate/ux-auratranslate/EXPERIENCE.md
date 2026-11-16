@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-11-15
+updated: 2026-11-16
 design: DESIGN.md
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
@@ -34,7 +34,7 @@ Cửa sổ ứng dụng
 │   ├── bộ lọc — trạng thái · lĩnh vực · ngôn ngữ nguồn · ngày sửa
 │   ├── nhập tài liệu: màn nhập → màn xem trước hợp nhất
 │   │     └── tab Dán · Tệp (gồm cả song ngữ hai cột) · URL (mỗi dòng một Chương)
-│   └── xuất → chọn cách xuất ảnh · khối ghi nguồn
+│   └── xuất → cột cấu hình · cột xem trước · chân dính (§Màn Xuất)
 ├── Workspace ............... mở một Chương là vào đây
 │   ├── preset 2×2 (mặc định)   Nguyên văn | Bản dịch
 │   │                           Tra cứu    | Đề xuất AI
@@ -447,6 +447,34 @@ Hai chỗ: một dòng tóm tắt ở chân màn xem trước — *"Đã gọi `
 
 Hai tầng allowlist của AD-41 phân biệt bằng **nhãn chữ**, không bằng màu: `Tài liệu` cho host người dùng dán link, `Ảnh` cho host mà những trang đó tham chiếu tới. Mỗi hàng ghi **vì sao được phép** — đó là thứ biến lời hứa *"không telemetry"* thành thứ người dùng kiểm được.
 
+## Màn Xuất — cột cấu hình, cột xem trước, chân dính
+
+*(Mục bổ sung 2026-11-16. Ice: "quá nhiều chi tiết, và màn hình preview nằm ở cuối khá bất tiện". Mockup [`mockups/export-gon.html`](mockups/export-gon.html) đặt hiện trạng dựng lại và hai phương án cạnh nhau. Phạm vi, định dạng và hình dạng tệp vẫn theo [`mockups/export-share.html`](mockups/export-share.html) và [`mockups/export-images-attribution.html`](mockups/export-images-attribution.html); mục này chỉ thay bố cục và mật độ chữ.)*
+
+Bố cục dọc cũ xếp bảy nhóm lựa chọn, mỗi lựa chọn kèm một đến ba câu mô tả, rồi mới tới bản xem trước và nút Xuất. Trên mockup ở khung 1280×860 (WebKit Playwright, chưa đo app thật): phải cuộn **469 px** mới thấy bản xem trước và **899 px** mới thấy nút Xuất, với 13 câu mô tả trên màn. Bố cục dưới đây: **0 px** cho cả hai, còn 1 câu mô tả. Phương án B (bản xem trước chiếm cả khung, các nhóm thành năm nút trên một dải) cũng ra 0 px; Ice chọn Phương án A vì anh đổi cả bốn nhóm gần như mỗi lần xuất: A tốn một cú bấm cho mỗi lần đổi, B tốn hai. B rộng hơn 344 px nhưng thấp hơn 50 px, và trang Word chỉ rộng 820 px nên phần rộng thêm phần lớn là lề.
+
+Cùng khuôn với §Đường nhập — màn xem trước hợp nhất:
+
+| Vùng | Chứa | Hành vi |
+|---|---|---|
+| **Cột cấu hình** (trái, 344 px) | Phạm vi (điều khiển đoạn ba lựa chọn, danh sách Chương cao tối đa 5 hàng) · Định dạng (bốn thẻ) · Nội dung (bốn hộp kiểm một dòng) · Ảnh (điều khiển đoạn hai lựa chọn) · Ghi nguồn (công tắc) | Dài hơn khung thì tự cuộn riêng; tổ hợp dài nhất trên mockup (Nhiều Chương + theo link gốc có ảnh thiếu link + bật ghi nguồn) tràn 44 px |
+| **Cột xem trước** (phải) | Tiêu đề *Xem trước · Chương N* và tên tệp; trang kiểu Word hoặc khối chữ đơn cách theo định dạng | Dựng lại ngay khi đổi bất kỳ lựa chọn nào; cuộn riêng |
+| **Chân dính** | Dòng tóm tắt · *Ghi vào {thư mục}/{tên tệp}* · `Đổi thư mục…` · `Huỷ` · `Xuất N Chương ra {đuôi} ⌘↵` | Luôn hiện |
+
+**Bản xem trước thay cho câu mô tả.** Tuỳ chọn Nội dung, Ảnh và Ghi nguồn không còn câu mô tả bên dưới: bật Đánh số câu thì cột trái bản xem trước hiện `[n]`; bật Glossary thì phụ lục hiện ở đầu trang; bật ghi nguồn thì khối ghi nguồn hiện ở đầu trang; đánh dấu câu chưa xác nhận hiện đúng dòng sẽ ghi vào tệp. Cạnh mỗi tuỳ chọn chỉ còn số đếm của nó (*1 thuật ngữ*, *5 câu*). Ghi nguồn tắt thì ghi *mặc định tắt*; bật thì ghi *Người dịch: {tên} · Toàn cục*, chưa đặt tên thì ghi điều đó và chỗ đặt.
+
+**Định dạng là bốn thẻ một dòng:** tên · đuôi · nhãn. Nhãn là *nhập lại được* cho bảng hai cột và *chỉ để đăng* cho ba định dạng kia, nên FR121 được nói rõ ngay lúc chọn. Chỉ thẻ đang chọn mở thêm một câu mô tả. Bật Đánh số câu hoặc Đánh dấu câu chưa xác nhận thì nhãn bảng hai cột đổi thành *không nhập lại được* (màu `error`), và câu mô tả của thẻ nói vì sao và cách gỡ.
+
+**Lựa chọn không áp dụng thì làm mờ, không ẩn** (Ice 2026-11-16). Ô kiểm viền đứt, chữ mờ, giữ nguyên chỗ, và bên phải ghi lý do bằng vài chữ: *chỉ một khối, .txt* cho ngoặc cong, *chỉ bảng hai cột* cho đánh dấu câu chưa xác nhận. Ẩn làm danh sách co giãn khi đổi định dạng và làm tuỳ chọn biến mất mà không nói vì sao.
+
+**Mọi cảnh báo gom vào dòng tóm tắt của chân dính:** *N Chương · M câu*, rồi theo sau tuỳ trường hợp *K câu chưa xác nhận* (định dạng để đăng thêm *, tệp không phân biệt*), *L câu chưa dịch*, *không nhập lại được*, *P ảnh thiếu link*. Dòng này thay ba biến thể cảnh báo câu chưa xác nhận, hai dòng đếm và câu *tệp này không nhập lại được* của bản cũ. Cảnh báo vẫn nằm trước lúc xuất như FR121 đòi, và nằm ngay cạnh nút.
+
+**FR130 không gấp.** Chọn *Theo link gốc* thì danh sách ảnh thiếu link mở sẵn ngay dưới điều khiển đoạn, mỗi ảnh một dòng *{Chương}, ảnh thứ {n} ({alt})*. Không ảnh nào có link gốc thì lựa chọn *Theo link gốc* làm mờ theo luật trên, lý do *không ảnh nào có link gốc*.
+
+**Không thêm token, không dùng `primary` cho trạng thái chọn.** Điều khiển đoạn là `ui-seg` sẵn có, hộp kiểm và nút chọn là `ui-check`; thẻ định dạng đang chọn dùng viền `on-surface` như mục đang chọn của `ui-seg`. Nhãn *nhập lại được* / *chỉ để đăng* là chữ `on-surface-variant` trên `surface-sunken`; chỉ *không nhập lại được* mang `error`, vì nhập ngược tệp đó sẽ lệch cột. Trang kiểu Word dùng họ token xem trước `.docx` đã có (Decision 2026-10-07 của epic Cầu nối Reviewer).
+
+**Nhiều Chương:** bản xem trước dựng Chương đầu của phạm vi, tiêu đề ghi *(Chương đầu của phạm vi)*.
+
 ## Quy ước chữ Việt — FR159
 
 Người dịch có những quy ước về chính chữ Việt (*đảm bảo → bảo đảm*, *thập kỷ → thập niên*) không neo vào câu nguồn, nên Glossary không bắt được; Proofreader bắt được nhưng tốn token và không tất định. Quy ước chạy cục bộ, tất định, 0 lời gọi AI, và không đường nào đổi bản dịch khi người dùng chưa nhận (R10). Mockup: [`mockups/quy-uoc-chu-viet.html`](mockups/quy-uoc-chu-viet.html).
@@ -856,6 +884,7 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 | **Nhập từ URL + màn xem trước hợp nhất** — dán link, đối chiếu bảng mã, sửa ranh giới bóc, luật làm sạch, nhật ký domain; sáng và tối | [`mockups/web-import.html`](mockups/web-import.html) | KF-4 · FR122–FR128 · NFR19 |
 | **Màn xem trước nhập ở quy mô thật** — hiện trạng dựng lại, Phương án 1 (đã chọn) và 2, đo khoảng cuộn tới nút Nhập | [`mockups/import-preview-gon.html`](mockups/import-preview-gon.html) | FR122–FR128 · §Bố cục: cột cấu hình, cột văn bản, chân dính |
 | **Màn nhập** — khối chung một lần, tab Dán · Tệp · URL, tệp lẫn loại bị từ chối, đang kéo tệp vào, thêm vào Tác phẩm đã có; chỉ nền sáng | [`mockups/import-entry.html`](mockups/import-entry.html) | §Đường nhập — màn nhập · KF-1 · KF-4 |
+| **Xuất — bố cục gọn**: cột cấu hình, cột xem trước, chân dính; hiện trạng và hai phương án | [`mockups/export-gon.html`](mockups/export-gon.html) | §Màn Xuất · FR121 · FR130 · FR131 |
 | **Xuất — cách xuất ảnh và khối ghi nguồn**, kèm danh sách ảnh không có link gốc | [`mockups/export-images-attribution.html`](mockups/export-images-attribution.html) | FR130 · FR131 · FR128 |
 
 ### Bổ sung 2026-08-03 — bề mặt của Giai đoạn 1 và 2
