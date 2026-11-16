@@ -479,10 +479,8 @@ function onKeydown(event: KeyboardEvent): void {
                   {{ t(opt.labelKey) }}
                 </label>
               </div>
-              <p class="gq-hint">{{ t('glossary.queue.category_not_persisted_hint') }}</p>
 
               <div v-if="row.candidate.context_example !== null" class="gq-ctx">
-                <div class="gq-ctx-label">{{ t('glossary.queue.context_label') }}</div>
                 <!-- aura-allow-text: DỮ LIỆU (`context_example` của chính hàng). -->
                 <div class="gq-ctx-quote">{{ row.candidate.context_example }}</div>
                 <div
@@ -588,8 +586,7 @@ function onKeydown(event: KeyboardEvent): void {
                 "
                 class="gq-notrans"
               >
-                <b>{{ t('glossary.queue.no_translation_title') }}</b>
-                {{ t('glossary.queue.no_translation_body') }}
+                {{ t('glossary.queue.no_translation') }}
               </div>
             </div>
           </li>
@@ -618,10 +615,7 @@ function onKeydown(event: KeyboardEvent): void {
             <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">↓</kbd>{{ t('glossary.queue.next') }}
           </button>
         </div>
-        <p class="gq-hint gq-stop">{{ t('glossary.queue.stop_note') }}</p>
-        <p class="gq-hint gq-footer">
-          {{ t('glossary.queue.footer_rule') }} {{ t('glossary.queue.footer_origin') }}
-        </p>
+        <p class="gq-hint gq-footer">{{ t('glossary.queue.footer') }}</p>
       </template>
     </section>
   </div>
@@ -645,7 +639,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-panel {
   width: 100%;
-  max-width: 721px;
+  max-width: 1120px;
   max-height: 100%;
   overflow: auto;
   padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
@@ -689,8 +683,6 @@ function onKeydown(event: KeyboardEvent): void {
   padding: 0;
   display: flex;
   flex-direction: column;
-  max-height: 60vh;
-  overflow: auto;
   border: 1px solid var(--color-outline);
 }
 
@@ -774,8 +766,7 @@ function onKeydown(event: KeyboardEvent): void {
   margin-bottom: calc(var(--space-unit) * 1);
 }
 
-.gq-guess-label,
-.gq-ctx-label {
+.gq-guess-label {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -783,6 +774,9 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-ctx {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--space-unit) * 2);
   margin-bottom: calc(var(--space-unit) * 2);
   padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-outline-faint);
@@ -800,7 +794,12 @@ function onKeydown(event: KeyboardEvent): void {
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  margin-top: calc(var(--space-unit) * 1);
+}
+
+@media (max-width: 700px) {
+  .gq-ctx {
+    grid-template-columns: 1fr;
+  }
 }
 
 .gq-ref-text {
@@ -910,7 +909,6 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 
-.gq-stop,
 .gq-footer {
   margin: calc(var(--space-unit) * 2) 0 0 0;
 }
@@ -1035,9 +1033,13 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-actions {
+  position: sticky;
+  bottom: -13px; /* aura-allow-spacing: reaches past the panel's 13px bottom padding */
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-unit);
+  padding: var(--space-unit) 0;
+  background: var(--color-surface);
 }
 
 </style>

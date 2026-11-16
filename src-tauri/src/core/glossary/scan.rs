@@ -232,6 +232,11 @@ fn effective_threshold(term: &str, lang: MatchLang, threshold: u32, surnames: &[
     }
 }
 
+/// True when the term holds any numeric character, full-width digits included.
+pub fn has_numeric_char(term: &str) -> bool {
+    term.chars().any(char::is_numeric)
+}
+
 /// `(chuỗi, tổng tần suất, chỉ số segment xuất hiện ĐẦU TIÊN)` cho nhánh `Zh` — n-gram ký
 /// tự độ dài [`ZH_NGRAM_LENGTHS`], sinh RIÊNG cho từng segment (không nối `\n` — segment đã
 /// LÀ ranh giới câu, một n-gram không bao giờ được phép bắc cầu qua nó) rồi cộng dồn.
@@ -265,7 +270,7 @@ fn count_zh_candidates(
                 // chữ/số Latin lẫn trong đoạn (không phải một định nghĩa "là chữ Hán" thứ
                 // hai — kho chỉ cho phép đúng MỘT định nghĩa `is_han`,
                 // `core::dict::is_han`, và hàm này không đụng tới nó).
-                if !gram.chars().all(char::is_alphanumeric) {
+                if !gram.chars().all(char::is_alphanumeric) || has_numeric_char(&gram) {
                     continue;
                 }
                 *freq.entry(gram.clone()).or_insert(0) += 1;

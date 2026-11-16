@@ -870,3 +870,22 @@ fn a_real_library_root_value_without_surrounding_whitespace_passes_through_uncha
         Some("/tmp/thu-vien".to_owned())
     );
 }
+
+#[test]
+fn a_repeated_number_and_han_strings_holding_digits_produce_no_candidate() {
+    let segments: Vec<String> = (0..20)
+        .map(|i| format!("萧炎在20年第1章和２０出现{i}。"))
+        .collect();
+    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
+
+    let mut is_known = nothing_known;
+    let out = scan_candidates(&refs, MatchLang::Zh, 5, COMMON_SURNAMES, &mut is_known);
+
+    assert!(out.iter().any(|c| c.source_term == "萧炎"), "{out:?}");
+    let numeric: Vec<&str> = out
+        .iter()
+        .map(|c| c.source_term.as_str())
+        .filter(|t| t.chars().any(char::is_numeric))
+        .collect();
+    assert!(numeric.is_empty(), "ung vien chua chu so: {numeric:?}");
+}

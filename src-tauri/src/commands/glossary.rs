@@ -48,11 +48,11 @@ use crate::core::glossary::{
     GlossaryMark, GlossaryTier, HanVietSuggestion, ImportSummary, RowPlan, RowPlanKind,
     WorkContext, add_manual_term, approve_candidate, chapter_source_texts, chapter_span_counts_in,
     classify_import_rows, confirm_pending_translation, delete_manual_term, export_tier,
-    import_into_tier, list_all_entries, marks_for_source_text, match_lang_for_source_lang,
-    parse as parse_glossary_import, pending_candidates, promote_to_global, read_import_file,
-    reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch,
-    unconfirm_pending_translation, update_manual_term, variant_term_for_quick_add,
-    write_export_file,
+    has_numeric_char, import_into_tier, list_all_entries, marks_for_source_text,
+    match_lang_for_source_lang, parse as parse_glossary_import, pending_candidates,
+    promote_to_global, read_import_file, reject_candidate, resolve_term_for_quick_add,
+    suggest_han_viet_batch, unconfirm_pending_translation, update_manual_term,
+    variant_term_for_quick_add, write_export_file,
 };
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::matching::MatchLang;
@@ -416,13 +416,16 @@ pub fn read_pending_snapshot(open: Option<&OpenWork>) -> Result<Option<PendingSn
     let Some(open) = open else {
         return Ok(None);
     };
-    let rows = pending_candidates(&open.store)?;
+    let mut rows = pending_candidates(&open.store)?;
+    let lang = match_lang_for_source_lang(&open.meta.source_lang);
+    if lang == MatchLang::Zh {
+        rows.retain(|c| !has_numeric_char(&c.source_term));
+    }
     let chapters = if rows.is_empty() {
         Vec::new()
     } else {
         chapter_source_texts(&open.store)?
     };
-    let lang = match_lang_for_source_lang(&open.meta.source_lang);
     Ok(Some(PendingSnapshot {
         rows,
         chapters,

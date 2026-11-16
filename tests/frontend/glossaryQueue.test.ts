@@ -9,6 +9,7 @@
  * xoá mất (cùng khuôn `glossaryQuickAdd.test.ts`/`glossarySettings.test.ts`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { mount } from '@vue/test-utils'
 import type { GlossaryCandidate, GlossaryCategory, GlossaryLookupResult } from '../../src/config/glossary'
 import type { CommandDeps } from '../../src/commands'
@@ -694,6 +695,29 @@ describe('queueEmptyReasonFor — cụm D vá: "loading" có tên riêng, "all_r
     expect(wrapper.find('.gq-list').exists()).toBe(false)
     expect(wrapper.text()).toContain(i18n.t('glossary.queue.empty_all_reviewed'))
 
+    wrapper.unmount()
+  })
+
+  it('GlossaryQueueOverlay.vue — .gq-list không còn là vùng cuộn riêng, .gq-ctx là lưới hai cột chứa câu gốc', async () => {
+    const source = readFileSync('src/GlossaryQueueOverlay.vue', 'utf8')
+    const rule = (selector: string): string => {
+      const match = source.match(new RegExp(`^${selector.replace('.', '\\.')} \\{([^}]*)\\}`, 'm'))
+      return match === null ? '' : match[1]
+    }
+    expect(rule('.gq-list')).not.toBe('')
+    expect(rule('.gq-list')).not.toMatch(/overflow|max-height/)
+    expect(rule('.gq-ctx')).toMatch(/display:\s*grid/)
+    expect(rule('.gq-ctx')).toMatch(/grid-template-columns:\s*1fr 1fr/)
+    expect(rule('.gq-actions')).toMatch(/position:\s*sticky/)
+    expect(rule('.gq-actions')).toMatch(/bottom:\s*-13px/)
+    expect(source).toMatch(/@media \(max-width: 700px\) \{\s*\.gq-ctx \{\s*grid-template-columns: 1fr;/)
+
+    const { state, GlossaryQueueOverlay } = await freshOverlay()
+    pendingMock.mockResolvedValue({ candidates: [candidate({ id: 1, context_example: 'câu gốc' })], error: null })
+    await state.openGlossaryQueue()
+    const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.gq-ctx > .gq-ctx-quote').exists()).toBe(true)
     wrapper.unmount()
   })
 

@@ -267,6 +267,54 @@ fn glossary_pending_candidates_lists_the_pending_queue_of_the_real_open_work() {
     cleanup(&root);
 }
 
+fn pending_numeric_fixture(lang: &str, tag: &str) -> (usize, i64, Vec<String>) {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir(tag);
+    let opened = create_work_from_text(&root, tag, lang, "", "noi dung mau".to_owned())
+        .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+    let candidate = |term: &str| ScanCandidate {
+        source_term: term.to_owned(),
+        occurrence_count: 9,
+        context_example: format!("{term} xuat hien."),
+    };
+    insert_import_scan_candidates(
+        &opened.store,
+        &[
+            candidate("20"),
+            candidate("年1"),
+            candidate("F35"),
+            candidate("萧炎"),
+        ],
+    )
+    .expect("chen ung vien");
+    let rows =
+        glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke bang cho");
+    let stored: i64 = opened
+        .store
+        .read(|c| c.query_row("SELECT count(*) FROM glossary_candidate", [], |r| r.get(0)))
+        .expect("dem hang");
+    let terms = rows.iter().map(|r| r.source_term.clone()).collect();
+    drop(opened);
+    cleanup(&root);
+    (rows.len(), stored, terms)
+}
+
+#[test]
+fn zh_pending_queue_hides_numeric_rows_without_deleting_them() {
+    let (shown, stored, terms) = pending_numeric_fixture("zh", "pending-numeric-zh");
+    assert_eq!(stored, 4);
+    assert_eq!(shown, 1, "{terms:?}");
+    assert_eq!(terms, vec!["萧炎".to_owned()]);
+}
+
+#[test]
+fn en_pending_queue_keeps_rows_holding_digits() {
+    let (_, stored, terms) = pending_numeric_fixture("en", "pending-numeric-en");
+    assert_eq!(stored, 4);
+    assert!(terms.iter().any(|t| t == "F35"), "{terms:?}");
+}
+
 /// Two pending candidates, each occurring in a different set of real Chapters -- each row's
 /// `chapter_span_count` must belong to its OWN `source_term`, not to whichever row a
 /// position/order-based zip would have paired it with. Counter-check: replace the keyed

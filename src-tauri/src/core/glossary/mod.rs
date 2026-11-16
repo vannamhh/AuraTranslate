@@ -308,7 +308,7 @@ pub use exchange::{
 pub use exchange_io::{MAX_GLOSSARY_IMPORT_BYTES, read_import_file, write_export_file};
 pub use han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
 pub use scan::{
-    DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates_controlled,
+    DictionaryProbe, ScanCandidate, ScanOutcome, has_numeric_char, scan_candidates_controlled,
     terms_passing_threshold,
 };
 
