@@ -721,6 +721,22 @@ describe('queueEmptyReasonFor — cụm D vá: "loading" có tên riêng, "all_r
     wrapper.unmount()
   })
 
+  it('GlossaryQueueOverlay.vue — gợi ý Hán Việt của hàng đang mở đứng ngay sau thuật ngữ trên dòng tiêu đề', async () => {
+    const { state, GlossaryQueueOverlay } = await freshOverlay()
+    pendingMock.mockResolvedValue({
+      candidates: [candidate({ id: 1, source_term: '律戰', han_viet_status: 'ok', han_viet_suggestion: 'Luật Chiến' })],
+      error: null,
+    })
+    await state.openGlossaryQueue()
+    const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const term = wrapper.find('.gq-card .gq-row-label > .gq-term')
+    expect(term.element.nextElementSibling?.classList.contains('gq-suggestion')).toBe(true)
+    expect(term.element.nextElementSibling?.textContent).toBe('Luật Chiến')
+    expect(wrapper.find('.gq-card-body .gq-suggestion').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('🔴 #13 (vòng rà thứ hai) — GlossaryQueueOverlay.vue gọi queueEmptyReasonFor(...) ĐÚNG MỘT LẦN mỗi lượt render, không bốn', async () => {
     // Đối chứng gỡ-chỗ-nối: rải lại bốn lời gọi trực tiếp `queueEmptyReasonFor(queueStatus,
     // queueUnprocessedCount)` vào bốn nhánh `v-if`/`v-else-if` của template (bỏ `computed`

@@ -402,6 +402,8 @@ function onKeydown(event: KeyboardEvent): void {
               <!-- aura-allow-text: DỮ LIỆU (`source_term` của chính hàng). -->
               <span class="gq-term">{{ row.candidate.source_term }}</span>
               <template v-if="i === queueCursor && row.outcome === null">
+                <!-- aura-allow-text: DỮ LIỆU (`han_viet_suggestion` của chính hàng). -->
+                <span v-if="row.candidate.han_viet_status === 'ok'" class="gq-suggestion">{{ row.candidate.han_viet_suggestion }}</span>
                 <!-- aura-allow-text: KẾT QUẢ của `t()` cộng hai con số đếm. -->
                 <span class="gq-chapter-span">{{
                   t('glossary.queue.card_meta', {
@@ -460,11 +462,6 @@ function onKeydown(event: KeyboardEvent): void {
             </label>
 
             <div v-if="i === queueCursor && row.outcome === null" class="gq-card-body">
-              <div v-if="row.candidate.han_viet_status === 'ok'" class="gq-guess">
-                <span class="gq-guess-label">{{ t('glossary.queue.han_viet_label') }}</span>
-                <!-- aura-allow-text: DỮ LIỆU (`han_viet_suggestion` của chính hàng). -->
-                <span class="gq-suggestion">{{ row.candidate.han_viet_suggestion }}</span>
-              </div>
 
               <div class="gq-category">
                 <span class="gq-category-label">{{ t('glossary.queue.category_label') }}</span>
@@ -740,7 +737,8 @@ function onKeydown(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 2);
 }
 
-.gq-card .gq-term {
+.gq-card .gq-term,
+.gq-card .gq-suggestion {
   font-family: var(--family-read);
   font-size: var(--font-read-title);
   line-height: var(--leading-read-title);
@@ -757,20 +755,6 @@ function onKeydown(event: KeyboardEvent): void {
 .gq-card-body {
   margin-top: calc(var(--space-unit) * 2);
   cursor: default;
-}
-
-.gq-guess {
-  display: flex;
-  align-items: baseline;
-  gap: calc(var(--space-unit) * 1);
-  margin-bottom: calc(var(--space-unit) * 1);
-}
-
-.gq-guess-label {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
 .gq-ctx {
