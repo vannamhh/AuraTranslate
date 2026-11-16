@@ -86,8 +86,9 @@ describe('format choice', () => {
     await state.openExport()
     await settle(wrapper)
 
-    expect(wrapper.get('.ex-format').text()).toContain('Bảng hai cột (.docx)')
-    expect(wrapper.get('[data-export-reimportable]').text()).toContain('nhập lại được')
+    expect(wrapper.get('.ex-formats').text()).toContain('Bảng hai cột')
+    expect(wrapper.get('[data-export-format-tag="docx_two_column"]').text()).toBe('nhập lại được')
+    expect(wrapper.get('[data-export-reimportable]').text()).toContain('nhập ngược')
     wrapper.unmount()
   })
 })
@@ -133,6 +134,22 @@ describe('running the export', () => {
     await state.runExport()
     expect(docxMock).not.toHaveBeenCalled()
     expect(state.exportRunStatus.value).toBe('idle')
+  })
+
+  it('still shows a folder-picker error after a finished export', async () => {
+    const { state, commands, Overlay } = await fresh()
+    docxMock.mockResolvedValue({ file: { path: '/tmp/out/a.docx', chapter_count: 1, segment_count: 1, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await state.openExport()
+    await state.chooseExportFolder()
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
+    folderMock.mockResolvedValue({ outcome: 'error', error: ipcError('export.folder_invalid') })
+    await state.chooseExportFolder()
+    await settle(wrapper)
+    expect(state.exportRunStatus.value).toBe('done')
+    expect(wrapper.find('.ex-foot-info [role="alert"]').exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it('shows a Rust failure as an error and leaves no result', async () => {

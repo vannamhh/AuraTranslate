@@ -74,7 +74,7 @@ describe('attribution toggle', () => {
 
     const box = wrapper.get('[data-export-attribution-toggle]').element as HTMLInputElement
     expect(box.checked).toBe(false)
-    expect(wrapper.get('[data-export-attribution-default]').text()).toContain('Mặc định tắt')
+    expect(wrapper.get('[data-export-attribution-default]').text()).toContain('mặc định tắt')
     expect(wrapper.find('[data-export-translator]').exists()).toBe(false)
     wrapper.unmount()
   })

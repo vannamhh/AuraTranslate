@@ -173,20 +173,33 @@ describe('content options', () => {
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
     await settle(wrapper)
-    expect(wrapper.find('[data-export-content] [data-export-not-reimportable]').exists()).toBe(false)
+    const shown = () => wrapper.find('[data-export-format-card="docx_two_column"] [data-export-not-reimportable][role="status"]').exists()
+    const inSummary = () => wrapper.find('[data-export-counts] [data-export-summary-not-reimportable]').exists()
+    const tag = () => wrapper.get('[data-export-format-tag="docx_two_column"]').text()
+    expect(shown()).toBe(false)
+    expect(inSummary()).toBe(false)
+    expect(tag()).toBe('nhập lại được')
     state.setExportGlossaryAppendix(true)
     await settle(wrapper)
-    expect(wrapper.find('[data-export-content] [data-export-not-reimportable]').exists()).toBe(false)
+    expect(shown()).toBe(false)
     state.setExportNumberSegments(true)
     await settle(wrapper)
-    expect(wrapper.find('[data-export-content] [data-export-not-reimportable]').exists()).toBe(true)
+    expect(shown()).toBe(true)
+    expect(inSummary()).toBe(true)
+    expect(tag()).toBe('không nhập lại được')
+    state.setExportFormat('markdown')
+    await settle(wrapper)
+    expect(inSummary()).toBe(false)
+    state.setExportFormat('docx_two_column')
     state.setExportNumberSegments(false)
     state.setExportMarkUnconfirmed(true)
     await settle(wrapper)
-    expect(wrapper.find('[data-export-content] [data-export-not-reimportable]').exists()).toBe(true)
+    expect(shown()).toBe(true)
+    expect(inSummary()).toBe(true)
     state.setExportMarkUnconfirmed(false)
     await settle(wrapper)
-    expect(wrapper.find('[data-export-content] [data-export-not-reimportable]').exists()).toBe(false)
+    expect(shown()).toBe(false)
+    expect(inSummary()).toBe(false)
     wrapper.unmount()
   })
 
@@ -329,26 +342,82 @@ describe('preview', () => {
 })
 
 describe('attribution fields', () => {
-  it('lists the four fields of the first Chapter, empty ones as "không có"', async () => {
+  it('names the empty fields of the first Chapter beside the switch, and nothing when it is off', async () => {
     const { state, Overlay } = await fresh()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
     state.setExportAttribution(true)
     await settle(wrapper)
-    expect(wrapper.get('[data-export-attribution-field="author"]').text()).toBe('Tác giả A')
-    expect(wrapper.get('[data-export-attribution-field="site"]').text()).toBe('không có')
-    expect(wrapper.get('[data-export-attribution-field="url"]').text()).toBe('https://example.test/1')
-    expect(wrapper.get('[data-export-attribution-field="published"]').text()).toBe('không có')
+    expect(wrapper.get('[data-export-attribution-missing]').text()).toBe('thiếu: Báo / website, Ngày đăng gốc')
+    expect(wrapper.find('[data-export-attribution-default]').exists()).toBe(false)
     expect(wrapper.find('[data-export-translator]').exists()).toBe(true)
     wrapper.unmount()
   })
 
-  it('hides the fields while the switch is off', async () => {
+  it('shows no missing-field line while the switch is off', async () => {
     const { state, Overlay } = await fresh()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await state.openExport()
     await settle(wrapper)
+    expect(wrapper.find('[data-export-attribution-missing]').exists()).toBe(false)
     expect(wrapper.find('[data-export-attribution-fields]').exists()).toBe(false)
+    expect(wrapper.get('[data-export-attribution-default]').text()).toBe('mặc định tắt')
+    wrapper.unmount()
+  })
+})
+
+describe('attribution with every field filled', () => {
+  it('has no missing-field line', async () => {
+    const { state, Overlay } = await fresh()
+    listMock.mockResolvedValue({
+      chapters: [chapter({ origin_site_name: 'Báo', origin_published_at: '2026-01-01' })],
+      error: null,
+    })
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await state.openExport()
+    state.setExportAttribution(true)
+    await settle(wrapper)
+    expect(wrapper.find('[data-export-attribution-missing]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('preview heading', () => {
+  it('marks the first Chapter of a multi-Chapter scope and not a single Chapter', async () => {
+    const { state, Overlay } = await fresh()
+    listMock.mockResolvedValue({ chapters: [chapter(), chapter({ chapter_id: 2, ord: 2, title: 'Hai' })], error: null })
+    summaryMock.mockResolvedValue({
+      counts: {
+        chapter_count: 2,
+        segment_count: 9,
+        unconfirmed_count: 0,
+        unconfirmed_translated_count: 0,
+        untranslated_count: 0,
+        image_count: 0,
+        missing_link_images: [],
+      },
+      error: null,
+    })
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await state.openExport()
+    await settle(wrapper)
+    expect(wrapper.get('[data-export-preview-chapter]').text()).toBe('Xem trước · Mở đầu (Chương đầu của phạm vi)')
+
+    summaryMock.mockResolvedValue({
+      counts: {
+        chapter_count: 1,
+        segment_count: 5,
+        unconfirmed_count: 0,
+        unconfirmed_translated_count: 0,
+        untranslated_count: 0,
+        image_count: 0,
+        missing_link_images: [],
+      },
+      error: null,
+    })
+    await state.setExportScopeKind('chapter')
+    await settle(wrapper)
+    expect(wrapper.get('[data-export-preview-chapter]').text()).toBe('Xem trước · Mở đầu')
     wrapper.unmount()
   })
 })

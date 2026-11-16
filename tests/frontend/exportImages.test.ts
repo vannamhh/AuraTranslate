@@ -105,7 +105,7 @@ describe('image mode choice', () => {
     expect(radio(wrapper, 'link').attributes('type')).toBe('radio')
     expect((radio(wrapper, 'file').element as HTMLInputElement).checked).toBe(true)
     expect((radio(wrapper, 'link').element as HTMLInputElement).checked).toBe(false)
-    expect(wrapper.get('[data-export-image-count]').text()).toBe('3 ảnh trong phạm vi')
+    expect(wrapper.get('[data-export-image-count]').text()).toBe('3 ảnh')
     wrapper.unmount()
   })
 
@@ -160,11 +160,14 @@ describe('images without a source URL', () => {
     await state.openExport()
     await settle(wrapper)
     expect(wrapper.find('[data-export-missing-links]').exists()).toBe(false)
+    expect(wrapper.find('[data-export-summary-missing-links]').exists()).toBe(false)
 
     await radio(wrapper, 'link').setValue(true)
     const items = wrapper.get('[data-export-missing-links]').findAll('li').map((li) => li.text())
     expect(items).toEqual(['Chương 1, ảnh thứ 2 (Bản đồ)', 'Chương 2, ảnh thứ 1'])
     expect(wrapper.get('[data-export-missing-heading]').text()).toContain('2 ảnh thiếu link gốc')
+    expect(wrapper.get('[data-export-summary-missing-links]').text()).toContain('2 ảnh thiếu link')
+    expect(wrapper.get('[data-export-counts]').element.contains(wrapper.get('[data-export-summary-missing-links]').element)).toBe(true)
     wrapper.unmount()
   })
 
@@ -192,7 +195,7 @@ describe('images without a source URL', () => {
     await settle(wrapper)
 
     expect(radio(wrapper, 'link').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[data-export-link-disabled]').text()).toContain('không ảnh nào trong phạm vi có link gốc')
+    expect(wrapper.get('[data-export-link-disabled]').text()).toContain('không ảnh nào có link gốc')
     expect(state.exportImageMode.value).toBe('file')
     expect((radio(wrapper, 'file').element as HTMLInputElement).checked).toBe(true)
     wrapper.unmount()
@@ -205,7 +208,7 @@ describe('images without a source URL', () => {
     await state.openExport()
     await settle(wrapper)
 
-    expect(wrapper.get('[data-export-image-count]').text()).toBe('0 ảnh trong phạm vi')
+    expect(wrapper.get('[data-export-image-count]').text()).toBe('0 ảnh')
     expect(radio(wrapper, 'link').attributes('disabled')).toBeDefined()
     wrapper.unmount()
   })

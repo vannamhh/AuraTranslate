@@ -76,6 +76,27 @@ describe('Story 12-17 -- export content options', () => {
     await realClick(await $(EXPORT_OPEN))
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })
     await $('[data-export-content]').waitForDisplayed({ timeout: 10_000 })
+    const frame = await browser.execute(() => {
+      const rect = (sel) => document.querySelector(sel)?.getBoundingClientRect() ?? null
+      const panel = document.querySelector('.ex-panel')
+      const preview = rect('[data-export-preview-chapter], #ex-preview-title')
+      const run = rect('[data-export-run]')
+      return {
+        height: window.innerHeight,
+        panelScrolls: panel === null ? null : panel.scrollHeight > panel.clientHeight,
+        previewTop: preview?.top ?? null,
+        runBottom: run?.bottom ?? null,
+        segOverflow: Array.from(document.querySelectorAll('.ex-panel .ex-seg'))
+          .filter((el) => el.scrollWidth > el.clientWidth)
+          .map((el) => `${el.textContent.replace(/\s+/g, ' ').trim()}: ${el.scrollWidth} > ${el.clientWidth}`),
+      }
+    })
+    expect(frame.panelScrolls).toBe(false)
+    expect(frame.previewTop).not.toBeNull()
+    expect(frame.previewTop).toBeLessThan(frame.height)
+    expect(frame.runBottom).not.toBeNull()
+    expect(frame.runBottom).toBeLessThanOrEqual(frame.height)
+    expect(frame.segOverflow).toEqual([])
     expect(await checked('[data-export-number-toggle]')).toBe(false)
     expect(await checked('[data-export-appendix-toggle]')).toBe(false)
     expect(await checked('[data-export-mark-toggle]')).toBe(false)

@@ -110,7 +110,7 @@ describe('scope choice and counts', () => {
     expect(lastScope()).toEqual({ kind: 'work' })
     const text = wrapper.get('[data-export-counts]').text()
     expect(text).toContain('3 Chương')
-    expect(text).toContain('12 câu sẽ được xuất')
+    expect(text).toContain('12 câu')
     wrapper.unmount()
   })
 
@@ -179,7 +179,9 @@ describe('unconfirmed-segment warning', () => {
 
     const warning = wrapper.get('[data-export-unconfirmed]')
     expect(warning.text()).toContain('7 câu chưa xác nhận')
-    expect(warning.attributes('role')).toBe('alert')
+    expect(wrapper.get('[data-export-counts]').attributes('role')).toBe('status')
+    expect(wrapper.get('[data-export-counts]').element.contains(warning.element)).toBe(true)
+    expect(wrapper.get('[data-export-counts]').text()).toContain('3 Chương · 12 câu · 7 câu chưa xác nhận')
     wrapper.unmount()
   })
 

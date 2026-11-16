@@ -110,8 +110,8 @@ describe('format choice', () => {
 
     const radios = wrapper.findAll('input[name="export-format"]')
     expect(radios).toHaveLength(4)
-    expect(radios[2].element.closest('label')?.textContent).toContain('Markdown (.md)')
-    expect(radios[3].element.closest('label')?.textContent).toContain('Text thuần (.txt)')
+    expect(radios[2].element.closest('label')?.textContent).toContain('Markdown')
+    expect(radios[3].element.closest('label')?.textContent).toContain('Text thuần')
     wrapper.unmount()
   })
 
@@ -123,12 +123,13 @@ describe('format choice', () => {
 
     await wrapper.findAll('input[name="export-format"]')[2].setValue(true)
     await settle(wrapper)
-    expect(wrapper.find('[data-export-not-reimportable]').exists()).toBe(false)
     expect(wrapper.find('[data-export-reimportable]').exists()).toBe(false)
+    expect(wrapper.get('[data-export-format-tag="markdown"]').text()).toBe('chỉ để đăng')
 
     await wrapper.findAll('input[name="export-format"]')[3].setValue(true)
     await settle(wrapper)
-    expect(wrapper.get('[data-export-not-reimportable]').text()).toContain('không nhập lại được')
+    expect(wrapper.get('[data-export-format-tag="plain_text"]').text()).toBe('chỉ để đăng')
+    expect(wrapper.get('[data-export-format-card="plain_text"]').find('[data-export-card-desc]').exists()).toBe(true)
     wrapper.unmount()
   })
 })
