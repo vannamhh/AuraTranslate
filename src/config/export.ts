@@ -1,7 +1,3 @@
-/**
- * IPC adapter of the export screen: scope counts, the destination-folder dialog and the file write.
- * Never throws; `{ value: null, error: null }` means the IPC bridge is unavailable.
- */
 import { invoke } from '@tauri-apps/api/core'
 import type { IpcError } from '../i18n'
 
@@ -67,14 +63,14 @@ export type ExportedFile = {
 
 export type ExportRunResult = { file: ExportedFile | null; error: IpcError | null }
 
-export type ExportFolderResult =
+export type ExportDestinationResult =
   | { outcome: 'picked'; path: string }
   | { outcome: 'cancelled' }
   | { outcome: 'ipc_unavailable' }
   | { outcome: 'error'; error: IpcError }
 
 const CMD_EXPORT_SCOPE_SUMMARY = 'export_scope_summary'
-const CMD_EXPORT_CHOOSE_FOLDER = 'export_choose_folder'
+const CMD_EXPORT_CHOOSE_FILE = 'export_choose_file'
 const CMD_EXPORT_DOCX_TWO_COLUMN = 'export_docx_two_column'
 const CMD_EXPORT_DOCX_ONE_BLOCK = 'export_docx_one_block'
 const CMD_EXPORT_TEXT = 'export_text'
@@ -154,17 +150,17 @@ export async function exportScopeSummary(scope: ExportScope): Promise<ExportScop
   }
 }
 
-export async function exportChooseFolder(): Promise<ExportFolderResult> {
+export async function exportChooseFile(scope: ExportScope, format: ExportPreviewFormat): Promise<ExportDestinationResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_CHOOSE_FOLDER)
+    const raw = await invoke<unknown>(CMD_EXPORT_CHOOSE_FILE, { scope, format })
     if (raw === null) return { outcome: 'cancelled' }
-    if (typeof raw !== 'string') {
-      console.error(`[export] \`${CMD_EXPORT_CHOOSE_FOLDER}\` returned a non-string path: ${String(raw)}`)
+    if (typeof raw !== 'string' || raw.length === 0) {
+      console.error(`[export] \`${CMD_EXPORT_CHOOSE_FILE}\` returned a non-string path: ${String(raw)}`)
       return { outcome: 'error', error: UNKNOWN_IPC_ERROR }
     }
     return { outcome: 'picked', path: raw }
   } catch (err) {
-    const error = failureOf(err, CMD_EXPORT_CHOOSE_FOLDER)
+    const error = failureOf(err, CMD_EXPORT_CHOOSE_FILE)
     return error === null ? { outcome: 'ipc_unavailable' } : { outcome: 'error', error }
   }
 }
@@ -185,12 +181,12 @@ function isExportedFile(value: unknown): value is ExportedFile {
 export async function exportDocxTwoColumn(
   scope: ExportScope,
   imageMode: ExportImageMode,
-  folder: string,
+  destination: string,
   attribution: boolean,
   options: ExportOptions,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_TWO_COLUMN, { scope, imageMode, options, folder, attribution })
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_TWO_COLUMN, { scope, imageMode, options, destination, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_DOCX_TWO_COLUMN}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }
@@ -204,12 +200,12 @@ export async function exportDocxTwoColumn(
 export async function exportDocxOneBlock(
   scope: ExportScope,
   imageMode: ExportImageMode,
-  folder: string,
+  destination: string,
   attribution: boolean,
   options: ExportOptions,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_ONE_BLOCK, { scope, imageMode, options, folder, attribution })
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_ONE_BLOCK, { scope, imageMode, options, destination, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_DOCX_ONE_BLOCK}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }
@@ -224,12 +220,12 @@ export async function exportText(
   scope: ExportScope,
   imageMode: ExportImageMode,
   format: ExportTextFormat,
-  folder: string,
+  destination: string,
   attribution: boolean,
   options: ExportOptions,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_TEXT, { scope, imageMode, format, options, folder, attribution })
+    const raw = await invoke<unknown>(CMD_EXPORT_TEXT, { scope, imageMode, format, options, destination, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_TEXT}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }

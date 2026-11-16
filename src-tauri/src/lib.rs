@@ -1233,7 +1233,7 @@ pub fn run() {
             // thanh cong, dung khuon `open_adjacent_chapter`.
             crate::commands::chapter::wire::list_chapters,
             crate::commands::export::wire::export_scope_summary,
-            crate::commands::export::wire::export_choose_folder,
+            crate::commands::export::wire::export_choose_file,
             crate::commands::export::wire::export_docx_two_column,
             crate::commands::export::wire::export_docx_one_block,
             crate::commands::export::wire::export_text,

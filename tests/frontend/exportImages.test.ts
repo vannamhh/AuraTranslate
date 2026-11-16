@@ -22,7 +22,7 @@ vi.mock('../../src/config/chapter', () => ({
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
   exportPreview: () => Promise.resolve({ preview: null, error: null }),
-  exportChooseFolder: (...args: unknown[]) => folderMock(...args),
+  exportChooseFile: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: (...args: unknown[]) => docxMock(...args),
 }))
 

@@ -19,7 +19,7 @@ vi.mock('../../src/config/chapter', () => ({ listChapters: (...a: unknown[]) => 
 vi.mock('../../src/config/attribution', () => ({ translatorNameGet: (...a: unknown[]) => nameMock(...a) }))
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...a: unknown[]) => summaryMock(...a),
-  exportChooseFolder: (...a: unknown[]) => folderMock(...a),
+  exportChooseFile: (...a: unknown[]) => folderMock(...a),
   exportDocxTwoColumn: (...a: unknown[]) => twoColumnMock(...a),
   exportDocxOneBlock: () => Promise.resolve({ file: null, error: null }),
   exportText: (...a: unknown[]) => textMock(...a),

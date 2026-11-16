@@ -129,7 +129,7 @@ impl Fixture {
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join("Tac Pham-hai-cot.docx"),
         )
         .expect("xuat that bai");
         PathBuf::from(file.path)
@@ -344,13 +344,13 @@ fn a_chapter_whose_segments_are_all_omitted_writes_its_heading_and_no_table() {
 }
 
 #[test]
-fn exporting_twice_never_overwrites_the_first_file() {
+fn exporting_twice_replaces_the_selected_file() {
     let f = fixture("twice", None, vec![seg("a", "b")]);
     let first = f.export(&ExportScope::Work);
     let before = fs::read(&first).expect("doc lan mot");
     let second = f.export(&ExportScope::Work);
 
-    assert_ne!(first, second);
+    assert_eq!(first, second);
     assert_eq!(fs::read(&first).expect("doc lai lan mot"), before);
     assert!(second.exists());
     f.finish();
@@ -376,7 +376,7 @@ fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &missing,
+        &missing.join("file.docx"),
     )
     .expect_err("thu muc la phai la loi");
     assert_eq!(err.code(), "export.folder_invalid");
@@ -395,7 +395,7 @@ fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect_err("pham vi rong");
     assert_eq!(empty.code(), "export.scope_empty");
@@ -407,7 +407,7 @@ fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect_err("Chuong la");
     assert_eq!(unknown.code(), "segment.chapter_not_found");
@@ -417,7 +417,7 @@ fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect_err("chua mo Tac pham");
     assert_eq!(none.code(), "work.none_open");
@@ -440,7 +440,7 @@ fn the_returned_counts_match_the_rows_written() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect("xuat");
     assert_eq!((file.chapter_count, file.segment_count), (1, 2));
@@ -481,7 +481,7 @@ fn export_with(f: &Fixture, mode: ImageMode) -> auratranslate_lib::commands::exp
         mode,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect("xuat that bai")
 }
@@ -602,7 +602,7 @@ fn file_mode_with_a_missing_image_file_is_a_named_error_and_leaves_nothing_behin
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect_err("thieu tep anh phai la loi");
     assert_eq!(err.code(), "export.image_file_missing");
@@ -612,7 +612,7 @@ fn file_mode_with_a_missing_image_file_is_a_named_error_and_leaves_nothing_behin
 }
 
 #[test]
-fn an_existing_image_folder_pushes_both_names_to_the_next_free_stem_and_is_never_touched() {
+fn an_existing_image_folder_allocates_only_a_new_sidecar() {
     let f = fixture("img-clash", None, three());
     insert_asset(&f.open, f.first, "a.jpg", None, 1);
     put_asset_file(&f.open, "a.jpg", b"AAA");
@@ -622,13 +622,13 @@ fn an_existing_image_folder_pushes_both_names_to_the_next_free_stem_and_is_never
     let file = export_with(&f, ImageMode::File);
 
     assert!(
-        file.path.ends_with("Tac Pham-hai-cot (2).docx"),
+        file.path.ends_with("Tac Pham-hai-cot.docx"),
         "{}",
         file.path
     );
     assert!(f.out.join("Tac Pham-hai-cot (2)-anh").is_dir());
     assert_eq!(fs::read_dir(&taken).map(Iterator::count).unwrap_or(0), 1);
-    assert!(!f.out.join("Tac Pham-hai-cot.docx").exists());
+    assert!(f.out.join("Tac Pham-hai-cot.docx").exists());
     f.finish();
 }
 
@@ -674,5 +674,151 @@ fn file_mode_without_any_image_creates_no_image_folder() {
     let file = export_with(&f, ImageMode::File);
     assert_eq!((file.image_count, file.images_dir), (0, None));
     assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 1);
+    f.finish();
+}
+
+#[test]
+fn save_as_replaces_the_exact_custom_destination_without_numbering() {
+    let f = fixture("save-as", None, three());
+    let destination = f.out.join("custom name.docx");
+    fs::write(&destination, b"old").expect("old file");
+    let file = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        &ExportContent::default(),
+        None,
+        &destination,
+    )
+    .expect("save as");
+    assert_eq!(Path::new(&file.path), destination);
+    assert!(parsed(&destination).text.contains("t0"));
+    assert_eq!(fs::read_dir(&f.out).expect("output").count(), 1);
+    f.finish();
+}
+
+#[test]
+fn publishing_formats_replace_custom_destinations_and_report_the_selected_paths() {
+    use auratranslate_lib::commands::export::{export_docx_one_block, export_text};
+    use auratranslate_lib::core::export::TextFormat;
+
+    let f = fixture("publishing-save-as", None, three());
+    for (name, format) in [
+        ("my chapter.docx", None),
+        ("my chapter.md", Some(TextFormat::Markdown)),
+        ("my chapter.txt", Some(TextFormat::Plain)),
+    ] {
+        let destination = f.out.join(name);
+        fs::write(&destination, b"old").expect("old file");
+        let result = match format {
+            None => export_docx_one_block(
+                Some(&f.open),
+                &ExportScope::Work,
+                ImageMode::File,
+                &ExportContent::default(),
+                None,
+                &destination,
+            ),
+            Some(format) => export_text(
+                Some(&f.open),
+                &ExportScope::Work,
+                ImageMode::File,
+                format,
+                &ExportContent::default(),
+                None,
+                &destination,
+            ),
+        }
+        .expect("save as");
+        assert_eq!(Path::new(&result.path), destination);
+        let text = if format.is_none() {
+            parsed(&destination).text
+        } else {
+            fs::read_to_string(&destination).expect("text file")
+        };
+        assert!(text.contains("t0"), "{name}: {text}");
+    }
+    assert_eq!(fs::read_dir(&f.out).expect("output").count(), 3);
+    f.finish();
+}
+
+#[test]
+fn save_as_missing_image_preserves_the_old_main_file_and_sidecars() {
+    let f = fixture("save-as-missing", None, three());
+    insert_asset(&f.open, f.first, "missing.jpg", None, 1);
+    let destination = f.out.join("chosen.docx");
+    fs::write(&destination, b"old").expect("old file");
+    let sidecar = f.out.join("chosen-anh");
+    fs::create_dir(&sidecar).expect("old sidecar");
+    fs::write(sidecar.join("keep"), b"keep").expect("old image");
+    let error = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        &ExportContent::default(),
+        None,
+        &destination,
+    )
+    .expect_err("missing image");
+    assert_eq!(error.code(), "export.image_file_missing");
+    assert_eq!(fs::read(&destination).expect("old file retained"), b"old");
+    assert_eq!(
+        fs::read(sidecar.join("keep")).expect("old image retained"),
+        b"keep"
+    );
+    assert_eq!(fs::read_dir(&f.out).expect("output").count(), 2);
+    f.finish();
+}
+
+#[test]
+fn save_as_custom_image_sidecars_match_the_written_references() {
+    let f = fixture("save-as-image", None, three());
+    insert_asset(&f.open, f.first, "a.jpg", None, 1);
+    put_asset_file(&f.open, "a.jpg", b"AAA");
+    let destination = f.out.join("chosen.docx");
+    fs::write(&destination, b"old").expect("old file");
+    let old_sidecar = f.out.join("chosen-anh");
+    fs::create_dir(&old_sidecar).expect("old sidecar");
+    fs::write(old_sidecar.join("keep"), b"keep").expect("old image");
+    let file = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        &ExportContent::default(),
+        None,
+        &destination,
+    )
+    .expect("save as");
+    assert_eq!(Path::new(&file.path), destination);
+    let sidecar = PathBuf::from(file.images_dir.expect("new sidecar"));
+    assert_eq!(sidecar, f.out.join("chosen (2)-anh"));
+    assert_eq!(fs::read_dir(&sidecar).expect("images").count(), 1);
+    assert!(parsed(&destination).text.contains("chosen (2)-anh/"));
+    assert_eq!(
+        fs::read(old_sidecar.join("keep")).expect("old image retained"),
+        b"keep"
+    );
+    f.finish();
+}
+
+#[test]
+fn a_failed_atomic_replace_removes_only_the_new_image_sidecar() {
+    use auratranslate_lib::core::export::replace_file_with_images;
+    let f = fixture("save-as-failure", None, three());
+    let destination = f.out.join("chosen.docx");
+    fs::create_dir(&destination).expect("directory target");
+    let old_sidecar = f.out.join("chosen-anh");
+    fs::create_dir(&old_sidecar).expect("old sidecar");
+    fs::write(old_sidecar.join("keep"), b"keep").expect("old image");
+    let result = replace_file_with_images(&destination, &f.open.dir.join("assets"), &[], |_| {
+        Ok(b"new".to_vec())
+    });
+    assert!(result.is_err());
+    assert!(destination.is_dir());
+    assert_eq!(
+        fs::read(old_sidecar.join("keep")).expect("old image retained"),
+        b"keep"
+    );
+    assert_eq!(fs::read_dir(&f.out).expect("output").count(), 2);
     f.finish();
 }

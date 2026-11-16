@@ -6,7 +6,7 @@ import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
   exportChapters,
-  exportChoosingFolder,
+  exportChoosingDestination,
   exportCounts,
   exportCountsError,
   exportAttribution,
@@ -23,8 +23,8 @@ import {
   exportPreviewData,
   exportPreviewError,
   exportPreviewLoading,
-  exportFolderError,
-  exportFolderUnavailable,
+  exportDestinationError,
+  exportDestinationUnavailable,
   exportFormat,
   exportFormatIsForPublishing,
   exportImageMode,
@@ -69,7 +69,7 @@ const scopeChoices: readonly { kind: ExportScopeKind; labelKey: string }[] = [
 const listVisible = computed(() => exportScopeKind.value !== 'work')
 
 const canRun = computed(
-  () => exportCountsStatus.value === 'loaded' && exportRunStatus.value !== 'running' && !exportChoosingFolder.value,
+  () => exportCountsStatus.value === 'loaded' && exportRunStatus.value !== 'running' && !exportChoosingDestination.value,
 )
 
 function chapterLabel(row: ChapterRow): string {
@@ -564,11 +564,11 @@ function trapTab(event: KeyboardEvent): void {
               </span>
             </p>
 
-            <p v-if="exportFolderError !== null" class="ex-status ex-error" role="alert">
+            <p v-if="exportDestinationError !== null" class="ex-status ex-error" role="alert">
               <!-- aura-allow-text: result of tError() on the IPC error. -->
-              {{ tError(exportFolderError) }}
+              {{ tError(exportDestinationError) }}
             </p>
-            <p v-else-if="exportFolderUnavailable" class="ex-status" role="status">{{ t('export.folder.unavailable') }}</p>
+            <p v-else-if="exportDestinationUnavailable" class="ex-status" role="status">{{ t('export.destination.unavailable') }}</p>
             <p v-else-if="exportRunStatus === 'running'" class="ex-status" role="status">{{ t('export.run.running') }}</p>
             <p v-else-if="exportRunStatus === 'ipc_unavailable'" class="ex-status" role="status">
               {{ t('export.run.ipc_unavailable') }}

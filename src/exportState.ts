@@ -9,7 +9,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { listChapters } from './config/chapter'
 import type { ChapterRow } from './config/chapter'
 import {
-  exportChooseFolder,
+  exportChooseFile,
   exportDocxOneBlock,
   exportDocxTwoColumn,
   exportPreview,
@@ -49,9 +49,9 @@ const selectedChapterIds = ref<number[]>([])
 const counts = ref<ExportScopeCounts | null>(null)
 const countsStatus = ref<ExportCountsStatus>('unknown')
 const countsError = ref<IpcError | null>(null)
-const folderError = ref<IpcError | null>(null)
-const folderUnavailable = ref(false)
-const choosingFolder = ref(false)
+const destinationError = ref<IpcError | null>(null)
+const destinationUnavailable = ref(false)
+const choosingDestination = ref(false)
 const format = ref<ExportFormat>('docx_two_column')
 const imageMode = ref<ExportImageMode>('file')
 const attribution = ref(false)
@@ -69,6 +69,8 @@ const runStatus = ref<ExportRunStatus>('idle')
 const runResult = ref<ExportedFile | null>(null)
 const runError = ref<IpcError | null>(null)
 let sequence = 0
+let runSequence = 0
+let pickerSequence = 0
 let scopeToRestoreOnClose: { kind: ExportScopeKind; chapterId: number | null } | null = null
 
 export const exportOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
@@ -81,9 +83,9 @@ export const exportSelectedChapterIds: DeepReadonly<Ref<number[]>> = readonly(se
 export const exportCounts: DeepReadonly<Ref<ExportScopeCounts | null>> = readonly(counts)
 export const exportCountsStatus: DeepReadonly<Ref<ExportCountsStatus>> = readonly(countsStatus)
 export const exportCountsError: DeepReadonly<Ref<IpcError | null>> = readonly(countsError)
-export const exportFolderError: DeepReadonly<Ref<IpcError | null>> = readonly(folderError)
-export const exportFolderUnavailable: DeepReadonly<Ref<boolean>> = readonly(folderUnavailable)
-export const exportChoosingFolder: DeepReadonly<Ref<boolean>> = readonly(choosingFolder)
+export const exportDestinationError: DeepReadonly<Ref<IpcError | null>> = readonly(destinationError)
+export const exportDestinationUnavailable: DeepReadonly<Ref<boolean>> = readonly(destinationUnavailable)
+export const exportChoosingDestination: DeepReadonly<Ref<boolean>> = readonly(choosingDestination)
 export const exportFormat: DeepReadonly<Ref<ExportFormat>> = readonly(format)
 export const exportImageMode: DeepReadonly<Ref<ExportImageMode>> = readonly(imageMode)
 export const exportAttribution: DeepReadonly<Ref<boolean>> = readonly(attribution)
@@ -101,6 +103,7 @@ export const exportRunResult: DeepReadonly<Ref<ExportedFile | null>> = readonly(
 export const exportRunError: DeepReadonly<Ref<IpcError | null>> = readonly(runError)
 
 function clearRun(): void {
+  runSequence += 1
   runStatus.value = 'idle'
   runResult.value = null
   runError.value = null
@@ -220,8 +223,8 @@ export async function openExport(): Promise<void> {
   counts.value = null
   countsStatus.value = 'unknown'
   countsError.value = null
-  folderError.value = null
-  folderUnavailable.value = false
+  destinationError.value = null
+  destinationUnavailable.value = false
 
   const nameResult = await translatorNameGet()
   if (mySequence !== sequence) return
@@ -303,7 +306,8 @@ export function closeExport(): void {
   sequence += 1
   previewSequence += 1
   overlayOpen.value = false
-  choosingFolder.value = false
+  runSequence += 1
+  choosingDestination.value = false
   if (scopeToRestoreOnClose !== null) {
     scopeKind.value = scopeToRestoreOnClose.kind
     singleChapterId.value = scopeToRestoreOnClose.chapterId
@@ -329,16 +333,24 @@ export async function toggleExportChapter(chapterId: number): Promise<void> {
   await refreshCounts()
 }
 
-async function pickFolder(): Promise<string | null> {
-  choosingFolder.value = true
-  folderError.value = null
-  folderUnavailable.value = false
-  const result = await exportChooseFolder()
-  choosingFolder.value = false
+function exportRunIsCurrent(mine: number): boolean {
+  return overlayOpen.value && mine === runSequence
+}
+
+async function pickDestination(scope: ExportScope, chosen: ExportFormat, mine: number): Promise<string | null> {
+  pickerSequence += 1
+  const picker = pickerSequence
+  choosingDestination.value = true
+  destinationError.value = null
+  destinationUnavailable.value = false
+  const result = await exportChooseFile(scope, previewFormatOf(chosen))
+  if (picker !== pickerSequence) return null
+  choosingDestination.value = false
+  if (!exportRunIsCurrent(mine)) return null
 
   if (result.outcome === 'picked') return result.path
-  if (result.outcome === 'error') folderError.value = result.error
-  else if (result.outcome === 'ipc_unavailable') folderUnavailable.value = true
+  if (result.outcome === 'error') destinationError.value = result.error
+  else if (result.outcome === 'ipc_unavailable') destinationUnavailable.value = true
   return null
 }
 
@@ -357,19 +369,23 @@ function writeFormat(
     : exportDocxTwoColumn(scope, mode, target, withAttribution, options)
 }
 
-/** Asks Rust for a destination folder, then writes the selected format for the current scope into it. */
 export async function runExport(): Promise<void> {
-  if (runStatus.value === 'running' || choosingFolder.value || currentExportScope() === null) return
+  if (runStatus.value === 'running' || choosingDestination.value || !overlayOpen.value) return
+  const scope = currentExportScope()
+  if (scope === null) return
 
   clearRun()
-  const target = await pickFolder()
-  const scope = currentExportScope()
-  if (target === null || scope === null || !overlayOpen.value) return
+  const mine = runSequence
+  const chosen = format.value
+  const mode = imageMode.value
+  const withAttribution = attribution.value
+  const options = currentExportOptions()
+  const target = await pickDestination(scope, chosen, mine)
+  if (target === null || !exportRunIsCurrent(mine)) return
 
   runStatus.value = 'running'
-  runResult.value = null
-  runError.value = null
-  const result = await writeFormat(format.value, scope, imageMode.value, target, attribution.value, currentExportOptions())
+  const result = await writeFormat(chosen, scope, mode, target, withAttribution, options)
+  if (!exportRunIsCurrent(mine)) return
   if (result.file !== null) {
     runResult.value = result.file
     runStatus.value = 'done'
@@ -381,6 +397,7 @@ export async function runExport(): Promise<void> {
 
 export function resetExport(): void {
   sequence += 1
+  pickerSequence += 1
   overlayOpen.value = false
   loadStatus.value = 'unknown'
   loadError.value = null
@@ -392,9 +409,9 @@ export function resetExport(): void {
   counts.value = null
   countsStatus.value = 'unknown'
   countsError.value = null
-  folderError.value = null
-  folderUnavailable.value = false
-  choosingFolder.value = false
+  destinationError.value = null
+  destinationUnavailable.value = false
+  choosingDestination.value = false
   format.value = 'docx_two_column'
   imageMode.value = 'file'
   attribution.value = false

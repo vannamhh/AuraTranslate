@@ -196,7 +196,7 @@ impl Fixture {
             ImageMode::Link,
             content,
             None,
-            &self.out,
+            &self.out.join("Tac Pham-hai-cot.docx"),
         )
         .expect("xuat hai cot");
         PathBuf::from(file.path)
@@ -210,7 +210,11 @@ impl Fixture {
             format,
             content,
             None,
-            &self.out,
+            &self.out.join(if format == TextFormat::Plain {
+                "Tac Pham.txt"
+            } else {
+                "Tac Pham.md"
+            }),
         )
         .expect("xuat van ban");
         PathBuf::from(file.path)
@@ -391,7 +395,7 @@ fn one_block_markdown_and_text_take_numbers_and_appendix_but_refuse_the_mark_wit
         ImageMode::Link,
         &with_numbers,
         None,
-        &f.out,
+        &f.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect("xuat mot khoi");
     let doc = parsed(Path::new(&block.path));
@@ -448,7 +452,7 @@ fn one_block_markdown_and_text_take_numbers_and_appendix_but_refuse_the_mark_wit
             ImageMode::Link,
             &marked,
             None,
-            &f.out
+            &f.out.join("Tac Pham-mot-khoi.docx")
         )),
         "export.mark_two_column_only"
     );
@@ -461,7 +465,11 @@ fn one_block_markdown_and_text_take_numbers_and_appendix_but_refuse_the_mark_wit
                 format,
                 &marked,
                 None,
-                &f.out
+                &f.out.join(if format == TextFormat::Plain {
+                    "Tac Pham.txt"
+                } else {
+                    "Tac Pham.md"
+                })
             )),
             "export.mark_two_column_only"
         );
@@ -504,7 +512,7 @@ fn all_options_off_writes_the_files_the_exporter_wrote_before_the_options_existe
         ImageMode::Link,
         &off,
         None,
-        &f.out,
+        &f.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect("xuat mot khoi");
     let block_path = Path::new(&block.path);
@@ -787,7 +795,7 @@ fn curly_quotes_reach_only_the_target_column_of_the_one_block_docx() {
             ImageMode::Link,
             content,
             None,
-            &f.out,
+            &f.out.join("Tac Pham-mot-khoi.docx"),
         )
         .expect("xuat mot khoi");
         PathBuf::from(file.path)

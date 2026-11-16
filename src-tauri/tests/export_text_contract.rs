@@ -146,7 +146,11 @@ impl Fixture {
             format,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join(if format == TextFormat::Plain {
+                "Tac Pham.txt"
+            } else {
+                "Tac Pham.md"
+            }),
         )
         .expect("xuat");
         let text = fs::read_to_string(&file.path).expect("doc tep");
@@ -310,6 +314,69 @@ fn file_mode_copies_images_next_to_the_file_and_references_them_relatively() {
 }
 
 #[test]
+fn custom_destination_sidecars_have_resolvable_markdown_image_paths() {
+    let f = fixture("custom-image-path", Some("T"), vec![seg("p", "Hello")]);
+    f.asset("a.jpg", None, 0);
+    f.put_file("a.jpg");
+    let names = ["part#draft.md", "part%draft.md"];
+    #[cfg(not(windows))]
+    let names = [names[0], names[1], "part?draft.md"];
+    for name in names {
+        let destination = f.out.join(name);
+        let file = export_text(
+            Some(&f.open),
+            &ExportScope::Work,
+            ImageMode::File,
+            MD,
+            &ExportContent::default(),
+            None,
+            &destination,
+        )
+        .expect("export custom image path");
+        assert_eq!(PathBuf::from(&file.path), destination);
+        let text = fs::read_to_string(&destination).expect("markdown");
+        let reference = text
+            .lines()
+            .find_map(|line| line.strip_prefix("![](").and_then(|s| s.strip_suffix(')')))
+            .expect("image reference");
+        let reference = reference.trim_matches(['<', '>']);
+        assert!(!reference.contains(['?', '#', '%']), "{reference}");
+        let image_path = f.out.join(reference);
+        assert_eq!(
+            image_path.parent(),
+            Some(PathBuf::from(file.images_dir.expect("sidecar")).as_path())
+        );
+        assert!(image_path.is_file(), "{reference}");
+    }
+    f.finish();
+}
+
+#[test]
+fn a_long_selected_filename_can_be_replaced_without_exceeding_the_component_limit() {
+    let f = fixture("long-name", Some("T"), vec![seg("p", "Hello")]);
+    let destination = f.out.join(format!("{}.txt", "a".repeat(216)));
+    fs::write(&destination, b"old").expect("valid long filename");
+    let file = export_text(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        TXT,
+        &ExportContent::default(),
+        None,
+        &destination,
+    )
+    .expect("replace long selected filename");
+    assert_eq!(PathBuf::from(file.path), destination);
+    assert!(
+        fs::read_to_string(&destination)
+            .expect("text")
+            .contains("Hello")
+    );
+    assert_eq!(fs::read_dir(&f.out).expect("output").count(), 1);
+    f.finish();
+}
+
+#[test]
 fn a_missing_image_file_is_the_named_error_and_nothing_is_overwritten() {
     let f = fixture("gone", Some("T"), vec![seg("p", "Hello")]);
     f.asset("gone.jpg", None, 0);
@@ -320,7 +387,7 @@ fn a_missing_image_file_is_the_named_error_and_nothing_is_overwritten() {
         MD,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham.md"),
     )
     .expect_err("phai loi");
     assert_eq!(err.code(), "export.image_file_missing");
@@ -328,7 +395,7 @@ fn a_missing_image_file_is_the_named_error_and_nothing_is_overwritten() {
     let (first, _) = g.run(ImageMode::File, MD);
     let (second, _) = g.run(ImageMode::File, MD);
     assert!(
-        first.path.ends_with("Tac Pham.md") && second.path.ends_with("Tac Pham (2).md"),
+        first.path.ends_with("Tac Pham.md") && second.path == first.path,
         "{}",
         second.path
     );
@@ -355,7 +422,7 @@ fn an_empty_scope_an_unknown_chapter_and_no_open_work_are_the_named_errors() {
             MD,
             &ExportContent::default(),
             None,
-            &f.out,
+            &f.out.join("Tac Pham.md"),
         )
         .expect_err("phai loi")
         .code()

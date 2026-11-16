@@ -67,3 +67,21 @@ pub fn write_new_file(
         "no free file name",
     ))
 }
+
+pub fn replace_file_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<PathBuf> {
+    path.file_name().ok_or_else(|| {
+        std::io::Error::new(ErrorKind::InvalidInput, "destination has no file name")
+    })?;
+    let temporary = path.with_file_name(format!(".{}.tmp", uuid::Uuid::new_v4()));
+    create_and_write(&temporary, bytes)?;
+    if let Err(error) = std::fs::rename(&temporary, path) {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(error);
+    }
+    if let Some(parent) = path.parent()
+        && let Ok(directory) = std::fs::File::open(parent)
+    {
+        let _ = directory.sync_all();
+    }
+    Ok(path.to_owned())
+}

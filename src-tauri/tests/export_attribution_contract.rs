@@ -131,7 +131,7 @@ fn md(f: &Fixture, attribution: Option<&Attribution>) -> String {
         TextFormat::Markdown,
         &ExportContent::default(),
         attribution,
-        &f.out,
+        &f.out.join("Tac Pham.md"),
     )
     .expect("xuat md");
     fs::read_to_string(file.path).expect("doc md")
@@ -145,7 +145,7 @@ fn txt(f: &Fixture, attribution: Option<&Attribution>) -> String {
         TextFormat::Plain,
         &ExportContent::default(),
         attribution,
-        &f.out,
+        &f.out.join("Tac Pham.txt"),
     )
     .expect("xuat txt");
     fs::read_to_string(file.path).expect("doc txt")
@@ -158,7 +158,7 @@ fn two_column(f: &Fixture, attribution: Option<&Attribution>) -> DocxParsed {
         ImageMode::Link,
         &ExportContent::default(),
         attribution,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect("xuat");
     read_docx(&fs::read(file.path).expect("doc tep")).expect("doc docx")
@@ -171,7 +171,7 @@ fn one_block(f: &Fixture, attribution: Option<&Attribution>) -> DocxParsed {
         ImageMode::Link,
         &ExportContent::default(),
         attribution,
-        &f.out,
+        &f.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect("xuat");
     read_docx(&fs::read(file.path).expect("doc tep")).expect("doc docx")

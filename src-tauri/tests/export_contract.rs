@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::export::{export_folder_from_dialog, export_scope_summary};
+use auratranslate_lib::commands::export::{export_destination_from_dialog, export_scope_summary};
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::segment::read_open_chapter_segments;
 use auratranslate_lib::core::export::{ExportScope, ImageMode};
@@ -254,10 +254,10 @@ fn the_scope_deserialises_from_the_wire_shape_the_webview_sends() {
 }
 
 #[test]
-fn cancelling_the_folder_dialog_is_ok_none_and_a_picked_folder_is_returned_as_text() {
-    assert_eq!(export_folder_from_dialog(None).expect("huy"), None);
+fn cancelling_save_as_is_ok_none_and_a_picked_destination_is_returned_as_text() {
+    assert_eq!(export_destination_from_dialog(None).expect("huy"), None);
     let dir = temp_dir("folder");
-    let got = export_folder_from_dialog(Some(Path::new(&dir))).expect("chon");
+    let got = export_destination_from_dialog(Some(Path::new(&dir))).expect("chon");
     assert_eq!(got.as_deref(), dir.to_str());
     let _ = fs::remove_dir_all(&dir);
 }
@@ -412,5 +412,25 @@ fn the_summary_and_the_image_mode_have_the_wire_shape_the_webview_reads() {
         ImageMode::File
     );
     assert!(serde_json::from_str::<ImageMode>(r#""embed""#).is_err());
+    f.finish();
+}
+
+#[test]
+fn save_as_suggests_the_existing_format_suffixes_and_extensions() {
+    use auratranslate_lib::commands::export::export_default_file_name;
+    use auratranslate_lib::core::export::ExportFormat;
+    let f = fixture("save-as-defaults");
+    for (format, expected) in [
+        (ExportFormat::DocxTwoColumn, "Pham Vi Xuat-hai-cot.docx"),
+        (ExportFormat::DocxOneBlock, "Pham Vi Xuat-mot-khoi.docx"),
+        (ExportFormat::Markdown, "Pham Vi Xuat.md"),
+        (ExportFormat::Plain, "Pham Vi Xuat.txt"),
+    ] {
+        assert_eq!(
+            export_default_file_name(Some(&f.open), &ExportScope::Work, format)
+                .expect("default name"),
+            expected
+        );
+    }
     f.finish();
 }

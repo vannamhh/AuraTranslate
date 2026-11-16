@@ -14232,3 +14232,9 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-man-xuat-gon-cot-cau-hinh-cot-xem-truoc-chan-dinh-plan.md`
   summary: Lượt dùng thật màn Xuất mới ở cửa sổ 1280×860: bản xem trước và nút Xuất hiện không cuộn, đổi một lựa chọn thì cột cấu hình giữ vị trí cuộn và chân dính còn đó, ba nhãn phạm vi không bị cắt.
   evidence: e2e chỉ đo lúc vừa mở với một Chương ba câu; vị trí cuộn khi đổi lựa chọn và tổ hợp dài nhất (Nhiều Chương + theo link gốc có ảnh thiếu link + bật ghi nguồn) cần mắt người trong WKWebView. Chủ: Epic 8.
+
+
+## Deferred from: Xuất Chương Save As (2026-11-16)
+
+- Kiểm Save As trong app macOS thật: tên/bộ lọc, huỷ, đổi tên và xác nhận thay thế; test IPC không chứng minh hộp thoại native. Chủ: Ice. Trỏ: `plan-xuat-chuong-save-as.md`.
+- Kiểm Save As và thay thế tệp trên Windows sau khi đẩy mã; máy hiện tại chỉ kiểm Rust/macOS. Chủ: B7. Trỏ: `plan-xuat-chuong-save-as.md`.

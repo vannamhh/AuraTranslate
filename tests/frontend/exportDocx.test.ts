@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { flushPromises } from './support/flushMicrotasks'
 import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 
@@ -22,7 +23,7 @@ vi.mock('../../src/config/chapter', () => ({
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
   exportPreview: () => Promise.resolve({ preview: null, error: null }),
-  exportChooseFolder: (...args: unknown[]) => folderMock(...args),
+  exportChooseFile: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: (...args: unknown[]) => docxMock(...args),
 }))
 
@@ -150,6 +151,30 @@ describe('running the export', () => {
     expect(docxMock).toHaveBeenLastCalledWith({ kind: 'work' }, 'file', '/tmp/two', false, OFF)
   })
 
+  it.each(['cancelled', 'write_failed'] as const)('allows export.run retry after %s without showing false success', async (outcome) => {
+    const { state, commands, Overlay } = await fresh()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await state.openExport()
+    if (outcome === 'cancelled') folderMock.mockResolvedValueOnce({ outcome: 'cancelled' })
+    else docxMock.mockResolvedValueOnce({ file: null, error: ipcError('export.write_failed') })
+    commands.dispatch('export.run')
+    await vi.waitFor(() => {
+      expect(folderMock).toHaveBeenCalledTimes(1)
+      expect(state.exportChoosingDestination.value).toBe(false)
+      expect(state.exportRunStatus.value).toBe(outcome === 'cancelled' ? 'idle' : 'error')
+    })
+    await settle(wrapper)
+    expect(state.exportRunResult.value).toBeNull()
+    expect(wrapper.find('[data-export-result]').exists()).toBe(false)
+    expect(wrapper.get('[data-export-run]').attributes('disabled')).toBeUndefined()
+
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
+    expect(folderMock).toHaveBeenCalledTimes(2)
+    expect(state.exportRunResult.value?.path).toBe('/tmp/out/a.docx')
+    wrapper.unmount()
+  })
+
   it('ignores a second press while the folder dialog is open', async () => {
     const { state } = await fresh()
     let release: (v: unknown) => void = () => undefined
@@ -173,6 +198,62 @@ describe('running the export', () => {
     release({ outcome: 'picked', path: '/tmp/out' })
     await run
     expect(docxMock).not.toHaveBeenCalled()
+  })
+
+  it.each(['format', 'scope', 'options'] as const)('discards Save As after %s changes and allows retry', async (change) => {
+    const { state, commands } = await fresh()
+    let release: (v: unknown) => void = () => undefined
+    folderMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    await state.openExport()
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(folderMock).toHaveBeenCalledTimes(1))
+    if (change === 'format') state.setExportFormat('docx_one_block')
+    else if (change === 'scope') await state.setExportScopeKind('chapter')
+    else state.setExportNumberSegments(true)
+    release({ outcome: 'picked', path: '/tmp/stale.docx' })
+    await vi.waitFor(() => expect(state.exportChoosingDestination.value).toBe(false))
+    expect(docxMock).not.toHaveBeenCalled()
+    expect(state.exportRunResult.value).toBeNull()
+    state.setExportFormat('docx_two_column')
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(docxMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('discards a destination from an earlier opening without releasing a newer dialog', async () => {
+    const { state, commands } = await fresh()
+    let oldReply: (v: unknown) => void = () => undefined
+    let newReply: (v: unknown) => void = () => undefined
+    folderMock.mockImplementationOnce(() => new Promise((resolve) => (oldReply = resolve)))
+    folderMock.mockImplementationOnce(() => new Promise((resolve) => (newReply = resolve)))
+    await state.openExport()
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(folderMock).toHaveBeenCalledTimes(1))
+    state.closeExport()
+    await state.openExport()
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(folderMock).toHaveBeenCalledTimes(2))
+    oldReply({ outcome: 'picked', path: '/tmp/old.docx' })
+    await flushPromises()
+    expect(docxMock).not.toHaveBeenCalled()
+    expect(state.exportChoosingDestination.value).toBe(true)
+    newReply({ outcome: 'picked', path: '/tmp/current.docx' })
+    await vi.waitFor(() => expect(docxMock).toHaveBeenCalledTimes(1))
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/current.docx', false, OFF)
+  })
+
+  it('does not show an old write result after closing and reopening export', async () => {
+    const { state, commands } = await fresh()
+    let release: (v: unknown) => void = () => undefined
+    docxMock.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    await state.openExport()
+    commands.dispatch('export.run')
+    await vi.waitFor(() => expect(docxMock).toHaveBeenCalledTimes(1))
+    state.closeExport()
+    await state.openExport()
+    release({ file: { path: '/tmp/old.docx', chapter_count: 1, segment_count: 1, image_count: 0, images_skipped_missing_link: 0, images_dir: null }, error: null })
+    await flushPromises()
+    expect(state.exportRunResult.value).toBeNull()
+    expect(state.exportRunStatus.value).toBe('idle')
   })
 
   it('cannot run while nothing is selected', async () => {

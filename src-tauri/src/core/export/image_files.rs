@@ -108,3 +108,51 @@ pub fn write_file_with_images(
     }
     Err(ImageFilesError::Write("no free file name".to_owned()))
 }
+
+pub fn replace_file_with_images(
+    destination: &Path,
+    assets_dir: &Path,
+    images: &[&ExportImage],
+    build: impl Fn(&str) -> Result<Vec<u8>, String>,
+) -> Result<WrittenWithImages, ImageFilesError> {
+    let sources = images
+        .iter()
+        .map(|image| source_of(assets_dir, image).map(|path| (path, copied_name(image))))
+        .collect::<Result<Vec<_>, _>>()?;
+    let invalid = || ImageFilesError::Write("invalid destination".to_owned());
+    let folder = destination.parent().ok_or_else(invalid)?;
+    let stem = destination
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .ok_or_else(invalid)?;
+    let stem = super::new_file::safe_stem(stem, "export").replace(['#', '%'], "_");
+    let io = |error: std::io::Error| ImageFilesError::Write(error.to_string());
+    for attempt in 1..=MAX_ATTEMPTS {
+        let dir_name = format!("{}{IMAGE_DIR_SUFFIX}", candidate_stem(&stem, attempt));
+        let images_dir = folder.join(&dir_name);
+        match fs::create_dir(&images_dir) {
+            Ok(()) => {}
+            Err(error) if error.kind() == ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(io(error)),
+        }
+        let outcome = copy_all(&sources, &images_dir)
+            .map_err(io)
+            .and_then(|()| build(&dir_name).map_err(ImageFilesError::Write))
+            .and_then(|bytes| {
+                super::new_file::replace_file_atomic(destination, &bytes).map_err(io)
+            });
+        match outcome {
+            Ok(file_path) => {
+                return Ok(WrittenWithImages {
+                    file_path,
+                    images_dir,
+                });
+            }
+            Err(error) => {
+                let _ = fs::remove_dir_all(&images_dir);
+                return Err(error);
+            }
+        }
+    }
+    Err(ImageFilesError::Write("no free image directory".to_owned()))
+}

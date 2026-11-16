@@ -93,7 +93,7 @@ impl Fixture {
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join("Tac Pham-mot-khoi.docx"),
         )
         .expect("xuat");
         read_docx(&fs::read(file.path).expect("doc tep")).expect("doc docx")
@@ -106,7 +106,7 @@ impl Fixture {
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join("Tac Pham-hai-cot.docx"),
         )
         .expect("xuat");
         read_docx(&fs::read(file.path).expect("doc tep")).expect("doc docx")
@@ -135,7 +135,7 @@ fn empty_docx() -> Vec<u8> {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect("xuat");
     let bytes = fs::read(file.path).expect("doc tep");
@@ -215,7 +215,7 @@ fn a_real_two_column_export_with_image_rows_passes() {
         ImageMode::Link,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect("xuat");
     assert_eq!(file.image_count, 2);

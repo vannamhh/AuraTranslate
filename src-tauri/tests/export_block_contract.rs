@@ -134,7 +134,7 @@ impl Fixture {
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join("Tac Pham-mot-khoi.docx"),
         )
         .expect("xuat that bai");
         PathBuf::from(file.path)
@@ -511,7 +511,7 @@ fn link_mode_puts_one_hyperlink_paragraph_after_the_anchor_in_both_cells_and_cou
         ImageMode::Link,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect("xuat");
     let xml = document_xml(Path::new(&file.path));
@@ -560,7 +560,7 @@ fn file_mode_writes_relative_paths_into_the_stem_folder_and_copies_the_files() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect("xuat");
     let cells = cells(&document_xml(Path::new(&file.path)));
@@ -592,7 +592,7 @@ fn a_missing_image_file_is_the_named_error_of_the_two_column_export() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect_err("phai loi");
     assert_eq!(err.code(), "export.image_file_missing");
@@ -601,19 +601,16 @@ fn a_missing_image_file_is_the_named_error_of_the_two_column_export() {
 }
 
 #[test]
-fn an_existing_file_gets_a_numbered_name_and_stays_untouched() {
+fn an_existing_file_is_replaced_at_the_selected_name() {
     let f = fixture("twice", None, vec![seg("a", "b")]);
     fs::write(f.out.join("Tac Pham-mot-khoi.docx"), b"cu").expect("tep co san");
     let path = f.export(&work());
 
     assert_eq!(
         path.file_name().and_then(|n| n.to_str()),
-        Some("Tac Pham-mot-khoi (2).docx")
+        Some("Tac Pham-mot-khoi.docx")
     );
-    assert_eq!(
-        fs::read(f.out.join("Tac Pham-mot-khoi.docx")).expect("doc"),
-        b"cu"
-    );
+    assert_ne!(fs::read(&path).expect("doc"), b"cu");
     f.finish();
 }
 
@@ -649,7 +646,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &f.out
+            &f.out.join("Tac Pham-mot-khoi.docx")
         )),
         "export.scope_empty"
     );
@@ -662,7 +659,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &f.out
+            &f.out.join("Tac Pham-mot-khoi.docx")
         )),
         "segment.chapter_not_found"
     );
@@ -673,7 +670,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &f.out
+            &f.out.join("Tac Pham-mot-khoi.docx")
         )),
         "work.none_open"
     );
@@ -684,7 +681,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &f.out.join("khong-co")
+            &f.out.join("khong-co/file.docx")
         )),
         "export.folder_invalid"
     );
@@ -764,7 +761,7 @@ fn the_two_column_export_of_the_same_work_is_unchanged_by_the_block_command() {
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-hai-cot.docx"),
     )
     .expect("hai cot");
     assert!(two.path.ends_with("Tac Pham-hai-cot.docx"));
@@ -801,7 +798,7 @@ fn an_untranslated_chapter_with_an_anchored_image_shows_the_image_and_no_text_on
         ImageMode::Link,
         &ExportContent::default(),
         None,
-        &f.out,
+        &f.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect("xuat");
     let cells = cells(&document_xml(Path::new(&file.path)));

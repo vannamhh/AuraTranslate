@@ -108,7 +108,7 @@ impl Work {
             ImageMode::File,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join("Tac Pham-hai-cot.docx"),
         )
         .expect("xuat docx");
         PathBuf::from(file.path)
@@ -122,7 +122,7 @@ impl Work {
             TextFormat::Markdown,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join("Tac Pham.md"),
         )
         .expect("xuat md");
         PathBuf::from(file.path)

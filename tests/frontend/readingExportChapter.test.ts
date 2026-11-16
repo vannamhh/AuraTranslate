@@ -109,6 +109,28 @@ describe('the Reading toolbar export button', () => {
     expect(mockInvoke).not.toHaveBeenCalledWith('export_scope_summary', { scope: { kind: 'work' } })
   })
 
+  it('sends the Chapter being read through Save As and writes the custom file via export.run', async () => {
+    const mounted = await mountReadingWithExport(7)
+    wrapper = mounted.wrapper
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'list_chapters') return Promise.resolve([chapterRow(3), chapterRow(7)])
+      if (cmd === 'export_scope_summary') return Promise.resolve(counts)
+      if (cmd === 'export_choose_file') return Promise.resolve('/tmp/My Chapter.docx')
+      if (cmd === 'export_docx_two_column') return Promise.resolve({ path: '/tmp/My Chapter.docx', chapter_count: 1, segment_count: 1, image_count: 0, images_skipped_missing_link: 0, images_dir: null })
+      return Promise.resolve(null)
+    })
+    await wrapper.get('[data-reading-export]').trigger('click')
+    await vi.waitFor(() => expect(mounted.exportState.exportCountsStatus.value).toBe('loaded'))
+    mounted.commands.dispatch('export.run')
+    await vi.waitFor(() => expect(mounted.exportState.exportRunStatus.value).toBe('done'))
+    expect(mockInvoke).toHaveBeenCalledWith('export_choose_file', { scope: { kind: 'chapters', chapter_ids: [7] }, format: 'docx_two_column' })
+    expect(mockInvoke).toHaveBeenCalledWith('export_docx_two_column', {
+      scope: { kind: 'chapters', chapter_ids: [7] }, imageMode: 'file', destination: '/tmp/My Chapter.docx', attribution: false,
+      options: { number_segments: false, glossary_appendix: false, mark_unconfirmed: false, curly_quotes: false },
+    })
+    expect(mounted.exportState.exportRunResult.value?.path).toBe('/tmp/My Chapter.docx')
+  })
+
   it('leaves the Library opener on its own scope once the Reading export screen closes', async () => {
     const mounted = await mountReadingWithExport(7)
     wrapper = mounted.wrapper

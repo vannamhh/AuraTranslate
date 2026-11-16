@@ -1679,8 +1679,8 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/export.rs",
-            "pub fn export_choose_folder(app: tauri::AppHandle",
-            "mo hop thoai chon thu muc -- `blocking_pick_folder()` chan vong lap su kien",
+            "pub fn export_choose_file(",
+            "native Save As blocks the event loop with blocking_save_file",
         ),
         (
             "src/commands/export.rs",

@@ -22,7 +22,7 @@ vi.mock('../../src/config/chapter', () => ({
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
   exportPreview: (...args: unknown[]) => previewMock(...args),
-  exportChooseFolder: (...args: unknown[]) => folderMock(...args),
+  exportChooseFile: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: () => Promise.resolve({ file: null, error: null }),
 }))
 
@@ -202,12 +202,12 @@ describe('destination folder', () => {
     await state.openExport()
     folderMock.mockResolvedValue({ outcome: 'error', error: ipcError('export.folder_invalid') })
     await state.runExport()
-    expect(state.exportFolderError.value?.code).toBe('export.folder_invalid')
+    expect(state.exportDestinationError.value?.code).toBe('export.folder_invalid')
 
     folderMock.mockResolvedValue({ outcome: 'ipc_unavailable' })
     await state.runExport()
-    expect(state.exportFolderError.value).toBeNull()
-    expect(state.exportFolderUnavailable.value).toBe(true)
+    expect(state.exportDestinationError.value).toBeNull()
+    expect(state.exportDestinationUnavailable.value).toBe(true)
   })
 
   it('is opened from Rust through the export.run command, not from the webview', async () => {

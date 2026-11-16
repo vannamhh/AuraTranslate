@@ -183,7 +183,7 @@ impl Work {
             mode,
             &ExportContent::default(),
             None,
-            &self.out,
+            &self.out.join("Tac Pham-hai-cot.docx"),
         )
         .expect("xuat docx");
         PathBuf::from(file.path)
@@ -197,7 +197,7 @@ impl Work {
             TextFormat::Markdown,
             &ExportContent::default(),
             attribution,
-            &self.out,
+            &self.out.join("Tac Pham.md"),
         )
         .expect("xuat md");
         PathBuf::from(file.path)
@@ -451,7 +451,7 @@ fn a_one_block_publishing_copy_is_refused_with_its_own_key_and_nothing_is_writte
         ImageMode::File,
         &ExportContent::default(),
         None,
-        &reviewer.out,
+        &reviewer.out.join("Tac Pham-mot-khoi.docx"),
     )
     .expect("xuat mot khoi");
     let before = mine.dump();

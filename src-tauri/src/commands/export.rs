@@ -1,4 +1,4 @@
-//! Phạm vi xuất (FR89): đếm Chương và câu của phạm vi, và hộp thoại chọn thư mục đích (AD-48).
+//! Export scope, native Save As and file writers.
 //! Phép đếm sống ở [`crate::core::export`]; ở đây chỉ đổi lỗi sang `IpcError`.
 
 use std::collections::BTreeMap;
@@ -13,7 +13,7 @@ use crate::core::export::{
     ReviewerDocx, ReviewerImportPlan, ScopeError, TextFormat, admit_markdown, build_preview,
     confirm_import, count_scope, harvest_work, load_chapter_blocks, load_chapter_tables,
     load_chapter_text, plan_import, read_docx_copy, read_markdown_copy, render_text,
-    resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
+    replace_file_atomic, replace_file_with_images, resolve_chapter_ids, safe_stem, scan_images,
     write_one_block_docx, write_two_column_docx,
 };
 use crate::core::glossary::{
@@ -117,7 +117,7 @@ fn confirmed_terms(open: &OpenWork, global: &Store) -> Result<Vec<(String, Strin
     Ok(terms)
 }
 
-fn export_folder_invalid() -> IpcError {
+fn export_destination_invalid() -> IpcError {
     IpcError::new(
         "export.folder_invalid",
         MessageKey::ExportFolderInvalid,
@@ -126,8 +126,7 @@ fn export_folder_invalid() -> IpcError {
     )
 }
 
-/// Đổi kết quả hộp thoại chọn thư mục thành chuỗi đường dẫn. Huỷ hộp thoại là `Ok(None)`.
-pub fn export_folder_from_dialog(
+pub fn export_destination_from_dialog(
     picked: Option<&std::path::Path>,
 ) -> Result<Option<String>, IpcError> {
     match picked {
@@ -135,7 +134,7 @@ pub fn export_folder_from_dialog(
         Some(path) => path
             .to_str()
             .map(|s| Some(s.to_owned()))
-            .ok_or_else(export_folder_invalid),
+            .ok_or_else(export_destination_invalid),
     }
 }
 
@@ -172,28 +171,21 @@ fn export_write_failed(detail: &str) -> IpcError {
     )
 }
 
-/// Ghi `.docx` bảng hai cột (FR87) của phạm vi vào `folder`, không ghi đè tệp có sẵn. Ảnh có
-/// hàng ở vị trí neo (FR130): `Link` ghi `source_url`, `File` chép ảnh ra `<tên tệp>-anh/`.
-///
-/// # Lỗi
-/// Như [`export_scope_summary`], thêm `export.folder_invalid` khi `folder` không phải thư mục,
-/// `export.image_file_missing` khi tệp ảnh không còn trong `assets/` (chế độ file) và
-/// `export.write_failed` khi ghi thất bại.
 pub fn export_docx_two_column(
     open: Option<&OpenWork>,
     scope: &ExportScope,
     image_mode: ImageMode,
     content: &ExportContent,
     attribution: Option<&Attribution>,
-    folder: &std::path::Path,
+    destination: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
     content
         .check_for(ExportFormat::DocxTwoColumn)
         .map_err(IpcError::from)?;
     let counts = count_scope(&open.store, scope).map_err(scope_error)?;
-    if !folder.is_dir() {
-        return Err(export_folder_invalid());
+    if destination.is_dir() || !destination.parent().is_some_and(std::path::Path::is_dir) {
+        return Err(export_destination_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
     let loaded = load_chapter_tables(
@@ -205,16 +197,10 @@ pub fn export_docx_two_column(
     )
     .map_err(IpcError::from)?;
     let images = loaded.images();
-    let stem = export_stem(&open.meta.name, ExportFormat::DocxTwoColumn);
-    let (path, images_dir) = write_export_file(
-        open,
-        folder,
-        &stem,
-        "docx",
-        image_mode,
-        &images,
-        |reference| write_two_column_docx(&loaded.tables, reference, content),
-    )?;
+    let (path, images_dir) =
+        write_export_file(open, destination, image_mode, &images, |reference| {
+            write_two_column_docx(&loaded.tables, reference, content)
+        })?;
     exported_file(
         &counts,
         &loaded_summary(&images, loaded.images_skipped_missing_link),
@@ -234,6 +220,20 @@ fn export_stem(work_name: &str, format: ExportFormat) -> String {
     format!("{}{}", safe_stem(work_name, "export"), format.stem_suffix())
 }
 
+pub fn export_default_file_name(
+    open: Option<&OpenWork>,
+    scope: &ExportScope,
+    format: ExportFormat,
+) -> Result<String, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
+    Ok(format!(
+        "{}.{}",
+        export_stem(&open.meta.name, format),
+        format.extension()
+    ))
+}
+
 struct ImageSummary {
     image_count: i64,
     images_skipped_missing_link: i64,
@@ -248,36 +248,27 @@ fn loaded_summary(images: &[&ExportImage], images_skipped_missing_link: i64) -> 
 
 fn write_export_file(
     open: &OpenWork,
-    folder: &std::path::Path,
-    stem: &str,
-    extension: &str,
+    destination: &std::path::Path,
     image_mode: ImageMode,
     images: &[&ExportImage],
     build: impl Fn(ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError>,
 ) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>), IpcError> {
     if image_mode == ImageMode::File && !images.is_empty() {
-        let written = write_file_with_images(
-            folder,
-            stem,
-            extension,
-            &open.dir.join("assets"),
-            images,
-            |final_stem| {
-                let dir_name = format!("{final_stem}{}", crate::core::export::IMAGE_DIR_SUFFIX);
-                build(ImageReference::Dir(&dir_name)).map_err(|e| e.0)
-            },
-        )
-        .map_err(|err| match err {
-            ImageFilesError::SourceMissing {
-                chapter_ord,
-                file_name,
-            } => image_file_missing(chapter_ord, &file_name),
-            ImageFilesError::Write(detail) => export_write_failed(&detail),
-        })?;
+        let written =
+            replace_file_with_images(destination, &open.dir.join("assets"), images, |dir_name| {
+                build(ImageReference::Dir(dir_name)).map_err(|e| e.0)
+            })
+            .map_err(|err| match err {
+                ImageFilesError::SourceMissing {
+                    chapter_ord,
+                    file_name,
+                } => image_file_missing(chapter_ord, &file_name),
+                ImageFilesError::Write(detail) => export_write_failed(&detail),
+            })?;
         Ok((written.file_path, Some(written.images_dir)))
     } else {
         let bytes = build(ImageReference::Link).map_err(|e| export_write_failed(&e.0))?;
-        let path = write_new_file(folder, stem, extension, &bytes)
+        let path = replace_file_atomic(destination, &bytes)
             .map_err(|e| export_write_failed(&e.to_string()))?;
         Ok((path, None))
     }
@@ -289,12 +280,15 @@ fn exported_file(
     path: std::path::PathBuf,
     images_dir: Option<std::path::PathBuf>,
 ) -> Result<ExportedFile, IpcError> {
-    let path = path.to_str().ok_or_else(export_folder_invalid)?.to_owned();
+    let path = path
+        .to_str()
+        .ok_or_else(export_destination_invalid)?
+        .to_owned();
     let images_dir = images_dir
         .map(|dir| {
             dir.to_str()
                 .map(str::to_owned)
-                .ok_or_else(export_folder_invalid)
+                .ok_or_else(export_destination_invalid)
         })
         .transpose()?;
     Ok(ExportedFile {
@@ -307,22 +301,21 @@ fn exported_file(
     })
 }
 
-/// Never overwrites an existing file.
 pub fn export_docx_one_block(
     open: Option<&OpenWork>,
     scope: &ExportScope,
     image_mode: ImageMode,
     content: &ExportContent,
     attribution: Option<&Attribution>,
-    folder: &std::path::Path,
+    destination: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
     content
         .check_for(ExportFormat::DocxOneBlock)
         .map_err(IpcError::from)?;
     let counts = count_scope(&open.store, scope).map_err(scope_error)?;
-    if !folder.is_dir() {
-        return Err(export_folder_invalid());
+    if destination.is_dir() || !destination.parent().is_some_and(std::path::Path::is_dir) {
+        return Err(export_destination_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
     let loaded = load_chapter_blocks(
@@ -335,16 +328,10 @@ pub fn export_docx_one_block(
     )
     .map_err(IpcError::from)?;
     let images = loaded.images();
-    let stem = export_stem(&open.meta.name, ExportFormat::DocxOneBlock);
-    let (path, images_dir) = write_export_file(
-        open,
-        folder,
-        &stem,
-        "docx",
-        image_mode,
-        &images,
-        |reference| write_one_block_docx(&loaded.blocks, reference, content),
-    )?;
+    let (path, images_dir) =
+        write_export_file(open, destination, image_mode, &images, |reference| {
+            write_one_block_docx(&loaded.blocks, reference, content)
+        })?;
     exported_file(
         &counts,
         &loaded_summary(&images, loaded.images_skipped_missing_link),
@@ -353,7 +340,6 @@ pub fn export_docx_one_block(
     )
 }
 
-/// Writes `<Work name>.md` or `<Work name>.txt`; never overwrites an existing file.
 pub fn export_text(
     open: Option<&OpenWork>,
     scope: &ExportScope,
@@ -361,14 +347,14 @@ pub fn export_text(
     format: TextFormat,
     content: &ExportContent,
     attribution: Option<&Attribution>,
-    folder: &std::path::Path,
+    destination: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
     let export_format = export_format_of(format);
     content.check_for(export_format).map_err(IpcError::from)?;
     let counts = count_scope(&open.store, scope).map_err(scope_error)?;
-    if !folder.is_dir() {
-        return Err(export_folder_invalid());
+    if destination.is_dir() || !destination.parent().is_some_and(std::path::Path::is_dir) {
+        return Err(export_destination_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
     let loaded = load_chapter_text(
@@ -380,17 +366,10 @@ pub fn export_text(
     )
     .map_err(IpcError::from)?;
     let images = loaded.images();
-    let stem = export_stem(&open.meta.name, export_format);
-    let extension = export_format.extension();
-    let (path, images_dir) = write_export_file(
-        open,
-        folder,
-        &stem,
-        extension,
-        image_mode,
-        &images,
-        |reference| Ok(render_text(&loaded, format, reference, content).into_bytes()),
-    )?;
+    let (path, images_dir) =
+        write_export_file(open, destination, image_mode, &images, |reference| {
+            Ok(render_text(&loaded, format, reference, content).into_bytes())
+        })?;
     exported_file(
         &counts,
         &loaded_summary(&images, loaded.images_skipped_missing_link),
@@ -1061,21 +1040,32 @@ pub mod wire {
         super::export_scope_summary(guard.as_ref(), &scope)
     }
 
-    /// `(async)`: `blocking_pick_folder()` on the main thread deadlocks the event loop the
-    /// dialog waits on.
+    // The blocking native dialog must run off the event loop and without store locks.
     #[tauri::command(async)]
-    pub fn export_choose_folder(app: tauri::AppHandle) -> Result<Option<String>, IpcError> {
+    pub fn export_choose_file(
+        app: tauri::AppHandle,
+        scope: ExportScope,
+        format: ExportFormat,
+    ) -> Result<Option<String>, IpcError> {
         use tauri_plugin_dialog::DialogExt as _;
 
-        let path = match app.dialog().file().blocking_pick_folder() {
-            Some(picked) => Some(
+        let file_name = with_open(&app, |open| {
+            super::export_default_file_name(open, &scope, format)
+        })?;
+        let picked = app
+            .dialog()
+            .file()
+            .set_file_name(&file_name)
+            .add_filter(format.extension(), &[format.extension()])
+            .blocking_save_file();
+        let path = picked
+            .map(|picked| {
                 picked
                     .into_path()
-                    .map_err(|_| super::export_folder_invalid())?,
-            ),
-            None => None,
-        };
-        super::export_folder_from_dialog(path.as_deref())
+                    .map_err(|_| super::export_destination_invalid())
+            })
+            .transpose()?;
+        super::export_destination_from_dialog(path.as_deref())
     }
 
     /// `(async)`: serialises every Chapter's text and writes the file, work the main thread
@@ -1087,11 +1077,11 @@ pub mod wire {
         image_mode: ImageMode,
         options: ExportOptions,
         attribution: bool,
-        folder: String,
+        destination: String,
     ) -> Result<ExportedFile, IpcError> {
         use tauri::Manager as _;
 
-        let folder = std::path::PathBuf::from(folder);
+        let destination = std::path::PathBuf::from(destination);
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
@@ -1102,7 +1092,7 @@ pub mod wire {
                 image_mode,
                 &content,
                 attribution.as_ref(),
-                &folder,
+                &destination,
             );
         };
         let guard = state
@@ -1115,7 +1105,7 @@ pub mod wire {
             image_mode,
             &content,
             attribution.as_ref(),
-            &folder,
+            &destination,
         )
     }
 
@@ -1128,11 +1118,11 @@ pub mod wire {
         image_mode: ImageMode,
         options: ExportOptions,
         attribution: bool,
-        folder: String,
+        destination: String,
     ) -> Result<ExportedFile, IpcError> {
         use tauri::Manager as _;
 
-        let folder = std::path::PathBuf::from(folder);
+        let destination = std::path::PathBuf::from(destination);
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
@@ -1143,7 +1133,7 @@ pub mod wire {
                 image_mode,
                 &content,
                 attribution.as_ref(),
-                &folder,
+                &destination,
             );
         };
         let guard = state
@@ -1156,7 +1146,7 @@ pub mod wire {
             image_mode,
             &content,
             attribution.as_ref(),
-            &folder,
+            &destination,
         )
     }
 
@@ -1170,11 +1160,11 @@ pub mod wire {
         format: TextFormat,
         options: ExportOptions,
         attribution: bool,
-        folder: String,
+        destination: String,
     ) -> Result<ExportedFile, IpcError> {
         use tauri::Manager as _;
 
-        let folder = std::path::PathBuf::from(folder);
+        let destination = std::path::PathBuf::from(destination);
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
@@ -1186,7 +1176,7 @@ pub mod wire {
                 format,
                 &content,
                 attribution.as_ref(),
-                &folder,
+                &destination,
             );
         };
         let guard = state
@@ -1200,7 +1190,7 @@ pub mod wire {
             format,
             &content,
             attribution.as_ref(),
-            &folder,
+            &destination,
         )
     }
 
