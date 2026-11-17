@@ -652,9 +652,14 @@ function onKeydown(event: KeyboardEvent): void {
 .gq-head {
   display: flex;
   align-items: baseline;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
+}
+
+.gq-head > :last-child {
+  align-self: center;
 }
 
 .gq-title {

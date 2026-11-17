@@ -446,6 +446,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 .sc-search {
   display: flex;
   align-items: baseline;
+  height: 35px;
   gap: var(--space-panel-inline);
   margin: 0 0 var(--space-panel-block) 0;
 }

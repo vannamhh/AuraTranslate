@@ -143,6 +143,7 @@ function trapTab(event: KeyboardEvent): void {
 .pfscope-head {
   display: flex;
   align-items: baseline;
+  height: 28px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
 }

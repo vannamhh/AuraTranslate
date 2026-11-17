@@ -917,9 +917,14 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-head {
   display: flex;
   align-items: baseline;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
+}
+
+.gm-head > :last-child {
+  align-self: center;
 }
 
 .gm-title {

@@ -245,8 +245,13 @@ function trapTab(event: KeyboardEvent): void {
 .cvi-head {
   display: flex;
   align-items: baseline;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
+}
+
+.cvi-head > :last-child {
+  align-self: center;
 }
 
 .cvi-title {

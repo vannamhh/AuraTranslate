@@ -13631,6 +13631,7 @@ chính nó.
   Cần: chạy spec trên cây không có diff 13.4, tìm vì sao `create_work_from_text` + bốn lần `split_chapter_at_segment` ra năm Chương một câu.
   Chủ: Epic 12. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-canh-baseline-cho-moi-hang-ngang-plan.md` §Review Triage Log.
   → 2026-10-30 (Story 13.7): vẫn đỏ ở cùng bước gieo (Chương cuối 1 câu thay vì 4) trên cây có diff 13.7, diff chỉ đổi CSS, hai hằng ảo hoá và spec mới; chưa chạy trên cây gốc `5c776887`. Chủ: Epic 12.
+  → ✅ ĐÃ ĐÓNG 2026-11-17 (Story 13.9): lỗi ở spec, không ở Rust — `12-34` gieo 5 câu mà khẳng định kết quả của 8 câu, sửa ở `c5d38600`. Xanh 3/3 ở nightly 43995942157 (`7e6b6b1e`, macos-26) và cục bộ trên `f01fe131` với Vite mới do `wdio` dựng.
 
 ## Deferred from: Story 13.3, thanh tiêu đề 42px (2026-10-30)
 
@@ -13653,6 +13654,7 @@ chính nó.
   Chủ: Epic 13. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-ra-be-mat-workspace-tra-cuu-va-thanh-trang-thai-theo-luoi-7p-plan.md` §Review Triage Log.
   → 🟡 2026-10-30: khoanh trên Vite mới, thay `src/` theo commit. Ca đầu mục tràn của 12-8 xanh ở `29837138`, đỏ từ `dd428222` (13.1: nội dung 42 > khung 41) và lên 44 từ `968606df` (13.4). Ca nhãn Nguồn N/M của 12-8 và ca 12-9 (137px) đã đỏ ở `29837138`, trước Epic 13; nightly xanh vì `origin/master` vẫn ở `97bcb587`. Còn phải bisect `97bcb587..29837138` (147 commit, có đổi Rust).
   → 🟡 2026-10-30: ca đầu mục tràn của 12-8 đã xanh — `.lookup-head` bỏ đệm dưới 7px, canh hàng giữa khung 42px như mockup `luoi-7px.html` mục 3. Còn hở: ca nhãn Nguồn N/M của 12-8 và ca 12-9, đỏ từ trước Epic 13.
+  → ✅ ĐÃ ĐÓNG 2026-11-17 (Story 13.9): ca nhãn Nguồn N/M của 12-8 và ca 12-9 đỏ vì spec còn tả giao diện cũ (`▾`; dải chèn hàng thay vì popup phủ), `c5d38600` sửa theo quyết định đã chốt. 🔵 Ca đỏ của 12-9 là `gapAboveNext` 161 (nightly 41241138850, dòng 128), không phải `gapBelowCell`; `gapBelowCell` ≤ 2 vẫn giữ và xanh. Nightly 43995942157 (`7e6b6b1e`) xanh cả hai nhưng `skip` ca bề rộng hẹp của 12-8 (không có từ điển thật); chạy cục bộ trên `f01fe131` với `target/debug/dict` và Vite mới do `wdio` dựng: 12-8 2/2 (ca hẹp chạy thật); 12-9 đỏ một lần ở vị trí 2 (ba `execute/async` hết giờ ngay sau khi WebDriver 4445 phải khởi động lại), chạy riêng hai lượt liền xanh 1/1.
 
 ## Deferred from: Story 14.1, hạ cổng Kiểm M cùng sổ nợ chỉ co lại (2026-10-30)
 
@@ -13819,6 +13821,7 @@ chính nó.
   Cần: đẩy `master`, đọc lượt đêm kế tiếp, spec nào còn đỏ thì tìm nguyên nhân trước khi Epic 14 `done`.
   Chủ: Epic 14. Trỏ: `gh run view 41134334441`.
   → 🔵 2026-11-01: lượt đêm `41241138850` trên `5a871dda` đỏ đúng 10 spec như lượt trước, cùng số ca, nên lỗi lặp đều và không do 14 commit giữa hai lượt; lượt đêm xanh cuối `97bcb587` cách lượt đỏ đầu 171 commit. Chạy 67 spec trên máy (macOS 15, dpr 2, Vite 1421, cây có bản nháp 14.11) đỏ 9: tám spec trùng CI cùng số đọc (`12-2`, `12-7`, `12-8`, `12-9`, `12-14`, `12-18`, `12-34`, `13-4`), nên không do runner dpr 1; `13-7`, `5-11` chỉ đỏ ở CI; `13-6` chỉ đỏ trên máy. Cần: phân từng spec là sản phẩm hỏng hay spec cũ rồi sửa. **Chủ: Epic 14.**
+  → 🔵 2026-11-17 (Story 13.9): nightly 43995942157 (`7e6b6b1e`) xanh cả 82 spec, gồm `12-2`, `12-7`, `12-8`, `12-9`, `12-14`, `12-18`, `12-34`, `13-4`, `13-6`, `13-7`, `5-11`; phần phân loại từng spec nằm ở `c5d38600`. **Chủ: Epic 14.**
 
 ## Deferred from: Story 14.10, quét dọn Epic 14 (2026-10-31)
 
@@ -14244,3 +14247,15 @@ chính nó.
 - Máy đo được bề rộng khung và số vùng cuộn; cảm giác một bề rộng chung, ô chữ giãn trên màn vốn hẹp, và nút chân luôn thấy khi cuộn chỉ người dùng thật mới xác nhận được.
   Cần: một lượt dùng thật của Ice trên các màn của mockup `lop-phu-mot-be-rong.html` và ba lớp phủ khác do Ice chọn, sau khi entry 1–6 xong.
   Chủ: Epic 17. Trỏ: `tickets/epic-lop-phu-mot-be-rong/epic-lop-phu-mot-be-rong.md` §Done when 5.
+
+## Deferred from: Story 13.9, Refactor sweep lưới 7px (2026-11-17)
+
+- e2e `titlebar-tools` đỏ hai ca trên `f01fe131` (đo trên cây gốc và cây có diff 13.9, cùng hai ca): danh sách Công cụ có thêm `library.add_chapters` (`8094be23`) và `palette.open` (`0c8f8d43`) mà `ITEM_IDS` của spec không có, ca `glossary.manage.open` đỏ theo. Nightly chưa thấy vì 48 commit chưa đẩy.
+  Cần: cập nhật `ITEM_IDS` theo menu mới khi menu xếp lại theo nhóm.
+  Chủ: Story 17.6. Trỏ: `e2e/specs/titlebar-tools.e2e.mjs:6`, `tickets/epic-lop-phu-mot-be-rong/tickets/tickets.toml` entry 6.
+
+- Hàng một dòng chưa khai chiều cao bội 7 vì lệch bậc, có thể xuống dòng hoặc không với tới: `.lookup-head-row` (37), `.review-bar` (ba `<p>` cao 35, xuống dòng), `.ai-batch-row` (~25,8), `.hist-row` và `.aip-bh` (con có viền 22/23), `.pl-kind` (30), `.work-stat` (xuống dòng ở thẻ 238px), `.lookup-tabs` (khai 28 làm `.lookup-tabrow` 31, 13-6 đỏ); chưa đo được vì cần dữ liệu một e2e không dựng được: `.aip-tabs`, `.aip-brow`, `.aip-set-field`, `.ex-legend`, `.cm-row`, `.tm-legend-item`, `.crv-group-head`; không với tới: `.bip-head`, `.bip-chapters-entry`, `.ip-chapters-entry`, `.rl-head`, `.lcp-head`.
+  Cần: Ice chọn từng hàng giữ nguyên hay sửa nguồn lệch (không hạ bậc); hàng đo được thì thêm vào bảng của `story-13-9`.
+  Chủ: Ice. Trỏ: `e2e/specs/story-13-9-chieu-cao-hang-va-icon.e2e.mjs`, `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-refactor-sweep-plan.md` §Code Map.
+  → 2026-11-17 (Story 13.9): ca `.lookup-collapse` của `story-13-9` `skip` khi máy không có nguồn từ điển, nên CI (không có từ điển thật) không bao giờ chạy nó. Chủ: Ice.
+  → 2026-11-17 (Story 13.9): chevron trong nút chỉ có biểu tượng nay đặt đáy trên baseline, nên có thể trông cao hơn quy tắc chevron của DESIGN.md (quy tắc đó nói chevron "đứng cạnh chữ", hạ 3px); cần Ice nhìn ở lượt dùng thật. Chủ: Ice.

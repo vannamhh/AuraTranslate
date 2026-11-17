@@ -1305,6 +1305,7 @@ onBeforeUnmount(() => {
 .wp-sort {
   display: flex;
   align-items: baseline;
+  height: 28px;
   gap: calc(var(--space-unit) * 1);
   margin-left: auto;
   font-family: var(--face-ui-sm);

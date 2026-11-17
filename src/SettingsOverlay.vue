@@ -964,6 +964,8 @@ function onDeleteAiConfigKey(): void {
 .set-head {
   display: flex;
   align-items: baseline;
+  box-sizing: content-box;
+  height: 28px;
   justify-content: space-between;
   padding: 13px; /* aura-allow-spacing: the panel's 1px border and the bottom border sit inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);

@@ -579,8 +579,13 @@ function trapTab(event: KeyboardEvent): void {
 .cvm-head {
   display: flex;
   align-items: baseline;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
+}
+
+.cvm-head > :last-child {
+  align-self: center;
 }
 
 .cvm-head-actions {

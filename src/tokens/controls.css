@@ -176,7 +176,9 @@
 
 .ui-icon-btn {
   display: inline-flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: baseline;
+  align-content: center;
   justify-content: center;
   flex: none;
   width: 28px;
@@ -666,7 +668,9 @@ summary.ui-field {
 
 .ui-seg--icons .ui-seg__item {
   display: inline-flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: baseline;
+  align-content: center;
   justify-content: center;
   padding: 0 calc(var(--space-unit) * 1);
 }

@@ -283,7 +283,7 @@ const senseTotalKey = computed(() =>
   margin-left: auto;
 }
 
-.lookup-collapse--closed {
+.lookup-collapse--closed :deep(svg) {
   transform: rotate(-90deg);
 }
 

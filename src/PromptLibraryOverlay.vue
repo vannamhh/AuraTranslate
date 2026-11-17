@@ -1151,9 +1151,14 @@ function onEscape(): void {
 .pl-head {
   display: flex;
   align-items: baseline;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
+}
+
+.pl-head > :last-child {
+  align-self: center;
 }
 
 .pl-title {
@@ -1351,6 +1356,7 @@ function onEscape(): void {
 .pl-rename-form .pl-field {
   flex-direction: row;
   align-items: baseline;
+  height: 35px;
   gap: var(--space-panel-inline);
   margin-bottom: 0;
 }
@@ -1452,6 +1458,7 @@ function onEscape(): void {
 .pl-seg {
   display: flex;
   align-items: baseline;
+  height: 28px;
   gap: calc(var(--space-unit) * 1);
   margin: 0;
   padding: 0;

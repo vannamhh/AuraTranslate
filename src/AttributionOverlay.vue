@@ -397,9 +397,14 @@ function trapTab(event: KeyboardEvent): void {
 .attr-head {
   display: flex;
   align-items: baseline;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
+}
+
+.attr-head > :last-child {
+  align-self: center;
 }
 
 .attr-title {

@@ -1337,6 +1337,7 @@ const importScreenIsOpen = computed<boolean>(
   position: relative;
   display: flex;
   align-items: baseline;
+  height: 28px;
   flex: 1;
   max-width: 420px;
   min-width: 203px;

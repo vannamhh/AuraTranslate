@@ -454,6 +454,7 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 - Biểu tượng 14px: **đáy biểu tượng đặt trên baseline** của chữ cạnh nó, như một chữ hoa. 🔵 2026-10-30 (Ice): mũi tên xổ xuống (`chevron`) đứng cạnh chữ thì hạ 3px để tâm nét vẽ trùng giữa chiều cao chữ hoa, vì nét vẽ của nó nằm giữa ô chứ không lấp đầy ô.
 - ⚠️ Nút chỉ có biểu tượng không có baseline, nên đáy cả nút rơi xuống baseline của hàng và nút nhô lên 7px so với nút chữ cùng cao. Nó phải mang một hộp dòng rỗng để có baseline đúng chỗ của nút chữ cùng bậc.
 - Hàng baseline đứng tự do khai chiều cao bằng bội 7: 21 cho hàng chữ, 28 cho hàng điều khiển. Chữ `ui`, số `mono` và chip phím canh baseline thành hàng 21,5px, vì mỗi font nhô trên baseline một khác.
+- 🔵 2026-11-17 (Ice): checkbox và radio là ngoại lệ của luật đáy trên baseline. Chúng canh giữa dòng nhãn đầu, đúng như `.ui-check input` hiện có, không đặt đáy trên baseline. Ngoại lệ thứ hai: đầu lớp phủ có tiêu đề `read-title` (hộp dòng 35) cao 35px và nút Đóng canh giữa theo chiều dọc, không theo baseline của tiêu đề, vì nút 28 theo baseline đẩy hộp lên 36.
 - Phần tử không mang chữ và không phải biểu tượng (nét ngăn ở thanh trạng thái, thanh tiến độ) canh giữa hàng.
 - ⚠️ Cách flexbox tự sinh baseline cho phần tử không có chữ khác nhau giữa WebKit và WebView2. Phần Windows chỉ kiểm được ở `B7`.
 

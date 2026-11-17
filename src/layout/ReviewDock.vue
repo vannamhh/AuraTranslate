@@ -162,10 +162,14 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.diff-status::before {
+  content: '\200b';
+}
+
 .diff-status {
   margin: 0;
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
-  min-height: var(--leading-ui-sm);
+  min-height: 35px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

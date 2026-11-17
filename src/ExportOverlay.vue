@@ -652,10 +652,16 @@ function trapTab(event: KeyboardEvent): void {
   flex: none;
   display: flex;
   align-items: baseline;
+  box-sizing: content-box;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  padding: var(--space-panel-block) var(--space-panel-inline);
+  padding: 13px var(--space-panel-inline); /* aura-allow-spacing: the panel's 1px border and the bottom border sit inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
+}
+
+.ex-head > :last-child {
+  align-self: center;
 }
 
 .ex-title {

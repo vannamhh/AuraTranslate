@@ -1039,6 +1039,7 @@ onBeforeUnmount(() => {
 .lookup-tools {
   display: flex;
   align-items: baseline;
+  height: 28px;
   gap: var(--space-panel-inline);
   margin-left: auto;
 }

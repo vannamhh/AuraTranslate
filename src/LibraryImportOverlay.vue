@@ -532,9 +532,14 @@ function trapTab(event: KeyboardEvent): void {
 .li-head {
   display: flex;
   align-items: baseline;
+  height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
+}
+
+.li-head > :last-child {
+  align-self: center;
 }
 
 .li-title {
