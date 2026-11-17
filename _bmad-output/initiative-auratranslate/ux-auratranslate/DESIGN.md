@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-11-03
+updated: 2026-11-17
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
   - _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md
@@ -151,6 +151,7 @@ spacing:
   read-measure-lg: 62ch
   read-measure-md: 68ch
   read-measure-sm: 76ch
+  overlay-max-width: 1120px
 components:
   panel-head: { height: 35px, typography: ui-md, color: on-surface-variant }
   panel-focus-rule: { width: 2px, color: primary }
@@ -458,6 +459,22 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 
 **Không theo lưới.** Bề dày viền và vạch (1 · 2 · 3px), bo góc, cỡ chữ, hình học của ba nút cửa sổ do hệ điều hành vẽ, và thanh cuộn 10px. Thanh cuộn nằm ở mép panel, ngoài mọi đệm, nên nó không đẩy mép trái của nội dung nào; thu xuống 7px thì khó bắt chuột hơn. 🔵 2026-10-30 (Ice): vùng cuộn chạm mép cửa sổ giữ sẵn chỗ thanh cuộn (`scrollbar-gutter: stable`) và trừ 10px khỏi đệm phải, để lề trái và lề phải bằng nhau.
 
+### Lớp phủ — một bề rộng, một vùng cuộn
+
+*(🔵 2026-11-17, Ice)* Mọi lớp phủ có khung rộng tối đa `{spacing.overlay-max-width}` (1120px = 160 × 7), canh giữa theo chiều ngang, sát đỉnh vùng dưới thanh tiêu đề, nền che là `background` đặc. Cửa sổ hẹp hơn 1120px cộng hai lề `{spacing.panel-inline}` thì khung co theo cửa sổ. Trước ngày này có tám bề rộng khác nhau (560 · 637 · 721 · 882 · 917 · 959 · 1099 · 1120px); Ice chọn một bề rộng thay cho phương án ba bậc hoặc hai bậc. Bảng kê ở [`.working/bang-ke-lop-phu-2026-11-17.md`](.working/bang-ke-lop-phu-2026-11-17.md).
+
+| Nhóm | Bề rộng | Lớp phủ |
+|---|---|---|
+| Màn | tối đa 1120px | Cài đặt, mọi màn quản lý, nhập, duyệt, xác nhận, lịch sử, gộp/tách Chương, nối tay, thư viện prompt, chỗ đã bỏ qua |
+| Màn nhiều cột | tràn cửa sổ trừ lề `panel-inline` | Xuất · Xem trước nhập · Xem trước nhập song ngữ · Nguồn ảnh · Prompt inspector |
+| Popup | ôm nội dung | Bảng lệnh (637px) · bộ chọn phạm vi Proofreader (ba ô, góc trên phải cửa sổ) |
+
+**Bên trong khung 1120px**, ô nhập và danh sách giãn hết bề ngang khung trừ đệm. Đây là ngoại lệ của §Điều khiển › Chiều rộng (ô nhập đo bằng `ch`), chỉ áp trong lớp phủ; ô nhập ở panel, thanh và Library vẫn đo bằng `ch`. Ô số ngắn (ngưỡng, số Chương, nhiệt độ) không giãn, vẫn đo bằng `ch`. Nút vẫn ôm chữ, cặp nút chân vẫn chung `min-width` 112px.
+
+**Một vùng cuộn.** Đầu khung (tiêu đề, thanh lọc, ô tìm) và chân khung (dòng tóm tắt, nút) dính, không cuộn. Giữa chúng là đúng một vùng cuộn dọc; không vùng cuộn dọc nào nằm trong vùng cuộn dọc khác. Màn nhiều cột được mỗi cột tự cuộn, vì các cột đứng cạnh nhau chứ không lồng. Ô nhập nhiều dòng tự cuộn là ngoại lệ duy nhất. Thanh cuộn theo §Components › Thanh cuộn, sát mép khung.
+
+Mẫu: Bảng chờ Glossary (`GlossaryQueueOverlay.vue`), một vùng cuộn với thanh nút dính đáy. Mockup trước/sau: [`mockups/lop-phu-mot-be-rong.html`](mockups/lop-phu-mot-be-rong.html).
+
 ## Elevation & Depth
 
 ~~**Không có elevation.** Không bóng đổ, không lớp nổi, không z-index trang trí.~~ 🔵 2026-10-29 (Ice): **bóng đổ và lớp nổi được dùng ở nơi cần tạo chiều sâu.** Lớp nổi dùng khi nội dung phải bám ngay cạnh chỗ người dùng vừa chọn (popup tra cứu ở Chế độ đọc); bóng đổ chỉ lấy giá trị từ token `shadows` trong `tokens.json` (`box-shadow: var(--shadow-…)`, `check:tokens` Kiểm F), mỗi theme một giá trị. Gradient vẫn cấm; `z-index` vẫn cần miễn trừ có tên, không z-index trang trí. Chiều sâu của mặt phẳng làm việc vẫn là **sắc độ**: `surface-sunken` cho vùng lùi, `surface` cho mặt phẳng làm việc.
@@ -543,9 +560,9 @@ Cả bốn cặp đạt 3:1, và đạt cả 4,5:1 của chữ. Hàng `surface-a
 
 **Dải quy ước** *(🔵 2026-11-03, Ice, FR159)* — một biến thể của dải Proofreader, không phải component thứ hai. Cùng vỏ: dải đẩy văn bản xuống, nền `surface`, viền trên 1px `outline`, vạch trái 3px, đệm 13px 14px 14px 11px, đầu mục `ui-md` đậm cùng chiều cao, nút `ui-btn` 28px. Khác ở ba chỗ: vạch trái `on-surface-variant` thay cho `error`; tên dải *Quy ước chữ Việt*; hành động chính **Nhận thay** là nút Chính, các nút còn lại Phụ, hai nút điều hướng và liên kết là Chìm. Luật không có cụm thay thế thì Nhận thay ở bậc Khoá (viền đứt `outline`, chữ `on-surface-variant`). Dòng trạng thái `ui-sm` `on-surface-variant`; lỗi `error`. Dải xếp ngay sau `proofreader` trong thứ tự ưu tiên dải.
 
-**Lớp phủ Quản lý quy ước** *(🔵 2026-11-03, Ice, FR159)* — cùng vỏ lớp phủ với Quản lý Glossary: rộng tối đa 1099px, viền 1px `outline`, nền `surface`, đệm 13px. Thanh tầng là nút phân đoạn (ô đang chọn nền `on-surface`). Hàng tầng Tác phẩm có vạch trái 2px `confirmed`; hàng Toàn cục bị che thụt `calc(var(--space-unit) * 5)`, chữ `on-surface-variant`, nhãn viền đứt 1px *Đang bị che*; trạng thái *Đã tắt ở Tác phẩm này* cũng là nhãn viền đứt, nên trạng thái đọc được bằng chữ lẫn hình. Nút xoá bậc Nguy hiểm, hai bước. Nút điều khiển theo §Điều khiển; không thêm dáng nào.
+**Lớp phủ Quản lý quy ước** *(🔵 2026-11-03, Ice, FR159)* — cùng vỏ lớp phủ với Quản lý Glossary: bề rộng theo §Lớp phủ — một bề rộng, một vùng cuộn, viền 1px `outline`, nền `surface`, đệm 13px. 🔵 2026-11-17 (Ice): 1099px thành 1120px chung. Thanh tầng là nút phân đoạn (ô đang chọn nền `on-surface`). Hàng tầng Tác phẩm có vạch trái 2px `confirmed`; hàng Toàn cục bị che thụt `calc(var(--space-unit) * 5)`, chữ `on-surface-variant`, nhãn viền đứt 1px *Đang bị che*; trạng thái *Đã tắt ở Tác phẩm này* cũng là nhãn viền đứt, nên trạng thái đọc được bằng chữ lẫn hình. Nút xoá bậc Nguy hiểm, hai bước. Nút điều khiển theo §Điều khiển; không thêm dáng nào.
 
-**Màn xác nhận thay cả Chương** *(🔵 2026-11-03, Sally đặt mặc định, Ice xem qua mockup)* — lớp phủ rộng tối đa 917px như Cài đặt, danh sách cuộn tối đa 60vh. Bộ lọc luật là nút phân đoạn (ô đang chọn nền `on-surface`) đặt dưới đầu màn, mục đầu *Tất cả luật*. Nhóm theo câu, đường kẻ dưới `outline-faint`. Chữ cũ nền `diff-del-bg` chữ `diff-del-ink`, chữ mới nền `diff-add-bg` chữ `diff-add-ink` (cùng cặp với Review Mode). Nhãn câu nháp chữ `error` đậm, nhãn câu đã xác nhận chữ `on-surface-variant`; cả hai là chữ nên màu không là kênh duy nhất. Ô chọn là ô chọn của §Điều khiển (14px trong vùng bấm 28×28px). Chân màn nền `background`, nút chính bậc Chính, **Huỷ** bậc Phụ, chung `min-width: 8.5em`. Khung "chưa thay chỗ nào" viền trái 2px `error`, `role="alert"`.
+**Màn xác nhận thay cả Chương** *(🔵 2026-11-03, Sally đặt mặc định, Ice xem qua mockup)* — bề rộng và vùng cuộn theo §Lớp phủ — một bề rộng, một vùng cuộn. 🔵 2026-11-17 (Ice): 917px và danh sách cuộn riêng tối đa 60vh thành khung 1120px với một vùng cuộn. Bộ lọc luật là nút phân đoạn (ô đang chọn nền `on-surface`) đặt dưới đầu màn, mục đầu *Tất cả luật*. Nhóm theo câu, đường kẻ dưới `outline-faint`. Chữ cũ nền `diff-del-bg` chữ `diff-del-ink`, chữ mới nền `diff-add-bg` chữ `diff-add-ink` (cùng cặp với Review Mode). Nhãn câu nháp chữ `error` đậm, nhãn câu đã xác nhận chữ `on-surface-variant`; cả hai là chữ nên màu không là kênh duy nhất. Ô chọn là ô chọn của §Điều khiển (14px trong vùng bấm 28×28px). Chân màn nền `background`, nút chính bậc Chính, **Huỷ** bậc Phụ, chung `min-width: 8.5em`. Khung "chưa thay chỗ nào" viền trái 2px `error`, `role="alert"`.
 
 ### Điều khiển — một hệ cho mọi nút, ô nhập, ô chọn
 
@@ -566,7 +583,7 @@ Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô
 
 🔵 2026-10-28, Ice chọn: thanh lọc Quản lý Glossary chạy trọn bậc `md` 28px, chip ở đó mang `ui-chip--md`. Nút phân đoạn `ui-seg` cao 28px tính cả viền; hàng toàn bậc `sm` (thanh tiêu đề, Chế độ đọc) dùng `ui-seg--sm` 24px. 🔵 2026-10-29 (Ice): `ui-seg--sm` cao 28px như bậc `md`.
 
-**Chiều rộng.** 🔵 2026-10-29 (Ice): bề rộng theo §Lưới 7px — ô nhập đo bằng `ch` làm tròn lên bội 7, `min-width: 8.5em` thành 112px. Nút ôm chữ; riêng cặp nút ở chân lớp phủ dùng chung `min-width: 8.5em` để Huỷ và Xác nhận bằng nhau. Ô nhập đo bằng `ch` như thước đọc: **ngắn 8ch** (số, ngưỡng %), **vừa 24ch** (tên, khoá), **kín hàng 100%** (tìm, đường dẫn, mẫu luật). 🔵 2026-10-28, Ice chọn: ô Khoá API ở Cài đặt kín hàng như ô Endpoint ngay trên nó. Ô chọn dạng field rộng bằng nhãn dài nhất của nó, tối thiểu 12ch.
+**Chiều rộng.** 🔵 2026-10-29 (Ice): bề rộng theo §Lưới 7px — ô nhập đo bằng `ch` làm tròn lên bội 7, `min-width: 8.5em` thành 112px. Nút ôm chữ; riêng cặp nút ở chân lớp phủ dùng chung `min-width: 8.5em` để Huỷ và Xác nhận bằng nhau. Ô nhập đo bằng `ch` như thước đọc: **ngắn 8ch** (số, ngưỡng %), **vừa 24ch** (tên, khoá), **kín hàng 100%** (tìm, đường dẫn, mẫu luật). 🔵 2026-10-28, Ice chọn: ô Khoá API ở Cài đặt kín hàng như ô Endpoint ngay trên nó. Ô chọn dạng field rộng bằng nhãn dài nhất của nó, tối thiểu 12ch. 🔵 2026-11-17 (Ice): trong lớp phủ, ô nhập và danh sách giãn hết bề ngang khung; xem §Lớp phủ — một bề rộng, một vùng cuộn.
 
 **Các loại.**
 

@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-11-16
+updated: 2026-11-17
 design: DESIGN.md
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
@@ -59,7 +59,7 @@ Thanh tiêu đề
 └── phải   [Proofreader: "Chương 47 · đã quét N câu"] · công tắc Ⓑ-2/Ⓑ-1 · Công cụ ▾
 ```
 
-🔵 2026-10-30 (AD-62, Ice chọn): chỗ đặt nút cho các lệnh chưa có đường chuột nằm ở `tickets/epic-san-chuot/ux-san-chuot/EXPERIENCE.md`; công tắc bố cục thêm ô Review Mode, `Công cụ ▾` thêm Ngưỡng quét Glossary và ba công tắc panel.
+🔵 2026-10-30 (AD-62, Ice chọn): chỗ đặt nút cho các lệnh chưa có đường chuột nằm ở `tickets/epic-san-chuot/ux-san-chuot/EXPERIENCE.md`; công tắc bố cục thêm ô Review Mode, `Công cụ ▾` thêm Ngưỡng quét Glossary và ba công tắc panel. 🔵 2026-11-17 (Ice): Ngưỡng quét Glossary rời menu, chỉ còn ở Cài đặt › Glossary; xem §Thứ tự trong `Công cụ ▾`.
 
 `Công cụ ▾` là mục duy nhất trên thanh tiêu đề mà mockup không vẽ. Nó là danh sách thả xuống trong webview, giống nhau trên macOS và Windows, không dùng menu gốc của hệ điều hành; mỗi mục ghi kèm phím.
 
@@ -78,6 +78,27 @@ Thanh tiêu đề
 | Bảng chờ Glossary | Workspace | — | `Mod+Alt+Q` |
 | Review Mode | preset Workspace | — | `Mod+Alt+3` |
 | Xuất | thanh hành động danh sách Chương | — | — |
+| Thêm Chương… | thanh hành động danh sách Chương · trang Tác phẩm | — (rời menu 2026-11-17, Ice) | — |
+| Ngưỡng quét Glossary | Cài đặt › Glossary | — (rời menu 2026-11-17, Ice) | `Mod+Alt+T` |
+
+### Thứ tự trong `Công cụ ▾`
+
+*(🔵 2026-11-17, Ice)* Mục xếp theo loại dữ liệu được quản lý. Nhóm chia bằng đường phân cách `.ui-menu-sep`, không in nhãn nhóm; tên nhóm dưới đây chỉ để đọc spine.
+
+```
+Công cụ ▾
+├── Glossary        Quản lý Glossary · Duyệt thu hoạch thuật ngữ
+├── TM              Quản lý bộ nhớ dịch (TM)
+├── Quy ước         Quét chính tả · Chỗ đã bỏ qua · Quản lý quy ước chữ Việt · Thay cả Chương theo quy ước
+├── Reviewer        Nhập bản reviewer · Nối tay bản reviewer
+├── Bố cục          Sắp xếp panel · Đối chiếu · Tra cứu · Đề xuất AI   (công tắc, giữ như hiện tại)
+└── cuối            Mở bảng lệnh · Cài đặt
+```
+
+- Ice chọn nhóm theo dữ liệu thay cho nhóm theo nhịp làm việc (đưa vào → kiểm → reviewer → dữ liệu).
+- Nhóm Bố cục giữ nguyên bốn công tắc `ui-switch__track` như mã hiện tại; ba công tắc panel chỉ hiện ở Workspace.
+- *Quét chính tả* đã có trong bảng trên nhưng chưa có trong menu. Mục này dispatch `ai.proofread.scope.open` (nhãn i18n đúng là *Quét chính tả*), mở bộ chọn ba ô Câu này · Vùng chọn · Cả Chương; lệnh đã có nút ở đầu panel Đối chiếu. Lệnh này không có phím; `⌘P` trong bảng trên là `ai.proofread.run`, chỉ quét câu đang đứng.
+- Lệnh rời menu vẫn phải còn đường chuột (AD-62). *Thêm Chương…* còn nút ở Library; `glossary.settings.open` khai `pointer: 'via'` qua Cài đặt.
 
 ## Voice and Tone
 
@@ -136,6 +157,8 @@ Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu �
 **Phát hiện Proofreader — gạch chân, không phải vạch lề** *(quyết định 2026-08-03)*. `FR86` bắt đánh dấu tại chỗ trên Editor, nhưng vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment *(🔵 2026-08-15, Story 2.5b: năm → sáu — `draft` lấp một **hàng vốn đã thiếu** trong bảng, không xin một kênh thị giác cho một trạng thái mới; **lý do của mệnh đề này KHÔNG đổi một chữ**, chỉ con số đổi)* và cột bản dịch cố tình không chia khối trong một ô. Lời giải: phát hiện là **gạch chân lượn sóng dưới đúng cụm chữ có vấn đề**, ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ` `ộ` `ợ`. Hai lớp thông tin, hai chỗ đọc — vạch lề nói *trạng thái câu*, gạch chân nói *chỗ nghi ngờ*.
 
 Hai màu, không thêm màu mới nào vào bảng: **`error`** cho chính tả và ngữ pháp (`FR80` — có đáp án đúng), **`tm-rule`** cho nghi về nghĩa (`FR81` — là phán đoán, và màu này trong toàn ứng dụng đã luôn nghĩa là *máy đề xuất, chưa ai xác nhận*). 🔵 2026-11-03: bản dựng vẽ gạch chân nghi về nghĩa bằng `tm-text` (`var(--color-tm-text)` trong `GridBlock.vue`), không phải `tm-rule`; `tm-rule` là màu của nét và chưa bao giờ là màu chữ hay màu gạch chân của dấu. Nghĩa "máy đề xuất, chưa ai xác nhận" giữ nguyên.
+
+**Lớp phủ — một bề rộng, một vùng cuộn** *(🔵 2026-11-17, Ice)*. Bề rộng, bậc ngoại lệ và luật cuộn ở DESIGN.md §Lớp phủ — một bề rộng, một vùng cuộn. Về hành vi: đầu và chân khung luôn trong tầm nhìn, nên nút chính không bao giờ bị cuộn khuất. Con trỏ bàn phím đi xuống danh sách thì vùng cuộn duy nhất cuộn theo; không có lần cuộn thứ hai bên trong. Màn nào cần danh sách dài cạnh khối cấu hình thì tách thành hai cột cạnh nhau, không lồng danh sách cuộn vào khung cuộn.
 
 ## State Patterns
 
@@ -496,7 +519,7 @@ Người dịch có những quy ước về chính chữ Việt (*đảm bảo �
 - Luật không có cụm thay thế (R1): dấu vẫn hiện; dải **không có** Nhận thay (nút khoá, viền đứt, để các nút không nhảy chỗ) và không có Thay cả Chương; có thêm **Mở luật** để sang Quản lý quy ước.
 - **Dải không tự mở khi con trỏ đi ngang một câu có dấu.** Dải đẩy văn bản xuống, nên tự mở trên mọi câu có dấu sẽ làm cả cột bản dịch nhảy theo từng phím mũi tên. Dải mở khi người dùng bấm vào dấu, bấm F8 / Shift+F8, hoặc gọi lệnh từ bàn phím. *(Sally đặt mặc định, chờ Ice xem mockup.)*
 
-**Quản lý quy ước — lớp phủ riêng.** Cùng khuôn với Quản lý Glossary: lớp phủ rộng tối đa 1099px, thanh phạm vi đoạn chọn **Toàn cục · Tác phẩm · Cả hai** kèm số luật, ô tìm, hai thẻ **Luật** và **Không phải lỗi**. Mở từ `Công cụ ▾` mục *Quản lý quy ước chữ Việt* (`Mod+Alt+A`) và từ liên kết trong dải. Cài đặt không có mục này.
+**Quản lý quy ước — lớp phủ riêng.** Cùng khuôn với Quản lý Glossary: lớp phủ theo DESIGN.md §Lớp phủ — một bề rộng, một vùng cuộn (trước 2026-11-17 là 1099px), thanh phạm vi đoạn chọn **Toàn cục · Tác phẩm · Cả hai** kèm số luật, ô tìm, hai thẻ **Luật** và **Không phải lỗi**. Mở từ `Công cụ ▾` mục *Quản lý quy ước chữ Việt* (`Mod+Alt+A`) và từ liên kết trong dải. Cài đặt không có mục này.
 - Hàng luật: *Cụm cần tránh → Cụm thay thế · Tầng · Trạng thái · thao tác*. Cụm thay trống ghi chữ nghiêng *không dùng*. Hàng tầng Tác phẩm có vạch trái 2px `confirmed`, như Glossary.
 - **Tắt ở Tác phẩm này** nằm trên hàng Toàn cục; luật không bị xoá, hàng chuyển sang trạng thái chữ *Đã tắt ở Tác phẩm này* kèm nút **Bật lại ở Tác phẩm này**, và các Tác phẩm khác không đổi (R2).
 - Luật Tác phẩm cùng cụm cần tránh che luật Toàn cục: hàng Toàn cục vẫn hiện, thụt vào, nhãn *Đang bị che*, màu `on-surface-variant`, cùng khuôn "Đang bị che" của Glossary.
@@ -504,7 +527,7 @@ Người dịch có những quy ước về chính chữ Việt (*đảm bảo �
 - **Xuất CSV/TSV** và **Nhập CSV/TSV** theo khuôn Glossary, hai cột *avoid, replacement*, cột hai trống là *không dùng* (R9). Nhập có bước xem trước với số luật mới, luật giống hệt (bỏ qua) và luật bất đồng; mặc định giữ luật đang có.
 - Thẻ **Không phải lỗi**: các chỗ đã ghi nhớ của riêng Tác phẩm này, mỗi hàng là cụm cần tránh và ngữ cảnh *…trước [cụm] sau…*, nút **Bỏ ghi nhớ** (chỗ đó được đánh dấu lại ở lần quét kế, nên không cần hỏi lại) và **Xoá toàn bộ ghi nhớ** hai bước. Chưa mở Tác phẩm thì thẻ nói rõ cần mở một Tác phẩm.
 
-**Màn xác nhận thay cả Chương.** Lớp phủ rộng 917px (như Cài đặt) phạm vi là **mọi luật đang dùng** trong Chương đang mở. Mở từ nút **Thay cả Chương (N chỗ)** của dải thì bộ lọc luật đứng sẵn ở luật đang xem; mở từ `Công cụ ▾` hoặc lệnh `command.convention.replace_chapter_open` thì đứng ở *Tất cả luật*. Mở màn là ghi bản dịch đang gõ xuống đĩa rồi quét lại bản đã lưu, nên số N trong nút và số trong màn có thể chênh nhau và màn luôn đúng.
+**Màn xác nhận thay cả Chương.** Lớp phủ theo DESIGN.md §Lớp phủ — một bề rộng, một vùng cuộn (trước 2026-11-17 là 917px với danh sách cuộn riêng), phạm vi là **mọi luật đang dùng** trong Chương đang mở. Mở từ nút **Thay cả Chương (N chỗ)** của dải thì bộ lọc luật đứng sẵn ở luật đang xem; mở từ `Công cụ ▾` hoặc lệnh `command.convention.replace_chapter_open` thì đứng ở *Tất cả luật*. Mở màn là ghi bản dịch đang gõ xuống đĩa rồi quét lại bản đã lưu, nên số N trong nút và số trong màn có thể chênh nhau và màn luôn đúng.
 - Đầu màn: tên Chương, *{N} chỗ trong {M} câu · đã chọn {K}* (tính trên mọi luật, không theo bộ lọc), hai nút **Chọn tất cả** và **Bỏ chọn tất cả**.
 - **Bộ lọc luật** là một đoạn chọn dưới đầu màn: *Tất cả luật {n}* và mỗi luật có cụm thay một mục kèm số chỗ của nó. Bộ lọc chỉ đổi cái đang hiện; trạng thái chọn và bỏ chọn của từng chỗ giữ nguyên khi đổi bộ lọc, **Chọn tất cả** / **Bỏ chọn tất cả** chỉ tác động lên các chỗ đang hiện. Luật không có cụm thay thế không có mục (không có gì để thay). Hai luật khớp chồng nhau đã được bộ quét phân xử (luật dài hơn thắng, chỗ thua đếm vào *bị luật dài hơn che*), nên danh sách không bao giờ có hai cụm thay trên cùng một khoảng.
 - Danh sách nhóm theo câu, **mọi chỗ chọn sẵn**. Mỗi nhóm có đầu mục *Câu {số}* và nhãn: câu nháp *Bản nháp — không hoàn tác được* (chữ `error`, đậm), câu đã xác nhận *Đã xác nhận — hoàn lại được ở Lịch sử phiên bản*. Mỗi chỗ là một hàng có ô chọn 14px trong vùng bấm 28×28px, câu đầy đủ với chỗ khớp ở dạng diff (chữ cũ nền `diff-del-bg`, chữ mới nền `diff-add-bg`, như Review Mode). Chỗ bỏ chọn hiện câu nguyên với dấu chấm quy ước, chữ `on-surface-variant`.
@@ -942,6 +965,8 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 Bốn file **không nằm trong bảng này** và đã rút về `.working/` — chúng là **dấu vết quyết định**, không phải tài liệu để dựng: `direction-ban-tho.html`, `direction-ke-thua.html`, `direction-ban-viet-DA-CHON.html` (hướng thị giác nào thắng) và `layout-2x2-variants.html` (cách ghép 2×2 nào thắng). Để chúng trong `mockups/` sẽ khiến người dựng tưởng là tham chiếu, trong khi chúng cố tình giữ nguyên hiện trạng lúc quyết định.
 
 Ngoài bốn file đó, `.working/` còn **sáu bản cũ từng trùng tên với mockup hiện hành** — hai trong số đó mang màu `#7d766c` đã bị loại vì trượt AA. Ngày 2026-08-03 chúng được đổi tên thành `superseded-*` và `.working/README.md` ghi rõ file nào là gì. Trước đó, mở nhầm `.working/key-screen-workspace.html` là dựng theo bản sai mà không có gì báo.
+
+🔵 2026-11-17 (Ice): [`mockups/lop-phu-mot-be-rong.html`](mockups/lop-phu-mot-be-rong.html) vẽ trước/sau cho menu `Công cụ ▾` theo nhóm, màn Xem trước lượt nhập bộ prompt ở 1120px với một vùng cuộn, và Cài đặt › AI và mô hình với ô chữ giãn, ô số giữ nguyên.
 
 ## Trạng thái rỗng
 

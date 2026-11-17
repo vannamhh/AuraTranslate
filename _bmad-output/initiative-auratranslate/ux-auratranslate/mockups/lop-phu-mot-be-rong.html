@@ -1,0 +1,333 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lớp phủ một bề rộng</title>
+<style>
+/*
+  Spine: DESIGN.md §Lớp phủ — một bề rộng, một vùng cuộn · §Điều khiển › Chiều rộng
+         EXPERIENCE.md §Thứ tự trong `Công cụ ▾` · Component Patterns › Lớp phủ
+  Quyết định: .memlog.md 2026-11-17. Spine thắng khi mockup lệch.
+  Kích thước thật, 1px CSS = 1px app. Cửa sổ 1280px (mặc định tauri.conf.json).
+  Không JS. Mọi vùng có overflow:auto cuộn được thật để thấy cuộn lồng.
+*/
+:root{
+  --background:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent:#e6eeee;
+  --ink:#2b2723; --ink-2:#6b6459; --outline:#e2dccf; --faint:#efeade; --orn:#a9a196;
+  --primary:#2f5d63; --on-primary:#fbfaf6; --control:#8a8276; --error:#8f2f22; --tm:#a38347;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;line-height:21px;color:var(--ink);padding:28px 16px}
+.page{max-width:1280px;margin:0 auto}
+.hd{color:#f4f1ea;margin-bottom:28px}
+.hd h1{font-size:18px;margin:0 0 7px}
+.hd p{margin:0 0 7px;max-width:900px;color:#e2ddd2}
+.hd code,.note code{font-family:var(--mono);font-size:11.5px}
+h2.sec{color:#f4f1ea;font-size:15px;margin:42px 0 7px}
+.sec-sub{color:#d8d3c8;margin:0 0 14px;max-width:900px}
+.lab{color:#f4f1ea;font-weight:600;margin:0 0 7px}
+.lab span{font-weight:400;color:#d8d3c8;margin-left:10px}
+.scroller{overflow-x:auto;margin-bottom:21px}
+.note{background:#5d584f;color:#efeade;border-radius:4px;padding:10px 14px;margin:-7px 0 28px;max-width:1280px}
+.note ol{margin:0;padding-left:20px}
+
+/* ---------- cửa sổ ---------- */
+.win{width:1280px;background:var(--background);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:42px;display:flex;align-items:center;padding:0 21px;gap:8px;border-bottom:1px solid var(--outline);background:var(--background)}
+.dot{width:12px;height:12px;border-radius:50%;background:#d5cfc2}
+.modes{margin-left:21px;display:flex;gap:2px}
+.modes span{padding:3px 14px;color:var(--ink-2)}
+.modes .on{background:var(--surface);color:var(--ink);border-radius:3px}
+.tb .right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--ink-2)}
+.tools-btn{border:1px solid var(--control);border-radius:3px;padding:0 10px;height:28px;display:flex;align-items:center;background:var(--surface);color:var(--ink)}
+.tools-btn.open{background:var(--accent);color:var(--primary);border-color:var(--primary)}
+
+/* nền che đặc như .set-scrim / .pi-scrim */
+.scrim{position:relative;display:flex;justify-content:center;align-items:flex-start;padding:14px;background:var(--background)}
+.ov{width:100%;background:var(--surface);border:1px solid var(--outline);display:flex;flex-direction:column}
+.ov.w721{max-width:721px} .ov.w917{max-width:917px} .ov.w1120{max-width:1120px}
+.ov.scroll-all{overflow:auto}
+.ov-head{display:flex;align-items:baseline;gap:14px;padding:14px 14px 7px;border-bottom:1px solid var(--faint);background:var(--surface)}
+.ov-head h3{margin:0;font-size:15px;line-height:21px;font-weight:600}
+.ov-head .x{margin-left:auto}
+.ov-mid{padding:7px 14px 14px}
+.ov-mid.one-scroll{overflow:auto;flex:1;min-height:0}
+.ov-foot{display:flex;align-items:center;gap:14px;padding:7px 14px;border-top:1px solid var(--outline);background:var(--background)}
+.ov-foot .hint{color:var(--ink-2);flex:1}
+.btn{height:28px;min-width:112px;padding:0 14px;border-radius:3px;border:1px solid var(--control);background:var(--surface);color:var(--ink);font:inherit;display:inline-flex;align-items:center;justify-content:center}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.btn.quiet{border-color:transparent;background:transparent;min-width:0;color:var(--ink-2)}
+dl.kv{display:grid;grid-template-columns:140px 1fr;margin:0 0 14px;row-gap:0}
+dl.kv dt{color:var(--ink-2)} dl.kv dd{margin:0}
+h4{margin:7px 0;font-size:13px}
+pre.body{font-family:var(--mono);font-size:12px;line-height:21px;margin:0 0 14px;padding:6px;border:1px solid var(--outline);background:var(--background);white-space:pre-wrap}
+pre.body.nested{max-height:140px;overflow:auto}
+.radios{display:flex;gap:21px;margin-bottom:14px}
+.radio{display:flex;align-items:center;gap:7px}
+.radio i{width:14px;height:14px;border:1px solid var(--control);border-radius:50%;display:inline-block;background:var(--surface);position:relative}
+.radio i.on::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--primary)}
+.status{border-left:2px solid var(--tm);padding-left:12px;color:var(--ink-2);margin-bottom:14px}
+.warn{border-left:2px solid var(--error);padding-left:12px;margin-bottom:14px}
+
+/* vạch đánh dấu vùng cuộn để thấy bằng mắt */
+.sc-mark{outline:2px dashed #c0623a;outline-offset:-2px}
+.sc-tag{display:inline-block;font-size:11px;line-height:17px;padding:0 6px;border-radius:3px;background:#c0623a;color:#fff;margin-left:7px;vertical-align:1px}
+.sc-ok{outline:2px dashed var(--primary);outline-offset:-2px}
+.sc-tag.ok{background:var(--primary)}
+
+/* thanh cuộn theo DESIGN §Components › Thanh cuộn */
+.win ::-webkit-scrollbar{width:10px;height:10px}
+.win ::-webkit-scrollbar-track{background:transparent}
+.win ::-webkit-scrollbar-thumb{background:var(--orn);border-radius:5px}
+
+/* ---------- menu ---------- */
+.menus{display:flex;gap:42px;flex-wrap:wrap}
+.menu-col .lab{margin-bottom:10px}
+.menu{width:252px;background:var(--surface);border:1px solid var(--outline);border-radius:3px;padding:7px 0;box-shadow:0 7px 21px rgba(0,0,0,.18)}
+.mi{height:28px;display:flex;align-items:center;padding:0 14px;gap:7px;white-space:nowrap}
+.mi .ch{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.sw{margin-left:auto;position:relative;flex:none;width:28px;height:14px;border:1px solid var(--control);border-radius:7px;background:var(--surface)}
+.sw::after{content:"";position:absolute;top:1px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--ink-2)}
+.sw.on{background:var(--ink);border-color:var(--ink)} .sw.on::after{left:14px;background:var(--surface)}
+.mi.gone{text-decoration:line-through;color:var(--orn)}
+.mi.new{background:var(--accent)}
+.sep{height:1px;margin:7px 0;background:var(--faint)}
+.legend{color:#d8d3c8;max-width:420px}
+.legend b{color:#f4f1ea}
+
+/* ---------- Cài đặt ---------- */
+.set-scope{display:flex;align-items:center;gap:14px;padding:7px 14px;background:var(--sunken);border-bottom:1px solid var(--outline)}
+.seg{display:flex;border:1px solid var(--control);border-radius:3px;overflow:hidden}
+.seg span{padding:3px 14px;border-right:1px solid var(--control)} .seg span:last-child{border-right:0}
+.seg .on{background:var(--ink);color:var(--surface)}
+.set-grid{display:grid;grid-template-columns:203px 1fr;flex:1;min-height:0}
+.set-nav{border-right:1px solid var(--outline);padding:7px 0}
+.set-nav div{height:28px;display:flex;align-items:center;padding:0 14px;color:var(--ink-2)}
+.set-nav .on{background:var(--accent);color:var(--primary);font-weight:600}
+.set-body{padding:14px 21px}
+.group{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:0 0 7px;font-weight:700}
+.field{display:grid;grid-template-columns:154px 1fr;align-items:center;margin-bottom:14px;column-gap:14px}
+.field label{color:var(--ink-2)}
+.input{height:28px;border:1px solid var(--control);border-radius:3px;background:var(--sunken);padding:0 7px;display:flex;align-items:center;font-family:var(--mono);font-size:12px;white-space:nowrap;overflow:hidden}
+.input.ch{width:round(up, 24ch, 7px)} .input.ch-num{width:round(up, 8ch, 7px)}
+.input.full{width:100%}
+.ta{border:1px solid var(--control);border-radius:3px;background:var(--sunken);padding:7px;font-family:var(--mono);font-size:12px;line-height:21px;height:91px;overflow:auto}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{height:28px;border:1px solid var(--control);border-radius:3px;padding:0 10px;display:flex;align-items:center;background:var(--surface)}
+.chip.on{background:var(--accent);border-color:var(--primary);color:var(--primary)}
+.small{color:var(--ink-2);font-size:12px}
+.measure{position:relative;height:0}
+.measure span{position:absolute;top:-14px;font-size:11px;color:#c0623a;font-family:var(--mono)}
+</style>
+
+<div class="page">
+<div class="hd">
+  <h1>Lớp phủ một bề rộng, một vùng cuộn, menu Công cụ theo nhóm</h1>
+  <p>Ice chốt ngày 2026-11-17. Mỗi phần đặt trước và sau cạnh nhau, đúng kích thước thật trong cửa sổ 1280px. Vạch đứt màu cam đánh dấu vùng cuộn lồng (luật mới cấm). Vạch đứt màu xanh đánh dấu vùng cuộn duy nhất được phép.</p>
+  <p>Luật nằm ở DESIGN.md §Lớp phủ — một bề rộng, một vùng cuộn và EXPERIENCE.md §Thứ tự trong <code>Công cụ ▾</code>. Mockup chỉ minh hoạ; lệch thì spine thắng.</p>
+</div>
+
+<!-- ============ 1. MENU ============ -->
+<h2 class="sec">1 · Menu <code>Công cụ ▾</code></h2>
+<p class="sec-sub">16 mục phẳng thành 5 nhóm cộng hai mục cuối, chia bằng đường phân cách, không in tên nhóm. Ngưỡng quét Glossary và Thêm Chương… rời menu. Quét chính tả vào nhóm quy ước.</p>
+<div class="menus">
+  <div class="menu-col">
+    <div class="lab">Trước <span>src/TitlebarToolsMenu.vue ở 528dec8a</span></div>
+    <div class="menu">
+      <div class="mi">Quản lý Glossary<span class="ch">⌥⌘M</span></div>
+      <div class="mi gone">Ngưỡng quét Glossary<span class="ch">⌥⌘T</span></div>
+      <div class="mi">Quản lý bộ nhớ dịch (TM)<span class="ch">⌥⌘B</span></div>
+      <div class="mi">Cài đặt<span class="ch">⌘,</span></div>
+      <div class="mi">Chỗ đã bỏ qua</div>
+      <div class="mi">Quản lý quy ước chữ Việt<span class="ch">⌥⌘A</span></div>
+      <div class="mi">Thay cả Chương theo quy ước</div>
+      <div class="mi gone">Thêm Chương…</div>
+      <div class="mi">Nhập bản reviewer</div>
+      <div class="mi">Nối tay bản reviewer</div>
+      <div class="mi">Duyệt thu hoạch thuật ngữ</div>
+      <div class="mi">Mở bảng lệnh<span class="ch">⌘K</span></div>
+      <div class="mi">Sắp xếp panel<span class="sw on"></span></div>
+      <div class="mi">Đối chiếu<span class="sw on"></span></div>
+      <div class="mi">Tra cứu<span class="sw on"></span></div>
+      <div class="mi">Đề xuất AI<span class="sw on"></span></div>
+    </div>
+  </div>
+  <div class="menu-col">
+    <div class="lab">Sau</div>
+    <div class="menu">
+      <div class="mi">Quản lý Glossary<span class="ch">⌥⌘M</span></div>
+      <div class="mi">Duyệt thu hoạch thuật ngữ</div>
+      <div class="sep"></div>
+      <div class="mi">Quản lý bộ nhớ dịch (TM)<span class="ch">⌥⌘B</span></div>
+      <div class="sep"></div>
+      <div class="mi new">Quét chính tả</div>
+      <div class="mi">Chỗ đã bỏ qua</div>
+      <div class="mi">Quản lý quy ước chữ Việt<span class="ch">⌥⌘A</span></div>
+      <div class="mi">Thay cả Chương theo quy ước</div>
+      <div class="sep"></div>
+      <div class="mi">Nhập bản reviewer</div>
+      <div class="mi">Nối tay bản reviewer</div>
+      <div class="sep"></div>
+      <div class="mi">Sắp xếp panel<span class="sw on"></span></div>
+      <div class="mi">Đối chiếu<span class="sw on"></span></div>
+      <div class="mi">Tra cứu<span class="sw on"></span></div>
+      <div class="mi">Đề xuất AI<span class="sw on"></span></div>
+      <div class="sep"></div>
+      <div class="mi">Mở bảng lệnh<span class="ch">⌘K</span></div>
+      <div class="mi">Cài đặt<span class="ch">⌘,</span></div>
+    </div>
+  </div>
+  <div class="legend">
+    <p><b>Gạch ngang</b>: rời menu. Thêm Chương… còn nút ở Library và trang Tác phẩm. Ngưỡng quét còn ở Cài đặt › Glossary, giữ phím <code>⌥⌘T</code>.</p>
+    <p><b>Nền xanh nhạt</b>: mục mới. Quét chính tả mở bộ chọn ba ô Câu này · Vùng chọn · Cả Chương (<code>ai.proofread.scope.open</code>), không có phím. <code>⌘P</code> vẫn quét câu đang đứng.</p>
+    <p><b>Nhóm Bố cục</b> giữ nguyên công tắc như app hiện tại (<code>.ui-switch__track</code>); ba công tắc panel chỉ hiện ở Workspace.</p>
+    <p>Chiều cao: 16 dòng × 28px (448px) thành 15 dòng × 28px + 5 đường phân cách × 15px (495px). Menu dài thêm 47px.</p>
+  </div>
+</div>
+
+<!-- ============ 2. MÀN HẸP + CUỘN LỒNG ============ -->
+<h2 class="sec">2 · Màn hẹp: Xem trước lượt nhập bộ prompt</h2>
+<p class="sec-sub">Một trong 9 màn đang rộng 721px, và một trong 8 màn có cuộn lồng: cả khung <code>.pi-panel</code> cuộn, thân prompt <code>.pi-body</code> lại cuộn riêng bên trong. Lăn chuột trên thân prompt rồi ra ngoài để thấy hai thanh cuộn tranh nhau.</p>
+
+<div class="lab">Trước <span>721px · hai vùng cuộn lồng · nút Xác nhận trôi theo nội dung</span></div>
+<div class="scroller"><div class="win">
+  <div class="tb"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span class="tools-btn">Công cụ ▾</span></div></div>
+  <div class="scrim" style="height:520px">
+    <section class="ov w721 scroll-all sc-mark" style="max-height:100%">
+      <div class="ov-head" style="border-bottom:0"><h3>Xem trước lượt nhập bộ prompt</h3><span class="sc-tag">vùng cuộn 1: cả khung</span><button class="btn quiet x">Huỷ</button></div>
+      <div class="ov-mid">
+        <dl class="kv"><dt>Tệp</dt><dd>truyen-tien-hiep.atprompt</dd><dt>Tên bộ</dt><dd>Tiên hiệp — giữ Hán Việt</dd></dl>
+        <h4>Nội dung prompt <span class="sc-tag">vùng cuộn 2: lồng trong 1</span></h4>
+        <pre class="body nested sc-mark">Bạn là người dịch truyện tiên hiệp từ tiếng Trung sang tiếng Việt.
+Giữ tên riêng, cảnh giới và chiêu thức theo Hán Việt.
+Không thêm chú thích, không giải thích.
+
+Thuật ngữ bắt buộc:
+{{glossary_terms}}
+
+Ngữ cảnh Chương:
+{{chapter_context}}
+
+Câu cần dịch:
+{{source_segment}}
+
+Trả về đúng một câu tiếng Việt.
+Giữ dấu câu kiểu Việt: ngoặc kép “ ”, gạch ngang —.
+Số đếm viết bằng chữ khi dưới mười.</pre>
+        <h4>Lưu vào tầng</h4>
+        <div class="radios"><span class="radio"><i class="on"></i>Toàn cục</span><span class="radio"><i></i>Tác phẩm này</span></div>
+        <div class="status">Tầng này chưa có bộ tên này — sẽ tạo mới.</div>
+        <div style="height:120px"></div>
+        <div style="display:flex;gap:14px;align-items:center;justify-content:flex-end;border-top:1px solid var(--outline);padding-top:7px">
+          <span class="small" style="flex:1">Không ghi xuống đĩa trước khi bấm.</span>
+          <button class="btn">Huỷ</button><button class="btn primary">Xác nhận nhập</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div></div>
+
+<div class="lab">Sau <span>1120px · một vùng cuộn · đầu và chân dính</span></div>
+<div class="scroller"><div class="win">
+  <div class="tb"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span class="tools-btn">Công cụ ▾</span></div></div>
+  <div class="scrim" style="height:520px">
+    <section class="ov w1120" style="max-height:100%">
+      <div class="ov-head"><h3>Xem trước lượt nhập bộ prompt</h3><span class="small">truyen-tien-hiep.atprompt</span><button class="btn quiet x">Huỷ</button></div>
+      <div class="ov-mid one-scroll sc-ok">
+        <dl class="kv"><dt>Tên bộ</dt><dd>Tiên hiệp — giữ Hán Việt</dd></dl>
+        <h4>Nội dung prompt <span class="sc-tag ok">vùng cuộn duy nhất</span></h4>
+        <pre class="body">Bạn là người dịch truyện tiên hiệp từ tiếng Trung sang tiếng Việt.
+Giữ tên riêng, cảnh giới và chiêu thức theo Hán Việt.
+Không thêm chú thích, không giải thích.
+
+Thuật ngữ bắt buộc:
+{{glossary_terms}}
+
+Ngữ cảnh Chương:
+{{chapter_context}}
+
+Câu cần dịch:
+{{source_segment}}
+
+Trả về đúng một câu tiếng Việt.
+Giữ dấu câu kiểu Việt: ngoặc kép “ ”, gạch ngang —.
+Số đếm viết bằng chữ khi dưới mười.</pre>
+        <h4>Lưu vào tầng</h4>
+        <div class="radios"><span class="radio"><i class="on"></i>Toàn cục</span><span class="radio"><i></i>Tác phẩm này</span></div>
+        <div class="status" style="margin-bottom:0">Tầng này chưa có bộ tên này — sẽ tạo mới.</div>
+      </div>
+      <div class="ov-foot"><span class="hint">Không ghi xuống đĩa trước khi bấm.</span><button class="btn">Huỷ</button><button class="btn primary">Xác nhận nhập</button></div>
+    </section>
+  </div>
+</div></div>
+<div class="note"><ol>
+  <li>Thân prompt hiện trọn, không cuộn riêng; khung chỉ còn một vùng cuộn giữa đầu và chân.</li>
+  <li>Khối thân prompt giãn hết bề ngang 1120px trừ đệm, nên câu dài ít bị ngắt dòng hơn.</li>
+  <li>Nút Xác nhận nhập ở chân dính, luôn thấy, không phải cuộn xuống tìm.</li>
+  <li>Đặt tên tệp lên dòng đầu là chi tiết minh hoạ, chưa phải quyết định; story sẽ giữ bố cục <code>dl</code> như mã nếu Ice không nói gì.</li>
+</ol></div>
+
+<!-- ============ 3. CÀI ĐẶT ============ -->
+<h2 class="sec">3 · Cài đặt › AI và mô hình: ô chữ giãn, ô số giữ nguyên</h2>
+<p class="sec-sub">Cài đặt đang rộng 917px. Ở 1120px, ô chữ (Endpoint, Mô hình, System prompt) giãn hết cột nội dung. Ô số (Nhiệt độ, Số token tối đa) vẫn đo bằng <code>ch</code>. Cột điều hướng 203px giữ nguyên, và chỉ cột nội dung cuộn.</p>
+
+<div class="lab">Trước <span>917px · ô chữ 24ch làm tròn bội 7</span></div>
+<div class="scroller"><div class="win">
+  <div class="tb"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span class="tools-btn">Công cụ ▾</span></div></div>
+  <div class="scrim" style="height:470px">
+    <section class="ov w917" style="max-height:100%">
+      <div class="ov-head"><h3>Cài đặt</h3><button class="btn quiet x">Đóng Cài đặt</button></div>
+      <div class="set-scope"><span class="small">Phạm vi</span><div class="seg"><span class="on">Toàn cục</span><span>Tác phẩm này</span></div></div>
+      <div class="set-grid">
+        <div class="set-nav"><div class="on">AI và mô hình</div><div>Prompt</div><div>Thể loại</div><div>Glossary</div><div>Bộ nhớ dịch (TM)</div><div>Xuất</div><div>Phím tắt</div><div>Bố cục</div></div>
+        <div class="set-body">
+          <p class="group">Kết nối</p>
+          <div class="field"><label>Nhà cung cấp</label><div class="chips"><span class="chip on">OpenRouter</span><span class="chip">Ollama</span><span class="chip">Tự nhập</span></div></div>
+          <div class="field"><label>Endpoint</label><div class="input ch">https://openrouter.ai/api/v1</div></div>
+          <div class="field"><label>Mô hình</label><div class="input ch">deepseek/deepseek-chat-v3</div></div>
+          <div class="field"><label>Nhiệt độ (0–2)</label><div class="input ch-num">0.3</div></div>
+          <div class="field"><label>Số token tối đa</label><div class="input ch-num">2048</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div></div>
+
+<div class="lab">Sau <span>1120px · ô chữ giãn, ô số giữ 8ch</span></div>
+<div class="scroller"><div class="win">
+  <div class="tb"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span class="tools-btn">Công cụ ▾</span></div></div>
+  <div class="scrim" style="height:470px">
+    <section class="ov w1120" style="max-height:100%">
+      <div class="ov-head"><h3>Cài đặt</h3><button class="btn quiet x">Đóng Cài đặt</button></div>
+      <div class="set-scope"><span class="small">Phạm vi</span><div class="seg"><span class="on">Toàn cục</span><span>Tác phẩm này</span></div></div>
+      <div class="set-grid">
+        <div class="set-nav"><div class="on">AI và mô hình</div><div>Prompt</div><div>Thể loại</div><div>Glossary</div><div>Bộ nhớ dịch (TM)</div><div>Xuất</div><div>Phím tắt</div><div>Bố cục</div></div>
+        <div class="set-body one-scroll sc-ok" style="overflow:auto">
+          <p class="group">Kết nối <span class="sc-tag ok">vùng cuộn duy nhất</span></p>
+          <div class="field"><label>Nhà cung cấp</label><div class="chips"><span class="chip on">OpenRouter</span><span class="chip">Ollama</span><span class="chip">Tự nhập</span></div></div>
+          <div class="field"><label>Endpoint</label><div class="input full">https://openrouter.ai/api/v1</div></div>
+          <div class="field"><label>Mô hình</label><div class="input full">deepseek/deepseek-chat-v3</div></div>
+          <div class="field"><label>Nhiệt độ (0–2)</label><div class="input ch-num">0.3</div></div>
+          <div class="field"><label>Số token tối đa</label><div class="input ch-num">2048</div></div>
+          <div class="field" style="align-items:start"><label>System prompt</label><div class="ta">Bạn là người dịch văn học Trung–Việt. Giữ giọng văn của tác giả.</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div></div>
+<div class="note"><ol>
+  <li>Ô chữ giãn theo luật lớp phủ (ngoại lệ của §Điều khiển › Chiều rộng); ô số giữ <code>round(up, 8ch, 7px)</code> vì Ice chốt ô số không giãn.</li>
+  <li>Đầu khung và thanh Phạm vi không cuộn. Cột điều hướng không cuộn riêng; nếu danh sách mục dài hơn khung thì đó là cột kề nhau, được phép.</li>
+  <li>Ô System prompt nhiều dòng tự cuộn là ngoại lệ duy nhất của luật một vùng cuộn.</li>
+  <li>Giá trị Nhà cung cấp, Endpoint, Mô hình chỉ là ví dụ để có chữ trong ô.</li>
+</ol></div>
+</div>
