@@ -46,6 +46,7 @@ Yêu cầu nằm ở PRD (FR1–FR159 trừ FR20 đã rút, NFR1–NFR20); mỗi
 
 ## Notes
 
+- Decision: 2026-11-17, Ice — luật lớp phủ một bề rộng, một vùng cuộn và menu Công cụ theo nhóm (`ux-auratranslate/DESIGN.md` §Lớp phủ, `EXPERIENCE.md` §Thứ tự trong `Công cụ ▾`, commit `03a65d21`) thành Epic 17 `epic-lop-phu-mot-be-rong`, đứng cuối thứ tự, chờ Epic 13; `covers` trống như Epic 13 và 14.
 - Decision: 2026-11-03, Ice — FR159 thành Epic 16 `epic-quy-uoc-chu-viet`, đứng cuối thứ tự, 7 story ghi ngay với `unknown` chờ AD của Winston, UX của Sally, Q10 và Q11. Xung đột FR159 với AD-53 giải bằng cách nhận thay giữ xuất xứ của câu như chấp nhận đề xuất chính tả, câu đã xác nhận giữ xác nhận; PRD FR159 sửa theo. "Thay cả Chương" là lượt ghi không-phải-người-dùng theo AD-47 ①, Winston viết hàng AD-47 ③.
 - Decision: 2026-11-03, Ice — Q10 PRD: Glossary thắng, chỗ khớp nằm trọn trong bản dịch của mục đã chốt mà câu nguồn chứa thuật ngữ thì không đánh dấu. Q11 PRD: CSV/TSV hai cột như Glossary. PRD FR159 và §13 sửa theo.
 - Decision: 2026-11-03, Ice — FR70 sửa (PRD `f2db4006`: câu kề và ghi chú Glossary, theo AD-65 và AD-66 ở spine `39f2583e`) thành entry 4.16 và 4.17 ở Epic 4; Epic 4 phủ thêm FR47. FR quy ước chữ Việt làm ở phiên khác.

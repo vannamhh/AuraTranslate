@@ -1,0 +1,81 @@
+# tickets.toml — epic-lop-phu-mot-be-rong. One [[entry]] per story; table order is the build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Khung lớp phủ dùng chung, cổng giữ luật, và màn Xem trước lượt nhập bộ prompt"
+description = "Token `--overlay-max-width` 1120px, khung dùng chung (đầu và chân dính, một vùng cuộn dọc ở giữa), cổng nguồn canh R1 và R4 với danh sách nợ có tên (luật cổng ở Notes của epic), và `PromptImportOverlay.vue` chuyển sang khung chung. Plan dừng chờ Ice chọn hình dạng khung và chỗ đặt cổng giữa hai phương án có số đo; story này cũng sở hữu helper e2e đo bề rộng khung và đếm vùng cuộn mà entry 2–5 dùng lại."
+verify = "Một spec e2e trên WKWebView: màn Xem trước lượt nhập bộ prompt rộng 1120px ở cửa sổ 1280px và 772px ở cửa sổ 800px, trong khung chỉ một phần tử cuộn dọc, nút Xác nhận nhập thấy được ở cả đỉnh và đáy vùng cuộn; cổng có ca tự kiểm đỏ với một vùng cuộn lồng, và đối chứng gỡ thật cho đỏ đúng lý do."
+covers = ["R1", "R3", "R4"]
+after = ["13.9"]
+hitl = true
+risk = "high"
+references = ["ux-auratranslate/mockups/lop-phu-mot-be-rong.html mục 2", "ux-auratranslate/.working/bang-ke-lop-phu-2026-11-17.md"]
+
+[[entry]]
+id = 2
+type = "story"
+title = "Cài đặt và Thư viện prompt theo khung chung"
+description = "`SettingsOverlay.vue` (917px) và `PromptLibraryOverlay.vue` (959px, danh sách cuộn trong khung cuộn) chuyển sang khung chung. Trong Cài đặt, ô chữ (Endpoint, Mô hình, khoá API, System prompt…) giãn hết cột nội dung, ô số (Nhiệt độ, Số token tối đa, ngưỡng quét Glossary…) giữ bề rộng `ch`; chỉ cột nội dung cuộn. Thư viện prompt thành hai cột kề nhau, mỗi cột tự cuộn. Xoá hai dòng nợ của cổng."
+verify = "Một spec e2e trên WKWebView: Cài đặt rộng 1120px; ở mục AI và mô hình ô Endpoint rộng bằng cột nội dung trừ đệm, ô Nhiệt độ rộng bằng `round(up, 8ch, 7px)`; trong Cài đặt và Thư viện prompt không phần tử cuộn dọc nào nằm trong phần tử cuộn dọc khác; cổng xanh với hai dòng nợ đã xoá."
+covers = ["R1", "R3", "R4"]
+after = [1]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/mockups/lop-phu-mot-be-rong.html mục 3"]
+
+[[entry]]
+id = 3
+type = "story"
+title = "Lớp phủ Glossary, TM và quy ước theo khung chung"
+description = "Chín lớp phủ chuyển sang khung chung: `GlossaryManageOverlay`, `GlossaryImportOverlay`, `GlossaryHarvestOverlay`, `GlossaryQueueOverlay` (đã 1120px, chuyển sang token), `TmManageOverlay`, `TmImportOverlay`, `ConventionManageOverlay`, `ConventionImportOverlay`, `ConventionReplaceOverlay`. Danh sách cuộn riêng (`.gh-list` 60vh, `.crv-list`, `.tm-mono`) thành phần của vùng cuộn duy nhất. Xoá chín dòng nợ của cổng."
+verify = "Một spec e2e trên WKWebView mở Quản lý Glossary, Quản lý TM và Thay cả Chương: mỗi khung rộng 1120px và chỉ một phần tử cuộn dọc; cổng xanh với chín dòng nợ đã xoá."
+covers = ["R1", "R3", "R4"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Lớp phủ Chương, Reviewer, Proofreader và lịch sử theo khung chung"
+description = "Bảy lớp phủ chuyển sang khung chung: `ChapterMergeOverlay`, `ChapterSplitOverlay`, `LibraryImportOverlay`, `ReviewerImportOverlay`, `AlignmentOverlay` (Nối tay), `SegmentHistoryOverlay`, `ProofreadMemoryOverlay` (Chỗ đã bỏ qua, 560px). Danh sách cuộn riêng (`.cs-list`, `.al-list`) thành phần của vùng cuộn duy nhất, hoặc thành cột kề nhau khi màn có hai cột; ô URL nhiều dòng của Nhập giữ tự cuộn. Xoá bảy dòng nợ của cổng."
+verify = "Một spec e2e trên WKWebView mở Tách Chương, Nối tay và Chỗ đã bỏ qua: mỗi khung rộng 1120px và không phần tử cuộn dọc nào nằm trong phần tử cuộn dọc khác; cổng xanh với bảy dòng nợ đã xoá."
+covers = ["R1", "R3", "R4"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Màn nhiều cột không cuộn lồng"
+description = "Năm màn tràn cửa sổ (Xuất, Xem trước nhập, Xem trước nhập song ngữ, Nguồn ảnh, Prompt inspector) giữ tràn, lề `panel-inline`, và theo luật một vùng cuộn: Nguồn ảnh hết cuộn riêng ở `.attr-license-text`, Xuất xếp ba vùng cuộn thành các cột kề nhau, không vùng nào lồng. Xoá dòng nợ cuộn của hai màn này."
+verify = "Một spec e2e trên WKWebView mở Xuất và Nguồn ảnh: không phần tử cuộn dọc nào nằm trong phần tử cuộn dọc khác, và chân dính của Xuất thấy được khi cuộn đáy; cổng xanh với dòng nợ của Xuất và Nguồn ảnh đã xoá."
+covers = ["R2", "R4"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Menu Công cụ theo nhóm dữ liệu"
+description = "`TitlebarToolsMenu.vue` xếp lại theo R5 với năm đường phân cách `.ui-menu-sep`, thêm mục Quét chính tả (`ai.proofread.scope.open`), bỏ mục Ngưỡng quét Glossary và Thêm Chương…; `glossary.settings.open` khai `pointer` kiểu `via` với đích `settings.open` (mục Cài đặt giữ điểm chuột); bốn công tắc nhóm Bố cục giữ nguyên. Spine EXPERIENCE.md §Thanh tiêu đề đã ghi sẵn thứ tự."
+verify = "Một ca vitest: menu mở ở Workspace có các mục đúng thứ tự R5 và năm đường phân cách đúng chỗ, không có mục `glossary.settings.open` và `library.add_chapters`, mục Quét chính tả dispatch `ai.proofread.scope.open`; `npm run check:commands` xanh với `POINTER_DEBT` rỗng."
+covers = ["R5", "R6"]
+after = []
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/mockups/lop-phu-mot-be-rong.html mục 1"]
+
+[[entry]]
+id = 7
+type = "story"
+title = "Refactor sweep"
+description = "Chỉ dọn dẹp, phạm vi chốt lúc bắt đầu từ plan và phát hiện review mà các story của epic đã hoãn; việc bị đẩy ra từ story khác là một story mới."
+verify = "Danh sách nợ lớp phủ của cổng rỗng; mỗi mục trong phạm vi chốt lúc bắt đầu đã đóng hoặc ghi lý do không làm; bộ test đầy đủ xanh."
+covers = []
+after = [1, 2, 3, 4, 5, 6]
+hitl = false
+risk = "low"

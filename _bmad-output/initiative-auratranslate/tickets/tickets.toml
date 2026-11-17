@@ -100,3 +100,11 @@ slug = "epic-quy-uoc-chu-viet"
 title = "Quy ước chữ Việt — bắt và thay cụm cần tránh trong bản dịch, không gọi AI"
 description = "Người dịch thấy và thay mọi chỗ vi phạm quy ước chữ Việt của mình ngay trong Editor, hai tầng luật, xuất nhập được, 0 lời gọi AI và không chỗ nào bị sửa khi chưa được nhận."
 covers = ["FR159"]
+
+[[epic]]
+id = 17
+slug = "epic-lop-phu-mot-be-rong"
+title = "Lớp phủ một bề rộng, một vùng cuộn, menu Công cụ theo nhóm"
+description = "Mọi lớp phủ cài đặt và chức năng rộng tối đa 1120px với đúng một vùng cuộn và đầu chân dính, một cổng nguồn giữ hai luật đó, và menu Công cụ xếp theo nhóm dữ liệu."
+covers = []
+after = [{ epic = 13, needs = "lưới 7px đã nghiệm thu trên lớp phủ (13.1, 13.8) và Refactor sweep 13.9 xong trước khi sửa cùng tệp" }]

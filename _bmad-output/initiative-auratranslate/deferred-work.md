@@ -14238,3 +14238,9 @@ chính nó.
 
 - Kiểm Save As trong app macOS thật: tên/bộ lọc, huỷ, đổi tên và xác nhận thay thế; test IPC không chứng minh hộp thoại native. Chủ: Ice. Trỏ: `plan-xuat-chuong-save-as.md`.
 - Kiểm Save As và thay thế tệp trên Windows sau khi đẩy mã; máy hiện tại chỉ kiểm Rust/macOS. Chủ: B7. Trỏ: `plan-xuat-chuong-save-as.md`.
+
+## Deferred from: mở Epic 17, lớp phủ một bề rộng (2026-11-17)
+
+- Máy đo được bề rộng khung và số vùng cuộn; cảm giác một bề rộng chung, ô chữ giãn trên màn vốn hẹp, và nút chân luôn thấy khi cuộn chỉ người dùng thật mới xác nhận được.
+  Cần: một lượt dùng thật của Ice trên các màn của mockup `lop-phu-mot-be-rong.html` và ba lớp phủ khác do Ice chọn, sau khi entry 1–6 xong.
+  Chủ: Epic 17. Trỏ: `tickets/epic-lop-phu-mot-be-rong/epic-lop-phu-mot-be-rong.md` §Done when 5.
