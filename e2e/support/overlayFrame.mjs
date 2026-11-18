@@ -18,7 +18,8 @@ export async function resizeLogical(width, height) {
 
 /**
  * Measure a frame element: its width, every vertical scroller inside it (the frame itself
- * included), and how many of those sit inside another one.
+ * included), and how many of those sit inside another one. Elements without a box, or inside
+ * a closed `details` (WebKit keeps a box for its hidden panel), are not scroll regions.
  *
  * @param {string} selector CSS selector of the frame element
  * @returns {Promise<{ width: number, scrollers: string[], nested: number }>}
@@ -31,7 +32,7 @@ export async function measureOverlayFrame(selector) {
       const y = getComputedStyle(el).overflowY
       return y === 'auto' || y === 'scroll'
     }
-    const all = [frame, ...frame.querySelectorAll('*')].filter((el) => el.tagName !== 'TEXTAREA')
+    const all = [frame, ...frame.querySelectorAll('*')].filter((el) => el.tagName !== 'TEXTAREA' && el.getClientRects().length > 0 && el.closest('details:not([open])') === null)
     const scrollers = all.filter(declares)
     const nested = scrollers.filter((el) => scrollers.some((other) => other !== el && other.contains(el))).length
     const label = (el) => (el.className && typeof el.className === 'string' ? `${el.tagName.toLowerCase()}.${el.className.trim().split(/\s+/).join('.')}` : el.tagName.toLowerCase())

@@ -2417,15 +2417,6 @@ const OVERLAY_FILE_FLOOR = 22
 
 /** Overlay not yet on the frame, with the ticket entry that moves it. */
 const OVERLAY_DEBT = new Map([
-  ['GlossaryManageOverlay', 'entry 3 (Story 17.3)'],
-  ['GlossaryImportOverlay', 'entry 3 (Story 17.3)'],
-  ['GlossaryHarvestOverlay', 'entry 3 (Story 17.3)'],
-  ['GlossaryQueueOverlay', 'entry 3 (Story 17.3)'],
-  ['TmManageOverlay', 'entry 3 (Story 17.3)'],
-  ['TmImportOverlay', 'entry 3 (Story 17.3)'],
-  ['ConventionManageOverlay', 'entry 3 (Story 17.3)'],
-  ['ConventionImportOverlay', 'entry 3 (Story 17.3)'],
-  ['ConventionReplaceOverlay', 'entry 3 (Story 17.3)'],
   ['ChapterMergeOverlay', 'entry 4 (Story 17.4)'],
   ['ChapterSplitOverlay', 'entry 4 (Story 17.4)'],
   ['LibraryImportOverlay', 'entry 4 (Story 17.4)'],
@@ -2481,7 +2472,8 @@ const preludeTargetsFrame = (prelude, frame) =>
  * @returns {import('./lib/tokens-scan.mjs').CssDecl | null}
  */
 function verticalScrollerDecl(block) {
-  const last = (prop) => block.decls.findLast((d) => d.prop === prop)
+  /** @param {string} prop */
+  const last = (prop) => block.decls.findLast((d) => d.prop === prop) ?? null
   const ov = last('overflow')
   const ovX = last('overflow-x')
   const ovY = last('overflow-y')
@@ -2634,6 +2626,7 @@ const L_CASES = [
 ]
 let lSelfBad = 0
 for (const [name, file, text, lists, wantMsg] of L_CASES) {
+  /** @param {string[] | undefined} names */
   const asMap = (names) => new Map((names ?? []).map((n) => [n, lists.reason ?? 'fixture']))
   const got = overlayVerdict(parseSource(`${file}.vue`, text), file, {
     debt: asMap(lists.debt),

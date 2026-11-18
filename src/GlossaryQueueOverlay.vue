@@ -319,13 +319,14 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <div
     v-if="queueOverlayIsOpen"
-    class="gq-scrim"
+    class="gq-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"
   >
-    <section ref="panel" class="gq-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section ref="panel" class="gq-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true">
+      <div class="gq-top ui-overlay__head">
       <header class="gq-head">
         <h2 class="gq-title">{{ t('glossary.queue.title') }}</h2>
         <button type="button" class="gq-close ui-btn ui-btn--quiet" @click="dispatch('glossary.queue.close')">
@@ -334,6 +335,9 @@ function onKeydown(event: KeyboardEvent): void {
       </header>
       <!-- aura-allow-text: KẾT QUẢ của `t()` (ngưỡng đọc từ cấu hình). -->
       <p class="gq-subtitle">{{ subtitleText }}</p>
+      </div>
+
+      <div class="gq-scroll ui-overlay__body">
 
       <!--
         🔵 THÊM 2026-08-24 (vòng rà ba lớp), 🔴 DỜI vào `queueEmptyReasonFor` (cụm D vá,
@@ -595,6 +599,10 @@ function onKeydown(event: KeyboardEvent): void {
         </p>
         <p v-else-if="queueSaving" class="gq-status" role="status">{{ t('glossary.queue.saving') }}</p>
 
+      </template>
+      </div>
+
+      <footer v-if="queueStatus === 'loaded' && queueEmptyReason === null" class="ui-overlay__foot">
         <div class="gq-actions">
           <button type="button" class="gq-act gq-act-primary ui-btn ui-btn--primary" @click="dispatch('glossary.queue.accept')">
             <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">N</kbd>{{ t('glossary.queue.accept') }}
@@ -613,40 +621,14 @@ function onKeydown(event: KeyboardEvent): void {
           </button>
         </div>
         <p class="gq-hint gq-footer">{{ t('glossary.queue.footer') }}</p>
-      </template>
+      </footer>
     </section>
   </div>
 </template>
 
 <style scoped>
 .gq-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: xếp lớp CƠ HỌC — cùng lý do các lớp phủ khác. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .gq-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.gq-panel {
-  width: 100%;
-  max-width: 1120px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.gq-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .gq-head {
@@ -825,7 +807,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-subtitle {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 var(--space-unit) 0;
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
@@ -899,7 +881,8 @@ function onKeydown(event: KeyboardEvent): void {
 
 
 .gq-footer {
-  margin: calc(var(--space-unit) * 2) 0 0 0;
+  flex: 1;
+  margin: 0;
 }
 
 /*
@@ -1022,13 +1005,9 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-actions {
-  position: sticky;
-  bottom: -13px; /* aura-allow-spacing: reaches past the panel's 13px bottom padding */
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-unit);
-  padding: var(--space-unit) 0;
-  background: var(--color-surface);
 }
 
 </style>

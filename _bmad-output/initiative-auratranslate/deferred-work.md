@@ -14268,3 +14268,4 @@ chính nó.
 - `measureOverlayFrame` đếm cả `.menu-panel` của `SelectMenu`/`DropdownMenu` đang đóng (`overflow-y: auto`, không có hộp) là vùng cuộn; đặt trong `.ui-overlay__body` thì `nested` > 0 dù màn không cuộn lồng. Story 17.2 lọc nhãn `menu-panel` trong spec vì plan cấm sửa helper.
   Cần: helper bỏ phần tử không có hộp (`getClientRects().length === 0`) trước khi lô 3–4 chuyển `GlossaryManage`, `TmManage`, `ConventionManage`, `LibraryImport`.
   Chủ: Story 17.3. Trỏ: `e2e/support/overlayFrame.mjs`, `e2e/specs/story-17-2-cai-dat-va-thu-vien-prompt.e2e.mjs`.
+  → ✅ ĐÃ ĐÓNG 2026-11-18 (Story 17.3): helper bỏ phần tử không hộp, lọc `menu-panel` trong spec 17-2 đã xoá.

@@ -347,12 +347,14 @@ function onDeleteAiConfigKey(): void {
       aria-modal="true"
       aria-labelledby="settings-title"
     >
-      <header class="set-head ui-overlay__head">
+      <div class="set-top ui-overlay__head">
+      <header class="set-head">
         <h2 id="settings-title" class="set-title">{{ t('settings.title') }}</h2>
         <button type="button" class="set-close ui-btn ui-btn--quiet" @click="dispatch('settings.close')">
           {{ t('command.settings.close') }}
         </button>
       </header>
+      </div>
 
       <div v-if="scopeIsShown" class="set-scope" data-settings-scope>
         <span class="set-scope-label">{{ t('settings.scope.label') }}</span>
@@ -939,8 +941,7 @@ function onDeleteAiConfigKey(): void {
   box-sizing: content-box;
   height: 28px;
   justify-content: space-between;
-  padding: 13px; /* aura-allow-spacing: the panel's 1px border and the bottom border sit inside the 14px inset */
-  border-bottom: 1px solid var(--color-outline);
+  padding: 13px 0; /* aura-allow-spacing: the panel's 1px border and the frame head's bottom border sit inside the 14px inset */
 }
 
 .set-title {

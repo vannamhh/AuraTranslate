@@ -923,7 +923,8 @@ describe('PromptLibraryOverlay.vue — khung lớp phủ chung', () => {
 
     expect(wrapper.get('.pl-scrim').classes()).toContain('ui-overlay-scrim')
     expect(wrapper.get('.pl-panel').classes()).toContain('ui-overlay')
-    expect(wrapper.get('.pl-head').classes()).toContain('ui-overlay__head')
+    expect(wrapper.get('.pl-top').classes()).toContain('ui-overlay__head')
+    expect(wrapper.find('.pl-top > .pl-head').exists()).toBe(true)
     expect(wrapper.findAll('.pl-input').length).toBeGreaterThan(0)
     for (const input of wrapper.findAll('.pl-input')) expect(input.classes()).toContain('ui-field--full')
 

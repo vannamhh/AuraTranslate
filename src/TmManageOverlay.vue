@@ -485,7 +485,7 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <div
     v-if="tmManageOverlayIsOpen"
-    class="tm-scrim"
+    class="tm-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
@@ -493,12 +493,13 @@ function onKeydown(event: KeyboardEvent): void {
   >
     <section
       ref="panel"
-      class="tm-panel"
+      class="tm-panel ui-overlay"
       tabindex="-1"
       role="dialog"
       aria-modal="true"
       aria-labelledby="tm-manage-title"
     >
+      <div class="tm-top ui-overlay__head">
       <header class="tm-head">
         <h2 id="tm-manage-title" class="tm-title">
           {{ t('tm.manage.title') }}
@@ -595,6 +596,9 @@ function onKeydown(event: KeyboardEvent): void {
         </div>
       </div>
 
+      </div>
+
+      <div class="tm-scroll ui-overlay__body">
       <section v-if="tmManageStatus === 'loaded' && !tmManageTmEmpty" class="tm-health" :aria-label="t('tm.manage.health_label')">
         <div class="tm-mix">
           <div class="tm-track" aria-hidden="true">
@@ -990,39 +994,14 @@ function onKeydown(event: KeyboardEvent): void {
           </template>
         </p>
       </div>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped>
 .tm-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: mechanical overlay stacking, same as the other overlays. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .tm-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.tm-panel {
-  width: 100%;
-  max-width: 882px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.tm-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .tm-head {
@@ -1157,7 +1136,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-wrap: wrap;
   align-items: flex-end;
   gap: calc(var(--space-unit) * 2);
-  margin-bottom: var(--space-panel-block);
+  margin-bottom: var(--space-unit);
 }
 
 .tm-sr-only {
@@ -1475,6 +1454,7 @@ function onKeydown(event: KeyboardEvent): void {
   margin: 0;
   padding: 6px 13px; /* aura-allow-spacing: 1px border sits inside the inset */
   overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   font-family: var(--face-ui-mono);

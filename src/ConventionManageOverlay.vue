@@ -216,13 +216,14 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="conventionManageIsOpen"
-    class="cvm-scrim"
+    class="cvm-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown($event)"
   >
-    <section ref="panel" class="cvm-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cvm-title">
+    <section ref="panel" class="cvm-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cvm-title">
+      <div class="cvm-top ui-overlay__head">
       <header class="cvm-head">
         <h2 id="cvm-title" class="cvm-title">{{ t('convention.manage.title') }}</h2>
         <div class="cvm-head-actions">
@@ -275,6 +276,9 @@ function trapTab(event: KeyboardEvent): void {
         </button>
       </div>
 
+      </div>
+
+      <div class="cvm-scroll ui-overlay__body">
       <ConventionIgnoreCard v-if="conventionManageTab === 'ignored'" />
       <template v-else>
         <p v-if="conventionManageHasLoaded && !conventionManageWorkTierAvailable" class="cvm-note">
@@ -526,7 +530,9 @@ function trapTab(event: KeyboardEvent): void {
         </template>
       </template>
 
-      <footer class="cvm-foot">
+      </div>
+
+      <footer class="cvm-foot ui-overlay__foot">
         <p class="cvm-note" data-convention-exchange-tier>
           {{ t('convention.manage.exchange_tier_label') }}:
           {{ t(conventionManageExchangeTier === 'work' ? 'convention.manage.cell_tier_work' : 'convention.manage.cell_tier_global') }}
@@ -541,39 +547,26 @@ function trapTab(event: KeyboardEvent): void {
 </template>
 
 <style scoped>
-.cvm-scrim {
-  position: fixed;
-  inset: 0;
-  /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .cvm-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
 .cvm-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-panel-block);
-  width: 100%;
-  max-width: 1099px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
   color: var(--color-on-surface);
 }
 
-.cvm-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.cvm-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-panel-block);
+  padding-bottom: var(--space-unit);
+}
+
+.cvm-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-panel-block);
+}
+
+.cvm-scrim {
+  /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
+  z-index: 10;
 }
 
 .cvm-head {
@@ -694,7 +687,6 @@ function trapTab(event: KeyboardEvent): void {
 
 .cvm-field-search {
   flex: 1;
-  max-width: 294px;
 }
 
 .cvm-field-tier {

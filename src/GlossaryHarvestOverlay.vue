@@ -122,13 +122,14 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <div
     v-if="harvestOverlayIsOpen"
-    class="gh-scrim"
+    class="gh-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('glossary.harvest.close')"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"
   >
-    <section ref="panel" class="gh-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section ref="panel" class="gh-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true">
+      <div class="gh-top ui-overlay__head">
       <header class="gh-head">
         <h2 class="gh-title">{{ t('glossary.harvest.title') }}</h2>
         <button type="button" class="gh-close ui-btn ui-btn--quiet" @click="dispatch('glossary.harvest.close')">
@@ -136,6 +137,9 @@ function onKeydown(event: KeyboardEvent): void {
         </button>
       </header>
       <p class="gh-subtitle">{{ t('glossary.harvest.subtitle') }}</p>
+      </div>
+
+      <div class="gh-scroll ui-overlay__body">
 
       <p v-if="harvestStatus === 'unknown'" class="gh-status" role="status">{{ t('glossary.harvest.loading') }}</p>
       <p v-else-if="harvestStatus === 'ipc_unavailable'" class="gh-empty">
@@ -219,6 +223,10 @@ function onKeydown(event: KeyboardEvent): void {
         <p v-if="allDecided" class="gh-status" role="status">{{ t('glossary.harvest.all_decided') }}</p>
         <p v-else-if="harvestBusy" class="gh-status" role="status">{{ t('glossary.harvest.saving') }}</p>
 
+      </template>
+      </div>
+
+      <footer v-if="harvestStatus === 'loaded' && harvestRows.length > 0" class="ui-overlay__foot">
         <div class="gh-actions">
           <button
             type="button"
@@ -234,40 +242,14 @@ function onKeydown(event: KeyboardEvent): void {
           </button>
         </div>
         <p class="gh-hint">{{ t('glossary.harvest.hint') }}</p>
-      </template>
+      </footer>
     </section>
   </div>
 </template>
 
 <style scoped>
 .gh-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: xếp lớp CƠ HỌC — cùng lý do các lớp phủ khác. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .gh-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.gh-panel {
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.gh-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .gh-head {
@@ -292,10 +274,16 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
-.gh-subtitle,
+.gh-subtitle {
+  margin: 0 0 var(--space-unit) 0;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+
 .gh-empty,
-.gh-status,
-.gh-hint {
+.gh-status {
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -313,8 +301,6 @@ function onKeydown(event: KeyboardEvent): void {
   margin: 0 0 var(--space-panel-block) 0;
   padding: 0;
   border: 1px solid var(--color-outline);
-  max-height: 60vh;
-  overflow: auto;
 }
 
 .gh-row {
@@ -401,7 +387,15 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-unit);
-  margin-bottom: var(--space-panel-block);
+}
+
+.gh-hint {
+  flex: 1;
+  margin: 0;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
 }
 
 .gh-sr-only {

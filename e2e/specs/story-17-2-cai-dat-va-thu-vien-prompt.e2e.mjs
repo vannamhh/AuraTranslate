@@ -56,8 +56,7 @@ describe('Story 17-2 -- Settings and Prompt library on the overlay frame', () =>
     await realClick(await $(`${LIB} [data-prompt-kind-option="proofread"]`))
     await $(`${LIB} [data-proofread-choice]`).waitForExist({ timeout: 10_000 })
     const proofread = await measureOverlayFrame(LIB)
-    // The two closed SelectMenu panels (`details` > `.menu-panel`) declare overflow-y but render no box.
-    const regions = proofread.scrollers.filter((s) => !s.includes('menu-panel'))
+    const regions = proofread.scrollers
     await expect(Math.abs(proofread.width - (await expectedWidth()))).toBeLessThanOrEqual(WIDTH_TOLERANCE_PX)
     await expect(proofread.nested).toBe(0)
     await expect(regions.length).toBe(2)

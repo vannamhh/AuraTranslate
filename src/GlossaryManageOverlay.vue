@@ -411,13 +411,14 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <div
     v-if="manageOverlayIsOpen"
-    class="gm-scrim"
+    class="gm-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"
   >
-    <section ref="panel" class="gm-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section ref="panel" class="gm-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true">
+      <div class="gm-top ui-overlay__head">
       <header class="gm-head">
         <h2 class="gm-title">{{ t('glossary.manage.title') }}</h2>
         <button type="button" class="gm-close ui-btn ui-btn--quiet" @click="dispatch('glossary.manage.close')">
@@ -549,6 +550,9 @@ function onKeydown(event: KeyboardEvent): void {
         </label>
       </div>
 
+      </div>
+
+      <div class="gm-scroll ui-overlay__body">
       <!-- BỐN ca rỗng KHÁC NHAU, cộng nhánh "đang tải" — §Always: "rỗng phải nói vì sao nó rỗng". -->
       <p v-if="manageStatus === 'unknown'" class="gm-status" role="status">{{ t('glossary.manage.loading') }}</p>
       <p
@@ -873,45 +877,21 @@ function onKeydown(event: KeyboardEvent): void {
         </p>
       </div>
 
-      <div class="gm-foot">
+      </div>
+
+      <footer class="gm-foot ui-overlay__foot">
         <button type="button" class="gm-act gm-act-primary ui-btn ui-btn--primary" @click="dispatch('glossary.manage.add_term')">
           {{ t('glossary.manage.add_term') }}
         </button>
         <span class="gm-foot-hint">{{ t('glossary.manage.foot_hint') }}</span>
-      </div>
+      </footer>
     </section>
   </div>
 </template>
 
 <style scoped>
 .gm-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: xếp lớp CƠ HỌC — cùng lý do các lớp phủ khác. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .gm-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.gm-panel {
-  width: 100%;
-  max-width: 1099px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.gm-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .gm-head {
@@ -957,7 +937,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
-  margin-bottom: var(--space-panel-block);
+  margin-bottom: var(--space-unit);
 }
 
 .gm-field {
@@ -1103,7 +1083,6 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-field-search {
   flex: 1;
-  max-width: 294px;
 }
 
 .gm-field-origin {
@@ -1131,14 +1110,6 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-box-shadow {
   border-left: 2px solid var(--color-confirmed);
-}
-
-.gm-foot {
-  display: flex;
-  align-items: baseline;
-  height: 28px;
-  gap: calc(var(--space-unit) * 2);
-  margin-top: var(--space-panel-block);
 }
 
 .gm-foot-hint {

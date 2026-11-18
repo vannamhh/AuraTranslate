@@ -105,26 +105,29 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 <template>
   <div
     v-if="importOverlayIsOpen"
-    class="gi-scrim"
+    class="gi-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('glossary.import.cancel')"
     @keydown.tab="trapTab($event)"
   >
     <section
       ref="panel"
-      class="gi-panel"
+      class="gi-panel ui-overlay"
       tabindex="-1"
       role="dialog"
       aria-modal="true"
       aria-labelledby="gi-title"
     >
+      <div class="gi-top ui-overlay__head">
       <header class="gi-head">
         <h2 id="gi-title" class="gi-title">{{ t('glossary.import.title') }}</h2>
         <button type="button" class="gi-close ui-btn ui-btn--quiet" @click="dispatch('glossary.import.cancel')">
           {{ t('command.glossary.import.cancel') }}
         </button>
       </header>
+      </div>
 
+      <div class="gi-scroll ui-overlay__body">
       <p v-if="importStatus === 'unknown'" class="gi-status" role="status">{{ t('glossary.import.loading') }}</p>
       <p v-else-if="importStatus === 'ipc_unavailable'" class="gi-empty">
         {{ t('glossary.import.empty_ipc_unavailable') }}
@@ -228,6 +231,10 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
         </p>
         <p v-else-if="importConfirming" class="gi-status" role="status">{{ t('glossary.import.confirming') }}</p>
 
+      </template>
+      </div>
+
+      <footer v-if="importStatus === 'loaded' && importPreview !== null" class="ui-overlay__foot">
         <p class="gi-hint">{{ t('glossary.import.hint_no_write_before_confirm') }}</p>
 
         <div class="gi-actions">
@@ -249,40 +256,14 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
             {{ t('command.glossary.import.cancel') }}
           </button>
         </div>
-      </template>
+      </footer>
     </section>
   </div>
 </template>
 
 <style scoped>
 .gi-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 11; /* aura-allow-z-index: xếp TRÊN GlossaryManageOverlay (10) — mở từ trong nó. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .gi-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.gi-panel {
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.gi-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .gi-head {
@@ -291,7 +272,6 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .gi-head > :last-child {
@@ -414,7 +394,8 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 }
 
 .gi-hint {
-  margin: 0 0 var(--space-panel-block) 0;
+  flex: 1;
+  margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

@@ -638,7 +638,8 @@ describe('SettingsOverlay.vue — khung lớp phủ chung', () => {
 
     expect(wrapper.get('.set-scrim').classes()).toContain('ui-overlay-scrim')
     expect(wrapper.get('.set-panel').classes()).toContain('ui-overlay')
-    expect(wrapper.get('.set-head').classes()).toContain('ui-overlay__head')
+    expect(wrapper.get('.set-top').classes()).toContain('ui-overlay__head')
+    expect(wrapper.find('.set-top > .set-head').exists()).toBe(true)
     expect(wrapper.get('.set-main').classes()).toContain('ui-overlay__body')
     expect(wrapper.findAll('.ui-overlay__body')).toHaveLength(1)
     expect(wrapper.get('[data-ai-field="endpoint"] input').classes()).toContain('ui-field--full')

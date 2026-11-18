@@ -708,8 +708,6 @@ describe('queueEmptyReasonFor — cụm D vá: "loading" có tên riêng, "all_r
     expect(rule('.gq-list')).not.toMatch(/overflow|max-height/)
     expect(rule('.gq-ctx')).toMatch(/display:\s*grid/)
     expect(rule('.gq-ctx')).toMatch(/grid-template-columns:\s*1fr 1fr/)
-    expect(rule('.gq-actions')).toMatch(/position:\s*sticky/)
-    expect(rule('.gq-actions')).toMatch(/bottom:\s*-13px/)
     expect(source).toMatch(/@media \(max-width: 700px\) \{\s*\.gq-ctx \{\s*grid-template-columns: 1fr;/)
 
     const { state, GlossaryQueueOverlay } = await freshOverlay()
@@ -718,6 +716,8 @@ describe('queueEmptyReasonFor — cụm D vá: "loading" có tên riêng, "all_r
     const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.gq-ctx > .gq-ctx-quote').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__foot > .gq-actions').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__body .gq-actions').exists()).toBe(false)
     wrapper.unmount()
   })
 

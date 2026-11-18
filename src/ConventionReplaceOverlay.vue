@@ -227,20 +227,21 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="conventionReplaceIsOpen"
-    class="crv-scrim"
+    class="crv-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc.stop.prevent="onEscape()"
     @keydown.tab="trapTab($event)"
   >
     <section
       ref="panel"
-      class="crv-panel"
+      class="crv-panel ui-overlay"
       tabindex="-1"
       role="dialog"
       aria-modal="true"
       aria-labelledby="crv-title"
       data-convention-replace
     >
+      <div class="crv-top ui-overlay__head">
       <header class="crv-head">
         <div class="crv-heading">
           <h2 id="crv-title" class="crv-title">
@@ -314,6 +315,9 @@ function trapTab(event: KeyboardEvent): void {
         </fieldset>
       </div>
 
+      </div>
+
+      <div class="crv-scroll ui-overlay__body">
       <div v-if="conventionReplaceScanning && conventionReplaceScanSlow" class="crv-scan" role="status" data-convention-replace-scanning>
         <div class="crv-scan-bar" aria-hidden="true"><i :style="{ width: scanPercent + '%' }"></i></div>
         <!-- aura-allow-text: result of t() with counts streamed from Rust. -->
@@ -402,6 +406,9 @@ function trapTab(event: KeyboardEvent): void {
         </li>
       </ul>
 
+      </div>
+
+      <div class="crv-bottom ui-overlay__foot">
       <p v-if="conventionReplaceHasScanned && !conventionReplaceScanning" class="crv-foot" data-convention-replace-hidden>
         <template v-if="hiddenParts.length === 0">{{ t('convention.replace.hidden_none') }}</template>
         <template v-else>
@@ -449,42 +456,31 @@ function trapTab(event: KeyboardEvent): void {
           <span class="crv-hint">{{ t(conventionReplaceArmed ? 'convention.replace.hint_armed' : 'convention.replace.hint') }}</span>
         </template>
       </footer>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped>
-.crv-scrim {
-  position: fixed;
-  inset: 0;
-  /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .crv-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
 .crv-panel {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 917px;
-  max-height: 100%;
-  overflow: auto;
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
   color: var(--color-on-surface);
 }
 
-.crv-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.crv-top,
+.crv-scroll {
+  padding: 0;
+}
+
+.crv-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+
+.crv-scrim {
+  /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
+  z-index: 10;
 }
 
 .crv-head {
@@ -493,7 +489,10 @@ function trapTab(event: KeyboardEvent): void {
   justify-content: space-between;
   gap: var(--space-panel-inline);
   padding: 13px; /* aura-allow-spacing: the panel's 1px border sits inside the 14px inset */
-  border-bottom: 1px solid var(--color-outline);
+}
+
+.crv-head + .crv-bar {
+  border-top: 1px solid var(--color-outline);
 }
 
 .crv-title {
@@ -525,7 +524,6 @@ function trapTab(event: KeyboardEvent): void {
   align-items: center;
   gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 1) 13px; /* aura-allow-spacing: aligns with the head's 14px inset inside the 1px border */
-  border-bottom: 1px solid var(--color-outline);
 }
 
 .crv-seg {
@@ -581,8 +579,6 @@ function trapTab(event: KeyboardEvent): void {
   margin: 0;
   padding: 0;
   list-style: none;
-  max-height: 60vh;
-  overflow: auto;
 }
 
 .crv-group {
@@ -697,7 +693,6 @@ function trapTab(event: KeyboardEvent): void {
 .crv-foot {
   margin: 0;
   padding: calc(var(--space-unit) * 2) 13px; /* aura-allow-spacing: aligns with the head's 14px inset inside the 1px border */
-  border-top: 1px solid var(--color-outline);
   background: var(--color-background);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -708,7 +703,6 @@ function trapTab(event: KeyboardEvent): void {
 .crv-confirm {
   margin: 0;
   padding: calc(var(--space-unit) * 2) 13px; /* aura-allow-spacing: aligns with the head's 14px inset inside the 1px border */
-  border-top: 1px solid var(--color-outline);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -719,11 +713,23 @@ function trapTab(event: KeyboardEvent): void {
   align-items: center;
   gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 2) 13px; /* aura-allow-spacing: aligns with the head's 14px inset inside the 1px border */
-  border-top: 1px solid var(--color-outline);
   background: var(--color-background);
 }
 
 .crv-btn {
   min-width: 8.5em;
 }
+
+.crv-foot + .crv-confirm {
+  border-top: 1px solid var(--color-outline);
+}
+
+.crv-foot + .crv-actions {
+  border-top: 1px solid var(--color-outline);
+}
+
+.crv-confirm + .crv-actions {
+  border-top: 1px solid var(--color-outline);
+}
+
 </style>

@@ -455,8 +455,9 @@ describe('Row heights and icon-only buttons in a real webview', () => {
       it('.set-head holds the title and the Close button inside one 28 tall content box, 56 tall with the panel border', async () => {
         await openFromTools('settings.open')
         await $('.set-panel').waitForDisplayed({ timeout: 10_000 })
-        const rows = await expectRowsOn('.set-head', 28, { content: true, centred: true })
-        expect((rows[0].outer + 1) % 7).toBeLessThanOrEqual(TOLERANCE)
+        await expectRowsOn('.set-head', 28, { content: true, centred: true })
+        const frameHead = await browser.execute(() => document.querySelector('.set-top').getBoundingClientRect().height)
+        expect((frameHead + 1) % 7).toBeLessThanOrEqual(TOLERANCE)
       })
 
       it('.sc-search is 35 tall', async () => {

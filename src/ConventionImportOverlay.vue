@@ -87,12 +87,13 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="conventionImportIsOpen"
-    class="cvi-scrim"
+    class="cvi-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('convention.import.cancel')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="cvi-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cvi-title">
+    <section ref="panel" class="cvi-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cvi-title">
+      <div class="cvi-top ui-overlay__head">
       <header class="cvi-head">
         <h2 id="cvi-title" class="cvi-title">{{ t('convention.manage.import') }}</h2>
         <button
@@ -104,7 +105,9 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('convention.manage.import_cancel') }}
         </button>
       </header>
+      </div>
 
+      <div class="cvi-scroll ui-overlay__body">
       <p v-if="conventionImportLoadError !== null" class="cvi-note cvi-error" role="alert">
         <!-- aura-allow-text: result of tError(). -->
         {{ tError(conventionImportLoadError) }}
@@ -183,6 +186,10 @@ function trapTab(event: KeyboardEvent): void {
           {{ tError(conventionImportConfirmError) }}
         </p>
 
+      </template>
+      </div>
+
+      <footer v-if="conventionImportLoadError === null && conventionImportPreview !== null" class="ui-overlay__foot">
         <div class="cvi-actions">
           <button
             type="button"
@@ -203,43 +210,20 @@ function trapTab(event: KeyboardEvent): void {
             {{ t('convention.manage.import_cancel') }}
           </button>
         </div>
-      </template>
+      </footer>
     </section>
   </div>
 </template>
 
 <style scoped>
 .cvi-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 11; /* aura-allow-z-index: above ConventionManageOverlay (10), opened from inside it. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
 }
 
-:root[data-platform='mac'] .cvi-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.cvi-panel {
+.cvi-scroll {
   display: flex;
   flex-direction: column;
   gap: var(--space-panel-block);
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.cvi-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .cvi-head {

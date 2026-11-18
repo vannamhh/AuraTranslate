@@ -163,6 +163,32 @@ describe('glossaryHarvestState', () => {
 })
 
 describe('GlossaryHarvestOverlay.vue', () => {
+  it('a read error renders head and body on the frame but no foot', async () => {
+    const { state, i18n, Overlay } = await fresh()
+    const err = { code: 'x', message_key: 'err.glossary.scope_error', params: {}, retryable: false }
+    pendingMock.mockResolvedValue({ candidates: null, error: err })
+    await state.openGlossaryHarvest()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.ui-overlay__head .gh-close').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__body .gh-error').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__foot').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain(i18n.t('glossary.harvest.hint'))
+    wrapper.unmount()
+  })
+
+  it('a loaded list puts the actions and the hint in the foot, the rows in the body', async () => {
+    const { state, Overlay } = await fresh()
+    pendingMock.mockResolvedValue({ candidates: three, error: null })
+    await state.openGlossaryHarvest()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.ui-overlay__body .gh-list').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__foot > .gh-actions').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__foot > .gh-hint').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('renders one row per harvest candidate, the inconsistent one with its words and the counter on the button', async () => {
     const { state, i18n, Overlay } = await fresh()
     pendingMock.mockResolvedValue({ candidates: three, error: null })

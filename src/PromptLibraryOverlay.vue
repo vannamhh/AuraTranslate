@@ -746,7 +746,8 @@ function onEscape(): void {
       aria-modal="true"
       aria-labelledby="pl-title"
     >
-      <header class="pl-head ui-overlay__head">
+      <div class="pl-top ui-overlay__head">
+      <header class="pl-head">
         <h2 id="pl-title" class="pl-title">{{ t('prompt.library.title') }}</h2>
         <form @submit.prevent="dispatch('prompt.library.close')">
           <button type="submit" class="pl-close ui-btn ui-btn--quiet">
@@ -754,6 +755,7 @@ function onEscape(): void {
           </button>
         </form>
       </header>
+      </div>
 
       <div class="pl-kind" role="tablist" :aria-label="t('prompt.library.kind_label')" data-prompt-kind>
         <form v-for="opt in KIND_OPTIONS" :key="opt.value" class="pl-tab-form" @submit.prevent="switchKind(opt.value)">
@@ -1120,12 +1122,12 @@ function onEscape(): void {
   z-index: 11; /* aura-allow-z-index: opened from the Prompt screen, which renders after this overlay. */
 }
 
-.pl-panel > :not(.pl-head, .pl-cols) {
+.pl-panel > :not(.pl-top, .pl-cols) {
   flex: none;
   margin-inline: 13px; /* aura-allow-spacing: 1px frame border sits inside the 14px inset */
 }
 
-.pl-head + * {
+.pl-top + * {
   margin-top: var(--space-panel-block);
 }
 

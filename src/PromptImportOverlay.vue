@@ -118,12 +118,14 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
       aria-modal="true"
       aria-labelledby="pi-title"
     >
-      <header class="pi-head ui-overlay__head">
+      <div class="pi-top ui-overlay__head">
+      <header class="pi-head">
         <h2 id="pi-title" class="pi-title">{{ t('prompt.import.title') }}</h2>
         <button type="button" class="pi-close ui-btn ui-btn--quiet" @click="dispatch('prompt.import.cancel')">
           {{ t('command.prompt.import.cancel') }}
         </button>
       </header>
+      </div>
 
       <!-- Story 4.5 review fix — `status === 'unknown'` không bao giờ vẽ được: `overlayOpen`
            chỉ bật SAU khi `await openPromptImportPreview()` xong, CÙNG khối đồng bộ đổi

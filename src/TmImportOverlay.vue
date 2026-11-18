@@ -72,19 +72,22 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="tmImportOverlayIsOpen"
-    class="ti-scrim"
+    class="ti-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('tm.import.cancel')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="ti-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ti-title">
+    <section ref="panel" class="ti-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ti-title">
+      <div class="ti-top ui-overlay__head">
       <header class="ti-head">
         <h2 id="ti-title" class="ti-title">{{ t('tm.import.title') }}</h2>
         <button type="button" class="ti-close ui-btn ui-btn--quiet" @click="dispatch('tm.import.cancel')">
           {{ t('command.tm.import.cancel') }}
         </button>
       </header>
+      </div>
 
+      <div class="ti-scroll ui-overlay__body">
       <p v-if="tmImportStatus === 'unknown'" class="ti-status" role="status">{{ t('tm.import.loading') }}</p>
       <p v-else-if="tmImportStatus === 'ipc_unavailable'" class="ti-empty">
         {{ t('tm.import.empty_ipc_unavailable') }}
@@ -132,6 +135,10 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('tm.import.confirm_ipc_unavailable') }}
         </p>
         <p v-else-if="tmImportConfirming" class="ti-status" role="status">{{ t('tm.import.confirming') }}</p>
+      </template>
+      </div>
+
+      <footer v-if="tmImportStatus === 'loaded' && tmImportPreview !== null" class="ui-overlay__foot">
         <p class="ti-hint">{{ t('tm.import.hint_no_write_before_confirm') }}</p>
 
         <div class="ti-actions">
@@ -148,40 +155,14 @@ function trapTab(event: KeyboardEvent): void {
             {{ t('command.tm.import.cancel') }}
           </button>
         </div>
-      </template>
+      </footer>
     </section>
   </div>
 </template>
 
 <style scoped>
 .ti-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 11; /* aura-allow-z-index: stacks above TmManageOverlay (10); opened from inside it. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .ti-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.ti-panel {
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.ti-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .ti-head {
@@ -190,7 +171,6 @@ function trapTab(event: KeyboardEvent): void {
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .ti-head > :last-child {
@@ -278,7 +258,8 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .ti-hint {
-  margin: 0 0 var(--space-panel-block) 0;
+  flex: 1;
+  margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
