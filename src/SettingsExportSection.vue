@@ -32,7 +32,7 @@ function onInput(event: Event): void {
           <span class="ts-field-label">{{ t('export.settings.translator_label') }}</span>
           <input
             type="text"
-            class="ts-input ui-field ui-field--lg ui-field--medium"
+            class="ts-input ui-field ui-field--lg"
             autocomplete="off"
             data-export-translator-input
             :value="exportSettingsNameInput"
@@ -72,7 +72,13 @@ function onInput(event: Event): void {
   margin-bottom: var(--space-panel-block);
 }
 
+.ts-input {
+  flex: 1;
+}
+
 .ts-field {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-unit);

@@ -2417,8 +2417,6 @@ const OVERLAY_FILE_FLOOR = 22
 
 /** Overlay not yet on the frame, with the ticket entry that moves it. */
 const OVERLAY_DEBT = new Map([
-  ['SettingsOverlay', 'entry 2 (Story 17.2)'],
-  ['PromptLibraryOverlay', 'entry 2 (Story 17.2)'],
   ['GlossaryManageOverlay', 'entry 3 (Story 17.3)'],
   ['GlossaryImportOverlay', 'entry 3 (Story 17.3)'],
   ['GlossaryHarvestOverlay', 'entry 3 (Story 17.3)'],

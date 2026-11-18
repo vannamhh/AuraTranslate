@@ -631,3 +631,18 @@ describe('main.ts — dây hai command của hộp xác nhận preset', () => {
     expect(code).toMatch(/^\s*cancelAiConfigPreset,$/m)
   })
 })
+
+describe('SettingsOverlay.vue — khung lớp phủ chung', () => {
+  it('mang lớp khung, .set-main là thân cuộn duy nhất, Endpoint và Mô hình giãn hết cột', async () => {
+    const { wrapper } = await open(true)
+
+    expect(wrapper.get('.set-scrim').classes()).toContain('ui-overlay-scrim')
+    expect(wrapper.get('.set-panel').classes()).toContain('ui-overlay')
+    expect(wrapper.get('.set-head').classes()).toContain('ui-overlay__head')
+    expect(wrapper.get('.set-main').classes()).toContain('ui-overlay__body')
+    expect(wrapper.findAll('.ui-overlay__body')).toHaveLength(1)
+    expect(wrapper.get('[data-ai-field="endpoint"] input').classes()).toContain('ui-field--full')
+    expect(wrapper.get('[data-ai-field="model"] input').classes()).toContain('ui-field--full')
+    expect(wrapper.find('.set-panel .ui-field--medium').exists()).toBe(false)
+  })
+})

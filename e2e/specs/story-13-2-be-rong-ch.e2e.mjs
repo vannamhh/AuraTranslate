@@ -47,9 +47,9 @@ describe('ch widths on the 7px grid in a real webview', () => {
     expect(probe.rounded).toBeGreaterThanOrEqual(probe.raw - TOLERANCE)
   })
 
-  it('a real ui-field--medium in Settings is a multiple of 7 wide', async () => {
-    await openSettingsSection('export')
-    const width = await browser.execute(() => document.querySelector('.set-panel .ui-field--medium')?.getBoundingClientRect().width ?? null)
+  it('a real ui-field--short in Settings is a multiple of 7 wide', async () => {
+    await openSettingsSection('glossary')
+    const width = await browser.execute(() => document.querySelector('.set-panel .ui-field--short')?.getBoundingClientRect().width ?? null)
     expect(width).not.toBeNull()
     expect(isMultipleOf7(width)).toBe(true)
     await browser.keys(['Escape'])

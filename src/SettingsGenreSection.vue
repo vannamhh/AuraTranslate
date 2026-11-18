@@ -40,7 +40,7 @@ function onRenameInput(id: string, event: Event): void {
         <span class="sg-label">{{ t('settings.genre.add_label') }}</span>
         <input
           type="text"
-          class="sg-input ui-field ui-field--lg"
+          class="sg-input ui-field ui-field--lg ui-field--full"
           data-genre-new-name
           autocomplete="off"
           :value="genreNewName"
@@ -111,6 +111,7 @@ function onRenameInput(id: string, event: Event): void {
 }
 
 .sg-add-label {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-unit);
@@ -125,8 +126,8 @@ function onRenameInput(id: string, event: Event): void {
   color: var(--color-on-surface-variant);
 }
 
-.sg-input {
-  min-width: 280px;
+.sg-row-form .sg-input {
+  flex: 1;
 }
 
 .sg-list {

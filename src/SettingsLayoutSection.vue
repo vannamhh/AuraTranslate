@@ -93,9 +93,9 @@ function onRenameInput(name: string, event: Event): void {
             {{ t('settings.layout.apply') }}
           </button>
         </form>
-        <form class="sl-form" @submit.prevent="onRenamePreset(preset.name)">
+        <form class="sl-form sl-form--grow" @submit.prevent="onRenamePreset(preset.name)">
           <input
-            class="sl-input ui-field ui-field--lg ui-field--medium"
+            class="sl-input ui-field ui-field--lg"
             autocomplete="off"
             data-layout-rename-input
             :aria-label="t('settings.layout.rename_label')"
@@ -113,7 +113,7 @@ function onRenameInput(name: string, event: Event): void {
 
     <form class="sl-save" @submit.prevent="onSavePreset()">
       <input
-        class="sl-input ui-field ui-field--lg ui-field--medium"
+        class="sl-input ui-field ui-field--lg"
         autocomplete="off"
         data-layout-new-name
         :aria-label="t('settings.layout.new_name_label')"
@@ -186,6 +186,15 @@ function onRenameInput(name: string, event: Event): void {
   height: 35px;
   gap: calc(var(--space-unit) * 1);
   margin: 0;
+}
+
+.sl-form--grow {
+  flex: 1;
+}
+
+.sl-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .sl-save {

@@ -732,7 +732,7 @@ function onEscape(): void {
 <template>
   <div
     v-if="promptLibraryOverlayIsOpen"
-    class="pl-scrim"
+    class="pl-scrim ui-overlay-scrim"
     :class="{ 'pl-scrim-above': promptLibraryOverInspector }"
     @mousedown.self.prevent
     @keydown.esc="onEscape"
@@ -740,13 +740,13 @@ function onEscape(): void {
   >
     <section
       ref="panel"
-      class="pl-panel"
+      class="pl-panel ui-overlay"
       tabindex="-1"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pl-title"
     >
-      <header class="pl-head">
+      <header class="pl-head ui-overlay__head">
         <h2 id="pl-title" class="pl-title">{{ t('prompt.library.title') }}</h2>
         <form @submit.prevent="dispatch('prompt.library.close')">
           <button type="submit" class="pl-close ui-btn ui-btn--quiet">
@@ -971,7 +971,7 @@ function onEscape(): void {
 
               <label class="pl-field">
                 <span class="pl-field-label">{{ t('prompt.library.name_label') }}</span>
-                <input class="pl-input ui-field ui-field--lg ui-field--medium" autocomplete="off" :value="createNameDraft" :disabled="promptSetBusy" @input="onCreateNameInput" />
+                <input class="pl-input ui-field ui-field--lg ui-field--full" autocomplete="off" :value="createNameDraft" :disabled="promptSetBusy" @input="onCreateNameInput" />
               </label>
               <p v-if="createNameDraft !== '' && !isPromptSetNameValid(createNameDraft)" class="pl-alert">
                 {{ t('err.prompt_set.invalid_name') }}
@@ -1019,7 +1019,7 @@ function onEscape(): void {
             <form class="pl-rename-form" @submit.prevent="onSubmitRename">
               <label class="pl-field">
                 <span class="pl-field-label">{{ t('prompt.library.name_label') }}</span>
-                <input class="pl-input ui-field ui-field--lg ui-field--medium" autocomplete="off" :value="nameDraft" :disabled="promptSetBusy" @input="onNameInput" />
+                <input class="pl-input ui-field ui-field--lg ui-field--full" autocomplete="off" :value="nameDraft" :disabled="promptSetBusy" @input="onNameInput" />
               </label>
               <button type="submit" class="pl-act ui-btn ui-btn--lg" :disabled="!isPromptSetNameValid(nameDraft) || promptSetBusy">
                 {{ t('prompt.library.rename_button') }}
@@ -1113,39 +1113,24 @@ function onEscape(): void {
 
 <style scoped>
 .pl-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: xếp lớp CƠ HỌC — cùng lý do các lớp phủ khác. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
 }
 
 .pl-scrim-above {
   z-index: 11; /* aura-allow-z-index: opened from the Prompt screen, which renders after this overlay. */
 }
 
-:root[data-platform='mac'] .pl-scrim {
-  padding-top: var(--space-titlebar-height);
+.pl-panel > :not(.pl-head, .pl-cols) {
+  flex: none;
+  margin-inline: 13px; /* aura-allow-spacing: 1px frame border sits inside the 14px inset */
 }
 
-.pl-panel {
-  width: 100%;
-  max-width: 959px;
-  max-height: 100%;
-  overflow: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  display: flex;
-  flex-direction: column;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
+.pl-head + * {
+  margin-top: var(--space-panel-block);
 }
 
-.pl-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.pl-panel > .pl-empty {
+  padding-bottom: 13px; /* aura-allow-spacing: 1px frame border sits inside the 14px inset */
 }
 
 .pl-head {
@@ -1154,7 +1139,6 @@ function onEscape(): void {
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .pl-head > :last-child {
@@ -1189,17 +1173,18 @@ function onEscape(): void {
 .pl-cols {
   display: grid;
   grid-template-columns: 259px 1fr;
-  gap: var(--space-panel-inline);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
   min-height: 0;
 }
 
 .pl-list {
   border-right: 1px solid var(--color-outline);
-  padding-right: 13px; /* aura-allow-spacing: 1px right border sits inside the 14px inset */
+  padding: 0 13px 13px; /* aura-allow-spacing: 1px frame border and 1px right border sit inside the 14px inset */
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  overflow: auto;
+  overflow-y: auto; /* aura-allow-scroll: cột đứng cạnh .pl-ed, mỗi cột tự cuộn, không lồng. */
 }
 
 .pl-group-h {
@@ -1278,6 +1263,8 @@ function onEscape(): void {
 
 .pl-ed {
   min-width: 0;
+  overflow-y: auto; /* aura-allow-scroll: cột đứng cạnh .pl-list, mỗi cột tự cuộn, không lồng. */
+  padding: 0 13px 13px var(--space-panel-inline); /* aura-allow-spacing: 1px frame border sits inside the 14px inset */
 }
 
 .pl-h2 {
@@ -1353,7 +1340,13 @@ function onEscape(): void {
   margin-bottom: calc(var(--space-unit) * 1);
 }
 
+.pl-rename-form .pl-input {
+  flex: 1;
+}
+
 .pl-rename-form .pl-field {
+  flex: 1;
+  min-width: 0;
   flex-direction: row;
   align-items: baseline;
   height: 35px;

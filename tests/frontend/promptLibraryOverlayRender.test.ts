@@ -905,3 +905,53 @@ describe('AiPromptInspectorOverlay.vue — đổi bộ hiệu lực từ màn Pr
     promptSetState.resetPromptSets()
   })
 })
+
+describe('PromptLibraryOverlay.vue — khung lớp phủ chung', () => {
+  it('mang lớp khung và ô tên bộ giãn hết cột', async () => {
+    const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
+    promptSetListMock.mockResolvedValue({
+      sets: [row({ id: 7, name: 'Bao chi', tier: 'global', body: 'cau ngan' })],
+      workTierAvailable: true,
+      error: null,
+    })
+    promptLibraryState.openPromptLibrary()
+    await flushPromises()
+    const wrapper = mount(PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    await wrapper.get('.pl-row-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('.pl-scrim').classes()).toContain('ui-overlay-scrim')
+    expect(wrapper.get('.pl-panel').classes()).toContain('ui-overlay')
+    expect(wrapper.get('.pl-head').classes()).toContain('ui-overlay__head')
+    expect(wrapper.findAll('.pl-input').length).toBeGreaterThan(0)
+    for (const input of wrapper.findAll('.pl-input')) expect(input.classes()).toContain('ui-field--full')
+
+    wrapper.unmount()
+    promptLibraryState.resetPromptLibrary()
+    promptSetState.resetPromptSets()
+  })
+
+  it('lỗi tải: đầu, tab loại và câu lỗi trong khung, không có cột', async () => {
+    const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
+    promptSetListMock.mockResolvedValue({
+      sets: [],
+      workTierAvailable: false,
+      error: { code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false },
+    })
+    promptLibraryState.openPromptLibrary()
+    await flushPromises()
+    const wrapper = mount(PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.pl-panel').classes()).toContain('ui-overlay')
+    expect(wrapper.find('.pl-head').exists()).toBe(true)
+    expect(wrapper.find('[data-prompt-kind]').exists()).toBe(true)
+    expect(wrapper.get('.pl-panel > .pl-empty').attributes('role')).toBe('alert')
+    expect(wrapper.find('.pl-cols').exists()).toBe(false)
+
+    wrapper.unmount()
+    promptLibraryState.resetPromptLibrary()
+    promptSetState.resetPromptSets()
+  })
+})

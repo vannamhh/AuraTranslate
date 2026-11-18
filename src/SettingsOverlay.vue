@@ -334,20 +334,20 @@ function onDeleteAiConfigKey(): void {
 <template>
   <div
     v-if="settingsOverlayIsOpen"
-    class="set-scrim"
+    class="set-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >
     <section
       ref="panel"
-      class="set-panel"
+      class="set-panel ui-overlay"
       tabindex="-1"
       role="dialog"
       aria-modal="true"
       aria-labelledby="settings-title"
     >
-      <header class="set-head">
+      <header class="set-head ui-overlay__head">
         <h2 id="settings-title" class="set-title">{{ t('settings.title') }}</h2>
         <button type="button" class="set-close ui-btn ui-btn--quiet" @click="dispatch('settings.close')">
           {{ t('command.settings.close') }}
@@ -423,7 +423,7 @@ function onDeleteAiConfigKey(): void {
           </form>
         </nav>
 
-        <div class="set-main">
+        <div class="set-main ui-overlay__body">
           <template v-if="settingsActiveSection === 'ai_and_model'">
             <h3 class="set-h2">{{ t('settings.nav.ai_and_model') }}</h3>
             <p class="set-h2s">{{ t('settings.ai_config.intro') }}</p>
@@ -524,8 +524,7 @@ function onDeleteAiConfigKey(): void {
                   <label class="ai-field-label">
                     <span>{{ t(aiConfigFieldLabelKey(field)) }}</span>
                     <input
-                      class="ai-field-input ui-field ui-field--lg"
-                      :class="field === 'endpoint' ? 'ui-field--full' : 'ui-field--medium'"
+                      class="ai-field-input ui-field ui-field--lg ui-field--full"
                       autocomplete="off"
                       :placeholder="field === 'endpoint' ? aiConfigEndpointPlaceholder() : undefined"
                       :value="aiConfigDraft(field)"
@@ -931,34 +930,7 @@ function onDeleteAiConfigKey(): void {
 
 <style scoped>
 .set-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: xếp lớp CƠ HỌC — cùng lý do các lớp phủ khác (dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel). */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .set-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.set-panel {
-  width: 100%;
-  max-width: 917px;
-  max-height: 100%;
-  overflow: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  display: flex;
-  flex-direction: column;
-}
-
-.set-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .set-head {
@@ -981,10 +953,13 @@ function onDeleteAiConfigKey(): void {
 .set-grid {
   display: grid;
   grid-template-columns: 203px 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
   min-height: 0;
 }
 
 .set-nav {
+  overflow-y: auto; /* aura-allow-scroll: cột điều hướng đứng cạnh .set-main, mỗi cột tự cuộn, không lồng. */
   border-right: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1) 0;
 }
@@ -1086,6 +1061,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-scope {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1245,6 +1221,10 @@ function onDeleteAiConfigKey(): void {
 .ai-key-outcome {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
+}
+
+.ai-field-form > .ai-field-status {
+  flex: 1 0 100%;
 }
 
 .ai-field-status {
