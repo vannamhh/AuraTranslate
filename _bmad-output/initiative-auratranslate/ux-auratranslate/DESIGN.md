@@ -472,7 +472,7 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 
 **Bên trong khung 1120px**, ô nhập và danh sách giãn hết bề ngang khung trừ đệm. Đây là ngoại lệ của §Điều khiển › Chiều rộng (ô nhập đo bằng `ch`), chỉ áp trong lớp phủ; ô nhập ở panel, thanh và Library vẫn đo bằng `ch`. Ô số ngắn (ngưỡng, số Chương, nhiệt độ) không giãn, vẫn đo bằng `ch`. Nút vẫn ôm chữ, cặp nút chân vẫn chung `min-width` 112px.
 
-**Một vùng cuộn.** Đầu khung (tiêu đề, thanh lọc, ô tìm) và chân khung (dòng tóm tắt, nút) dính, không cuộn. Giữa chúng là đúng một vùng cuộn dọc; không vùng cuộn dọc nào nằm trong vùng cuộn dọc khác. Màn nhiều cột được mỗi cột tự cuộn, vì các cột đứng cạnh nhau chứ không lồng. Ô nhập nhiều dòng tự cuộn là ngoại lệ duy nhất. Thanh cuộn theo §Components › Thanh cuộn, sát mép khung.
+**Một vùng cuộn.** Đầu khung (tiêu đề, thanh lọc, ô tìm) và chân khung (dòng tóm tắt, nút) dính, không cuộn. Giữa chúng là đúng một vùng cuộn dọc; không vùng cuộn dọc nào nằm trong vùng cuộn dọc khác. Màn nhiều cột được mỗi cột tự cuộn, vì các cột đứng cạnh nhau chứ không lồng. Ô nhập nhiều dòng tự cuộn là một ngoại lệ. 🔵 2026-11-18 (Ice): hai vùng lồng có tên cũng được giữ, `.ex-chapters` (danh sách Chương của Xuất) và `.ip-config` (cột cấu hình dính của Xem trước nhập). Thanh cuộn theo §Components › Thanh cuộn, sát mép khung.
 
 Mẫu: Bảng chờ Glossary (`GlossaryQueueOverlay.vue`), một vùng cuộn với thanh nút dính đáy. Mockup trước/sau: [`mockups/lop-phu-mot-be-rong.html`](mockups/lop-phu-mot-be-rong.html).
 

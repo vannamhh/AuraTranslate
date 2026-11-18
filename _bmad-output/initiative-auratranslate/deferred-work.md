@@ -14276,6 +14276,8 @@ chính nó.
 - Ba màn nhiều cột chưa đo `nested` trên WKWebView: Xem trước nhập (`.ip-config` `position: sticky; overflow-y: auto` nghi lồng trong vùng cuộn màn), Xem trước nhập song ngữ, Prompt inspector; Kiểm L miễn R4 ở cổng nguồn nên không gì canh.
   Cần: đo bằng `measureOverlayFrame` qua đường mở thật của mỗi màn; lồng thì bỏ cuộn riêng hoặc ghi ngoại lệ có tên như `.ex-chapters` của Xuất.
   Chủ: Epic 17. Trỏ: `e2e/specs/story-17-5-man-nhieu-cot.e2e.mjs`, `src/ImportPreviewOverlay.vue` `.ip-config`.
+  → ✅ ĐÃ ĐÓNG 2026-11-18 (Refactor sweep Epic 17): `story-17-5-man-nhieu-cot.e2e.mjs` đo Prompt inspector và song ngữ `nested` 0, Xem trước nhập `nested` 1 đúng ở `.ip-config` (ngoại lệ có tên, Ice giữ nguyên mã).
 - R4 của DESIGN.md §Lớp phủ nói ô nhập nhiều dòng là ngoại lệ duy nhất, nhưng Ice giữ danh sách Chương 5 hàng `.ex-chapters` cuộn trong cột cấu hình của Xuất (2026-11-18); hai tài liệu thiết kế đang lệch nhau.
   Cần: Sally ghi ngoại lệ có tên vào DESIGN.md §Lớp phủ — Một vùng cuộn, hoặc Ice đổi ý.
   Chủ: Epic 17. Trỏ: `tickets/epic-lop-phu-mot-be-rong/tickets/story-man-nhieu-cot-khong-cuon-long-plan.md` §Intent.
+  → ✅ ĐÃ ĐÓNG 2026-11-18 (Refactor sweep Epic 17): DESIGN.md §Lớp phủ — Một vùng cuộn nêu tên `.ex-chapters` và `.ip-config`, đánh dấu 🔵.

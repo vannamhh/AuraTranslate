@@ -2408,16 +2408,13 @@ if (kSelfBad === 0) pass(`tự kiểm Kiểm K — ${K_CASES.length + K_SIZE_CAS
 console.log('\nKiểm L — khung lớp phủ một bề rộng, một vùng cuộn (R1, R4)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// R1: a `src/*Overlay.vue` outside the three lists carries `ui-overlay` and declares no width on
+// R1: a `src/*Overlay.vue` outside the two exemption lists carries `ui-overlay` and declares no width on
 // the frame element. R4: a file on the frame declares no vertical scroller of its own.
 // Multi-column screens are exempt from R4 here because their nesting is only measurable on the
 // DOM (`measureOverlayFrame` in `e2e/support/overlayFrame.mjs`).
 
 const OVERLAY_FILE_FLOOR = 22
 
-/** Overlay not yet on the frame, with the ticket entry that moves it. */
-const OVERLAY_DEBT = new Map([
-])
 /** Popups that hug their content: exempt from R1 and R4. */
 const OVERLAY_POPUP_EXEMPT = new Map([
   ['PaletteOverlay', 'command palette popup, not a full-width screen'],
@@ -2483,7 +2480,7 @@ function verticalScrollerDecl(block) {
  * R1 + R4 verdict for one overlay file; the real run and the self-check both go through it.
  * @param {ReturnType<typeof parseSource>} p
  * @param {string} name file name without extension
- * @param {{debt: Map<string, string>, popup: Map<string, string>, multi: Map<string, string>}} lists
+ * @param {{popup: Map<string, string>, multi: Map<string, string>}} lists
  * @returns {string[]}
  */
 function overlayVerdict(p, name, lists) {
@@ -2494,12 +2491,8 @@ function overlayVerdict(p, name, lists) {
   const frame = frameElement(p.text)
   const multi = lists.multi.has(name)
   if (lists.popup.has(name) || (multi && frame === null)) return problems
-  if (lists.debt.has(name)) {
-    if (frame !== null) problems.push('already on the frame but still in the debt list — remove its debt line')
-    return problems
-  }
   if (frame === null) {
-    problems.push('no `ui-overlay` class in the template and not in a debt or exemption list')
+    problems.push('no `ui-overlay` class in the template and not in an exemption list')
     return problems
   }
   if (!multi) {
@@ -2547,7 +2540,7 @@ const overlayFiles = parsed.filter((p) => /^src[\\/][^\\/]+Overlay\.vue$/.test(r
   const v = judgeFloor(OVERLAY_FILE_FLOOR, overlayFiles.length, 'OVERLAY_FILE_FLOOR', 'tệp `src/*Overlay.vue`')
   if (!v.ok) abort('quần thể lớp phủ', new Error(v.message))
 }
-const REAL_LISTS = { debt: OVERLAY_DEBT, popup: OVERLAY_POPUP_EXEMPT, multi: OVERLAY_MULTI_COLUMN_EXEMPT }
+const REAL_LISTS = { popup: OVERLAY_POPUP_EXEMPT, multi: OVERLAY_MULTI_COLUMN_EXEMPT }
 const overlayNames = new Set(overlayFiles.map((p) => basename(p.file, '.vue')))
 let lBad = 0
 for (const [listName, list] of Object.entries(REAL_LISTS)) {
@@ -2585,13 +2578,13 @@ else {
 }
 if (lBad === 0) {
   pass(
-    `${overlayFiles.length} tệp lớp phủ: ${lMigrated} trên khung, nợ ${OVERLAY_DEBT.size}, ` +
+    `${overlayFiles.length} tệp lớp phủ: ${lMigrated} trên khung, ` +
       `${OVERLAY_POPUP_EXEMPT.size} popup + ${OVERLAY_MULTI_COLUMN_EXEMPT.size} màn nhiều cột miễn`,
   )
 }
 
 const L_TPL = '<section class="x-panel ui-overlay"><div class="x-body"></div></section>\n'
-/** @type {[string, string, string, {debt?: string[], popup?: string[], multi?: string[], reason?: string}, string | null][]} */
+/** @type {[string, string, string, {popup?: string[], multi?: string[], reason?: string}, string | null][]} */
 const L_CASES = [
   ['clean — green', 'X', `${L_TPL}<style>\n.x-panel { padding: 0; }\n</style>`, {}, null],
   ['nested scroller — red', 'X', `${L_TPL}<style>\n.x-body { overflow-y: auto; }\n</style>`, {}, 'nested scroll'],
@@ -2606,8 +2599,6 @@ const L_CASES = [
     null,
   ],
   ['exemption without a reason — red', 'X', `${L_TPL}<style>\n.x-ta {\n  overflow: auto; /* aura-allow-scroll: */\n}\n</style>`, {}, 'nested scroll'],
-  ['debt file already on the frame — red', 'X', L_TPL, { debt: ['X'] }, 'remove its debt line'],
-  ['debt file not on the frame — green', 'X', '<section class="x-panel"></section>', { debt: ['X'] }, null],
   ['no frame, in no list — red', 'X', '<section class="x-panel"></section>', {}, 'no `ui-overlay`'],
   ['popup without frame — green', 'X', '<section class="x-panel"></section>', { popup: ['X'] }, null],
   ['max-width on the frame own class — red', 'X', `${L_TPL}<style>\n.x-panel { max-width: 721px; }\n</style>`, {}, 'frame width comes only'],
@@ -2622,7 +2613,6 @@ for (const [name, file, text, lists, wantMsg] of L_CASES) {
   /** @param {string[] | undefined} names */
   const asMap = (names) => new Map((names ?? []).map((n) => [n, lists.reason ?? 'fixture']))
   const got = overlayVerdict(parseSource(`${file}.vue`, text), file, {
-    debt: asMap(lists.debt),
     popup: asMap(lists.popup),
     multi: asMap(lists.multi),
   })

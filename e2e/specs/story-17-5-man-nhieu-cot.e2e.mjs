@@ -1,6 +1,7 @@
 /**
  * Multi-column screens keep a single scroll region: Attribution has no inner scroller around the
- * licence text, and Export allows exactly one named nested scroller, the Chapter list.
+ * licence text; Export and the import preview each allow exactly one named nested scroller (the
+ * Chapter list, the sticky config column); the prompt inspector and the bilingual preview have none.
  *
  *     npm run test:e2e -- --spec e2e/specs/story-17-5-man-nhieu-cot.e2e.mjs
  */
@@ -9,6 +10,10 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 import { ensureFullLayoutTier } from '../support/layoutTier.mjs'
 import { isInViewport, measureOverlayFrame, resizeLogical } from '../support/overlayFrame.mjs'
 import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
+import { backToLibrary, dropFiles, selectImportTab, waitLibraryReady } from '../support/importForm.mjs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `Story 17-5 -- export ${RUN_TAG}`
@@ -33,6 +38,46 @@ async function scrollToEnd(selector) {
     const el = document.querySelector(sel)
     el.scrollTop = el.scrollHeight
   }, selector)
+}
+
+const MEASURE_ATTR = 'data-e2e-measure'
+
+/** Tags the nearest vertical scroller around `selector` (the screens scroll in their host), so the frame measure sees the host region too. */
+async function tagHostScroller(selector) {
+  await browser.execute(
+    (sel, attr) => {
+      for (let node = document.querySelector(sel).parentElement; node !== null; node = node.parentElement) {
+        const y = getComputedStyle(node).overflowY
+        if (y === 'auto' || y === 'scroll') {
+          node.setAttribute(attr, '')
+          return
+        }
+      }
+      throw new Error(`no scrolling ancestor around ${sel}`)
+    },
+    selector,
+    MEASURE_ATTR,
+  )
+  return `[${MEASURE_ATTR}]`
+}
+
+async function untagHostScroller() {
+  await browser.execute((attr) => document.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr)), MEASURE_ATTR)
+}
+
+async function openImportOverlay() {
+  await waitLibraryReady()
+  await realClick(await $('[data-library-import-open]'))
+  await $('.li-panel .import-form').waitForDisplayed({ timeout: 10_000 })
+}
+
+async function closeImportScreens(screen) {
+  await browser.keys(['Escape'])
+  await $(screen).waitForExist({ reverse: true, timeout: 10_000 })
+  if (await $('.li-panel').isExisting()) {
+    await browser.keys(['Escape'])
+    await $('.li-panel').waitForExist({ reverse: true, timeout: 10_000 })
+  }
 }
 
 describe('Story 17-5 -- multi-column screens without nested scroll', () => {
@@ -116,5 +161,71 @@ describe('Story 17-5 -- multi-column screens without nested scroll', () => {
 
     await browser.keys(['Escape'])
     await $('.ex-panel').waitForExist({ reverse: true, timeout: 10_000 })
+  })
+
+  it('Prompt inspector: one scroll region, none nested', async () => {
+    await openWorkspaceWithWork(`e2e-17-5-prompt-${RUN_TAG}`)
+    await ensureFullLayoutTier()
+    const opener = await $('[data-ai-prompt-inspector-open]')
+    await opener.waitForDisplayed({ timeout: 30_000 })
+    await realClick(opener)
+    await $('.aip-panel').waitForDisplayed({ timeout: 10_000 })
+    try {
+      const frame = await measureOverlayFrame('.aip-scrim')
+      await expect(frame.nested).toBe(0)
+      await expect(frame.scrollers.length).toBe(1)
+    } finally {
+      await browser.keys(['Escape'])
+    }
+    await $('.aip-panel').waitForExist({ reverse: true, timeout: 10_000 })
+  })
+
+  it('Bilingual import preview: one scroll region, none nested', async () => {
+    await backToLibrary()
+    const csv = join(mkdtempSync(join(tmpdir(), 'e2e-17-5-')), 'song-ngu.csv')
+    writeFileSync(csv, Array.from({ length: 40 }, (_, i) => `甲${i}。,Mot ${i}`).join('\n') + '\n', 'utf8')
+    await openImportOverlay()
+    const form = await $('.li-panel .import-form')
+    await (await form.$('input[type="text"]')).setValue(`e2e-17-5-bip-${RUN_TAG}`)
+    await realClick(await (await form.$('[data-import-source-lang] input[type="radio"][value="zh"]')).$('..'))
+    await dropFiles([csv])
+    await $('.li-panel [data-import-tabpanel="files"]').waitForDisplayed({ timeout: 10_000 })
+    await browser.waitUntil(async () => browser.execute(() => document.querySelectorAll('[data-import-file-path]').length === 1), { timeout: 10_000 })
+    await realClick(await $('.li-panel [data-import-preview-open]'))
+    await $('.bip-screen').waitForDisplayed({ timeout: 30_000 })
+    await browser.waitUntil(async () => browser.execute(() => document.querySelector('.bip-screen .bip-act-primary')?.disabled === false), {
+      timeout: 30_000,
+      timeoutMsg: 'the bilingual preview did not load its rows',
+    })
+    try {
+      const host = await tagHostScroller('.bip-screen')
+      const frame = await measureOverlayFrame(host)
+      await expect(frame.nested).toBe(0)
+      await expect(frame.scrollers.length).toBe(1)
+    } finally {
+      await untagHostScroller()
+      await closeImportScreens('.bip-screen')
+    }
+  })
+
+  it('Import preview: the sticky config column is the one named nested scroller', async () => {
+    await backToLibrary()
+    await openImportOverlay()
+    await selectImportTab('paste')
+    const form = await $('.li-panel .import-form')
+    await (await form.$('input[type="text"]')).setValue(`e2e-17-5-ip-${RUN_TAG}`)
+    await (await form.$('textarea')).setValue(Array.from({ length: 60 }, (_, i) => `Cau ${i + 1}。`).join('\n'))
+    await realClick(await $('.li-panel [data-import-preview-open]'))
+    await $('.ip-screen').waitForDisplayed({ timeout: 30_000 })
+    await $('.ip-config').waitForDisplayed({ timeout: 10_000 })
+    try {
+      const host = await tagHostScroller('.ip-screen')
+      const frame = await measureOverlayFrame(host)
+      await expect(frame.nested).toBe(1)
+      await expect(frame.scrollers.filter((s) => s.includes('ip-config')).length).toBe(1)
+    } finally {
+      await untagHostScroller()
+      await closeImportScreens('.ip-screen')
+    }
   })
 })
