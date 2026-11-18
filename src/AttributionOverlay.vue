@@ -560,9 +560,8 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .attr-license-text {
-  max-height: 50vh;
   margin: 0 0 var(--space-panel-block) 0;
-  overflow: auto;
+  overflow-wrap: anywhere;
   padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   white-space: pre-wrap;

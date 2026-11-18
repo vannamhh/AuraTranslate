@@ -14265,7 +14265,17 @@ chính nó.
 - `AttributionOverlay.vue` `.attr-license-text` (`pre`, `tabindex="0"`) nghi cuộn lồng trong màn nhiều cột; cổng nguồn miễn R4 cho năm màn nhiều cột vì quan hệ lồng chỉ đo được trên DOM.
   Cần: đo `nested` bằng `measureOverlayFrame` ở entry 5, rồi bỏ cuộn riêng của `.attr-license-text`.
   Chủ: Epic 17. Trỏ: `e2e/support/overlayFrame.mjs`, `scripts/check-tokens.mjs` Kiểm L (`OVERLAY_MULTI_COLUMN_EXEMPT`).
+  → ✅ ĐÃ ĐÓNG 2026-11-18 (Story 17.5): `.attr-license-text` hết cuộn riêng, `e2e/specs/story-17-5-man-nhieu-cot.e2e.mjs` đo `nested` 0 với giấy phép 200 dòng.
 - `measureOverlayFrame` đếm cả `.menu-panel` của `SelectMenu`/`DropdownMenu` đang đóng (`overflow-y: auto`, không có hộp) là vùng cuộn; đặt trong `.ui-overlay__body` thì `nested` > 0 dù màn không cuộn lồng. Story 17.2 lọc nhãn `menu-panel` trong spec vì plan cấm sửa helper.
   Cần: helper bỏ phần tử không có hộp (`getClientRects().length === 0`) trước khi lô 3–4 chuyển `GlossaryManage`, `TmManage`, `ConventionManage`, `LibraryImport`.
   Chủ: Story 17.3. Trỏ: `e2e/support/overlayFrame.mjs`, `e2e/specs/story-17-2-cai-dat-va-thu-vien-prompt.e2e.mjs`.
   → ✅ ĐÃ ĐÓNG 2026-11-18 (Story 17.3): helper bỏ phần tử không hộp, lọc `menu-panel` trong spec 17-2 đã xoá.
+
+## Deferred from: Story 17.5, màn nhiều cột không cuộn lồng (2026-11-18)
+
+- Ba màn nhiều cột chưa đo `nested` trên WKWebView: Xem trước nhập (`.ip-config` `position: sticky; overflow-y: auto` nghi lồng trong vùng cuộn màn), Xem trước nhập song ngữ, Prompt inspector; Kiểm L miễn R4 ở cổng nguồn nên không gì canh.
+  Cần: đo bằng `measureOverlayFrame` qua đường mở thật của mỗi màn; lồng thì bỏ cuộn riêng hoặc ghi ngoại lệ có tên như `.ex-chapters` của Xuất.
+  Chủ: Epic 17. Trỏ: `e2e/specs/story-17-5-man-nhieu-cot.e2e.mjs`, `src/ImportPreviewOverlay.vue` `.ip-config`.
+- R4 của DESIGN.md §Lớp phủ nói ô nhập nhiều dòng là ngoại lệ duy nhất, nhưng Ice giữ danh sách Chương 5 hàng `.ex-chapters` cuộn trong cột cấu hình của Xuất (2026-11-18); hai tài liệu thiết kế đang lệch nhau.
+  Cần: Sally ghi ngoại lệ có tên vào DESIGN.md §Lớp phủ — Một vùng cuộn, hoặc Ice đổi ý.
+  Chủ: Epic 17. Trỏ: `tickets/epic-lop-phu-mot-be-rong/tickets/story-man-nhieu-cot-khong-cuon-long-plan.md` §Intent.

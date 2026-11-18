@@ -47,7 +47,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'list_dict_sources') return { sources: sourcesResult, skipped: [] }
     if (cmd === 'read_dict_license_text') {
       if ('err' in licenseResult) throw licenseResult.err
-      return `${licenseResult.ok} ${args?.code}`
+      return licenseResult.ok === '' ? '' : `${licenseResult.ok} ${args?.code}`
     }
     throw new Error(`unknown command ${cmd}`)
   }),
@@ -363,6 +363,15 @@ describe('AttributionOverlay actions', () => {
     const { w } = await setup()
     await footButtons(w)[0].trigger('click')
     await vi.waitFor(() => expect(w.find('.attr-license-view .attr-error').exists()).toBe(true))
+    expect(w.find('.attr-license-text').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('says the licence text is empty instead of showing an empty block', async () => {
+    licenseResult = { ok: '' }
+    const { w } = await setup()
+    await footButtons(w)[0].trigger('click')
+    await vi.waitFor(() => expect(w.find('.attr-license-view .attr-partial').exists()).toBe(true))
     expect(w.find('.attr-license-text').exists()).toBe(false)
     w.unmount()
   })
