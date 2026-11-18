@@ -5,22 +5,24 @@ const ITEM = (id) => `[data-tools-item="${id}"]`
 
 const ITEM_IDS = [
   'glossary.manage.open',
-  'glossary.settings.open',
+  'glossary.harvest.open',
   'tm.manage.open',
-  'settings.open',
+  'ai.proofread.scope.open',
   'ai.proofread.memory.open',
   'convention.manage.open',
   'convention.replace_chapter_open',
   'export.reviewer_import.open',
   'export.alignment.open',
-  'glossary.harvest.open',
   'layout.toggle_panel_headers',
+  'palette.open',
+  'settings.open',
 ]
 
 const OVERLAYS = [
   ['glossary.manage.open', '.gm-panel'],
   ['tm.manage.open', '.tm-panel'],
   ['settings.open', '.set-panel'],
+  ['ai.proofread.scope.open', '.pfscope-panel'],
 ]
 
 async function activeIsTrigger() {
@@ -35,7 +37,7 @@ async function openList() {
 }
 
 describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
-  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có mười một mục theo thứ tự IA, không còn Xuất', async () => {
+  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có mười hai mục theo nhóm dữ liệu với năm đường phân cách, không còn Xuất', async () => {
     await browser.keys(['Meta', '1'])
     const trigger = await $(TRIGGER)
     await trigger.waitForDisplayed({ timeout: 30_000 })
@@ -52,6 +54,8 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
       Array.from(document.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"]')).map((el) => el.getAttribute('data-tools-item')),
     )
     expect(ids).toEqual(ITEM_IDS)
+    const separators = await browser.execute(() => document.querySelectorAll('.tools-list > li.ui-menu-sep[role="separator"]').length)
+    expect(separators).toBe(5)
     await browser.keys(['Escape'])
     expect(await activeIsTrigger()).toBe(true)
   })
@@ -67,15 +71,14 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
     })
   }
 
-  it('mục Ngưỡng quét Glossary mở Cài đặt ở mục Glossary dù lần trước ở mục khác, và Escape về Công cụ ▾', async () => {
+  it('Mod+Alt+T mở Cài đặt ở mục Glossary dù lần trước ở mục khác', async () => {
     await openList()
     await realClick(await $(ITEM('settings.open')))
     await $('.set-panel').waitForDisplayed({ timeout: 10_000 })
     await browser.keys(['Escape'])
     await $('.set-panel').waitForExist({ reverse: true, timeout: 10_000 })
 
-    await openList()
-    await realClick(await $(ITEM('glossary.settings.open')))
+    await browser.keys(['Meta', 'Alt', 't'])
     await $('.set-panel').waitForDisplayed({ timeout: 10_000 })
     const section = await browser.execute(
       () => document.querySelector('.set-panel [data-settings-section][aria-current="true"]')?.getAttribute('data-settings-section') ?? '',
@@ -123,7 +126,7 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
     expect(at).toBe('tm.manage.open')
     await browser.keys(['ArrowUp', 'ArrowUp', 'ArrowUp'])
     const wrapped = await browser.execute(() => document.activeElement?.getAttribute('data-tools-item') ?? '')
-    expect(wrapped).toBe('layout.toggle_panel_headers')
+    expect(wrapped).toBe('settings.open')
     await browser.keys(['Escape'])
     await $(ITEM('settings.open')).waitForExist({ reverse: true, timeout: 10_000 })
     expect(await activeIsTrigger()).toBe(true)

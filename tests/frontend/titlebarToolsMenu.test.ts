@@ -45,20 +45,19 @@ describe('Công cụ ▾ list', () => {
     expect(rows.map((r) => r[0])).toEqual(
       [
         'command.glossary.manage.open',
-        'command.glossary.settings.open',
+        'command.glossary.harvest.open',
         'command.tm.manage.open',
-        'command.settings.open',
+        'command.ai.proofread.scope.open',
         'command.ai.proofread.memory.open',
         'command.convention.manage.open',
         'command.convention.replace_chapter_open',
-        'command.library.add_chapters',
         'command.export.reviewer_import.open',
         'command.export.alignment.open',
-        'command.glossary.harvest.open',
         'command.palette.open',
+        'command.settings.open',
       ].map((key) => i18n.t(key)),
     )
-    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+T', 'Ctrl+Alt+B', 'Ctrl+,', '', 'Ctrl+Alt+A', '', '', '', '', '', 'Ctrl+K'])
+    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', '', 'Ctrl+Alt+B', '', '', 'Ctrl+Alt+A', '', '', '', 'Ctrl+K', 'Ctrl+,'])
     wrapper.unmount()
   })
 
@@ -71,6 +70,7 @@ describe('Công cụ ▾ list', () => {
       'glossary-manage',
       'tm-manage',
       'settings',
+      'proofread-scope',
       'proofread-memory',
       'convention-manage',
       'convention-replace',
@@ -101,7 +101,7 @@ describe('Công cụ ▾ list', () => {
     expect(document.activeElement).toBe(items[1]?.element)
     await items[1]?.trigger('keydown', { key: 'ArrowUp' })
     await items[0]?.trigger('keydown', { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(items[12]?.element)
+    expect(document.activeElement).toBe(items[11]?.element)
 
     await items[9]?.trigger('keydown', { key: 'Escape' })
     expect(state.toolsMenuIsOpen.value).toBe(false)
@@ -143,28 +143,56 @@ describe('Công cụ ▾ list', () => {
     const wrapper = mount(Menu, { attachTo: document.body })
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(true)
-    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(12)
+    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(11)
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(false)
     wrapper.unmount()
   })
 })
 
-describe('Công cụ ▾ — Ngưỡng quét Glossary', () => {
-  it('the item sits under Quản lý Glossary and dispatches glossary.settings.open, then closes the list', async () => {
-    const openGlossarySettings = vi.fn()
-    const { state, Menu } = await setup({ openGlossarySettings })
+describe('Công cụ ▾ — groups by data kind', () => {
+  it('lists the R5 groups in order with five separators, without the threshold and add-chapters items', async () => {
+    const openAiProofreadScope = vi.fn()
+    const { state, Menu } = await setup({ openAiProofreadScope })
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
+    ;(await import('../../src/layout/panelVisibilityState')).setVisibleDockPanels(['panel.grid', 'panel.lookup', 'panel.ai_translation'])
     const wrapper = mount(Menu, { attachTo: document.body })
+    onTestFinished(() => wrapper.unmount())
     state.toggleToolsMenu()
     await flush()
 
-    const ids = wrapper.findAll('[role="menuitem"]').map((item) => item.attributes('data-tools-item'))
-    expect(ids.slice(0, 2)).toEqual(['glossary.manage.open', 'glossary.settings.open'])
+    const rows = wrapper
+      .findAll('.tools-list > li')
+      .map((li) => (li.classes('ui-menu-sep') ? '|' : (li.find('[data-tools-item]').attributes('data-tools-item') ?? '')))
+    expect(rows).toEqual([
+      'glossary.manage.open',
+      'glossary.harvest.open',
+      '|',
+      'tm.manage.open',
+      '|',
+      'ai.proofread.scope.open',
+      'ai.proofread.memory.open',
+      'convention.manage.open',
+      'convention.replace_chapter_open',
+      '|',
+      'export.reviewer_import.open',
+      'export.alignment.open',
+      '|',
+      'layout.toggle_panel_headers',
+      'layout.toggle_grid',
+      'layout.toggle_lookup',
+      'layout.toggle_ai_translation',
+      '|',
+      'palette.open',
+      'settings.open',
+    ])
+    for (const sep of wrapper.findAll('.tools-list > li.ui-menu-sep')) expect(sep.attributes('role')).toBe('separator')
+    expect(wrapper.find('[data-tools-item="glossary.settings.open"]').exists()).toBe(false)
+    expect(wrapper.find('[data-tools-item="library.add_chapters"]').exists()).toBe(false)
 
-    await wrapper.get('[data-tools-item="glossary.settings.open"]').trigger('click')
-    expect(openGlossarySettings).toHaveBeenCalledTimes(1)
+    await wrapper.get('[data-tools-item="ai.proofread.scope.open"]').trigger('click')
+    expect(openAiProofreadScope).toHaveBeenCalledTimes(1)
     expect(state.toolsMenuIsOpen.value).toBe(false)
-    wrapper.unmount()
   })
 })
 

@@ -103,6 +103,7 @@ onBeforeUnmount(() => {
       data-glossary-manage-open
       data-tm-manage-open
       data-settings-open
+      data-proofread-scope-open
       data-proofread-memory-open
       data-convention-manage-open
       data-convention-replace-open
@@ -130,14 +131,21 @@ onBeforeUnmount(() => {
         </button>
       </li>
       <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="glossary.settings.open" @click="dispatch('glossary.settings.open')">
+        <button
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
+          data-tools-item="glossary.harvest.open" @click="dispatch('glossary.harvest.open')"
+        >
           <span class="ui-row">
-            <span>{{ t('command.glossary.settings.open') }}</span>
+            <span>{{ t('command.glossary.harvest.open') }}</span>
             <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-            <span class="tools-chord">{{ chordOf('glossary.settings.open') }}</span>
+            <span class="tools-chord">{{ chordOf('glossary.harvest.open') }}</span>
           </span>
         </button>
       </li>
+      <li class="ui-menu-sep" role="separator"></li>
       <li role="none">
         <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="tm.manage.open" @click="dispatch('tm.manage.open')">
           <span class="ui-row">
@@ -147,12 +155,19 @@ onBeforeUnmount(() => {
           </span>
         </button>
       </li>
+      <li class="ui-menu-sep" role="separator"></li>
       <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="settings.open" @click="dispatch('settings.open')">
+        <button
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
+          data-tools-item="ai.proofread.scope.open" @click="dispatch('ai.proofread.scope.open')"
+        >
           <span class="ui-row">
-            <span>{{ t('command.settings.open') }}</span>
+            <span>{{ t('command.ai.proofread.scope.open') }}</span>
             <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-            <span class="tools-chord">{{ chordOf('settings.open') }}</span>
+            <span class="tools-chord">{{ chordOf('ai.proofread.scope.open') }}</span>
           </span>
         </button>
       </li>
@@ -201,21 +216,7 @@ onBeforeUnmount(() => {
           </span>
         </button>
       </li>
-      <li role="none">
-        <button
-          type="button"
-          role="menuitem"
-          tabindex="-1"
-          class="tools-item ui-menu-item"
-          data-tools-item="library.add_chapters" @click="dispatch('library.add_chapters')"
-        >
-          <span class="ui-row">
-            <span>{{ t('command.library.add_chapters') }}</span>
-            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-            <span class="tools-chord">{{ chordOf('library.add_chapters') }}</span>
-          </span>
-        </button>
-      </li>
+      <li class="ui-menu-sep" role="separator"></li>
       <li role="none">
         <button
           type="button"
@@ -246,30 +247,7 @@ onBeforeUnmount(() => {
           </span>
         </button>
       </li>
-      <li role="none">
-        <button
-          type="button"
-          role="menuitem"
-          tabindex="-1"
-          class="tools-item ui-menu-item"
-          data-tools-item="glossary.harvest.open" @click="dispatch('glossary.harvest.open')"
-        >
-          <span class="ui-row">
-            <span>{{ t('command.glossary.harvest.open') }}</span>
-            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-            <span class="tools-chord">{{ chordOf('glossary.harvest.open') }}</span>
-          </span>
-        </button>
-      </li>
-      <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="palette.open" @click="dispatch('palette.open')">
-          <span class="ui-row">
-            <span>{{ t('command.palette.open') }}</span>
-            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-            <span class="tools-chord">{{ chordOf('palette.open') }}</span>
-          </span>
-        </button>
-      </li>
+      <li class="ui-menu-sep" role="separator"></li>
       <li role="none">
         <button
           type="button"
@@ -340,6 +318,25 @@ onBeforeUnmount(() => {
           <span class="ui-row">
             <span>{{ t('panel.ai_translation.title') }}</span>
             <span class="ui-switch__track" aria-hidden="true"></span>
+          </span>
+        </button>
+      </li>
+      <li class="ui-menu-sep" role="separator"></li>
+      <li role="none">
+        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="palette.open" @click="dispatch('palette.open')">
+          <span class="ui-row">
+            <span>{{ t('command.palette.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('palette.open') }}</span>
+          </span>
+        </button>
+      </li>
+      <li role="none">
+        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="settings.open" @click="dispatch('settings.open')">
+          <span class="ui-row">
+            <span>{{ t('command.settings.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('settings.open') }}</span>
           </span>
         </button>
       </li>

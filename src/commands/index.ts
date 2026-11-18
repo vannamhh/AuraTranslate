@@ -4075,6 +4075,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     id: 'glossary.settings.open',
     palette: true,
     labelKey: 'command.glossary.settings.open',
+    pointer: { kind: 'via', reason: 'Cài đặt mở ra có mục Glossary.', via: 'settings.open' },
     keys: ['Mod+Alt+T'],
     run: () => {
       if (deps.openGlossarySettings === undefined) {

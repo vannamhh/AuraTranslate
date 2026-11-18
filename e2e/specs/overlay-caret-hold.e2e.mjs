@@ -4,7 +4,7 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const TARGET = (id) => `[data-col="tgt"][data-segment-id="${id}"]`
 const OVERLAYS = [
-  ['ai.proofread.scope.open', '[data-proofread-scope]', '[data-proofread-scope-open]'],
+  ['ai.proofread.scope.open', '[data-proofread-scope]', '[data-proofread-scope-open]:not([data-tools-trigger])'],
   ['tm.manage.open', '.tm-panel', null],
   ['settings.open', '.set-panel', null],
 ]
