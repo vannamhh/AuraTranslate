@@ -905,9 +905,10 @@ fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
     // 🔴 Danh sách này phải mọc theo MỌI móc e2e mới. Một móc thứ ba không có tên ở đây là
     // một đường ghi vào dữ liệu thật của người chạy mà không bất biến nào canh — đúng cách
     // bề mặt THỨ HAI (thư mục gốc Library) đã lọt qua AC2 và chỉ lộ ra ở lượt đọc mã của C2.
-    const ENV_NAMES: [&str; 2] = [
+    const ENV_NAMES: [&str; 3] = [
         "AURATRANSLATE_E2E_DATA_DIR",
         "AURATRANSLATE_E2E_LIBRARY_ROOT",
+        "AURATRANSLATE_E2E_PICK_FILE",
     ];
 
     let path = manifest_dir().join("src/lib.rs");
@@ -937,7 +938,10 @@ fn the_env_read_lives_only_behind_debug_assertions_and_the_wdio_feature() {
     // sau `/* … */` trên cùng dòng, và đó là một hình dạng mã không tồn tại trong tệp này.
     let lines: Vec<&str> = src.lines().collect();
     for (i, line) in lines.iter().enumerate() {
-        if !line.contains("E2E_DATA_DIR_ENV") && !line.contains("E2E_LIBRARY_ROOT_ENV") {
+        if !line.contains("E2E_DATA_DIR_ENV")
+            && !line.contains("E2E_LIBRARY_ROOT_ENV")
+            && !line.contains("E2E_PICK_FILE_ENV")
+        {
             continue;
         }
         let trimmed = line.trim_start();

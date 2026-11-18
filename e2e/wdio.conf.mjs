@@ -234,7 +234,7 @@
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
 import { SevereServiceError } from 'webdriverio'
@@ -269,6 +269,16 @@ const DATA_DIR_ENV = 'AURATRANSLATE_E2E_DATA_DIR'
  * lần nữa.
  */
 const LIBRARY_ROOT_ENV = 'AURATRANSLATE_E2E_LIBRARY_ROOT'
+
+/** Must match `E2E_PICK_FILE_ENV` in `src-tauri/src/lib.rs`. */
+const PICK_FILE_ENV = 'AURATRANSLATE_E2E_PICK_FILE'
+
+/** A 40-line prompt body the import preview reads instead of the OS file dialog. */
+function pickFileBody() {
+  const lines = ['---', 'name: Story 17-1 pick', '---']
+  for (let i = 0; i < 40; i += 1) lines.push(`Dong ${i}: {{source_segment}} can cuon trong khung lop phu.`)
+  return lines.join('\n') + '\n'
+}
 
 /** Tên tệp kho toàn cục — khớp `GLOBAL_DB_FILE` ở `src-tauri/src/lib.rs`. */
 const GLOBAL_DB_FILE = 'global.db'
@@ -587,6 +597,11 @@ function allocateFreshPair() {
   process.env[DATA_DIR_ENV] = newDataDir
   const newLibraryDir = mkdtempSync(join(tmpdir(), 'auratranslate-e2e-library-'))
   process.env[LIBRARY_ROOT_ENV] = newLibraryDir
+  const pickDir = join(newDataDir, 'e2e-pick')
+  mkdirSync(pickDir)
+  const pickFile = join(pickDir, 'story-17-1.prompt.md')
+  writeFileSync(pickFile, pickFileBody())
+  process.env[PICK_FILE_ENV] = pickFile
   return { dataDir: newDataDir, libraryDir: newLibraryDir }
 }
 

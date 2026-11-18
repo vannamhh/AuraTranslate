@@ -14259,3 +14259,9 @@ chính nó.
   Chủ: Ice. Trỏ: `e2e/specs/story-13-9-chieu-cao-hang-va-icon.e2e.mjs`, `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-refactor-sweep-plan.md` §Code Map.
   → 2026-11-17 (Story 13.9): ca `.lookup-collapse` của `story-13-9` `skip` khi máy không có nguồn từ điển, nên CI (không có từ điển thật) không bao giờ chạy nó. Chủ: Ice.
   → 2026-11-17 (Story 13.9): chevron trong nút chỉ có biểu tượng nay đặt đáy trên baseline, nên có thể trông cao hơn quy tắc chevron của DESIGN.md (quy tắc đó nói chevron "đứng cạnh chữ", hạ 3px); cần Ice nhìn ở lượt dùng thật. Chủ: Ice.
+
+## Deferred from: Story 17.1, khung lớp phủ dùng chung (2026-11-18)
+
+- `AttributionOverlay.vue` `.attr-license-text` (`pre`, `tabindex="0"`) nghi cuộn lồng trong màn nhiều cột; cổng nguồn miễn R4 cho năm màn nhiều cột vì quan hệ lồng chỉ đo được trên DOM.
+  Cần: đo `nested` bằng `measureOverlayFrame` ở entry 5, rồi bỏ cuộn riêng của `.attr-license-text`.
+  Chủ: Epic 17. Trỏ: `e2e/support/overlayFrame.mjs`, `scripts/check-tokens.mjs` Kiểm L (`OVERLAY_MULTI_COLUMN_EXEMPT`).

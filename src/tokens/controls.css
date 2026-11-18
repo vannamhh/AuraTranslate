@@ -751,6 +751,59 @@ summary.ui-field {
   background-color: var(--color-control-rule);
 }
 
+.ui-overlay-scrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-panel-inline);
+  background: var(--color-background);
+}
+
+:root[data-platform='mac'] .ui-overlay-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
+.ui-overlay {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--space-overlay-max-width);
+  max-height: 100%;
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+}
+
+.ui-overlay:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.ui-overlay__head {
+  flex: none;
+  padding: 0 13px; /* aura-allow-spacing: 1px frame border sits inside the 14px inset */
+  border-bottom: 1px solid var(--color-outline);
+  background: var(--color-surface);
+}
+
+.ui-overlay__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-unit) 13px 0; /* aura-allow-spacing: 1px frame border sits inside the 14px inset */
+}
+
+.ui-overlay__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  padding: 6px 13px; /* aura-allow-spacing: 1px rule and 1px frame border sit inside the 7px / 14px insets */
+  border-top: 1px solid var(--color-outline);
+  background: var(--color-background);
+}
+
 @media (forced-colors: active) {
   .ui-btn:focus-visible,
   .ui-icon-btn:focus-visible,

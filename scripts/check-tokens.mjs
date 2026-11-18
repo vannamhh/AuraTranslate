@@ -53,7 +53,7 @@
  */
 import { readFileSync, readdirSync, lstatSync, existsSync, realpathSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { dirname, join, relative, sep } from 'node:path'
+import { basename, dirname, join, relative, sep } from 'node:path'
 import {
   maskCommentsAndStrings,
   lineOf,
@@ -276,6 +276,7 @@ const EXPECTED_SPACING = {
   'panel-inline': '14px',
   'panel-block': '14px',
   'screen-inline': '21px',
+  'overlay-max-width': '1120px',
   'head-height': '35px',
   'titlebar-height': '42px',
   'status-height': '35px',
@@ -525,17 +526,14 @@ const componentFiles = files.filter((f) => !isTokenSource(f))
 // `tests/frontend/checkTokensScan.test.ts` `import()` trực tiếp, còn bản thân tệp này thì
 // không (top-level `await`, `process.exit`). Xem doc-comment đầy đủ của từng hàm tại đó.
 
-/** Một tệp đã đọc, đã che, đã phân tích. */
-const parsed = files.map((file) => {
+/**
+ * @param {string} file
+ * @param {string} text
+ */
+function parseSource(file, text) {
   const low = file.toLowerCase()
   const isCss = CSS_EXT.some((e) => low.endsWith(e))
   const isMarkup = MARKUP_EXT.some((e) => low.endsWith(e))
-  let text
-  try {
-    text = readFileSync(file, 'utf8')
-  } catch (err) {
-    abort(`tệp \`${rel(file)}\``, err)
-  }
 
   /** Vùng CSS thật của tệp: cả tệp `.css`, hoặc từng khối `<style>` của markup.
    * @type {{start: number, end: number}[]} */
@@ -570,6 +568,16 @@ const parsed = files.map((file) => {
   if (isMarkup) blocks.push(...inlineStyleBlocks(text, file))
 
   return { file, text, masked, comments, blocks, isMarkup, isCss, cssRegions }
+}
+
+const parsed = files.map((file) => {
+  let text
+  try {
+    text = readFileSync(file, 'utf8')
+  } catch (err) {
+    abort(`tệp \`${rel(file)}\``, err)
+  }
+  return parseSource(file, text)
 })
 
 const allDecls = parsed.flatMap((p) =>
@@ -2395,6 +2403,265 @@ for (const [name, text, shouldExempt] of K_EXEMPT_CASES) {
   }
 }
 if (kSelfBad === 0) pass(`tự kiểm Kiểm K — ${K_CASES.length + K_SIZE_CASES.length + K_EXEMPT_CASES.length} ca`)
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm L — khung lớp phủ một bề rộng, một vùng cuộn (R1, R4)')
+// ═════════════════════════════════════════════════════════════════════════════════
+//
+// R1: a `src/*Overlay.vue` outside the three lists carries `ui-overlay` and declares no width on
+// the frame element. R4: a file on the frame declares no vertical scroller of its own.
+// Multi-column screens are exempt from R4 here because their nesting is only measurable on the
+// DOM (`measureOverlayFrame` in `e2e/support/overlayFrame.mjs`).
+
+const OVERLAY_FILE_FLOOR = 22
+
+/** Overlay not yet on the frame, with the ticket entry that moves it. */
+const OVERLAY_DEBT = new Map([
+  ['SettingsOverlay', 'entry 2 (Story 17.2)'],
+  ['PromptLibraryOverlay', 'entry 2 (Story 17.2)'],
+  ['GlossaryManageOverlay', 'entry 3 (Story 17.3)'],
+  ['GlossaryImportOverlay', 'entry 3 (Story 17.3)'],
+  ['GlossaryHarvestOverlay', 'entry 3 (Story 17.3)'],
+  ['GlossaryQueueOverlay', 'entry 3 (Story 17.3)'],
+  ['TmManageOverlay', 'entry 3 (Story 17.3)'],
+  ['TmImportOverlay', 'entry 3 (Story 17.3)'],
+  ['ConventionManageOverlay', 'entry 3 (Story 17.3)'],
+  ['ConventionImportOverlay', 'entry 3 (Story 17.3)'],
+  ['ConventionReplaceOverlay', 'entry 3 (Story 17.3)'],
+  ['ChapterMergeOverlay', 'entry 4 (Story 17.4)'],
+  ['ChapterSplitOverlay', 'entry 4 (Story 17.4)'],
+  ['LibraryImportOverlay', 'entry 4 (Story 17.4)'],
+  ['ReviewerImportOverlay', 'entry 4 (Story 17.4)'],
+  ['AlignmentOverlay', 'entry 4 (Story 17.4)'],
+  ['SegmentHistoryOverlay', 'entry 4 (Story 17.4)'],
+  ['ProofreadMemoryOverlay', 'entry 4 (Story 17.4)'],
+])
+/** Popups that hug their content: exempt from R1 and R4. */
+const OVERLAY_POPUP_EXEMPT = new Map([
+  ['PaletteOverlay', 'command palette popup, not a full-width screen'],
+  ['ProofreadScopeOverlay', 'scope picker popup, not a full-width screen'],
+])
+/** Multi-column screens spanning the window: exempt from R1, and from R4 at source. */
+const OVERLAY_MULTI_COLUMN_EXEMPT = new Map([
+  ['AiPromptInspectorOverlay', 'multi-column, spans the window'],
+  ['AttributionOverlay', 'multi-column, spans the window'],
+  ['BilingualImportPreviewOverlay', 'multi-column, spans the window'],
+  ['ExportOverlay', 'multi-column, spans the window'],
+  ['ImportPreviewOverlay', 'multi-column, spans the window'],
+])
+
+const WIDTH_PROPS = new Set(['width', 'max-width', 'min-width'])
+const LITERAL_LENGTH_RE = /\d(?:px|ch|rem|em|vw)\b/i
+
+/**
+ * The element carrying `ui-overlay` in the template.
+ * @param {string} text
+ * @returns {{tag: string, classes: string[]} | null} null when the file does not use the frame
+ */
+function frameElement(text) {
+  const open = /<([a-zA-Z][\w-]*)\b[^<>]*?\sclass\s*=\s*"([^"]*)"/g
+  let m
+  while ((m = open.exec(text))) {
+    const classes = m[2].split(/\s+/).filter(Boolean)
+    if (classes.includes('ui-overlay')) return { tag: m[1].toLowerCase(), classes }
+  }
+  return null
+}
+
+/** @param {string} prelude @param {{tag: string, classes: string[]}} frame */
+const preludeTargetsFrame = (prelude, frame) =>
+  prelude.split(',').some((sel) => {
+    const last = sel.trim().split(/[\s>+~]+/).pop() ?? ''
+    const parts = last.split(/(?=[.:#[])/)
+    return parts[0].toLowerCase() === frame.tag || frame.classes.some((c) => parts.includes(`.${c}`))
+  })
+
+/**
+ * Does this block's overflow make a vertical scroller? Per CSS Overflow 3 a non-`visible`/`clip`
+ * `overflow-x` with `overflow-y` left `visible` computes `overflow-y: auto`.
+ * @param {import('./lib/tokens-scan.mjs').CssBlock} block
+ * @returns {import('./lib/tokens-scan.mjs').CssDecl | null}
+ */
+function verticalScrollerDecl(block) {
+  const last = (prop) => block.decls.findLast((d) => d.prop === prop)
+  const ov = last('overflow')
+  const ovX = last('overflow-x')
+  const ovY = last('overflow-y')
+  if (!ov && !ovX && !ovY) return null
+  const tokens = ov ? stripImportant(ov.value).toLowerCase().split(/\s+/) : []
+  const y = ovY ? stripImportant(ovY.value).toLowerCase() : ov ? (tokens[1] ?? tokens[0]) : null
+  const x = ovX ? stripImportant(ovX.value).toLowerCase() : ov ? tokens[0] : null
+  const yScrolls = y === 'auto' || y === 'scroll'
+  const xPromotes = (y === null || y === 'visible') && x !== null && x !== 'visible' && x !== 'clip'
+  return yScrolls || xPromotes ? (ovY ?? ovX ?? ov) : null
+}
+
+/**
+ * R1 + R4 verdict for one overlay file; the real run and the self-check both go through it.
+ * @param {ReturnType<typeof parseSource>} p
+ * @param {string} name file name without extension
+ * @param {{debt: Map<string, string>, popup: Map<string, string>, multi: Map<string, string>}} lists
+ * @returns {string[]}
+ */
+function overlayVerdict(p, name, lists) {
+  const problems = []
+  for (const [listName, list] of Object.entries(lists)) {
+    if (list.has(name) && !(list.get(name) ?? '').trim()) problems.push(`list \`${listName}\` carries no reason for this file`)
+  }
+  const frame = frameElement(p.text)
+  const multi = lists.multi.has(name)
+  if (lists.popup.has(name) || (multi && frame === null)) return problems
+  if (lists.debt.has(name)) {
+    if (frame !== null) problems.push('already on the frame but still in the debt list — remove its debt line')
+    return problems
+  }
+  if (frame === null) {
+    problems.push('no `ui-overlay` class in the template and not in a debt or exemption list')
+    return problems
+  }
+  if (!multi) {
+    for (const b of p.blocks) {
+      if (!preludeTargetsFrame(b.prelude, frame)) continue
+      for (const d of b.decls) {
+        if (WIDTH_PROPS.has(d.prop) && stripImportant(d.value) !== '100%') {
+          problems.push(`\`${d.prop}: ${d.value}\` on \`${b.prelude}\` — the frame width comes only from \`--space-overlay-max-width\``)
+        }
+      }
+    }
+  }
+  if (!multi) {
+    for (const b of p.blocks) {
+      const d = verticalScrollerDecl(b)
+      if (d === null || exemptAt(p, d.index, 'scroll')) continue
+      problems.push(`\`${d.prop}: ${d.value}\` on \`${b.prelude}\` — nested scroll region: the frame body is the only vertical scroller`)
+    }
+  }
+  return problems
+}
+
+/**
+ * `.ui-overlay` in `controls.css`: width only from the token, and at least one such declaration.
+ * @param {ReturnType<typeof parseSource>} p
+ * @returns {string[]}
+ */
+function frameCssVerdict(p) {
+  const problems = []
+  let viaToken = 0
+  for (const b of p.blocks) {
+    if (!b.prelude.split(',').some((s) => s.trim() === '.ui-overlay')) continue
+    for (const d of b.decls) {
+      if (!WIDTH_PROPS.has(d.prop)) continue
+      if (LITERAL_LENGTH_RE.test(d.value)) problems.push(`\`${d.prop}: ${d.value}\` on \`.ui-overlay\` — literal width`)
+      if (d.value.includes('var(--space-overlay-max-width)')) viaToken += 1
+    }
+  }
+  if (viaToken === 0) problems.push('`.ui-overlay` takes no width from `var(--space-overlay-max-width)`')
+  return problems
+}
+
+const overlayFiles = parsed.filter((p) => /^src[\\/][^\\/]+Overlay\.vue$/.test(rel(p.file)))
+{
+  const v = judgeFloor(OVERLAY_FILE_FLOOR, overlayFiles.length, 'OVERLAY_FILE_FLOOR', 'tệp `src/*Overlay.vue`')
+  if (!v.ok) abort('quần thể lớp phủ', new Error(v.message))
+}
+const REAL_LISTS = { debt: OVERLAY_DEBT, popup: OVERLAY_POPUP_EXEMPT, multi: OVERLAY_MULTI_COLUMN_EXEMPT }
+const overlayNames = new Set(overlayFiles.map((p) => basename(p.file, '.vue')))
+let lBad = 0
+for (const [listName, list] of Object.entries(REAL_LISTS)) {
+  for (const n of list.keys()) {
+    if (!overlayNames.has(n)) {
+      fail(`list \`${listName}\` names \`${n}\` but there is no \`src/${n}.vue\``)
+      lBad += 1
+    }
+  }
+}
+for (const n of overlayNames) {
+  const hits = Object.values(REAL_LISTS).filter((l) => l.has(n)).length
+  if (hits > 1) {
+    fail(`\`${n}\` is in ${hits} lists — exactly one allowed`)
+    lBad += 1
+  }
+}
+let lMigrated = 0
+for (const p of overlayFiles) {
+  const name = basename(p.file, '.vue')
+  const problems = overlayVerdict(p, name, REAL_LISTS)
+  if (frameElement(p.text) !== null) lMigrated += 1
+  for (const msg of problems) {
+    fail(`${rel(p.file)} — ${msg}`)
+    lBad += 1
+  }
+}
+const controlsParsed = parsed.find((p) => rel(p.file) === join('src', 'tokens', 'controls.css'))
+if (controlsParsed === undefined) abort('`src/tokens/controls.css`', new Error('not in the scan.'))
+else {
+  for (const msg of frameCssVerdict(controlsParsed)) {
+    fail(`src/tokens/controls.css — ${msg}`)
+    lBad += 1
+  }
+}
+if (lBad === 0) {
+  pass(
+    `${overlayFiles.length} tệp lớp phủ: ${lMigrated} trên khung, nợ ${OVERLAY_DEBT.size}, ` +
+      `${OVERLAY_POPUP_EXEMPT.size} popup + ${OVERLAY_MULTI_COLUMN_EXEMPT.size} màn nhiều cột miễn`,
+  )
+}
+
+const L_TPL = '<section class="x-panel ui-overlay"><div class="x-body"></div></section>\n'
+/** @type {[string, string, string, {debt?: string[], popup?: string[], multi?: string[], reason?: string}, string | null][]} */
+const L_CASES = [
+  ['clean — green', 'X', `${L_TPL}<style>\n.x-panel { padding: 0; }\n</style>`, {}, null],
+  ['nested scroller — red', 'X', `${L_TPL}<style>\n.x-body { overflow-y: auto; }\n</style>`, {}, 'nested scroll'],
+  ['overflow: hidden auto — red', 'X', `${L_TPL}<style>\n.x-body { overflow: hidden auto; }\n</style>`, {}, 'nested scroll'],
+  ['overflow-x: auto computes overflow-y auto — red', 'X', `${L_TPL}<style>\n.x-body { overflow-x: auto; }\n</style>`, {}, 'nested scroll'],
+  ['overflow-x: auto with overflow-y: hidden — green', 'X', `${L_TPL}<style>\n.x-body { overflow-x: auto; overflow-y: hidden; }\n</style>`, {}, null],
+  [
+    'named exemption — green',
+    'X',
+    `${L_TPL}<style>\n.x-ta {\n  overflow: auto; /* aura-allow-scroll: multi-line input */\n}\n</style>`,
+    {},
+    null,
+  ],
+  ['exemption without a reason — red', 'X', `${L_TPL}<style>\n.x-ta {\n  overflow: auto; /* aura-allow-scroll: */\n}\n</style>`, {}, 'nested scroll'],
+  ['debt file already on the frame — red', 'X', L_TPL, { debt: ['X'] }, 'remove its debt line'],
+  ['debt file not on the frame — green', 'X', '<section class="x-panel"></section>', { debt: ['X'] }, null],
+  ['no frame, in no list — red', 'X', '<section class="x-panel"></section>', {}, 'no `ui-overlay`'],
+  ['popup without frame — green', 'X', '<section class="x-panel"></section>', { popup: ['X'] }, null],
+  ['max-width on the frame own class — red', 'X', `${L_TPL}<style>\n.x-panel { max-width: 721px; }\n</style>`, {}, 'frame width comes only'],
+  ['max-width on scoped .ui-overlay — red', 'X', `${L_TPL}<style>\n.ui-overlay { max-width: 900px; }\n</style>`, {}, 'frame width comes only'],
+  ['max-width on the frame tag — red', 'X', `${L_TPL}<style>\nsection { max-width: 900px; }\n</style>`, {}, 'frame width comes only'],
+  ['max-width on another class — green', 'X', `${L_TPL}<style>\n.x-field { max-width: 721px; }\n</style>`, {}, null],
+  ['multi-column, scroll inside a column — green', 'X', `${L_TPL}<style>\n.x-col { overflow-y: auto; }\n</style>`, { multi: ['X'] }, null],
+  ['list entry without a reason — red', 'X', '<section class="x-panel"></section>', { popup: ['X'], reason: '' }, 'carries no reason'],
+]
+let lSelfBad = 0
+for (const [name, file, text, lists, wantMsg] of L_CASES) {
+  const asMap = (names) => new Map((names ?? []).map((n) => [n, lists.reason ?? 'fixture']))
+  const got = overlayVerdict(parseSource(`${file}.vue`, text), file, {
+    debt: asMap(lists.debt),
+    popup: asMap(lists.popup),
+    multi: asMap(lists.multi),
+  })
+  const ok = wantMsg === null ? got.length === 0 : got.some((g) => g.includes(wantMsg))
+  if (!ok) {
+    fail(`self-check Kiểm L — case \`${name}\`: expected ${wantMsg === null ? 'GREEN' : `RED (${wantMsg})`}, got ${got.length === 0 ? 'GREEN' : got.join(' | ')}`)
+    lSelfBad += 1
+  }
+}
+/** @type {[string, string, boolean][]} */
+const L_CSS_CASES = [
+  ['.ui-overlay takes its width from the token — green', '.ui-overlay {\n  max-width: var(--space-overlay-max-width);\n}', false],
+  ['.ui-overlay literal max-width — red', '.ui-overlay {\n  max-width: 1120px;\n}', true],
+  ['.ui-overlay declares no width — red', '.ui-overlay {\n  padding: 0;\n}', true],
+]
+for (const [name, css, wantRed] of L_CSS_CASES) {
+  const red = frameCssVerdict(parseSource('controls.css', css)).length > 0
+  if (red !== wantRed) {
+    fail(`self-check Kiểm L — case \`${name}\`: expected ${wantRed ? 'RED' : 'GREEN'}, got ${red ? 'RED' : 'GREEN'}`)
+    lSelfBad += 1
+  }
+}
+if (lSelfBad === 0) pass(`tự kiểm Kiểm L — ${L_CASES.length + L_CSS_CASES.length} ca, qua cùng hàm \`overlayVerdict\`/\`frameCssVerdict\` với phép kiểm thật`)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('')

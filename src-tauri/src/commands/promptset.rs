@@ -1126,17 +1126,22 @@ pub mod wire {
             return Err(IpcError::from(PromptSetError::NoPendingImport));
         }
 
-        let Some(picked) = app
-            .dialog()
-            .file()
-            .add_filter("Prompt", &["md"])
-            .blocking_pick_file()
-        else {
-            return Ok(None);
+        let path = match crate::pick_file_override() {
+            Some(path) => path,
+            None => {
+                let Some(picked) = app
+                    .dialog()
+                    .file()
+                    .add_filter("Prompt", &["md"])
+                    .blocking_pick_file()
+                else {
+                    return Ok(None);
+                };
+                picked
+                    .into_path()
+                    .map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?
+            }
         };
-        let path = picked
-            .into_path()
-            .map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
 
         let work_state = app.try_state::<OpenWorkState>();
         let guard = work_state

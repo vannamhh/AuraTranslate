@@ -105,20 +105,20 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 <template>
   <div
     v-if="promptImportOverlayIsOpen"
-    class="pi-scrim"
+    class="pi-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('prompt.import.cancel')"
     @keydown.tab="trapTab($event)"
   >
     <section
       ref="panel"
-      class="pi-panel"
+      class="pi-panel ui-overlay"
       tabindex="-1"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pi-title"
     >
-      <header class="pi-head">
+      <header class="pi-head ui-overlay__head">
         <h2 id="pi-title" class="pi-title">{{ t('prompt.import.title') }}</h2>
         <button type="button" class="pi-close ui-btn ui-btn--quiet" @click="dispatch('prompt.import.cancel')">
           {{ t('command.prompt.import.cancel') }}
@@ -131,111 +131,115 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
            — nên lớp phủ không bao giờ MỞ trong lúc `status` còn 'unknown'. Nhánh đã bị xoá
            thay vì để một chuỗi sản phẩm không bao giờ hiện được (`prompt.import.loading`
            cũng đã bỏ khỏi `vi.json`). -->
-      <p v-if="promptImportStatus === 'ipc_unavailable'" class="pi-empty">
-        {{ t('prompt.import.empty_ipc_unavailable') }}
-      </p>
-      <p v-else-if="promptImportStatus === 'error' && promptImportLoadError !== null" class="pi-empty pi-error" role="alert">
-        <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-        {{ tError(promptImportLoadError) }}
-      </p>
-
-      <template v-else-if="promptImportStatus === 'loaded' && promptImportPreview !== null">
-        <dl class="pi-summary">
-          <div class="pi-summary-row">
-            <dt>{{ t('prompt.import.file_name_label') }}</dt>
-            <!-- aura-allow-text: DỮ LIỆU (tên tệp do người dùng chọn). -->
-            <dd>{{ promptImportPreview.file_name }}</dd>
-          </div>
-          <div class="pi-summary-row">
-            <dt>{{ t('prompt.import.name_label') }}</dt>
-            <!-- aura-allow-text: DỮ LIỆU (tên bộ đọc từ tệp). -->
-            <dd>{{ promptImportPreview.name }}</dd>
-          </div>
-        </dl>
-
-        <h4 class="pi-sh">{{ t('prompt.import.body_label') }}</h4>
-        <!-- aura-allow-text: DỮ LIỆU (thân prompt đọc từ tệp, MÔ HÌNH ĐÃ KIỂM, AD-48 §Rule ①). -->
-        <pre class="pi-body">{{ promptImportPreview.body }}</pre>
-
-        <p v-if="promptImportPreview.warnings.unknown_markers.length > 0" class="pi-warn">
-          {{ t('prompt.import.warning_unknown_markers', { tokens: promptImportPreview.warnings.unknown_markers.join(', ') }) }}
+      <div class="pi-scroll ui-overlay__body">
+        <p v-if="promptImportStatus === 'ipc_unavailable'" class="pi-empty">
+          {{ t('prompt.import.empty_ipc_unavailable') }}
         </p>
-        <p v-if="promptImportPreview.warnings.glossary_terms_missing" class="pi-warn">
-          {{ t('prompt.import.warning_glossary_terms_missing') }}
+        <p v-else-if="promptImportStatus === 'error' && promptImportLoadError !== null" class="pi-empty pi-error" role="alert">
+          <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+          {{ tError(promptImportLoadError) }}
         </p>
 
-        <fieldset class="pi-tier" role="radiogroup" :aria-label="t('prompt.import.tier_label')">
-          <legend class="pi-field-label">{{ t('prompt.import.tier_label') }}</legend>
-          <label class="pi-radio-label ui-check">
-            <input
-              type="radio"
-              name="pi-tier"
-              :checked="promptImportSelectedTier === 'global'"
-              @change="onTierChange('global', $event)"
-            />
-            {{ t('prompt.import.tier_global') }}
-          </label>
-          <label class="pi-radio-label ui-check">
-            <input
-              type="radio"
-              name="pi-tier"
-              :disabled="promptImportPreview.work === null"
-              :checked="promptImportSelectedTier === 'work'"
-              @change="onTierChange('work', $event)"
-            />
-            {{ t('prompt.import.tier_work') }}
-          </label>
-        </fieldset>
-
-        <p v-if="promptImportSelectedTierPreview?.kind === 'new'" class="pi-note">
-          {{ t('prompt.import.status_new') }}
-        </p>
-        <p v-else-if="promptImportSelectedTierPreview?.kind === 'identical'" class="pi-note">
-          {{ t('prompt.import.status_identical') }}
-        </p>
-
-        <template v-else-if="promptImportSelectedTierPreview?.kind === 'conflict'">
-          <p class="pi-note">{{ t('prompt.import.status_conflict') }}</p>
+        <template v-else-if="promptImportStatus === 'loaded' && promptImportPreview !== null">
           <dl class="pi-summary">
             <div class="pi-summary-row">
-              <dt>{{ t('prompt.import.conflict_existing_label') }}</dt>
-              <!-- aura-allow-text: DỮ LIỆU (thân đang có trong kho). -->
-              <dd class="pi-mono">{{ promptImportSelectedTierPreview.existing_body ?? '' }}</dd>
+              <dt>{{ t('prompt.import.file_name_label') }}</dt>
+              <!-- aura-allow-text: DỮ LIỆU (tên tệp do người dùng chọn). -->
+              <dd>{{ promptImportPreview.file_name }}</dd>
             </div>
             <div class="pi-summary-row">
-              <dt>{{ t('prompt.import.conflict_file_label') }}</dt>
-              <!-- aura-allow-text: DỮ LIỆU (thân tệp mang). -->
-              <dd class="pi-mono">{{ promptImportPreview.body }}</dd>
+              <dt>{{ t('prompt.import.name_label') }}</dt>
+              <!-- aura-allow-text: DỮ LIỆU (tên bộ đọc từ tệp). -->
+              <dd>{{ promptImportPreview.name }}</dd>
             </div>
           </dl>
-          <div class="pi-conflict-choice" role="radiogroup" :aria-label="t('prompt.import.status_conflict')">
+
+          <h4 class="pi-sh">{{ t('prompt.import.body_label') }}</h4>
+          <!-- aura-allow-text: DỮ LIỆU (thân prompt đọc từ tệp, MÔ HÌNH ĐÃ KIỂM, AD-48 §Rule ①). -->
+          <pre class="pi-body">{{ promptImportPreview.body }}</pre>
+
+          <p v-if="promptImportPreview.warnings.unknown_markers.length > 0" class="pi-warn">
+            {{ t('prompt.import.warning_unknown_markers', { tokens: promptImportPreview.warnings.unknown_markers.join(', ') }) }}
+          </p>
+          <p v-if="promptImportPreview.warnings.glossary_terms_missing" class="pi-warn">
+            {{ t('prompt.import.warning_glossary_terms_missing') }}
+          </p>
+
+          <fieldset class="pi-tier" role="radiogroup" :aria-label="t('prompt.import.tier_label')">
+            <legend class="pi-field-label">{{ t('prompt.import.tier_label') }}</legend>
             <label class="pi-radio-label ui-check">
               <input
                 type="radio"
-                name="pi-decision"
-                :checked="promptImportDecision === 'keep_mine'"
-                @change="onDecisionChange('keep_mine', $event)"
+                name="pi-tier"
+                :checked="promptImportSelectedTier === 'global'"
+                @change="onTierChange('global', $event)"
               />
-              {{ t('prompt.import.keep_mine') }}
+              {{ t('prompt.import.tier_global') }}
             </label>
             <label class="pi-radio-label ui-check">
               <input
                 type="radio"
-                name="pi-decision"
-                :checked="promptImportDecision === 'take_theirs'"
-                @change="onDecisionChange('take_theirs', $event)"
+                name="pi-tier"
+                :disabled="promptImportPreview.work === null"
+                :checked="promptImportSelectedTier === 'work'"
+                @change="onTierChange('work', $event)"
               />
-              {{ t('prompt.import.take_theirs') }}
+              {{ t('prompt.import.tier_work') }}
             </label>
-          </div>
+          </fieldset>
+
+          <p v-if="promptImportSelectedTierPreview?.kind === 'new'" class="pi-note">
+            {{ t('prompt.import.status_new') }}
+          </p>
+          <p v-else-if="promptImportSelectedTierPreview?.kind === 'identical'" class="pi-note">
+            {{ t('prompt.import.status_identical') }}
+          </p>
+
+          <template v-else-if="promptImportSelectedTierPreview?.kind === 'conflict'">
+            <p class="pi-note">{{ t('prompt.import.status_conflict') }}</p>
+            <dl class="pi-summary">
+              <div class="pi-summary-row">
+                <dt>{{ t('prompt.import.conflict_existing_label') }}</dt>
+                <!-- aura-allow-text: DỮ LIỆU (thân đang có trong kho). -->
+                <dd class="pi-mono">{{ promptImportSelectedTierPreview.existing_body ?? '' }}</dd>
+              </div>
+              <div class="pi-summary-row">
+                <dt>{{ t('prompt.import.conflict_file_label') }}</dt>
+                <!-- aura-allow-text: DỮ LIỆU (thân tệp mang). -->
+                <dd class="pi-mono">{{ promptImportPreview.body }}</dd>
+              </div>
+            </dl>
+            <div class="pi-conflict-choice" role="radiogroup" :aria-label="t('prompt.import.status_conflict')">
+              <label class="pi-radio-label ui-check">
+                <input
+                  type="radio"
+                  name="pi-decision"
+                  :checked="promptImportDecision === 'keep_mine'"
+                  @change="onDecisionChange('keep_mine', $event)"
+                />
+                {{ t('prompt.import.keep_mine') }}
+              </label>
+              <label class="pi-radio-label ui-check">
+                <input
+                  type="radio"
+                  name="pi-decision"
+                  :checked="promptImportDecision === 'take_theirs'"
+                  @change="onDecisionChange('take_theirs', $event)"
+                />
+                {{ t('prompt.import.take_theirs') }}
+              </label>
+            </div>
+          </template>
+
+          <p v-if="promptImportConfirmError !== null" class="pi-status pi-error" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+            {{ tError(promptImportConfirmError) }}
+          </p>
+          <p v-else-if="promptImportConfirming" class="pi-status" role="status">{{ t('prompt.import.confirming') }}</p>
         </template>
+      </div>
 
-        <p v-if="promptImportConfirmError !== null" class="pi-status pi-error" role="alert">
-          <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-          {{ tError(promptImportConfirmError) }}
-        </p>
-        <p v-else-if="promptImportConfirming" class="pi-status" role="status">{{ t('prompt.import.confirming') }}</p>
-
+      <footer v-if="promptImportStatus === 'loaded' && promptImportPreview !== null" class="ui-overlay__foot">
         <p class="pi-hint">{{ t('prompt.import.hint_no_write_before_confirm') }}</p>
 
         <div class="pi-actions">
@@ -251,40 +255,14 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
             {{ t('command.prompt.import.cancel') }}
           </button>
         </div>
-      </template>
+      </footer>
     </section>
   </div>
 </template>
 
 <style scoped>
 .pi-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 11; /* aura-allow-z-index: xếp TRÊN PromptLibraryOverlay (10) — mở từ trong nó. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .pi-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.pi-panel {
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.pi-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .pi-head {
@@ -293,7 +271,6 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .pi-head > :last-child {
@@ -378,8 +355,6 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   line-height: var(--leading-ui-mono);
   color: var(--color-on-surface);
   white-space: pre-wrap;
-  max-height: 196px;
-  overflow: auto;
 }
 
 .pi-warn {
@@ -431,7 +406,8 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 }
 
 .pi-hint {
-  margin: 0 0 var(--space-panel-block) 0;
+  flex: 1;
+  margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

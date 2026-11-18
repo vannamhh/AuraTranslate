@@ -204,6 +204,48 @@ describe('PromptImportOverlay.vue — vẽ từ mô hình, chọn tầng và quy
   })
 })
 
+describe('PromptImportOverlay.vue — khung lớp phủ dùng chung', () => {
+  it('nút Xác nhận nhập nằm trong chân khung, thân cuộn không chứa nó, và nhánh lỗi không có chân', async () => {
+    const state = await freshState()
+    openPreviewMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    await state.openPromptImportPreviewOverlay()
+
+    const PromptImportOverlay = (await import('../../src/PromptImportOverlay.vue')).default
+    const wrapper = mount(PromptImportOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.pi-scrim').classes()).toContain('ui-overlay-scrim')
+    expect(wrapper.find('.pi-panel').classes()).toContain('ui-overlay')
+    expect(wrapper.find('.ui-overlay__foot .pi-act-primary').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__body .pi-act-primary').exists()).toBe(false)
+    expect(wrapper.find('.ui-overlay__body .pi-body').exists()).toBe(true)
+
+    wrapper.unmount()
+
+    const errored = await freshState()
+    openPreviewMock.mockResolvedValue({ outcome: 'ipc_unavailable' })
+    await errored.openPromptImportPreviewOverlay()
+    const Again = (await import('../../src/PromptImportOverlay.vue')).default
+    const failed = mount(Again, { attachTo: document.body })
+    await failed.vm.$nextTick()
+    expect(failed.find('.ui-overlay__head').exists()).toBe(true)
+    expect(failed.find('.ui-overlay__body .pi-empty').exists()).toBe(true)
+    expect(failed.find('.ui-overlay__foot').exists()).toBe(false)
+    failed.unmount()
+
+    const loadFailed = await freshState()
+    const err = { code: 'prompt_set.parse_failed', message_key: 'err.prompt_set.parse_failed', params: {}, retryable: false }
+    openPreviewMock.mockResolvedValue({ outcome: 'error', error: err })
+    await loadFailed.openPromptImportPreviewOverlay()
+    const Third = (await import('../../src/PromptImportOverlay.vue')).default
+    const errored2 = mount(Third, { attachTo: document.body })
+    await errored2.vm.$nextTick()
+    expect(errored2.find('.ui-overlay__body .pi-error').exists()).toBe(true)
+    expect(errored2.find('.ui-overlay__foot').exists()).toBe(false)
+    errored2.unmount()
+  })
+})
+
 describe('confirmPromptImportPreview — nhịp hai', () => {
   it('tầng New ⇒ gửi decision null (không mang một quyết định vô nghĩa), đóng lớp phủ khi thành công', async () => {
     const state = await freshState()

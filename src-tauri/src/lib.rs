@@ -99,7 +99,7 @@ pub const E2E_DATA_DIR_ENV: &str = "AURATRANSLATE_E2E_DATA_DIR";
 #[cfg(all(debug_assertions, feature = "wdio"))]
 pub const E2E_LIBRARY_ROOT_ENV: &str = "AURATRANSLATE_E2E_LIBRARY_ROOT";
 
-/// Chính sách CHUNG của hai móc e2e, tách khỏi phép **đọc** biến môi trường.
+/// Chính sách CHUNG của các móc e2e, tách khỏi phép **đọc** biến môi trường.
 ///
 /// Tách ra vì hai lý do đo được, không phải vì gu kiến trúc:
 /// 1. `std::env::set_var` là `unsafe` từ edition 2024, và một ca test đặt biến môi trường
@@ -150,6 +150,20 @@ pub(crate) fn library_root_override() -> Option<std::path::PathBuf> {
 
 #[cfg(not(all(debug_assertions, feature = "wdio")))]
 pub(crate) fn library_root_override() -> Option<std::path::PathBuf> {
+    None
+}
+
+/// Absolute path of the file `prompt_set_open_import_preview` reads instead of the OS dialog (e2e only).
+#[cfg(all(debug_assertions, feature = "wdio"))]
+pub const E2E_PICK_FILE_ENV: &str = "AURATRANSLATE_E2E_PICK_FILE";
+
+#[cfg(all(debug_assertions, feature = "wdio"))]
+pub(crate) fn pick_file_override() -> Option<std::path::PathBuf> {
+    absolute_dir_override_from_raw(std::env::var_os(E2E_PICK_FILE_ENV).as_deref())
+}
+
+#[cfg(not(all(debug_assertions, feature = "wdio")))]
+pub(crate) fn pick_file_override() -> Option<std::path::PathBuf> {
     None
 }
 
