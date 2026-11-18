@@ -45,6 +45,8 @@ function alignment(over: Partial<ChapterAlignment> = {}): ChapterAlignment {
   }
 }
 
+Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, writable: true, value: () => undefined })
+
 function ok(a: ChapterAlignment) {
   return { alignment: a, error: null }
 }
@@ -302,6 +304,36 @@ describe('AlignmentOverlay.vue two-column layout and import flow', () => {
     expect(rows[0]!.findAll('.al-cell-empty')).toHaveLength(1)
     expect(rows[0]!.text()).toContain(t('alignment.no_counterpart'))
     expect(rows.filter((r) => r.classes().includes('al-row-grouped'))).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('keeps the action buttons in the frame foot and draws no foot on a load error', async () => {
+    const { wrapper } = await mountOpen()
+    const foot = wrapper.get('.ui-overlay__foot')
+    expect(foot.find('.al-act-primary').exists()).toBe(true)
+    expect(foot.find('.al-actions').exists()).toBe(true)
+    expect(wrapper.get('.ui-overlay__body').find('.al-actions').exists()).toBe(false)
+    wrapper.unmount()
+
+    const state = await freshState()
+    openMock.mockResolvedValue({ alignment: null, error: ipcError('export.alignment_stale') })
+    await state.openAlignmentOverlay(7)
+    const AlignmentOverlay = (await import('../../src/AlignmentOverlay.vue')).default
+    const failed = mount(AlignmentOverlay, { attachTo: document.body })
+    await failed.vm.$nextTick()
+    expect(failed.find('.ui-overlay__foot').exists()).toBe(false)
+    expect(failed.find('[role="alert"]').exists()).toBe(true)
+    failed.unmount()
+  })
+
+  it('moving the cursor brings the current row into view', async () => {
+    const { state, wrapper } = await mountOpen()
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView')
+    state.nextAlignmentEntry()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(spy).toHaveBeenCalledWith({ block: 'nearest' })
+    expect(spy.mock.contexts.at(-1)).toBe(wrapper.findAll('.al-row')[1]!.element)
     wrapper.unmount()
   })
 

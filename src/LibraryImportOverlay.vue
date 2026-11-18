@@ -209,20 +209,23 @@ function trapTab(event: KeyboardEvent): void {
   <div
     v-if="libraryImportOverlayIsOpen"
     v-show="!(importPreviewIsOpen || bilingualImportPreviewIsOpen)"
-    class="li-scrim"
+    class="li-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('library.import.close')"
     @keydown.enter="onSubmitChord($event)"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="li-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="li-title">
+    <section ref="panel" class="li-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="li-title">
+      <div class="li-top ui-overlay__head">
       <header class="li-head">
         <h2 id="li-title" class="li-title">{{ t('mode.library.import_title') }}</h2>
         <button type="button" class="li-close ui-btn ui-btn--quiet" :disabled="busy" @click="dispatch('library.import.close')">
           {{ t('command.library.import.close') }}
         </button>
       </header>
+      </div>
 
+      <div class="li-scroll ui-overlay__body">
       <form class="import-form" @submit.prevent>
         <fieldset class="field field-group" data-import-destination>
           <legend>{{ t('mode.library.field_destination') }}</legend>
@@ -454,7 +457,9 @@ function trapTab(event: KeyboardEvent): void {
           <p class="li-note">{{ t('mode.library.url_screen_promise', { count: String(pastedUrlCount) }) }}</p>
         </div>
       </form>
+      </div>
 
+      <div class="li-bottom ui-overlay__foot">
       <!-- aura-allow-text: qua tError(). -->
       <p class="error" role="status">{{ lastError ? tError(lastError) : '' }}</p>
 
@@ -488,6 +493,7 @@ function trapTab(event: KeyboardEvent): void {
           </button>
         </div>
       </footer>
+      </div>
 
       <div v-if="isDragOver" class="li-dropveil" aria-hidden="true" data-import-drop-frame>
         <!-- aura-allow-text: qua t(). -->
@@ -499,34 +505,17 @@ function trapTab(event: KeyboardEvent): void {
 
 <style scoped>
 .li-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: above the shell like the other overlays. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
-}
-
-:root[data-platform='mac'] .li-scrim {
-  padding-top: var(--space-titlebar-height);
 }
 
 .li-panel {
   position: relative;
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
 }
 
-.li-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.li-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--space-unit) * 1);
 }
 
 .li-head {
@@ -535,7 +524,6 @@ function trapTab(event: KeyboardEvent): void {
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .li-head > :last-child {
@@ -555,6 +543,7 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  padding-bottom: 14px;
 }
 
 .field {
@@ -741,7 +730,7 @@ function trapTab(event: KeyboardEvent): void {
   flex: 1;
   min-width: 0;
   resize: none;
-  overflow: auto;
+  overflow: auto; /* aura-allow-scroll: multi-line paste box, its own scroller, not nested. */
 }
 
 .li-foot {
@@ -749,7 +738,6 @@ function trapTab(event: KeyboardEvent): void {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 14px;
 }
 
 .li-foot-actions {
@@ -787,7 +775,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .error {
-  margin: 14px 0 0;
+  margin: 0;
   min-height: 21px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);

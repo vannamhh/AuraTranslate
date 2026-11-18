@@ -173,6 +173,11 @@ function labelFor(createdAt: string): string {
 function aimRow(id: number): void {
   aimHistoryVersion(id)
 }
+
+function aimAndReveal(delta: 1 | -1): void {
+  moveHistoryAim(delta)
+  void nextTick(() => panel.value?.querySelector('.hist-aimed')?.scrollIntoView({ block: 'nearest' }))
+}
 </script>
 
 <template>
@@ -187,21 +192,24 @@ function aimRow(id: number): void {
   -->
   <div
     v-if="historyIsOpen"
-    class="hist-scrim"
+    class="hist-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="closeSegmentHistory()"
-    @keydown.up.prevent="moveHistoryAim(-1)"
-    @keydown.down.prevent="moveHistoryAim(1)"
+    @keydown.up.prevent="aimAndReveal(-1)"
+    @keydown.down.prevent="aimAndReveal(1)"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="hist-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section ref="panel" class="hist-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true">
+      <div class="hist-top ui-overlay__head">
       <header class="hist-head">
         <h2 class="hist-title">{{ t('history.title') }}</h2>
         <button type="button" class="hist-close ui-btn ui-btn--quiet" @click="dispatch('history.close')">
           {{ t('history.close') }}
         </button>
       </header>
+      </div>
 
+      <div class="hist-scroll ui-overlay__body">
       <!--
         🔴 BA TRẠNG THÁI RỖNG KHÁC NHAU, BA CÂU KHÁC NHAU — và thứ tự các nhánh là cả điểm.
 
@@ -351,6 +359,7 @@ function aimRow(id: number): void {
           <p v-else class="hist-empty">{{ t('history.pick_version') }}</p>
         </div>
       </div>
+      </div>
     </section>
   </div>
 </template>
@@ -361,34 +370,12 @@ function aimRow(id: number): void {
  * không gradient (Kiểm F). Không `opacity` trung gian (Kiểm D).
  */
 .hist-scrim {
-  position: fixed;
-  inset: 0;
   /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
   z-index: 10;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
 }
 
-:root[data-platform='mac'] .hist-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.hist-panel {
-  width: 100%;
-  max-width: 1099px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.hist-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.hist-scroll {
+  padding-bottom: var(--space-panel-block);
 }
 
 .hist-head {
@@ -397,7 +384,6 @@ function aimRow(id: number): void {
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .hist-head > :last-child {

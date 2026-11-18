@@ -36,6 +36,8 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
   }
 })
 
+Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, writable: true, value: () => undefined })
+
 const eq = (text: string): Span[] => [{ kind: 'equal', text }]
 
 async function setup() {
@@ -90,6 +92,39 @@ describe('SegmentHistoryOverlay hai ngăn', () => {
     expect(w.findAll('[data-history-row]').map((r) => r.attributes('data-history-origin'))).toEqual(
       ['other', 'self', 'unknown'],
     )
+  })
+
+  it('khung chung không chân: cả hai cột nằm trong thân cuộn duy nhất', async () => {
+    served.current = 203
+    served.versions = [
+      { id: 203, text: 'Ban A.', origin: 'other', spans: eq('Ban A.') },
+      { id: 202, text: 'Ban B.', origin: 'self', spans: eq('Ban B.') },
+    ]
+    const { w } = await setup()
+
+    expect(w.find('.ui-overlay__foot').exists()).toBe(false)
+    const body = w.get('.ui-overlay__body')
+    expect(body.find('.hist-vlist').exists()).toBe(true)
+    expect(body.find('[data-history-detail]').exists()).toBe(true)
+  })
+
+  it('mũi tên xuống đưa hàng vừa nhắm vào khung nhìn', async () => {
+    served.current = 203
+    served.versions = [
+      { id: 203, text: 'Ban A.', origin: 'other', spans: eq('Ban A.') },
+      { id: 202, text: 'Ban B.', origin: 'self', spans: eq('Ban B.') },
+    ]
+    const scrolled: Element[] = []
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
+      scrolled.push(this)
+    })
+    const { w } = await setup()
+    await w.get('.hist-scrim').trigger('keydown', { key: 'ArrowDown' })
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+    expect(spy).toHaveBeenCalledWith({ block: 'nearest' })
+    expect(scrolled.at(-1)).toBe(w.findAll('[data-history-row]')[1]!.element)
+    spy.mockRestore()
   })
 
   it('hai hàng trùng chữ: chỉ hàng có `current_version_id` mang nhãn đang dùng, kể cả khi đó là hàng cũ hơn', async () => {

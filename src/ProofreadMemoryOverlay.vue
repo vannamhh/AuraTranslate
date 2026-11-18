@@ -132,19 +132,22 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="proofreadMemoryIsOpen"
-    class="pfmem-scrim"
+    class="pfmem-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="pfmem-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="pfmem-title">
+    <section ref="panel" class="pfmem-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="pfmem-title">
+      <div class="pfmem-top ui-overlay__head">
       <header class="pfmem-head">
         <h2 id="pfmem-title" class="pfmem-title">{{ t('proofread.memory.title') }}</h2>
         <button type="button" class="pfmem-close ui-btn ui-btn--quiet" @click="dispatch('ai.proofread.memory.close')">
           {{ t('command.ai.proofread.memory.close') }}
         </button>
       </header>
+      </div>
 
+      <div class="pfmem-scroll ui-overlay__body">
       <ProofreadDecisionRatio :active="proofreadMemoryIsOpen" />
 
       <p v-if="!proofreadMemoryHasLoaded && proofreadMemoryBusy" class="pfmem-note" role="status">
@@ -172,7 +175,9 @@ function trapTab(event: KeyboardEvent): void {
           </button>
         </li>
       </ul>
+      </div>
 
+      <div class="pfmem-bottom ui-overlay__foot">
       <p v-if="proofreadMemoryClearPending" class="pfmem-note" role="status">
         {{ t('proofread.memory.clear_hint', { memory_count: count }) }}
       </p>
@@ -206,38 +211,32 @@ function trapTab(event: KeyboardEvent): void {
           {{ clearText }}
         </button>
       </div>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped>
 .pfmem-scrim {
-  position: fixed;
-  inset: 0;
   /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
   z-index: 10;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
 }
 
 .pfmem-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-panel-block);
-  min-width: 357px;
-  max-width: 560px;
-  max-height: 80vh;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
   color: var(--color-on-surface);
 }
 
-.pfmem-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.pfmem-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-panel-block);
+  padding-bottom: var(--space-panel-block);
+}
+
+.pfmem-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--space-unit) * 1);
 }
 
 .pfmem-head {
@@ -275,7 +274,6 @@ function trapTab(event: KeyboardEvent): void {
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow-y: auto;
 }
 
 .pfmem-row {

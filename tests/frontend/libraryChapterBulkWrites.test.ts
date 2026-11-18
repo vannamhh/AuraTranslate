@@ -681,6 +681,23 @@ describe('split box', () => {
     expect(document.activeElement).toBe(opener)
   })
 
+  it('a Chapter that fails to load shows the error in the body and draws no foot', async () => {
+    const refusal = { code: 'chapter.not_found', message_key: 'err.chapter.not_found', params: {}, retryable: false }
+    await loadList()
+    mockSplitBackend({ open_chapter: refusal })
+    await select([2])
+    const { default: Overlay } = await import('../../src/ChapterSplitOverlay.vue')
+    wrapper = mount(Overlay, { attachTo: document.body })
+    const split = await import('../../src/chapterSplitState')
+
+    await split.openChapterSplit()
+    await wrapper.vm.$nextTick()
+
+    expect(split.chapterSplitLoadStatus.value).toBe('failed')
+    expect(wrapper.get('.ui-overlay__body').find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.find('.ui-overlay__foot').exists()).toBe(false)
+  })
+
   it('Rust refusing the split keeps the box open and shows the error', async () => {
     const refusal = {
       code: 'chapter.split_leaves_empty',

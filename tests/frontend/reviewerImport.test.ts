@@ -395,6 +395,27 @@ describe('preview of a second import', () => {
     wrapper.unmount()
   })
 
+  it('draws the frame foot only on the loaded branch', async () => {
+    const state = await fresh()
+    const { mount } = await import('@vue/test-utils')
+    const Overlay = (await import('../../src/ReviewerImportOverlay.vue')).default
+    openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    await state.openReviewerImportPreviewOverlay()
+    const loaded = mount(Overlay, { attachTo: document.body })
+    expect(loaded.get('.ui-overlay__foot').find('.ri-actions').exists()).toBe(true)
+    expect(loaded.get('.ui-overlay__body').find('.ri-actions').exists()).toBe(false)
+    loaded.unmount()
+
+    const again = await fresh()
+    openMock.mockResolvedValue({ outcome: 'error', error: ipcError('export.reviewer_import_unreadable') })
+    await again.openReviewerImportPreviewOverlay()
+    const FreshOverlay = (await import('../../src/ReviewerImportOverlay.vue')).default
+    const failed = mount(FreshOverlay, { attachTo: document.body })
+    expect(failed.get('.ui-overlay__body').find('[role="alert"]').exists()).toBe(true)
+    expect(failed.find('.ui-overlay__foot').exists()).toBe(false)
+    failed.unmount()
+  })
+
   it('says nothing about accepted groups when there are none', async () => {
     const state = await fresh()
     const { mount } = await import('@vue/test-utils')

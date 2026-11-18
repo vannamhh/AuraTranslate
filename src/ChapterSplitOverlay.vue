@@ -73,13 +73,14 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="chapterSplitOverlayIsOpen"
-    class="cs-scrim"
+    class="cs-scrim ui-overlay-scrim"
     data-library-chapter-split-overlay
     @mousedown.self.prevent
     @keydown.esc="dispatch('library.chapter_split.close')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="cs-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cs-title">
+    <section ref="panel" class="cs-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cs-title">
+      <div class="cs-top ui-overlay__head">
       <header class="cs-head">
         <h2 id="cs-title" class="cs-title">
           <!-- aura-allow-text: ghép từ t() với dữ liệu Chương. -->
@@ -93,7 +94,9 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('command.library.chapter_split.close') }}
         </button>
       </header>
+      </div>
 
+      <div class="cs-scroll ui-overlay__body">
       <p v-if="chapterSplitLoadStatus === 'loading'" class="cs-note" role="status">{{ t('library.chapter_split.loading') }}</p>
       <p v-else-if="chapterSplitLoadStatus === 'failed'" class="cs-error" role="alert">{{ t('library.chapter_split.load_failed') }}</p>
       <template v-else>
@@ -119,7 +122,9 @@ function trapTab(event: KeyboardEvent): void {
           </li>
         </ul>
       </template>
+      </div>
 
+      <div v-if="chapterSplitLoadStatus === 'loaded'" class="cs-bottom ui-overlay__foot">
       <!-- aura-allow-text: mọi nhánh đều qua t()/tError(). -->
       <p class="cs-error" role="alert">
         {{
@@ -144,39 +149,20 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('command.library.chapter_split.confirm') }}
         </button>
       </div>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped>
 .cs-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: above the shell like the other overlays. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
 }
 
-:root[data-platform='mac'] .cs-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.cs-panel {
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.cs-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.cs-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--space-unit) * 1);
 }
 
 .cs-head {
@@ -184,7 +170,7 @@ function trapTab(event: KeyboardEvent): void {
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
+  padding: calc(var(--space-unit) * 1) 0;
 }
 
 .cs-title {
@@ -208,8 +194,6 @@ function trapTab(event: KeyboardEvent): void {
   list-style: none;
   margin: 0 0 var(--space-panel-block) 0;
   padding: 0;
-  max-height: 50vh;
-  overflow-y: auto;
   border: 1px solid var(--color-outline);
 }
 
@@ -243,7 +227,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .cs-error {
   min-height: 21px;
-  margin: 0 0 var(--space-panel-block) 0;
+  margin: 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);

@@ -72,12 +72,13 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="reviewerImportOverlayIsOpen"
-    class="ri-scrim"
+    class="ri-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="dispatch('export.reviewer_import.cancel')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="ri-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ri-title">
+    <section ref="panel" class="ri-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ri-title">
+      <div class="ri-top ui-overlay__head">
       <header class="ri-head">
         <h2 id="ri-title" class="ri-title">{{ t('reviewer.import.title') }}</h2>
         <button
@@ -89,7 +90,9 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('command.export.reviewer_import.cancel') }}
         </button>
       </header>
+      </div>
 
+      <div class="ri-scroll ui-overlay__body">
       <p v-if="reviewerImportStatus === 'unknown'" class="ri-status" role="status">{{ t('reviewer.import.loading') }}</p>
       <p v-else-if="reviewerImportStatus === 'ipc_unavailable'" class="ri-empty">
         {{ t('reviewer.import.empty_ipc_unavailable') }}
@@ -193,6 +196,10 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('reviewer.import.images_ignored', { count: String(reviewerImportPreview.image_rows_ignored) }) }}
         </p>
 
+      </template>
+      </div>
+
+      <div v-if="reviewerImportStatus === 'loaded' && reviewerImportPreview !== null" class="ri-bottom ui-overlay__foot">
         <p v-if="reviewerImportConfirmError !== null" class="ri-status ri-error" role="alert">
           <!-- aura-allow-text: result of tError() computed in the script. -->
           {{ tError(reviewerImportConfirmError) }}
@@ -222,40 +229,25 @@ function trapTab(event: KeyboardEvent): void {
             {{ t('command.export.reviewer_import.cancel') }}
           </button>
         </div>
-      </template>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped>
 .ri-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 11; /* aura-allow-z-index: same layer as TmImportOverlay; both are full-screen scrims. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
 }
 
-:root[data-platform='mac'] .ri-scrim {
-  padding-top: var(--space-titlebar-height);
+.ri-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--space-unit) * 1);
 }
 
-.ri-panel {
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.ri-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.ri-bottom .ri-status,
+.ri-bottom .ri-hint {
+  margin: 0;
 }
 
 .ri-head {
@@ -264,7 +256,6 @@ function trapTab(event: KeyboardEvent): void {
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .ri-head > :last-child {

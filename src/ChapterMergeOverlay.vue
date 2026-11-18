@@ -71,13 +71,14 @@ function trapTab(event: KeyboardEvent): void {
 <template>
   <div
     v-if="chapterMergeOverlayIsOpen"
-    class="cm-scrim"
+    class="cm-scrim ui-overlay-scrim"
     data-library-chapter-merge-overlay
     @mousedown.self.prevent
     @keydown.esc="dispatch('library.chapter_merge.close')"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="cm-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cm-title">
+    <section ref="panel" class="cm-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cm-title">
+      <div class="cm-top ui-overlay__head">
       <header class="cm-head">
         <h2 id="cm-title" class="cm-title">
           {{ t('library.chapter_merge.title', { count: String(chapterMergeRows.length) }) }}
@@ -86,7 +87,9 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('command.library.chapter_merge.close') }}
         </button>
       </header>
+      </div>
 
+      <div class="cm-scroll ui-overlay__body">
       <p class="cm-note">{{ t('library.chapter_merge.intro') }}</p>
 
       <section class="cm-card">
@@ -124,7 +127,9 @@ function trapTab(event: KeyboardEvent): void {
         <p class="cm-note">{{ t('library.chapter_merge.work_kept') }}</p>
         <p class="cm-note">{{ t('library.chapter_merge.no_undo') }}</p>
       </section>
+      </div>
 
+      <div class="cm-bottom ui-overlay__foot">
       <!-- aura-allow-text: mọi nhánh đều qua t()/tError(). -->
       <p class="cm-error" role="alert">
         {{
@@ -149,39 +154,20 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('command.library.chapter_merge.confirm') }}
         </button>
       </div>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped>
 .cm-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 10; /* aura-allow-z-index: above the shell like the other overlays. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
 }
 
-:root[data-platform='mac'] .cm-scrim {
-  padding-top: var(--space-titlebar-height);
-}
-
-.cm-panel {
-  width: 100%;
-  max-width: 721px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.cm-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.cm-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--space-unit) * 1);
 }
 
 .cm-head {
@@ -190,7 +176,6 @@ function trapTab(event: KeyboardEvent): void {
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .cm-head > :last-child {
@@ -276,7 +261,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .cm-error {
   min-height: 21px;
-  margin: 0 0 var(--space-panel-block) 0;
+  margin: 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);

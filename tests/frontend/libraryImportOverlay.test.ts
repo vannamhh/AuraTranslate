@@ -335,6 +335,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(frame.text()).toBe('Thả để thêm 2 tệp vào tab Tệp')
     expect(frame.attributes('aria-hidden')).toBe('true')
     expect(frame.find('[tabindex], button, input, textarea').exists()).toBe(false)
+    expect(frame.element.parentElement?.matches('.li-panel.ui-overlay')).toBe(true)
 
     imp.isDragOver.value = false
     imp.dragFileCount.value = 0

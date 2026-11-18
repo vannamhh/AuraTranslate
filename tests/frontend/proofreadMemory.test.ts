@@ -231,6 +231,18 @@ describe('ProofreadMemoryOverlay', () => {
     wrapper.unmount()
   })
 
+  it('keeps the forget and clear buttons in the frame foot and the list in the body', async () => {
+    const { memory, Overlay } = await fresh()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await memory.openProofreadMemory()
+    await nextTick()
+    const foot = wrapper.get('.ui-overlay__foot')
+    expect(foot.find('[data-proofread-memory-forget]').exists()).toBe(true)
+    expect(foot.find('[data-proofread-memory-clear]').exists()).toBe(true)
+    expect(wrapper.get('.ui-overlay__body').findAll('[data-proofread-memory-row]')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
   it('says it is empty only after the list has loaded', async () => {
     const { memory, Overlay } = await fresh()
     const { t } = await import('../../src/i18n')

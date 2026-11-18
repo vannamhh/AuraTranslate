@@ -69,6 +69,7 @@ watch(
   alignmentCursor,
   (cursor) => {
     if (cursor === 0 && alignmentOverlayIsOpen.value && document.activeElement === document.body) panel.value?.focus()
+    panel.value?.querySelector('.al-row-current')?.scrollIntoView({ block: 'nearest' })
   },
   { flush: 'post' },
 )
@@ -162,13 +163,14 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <div
     v-if="alignmentOverlayIsOpen"
-    class="al-scrim"
+    class="al-scrim ui-overlay-scrim"
     @mousedown.self.prevent
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"
   >
-    <section ref="panel" class="al-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="al-title">
+    <section ref="panel" class="al-panel ui-overlay" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="al-title">
+      <div class="al-top ui-overlay__head">
       <header class="al-head">
         <h2 id="al-title" class="al-title">{{ t('alignment.title') }}</h2>
         <button type="button" class="al-close ui-btn ui-btn--quiet" @click="dispatch('export.alignment.close')">
@@ -176,7 +178,9 @@ function onKeydown(event: KeyboardEvent): void {
           {{ hasNextChapter ? t('alignment.next_chapter') : t('command.export.alignment.close') }}
         </button>
       </header>
+      </div>
 
+      <div class="al-scroll ui-overlay__body">
       <p v-if="alignmentStatus === 'unknown'" class="al-status" role="status">{{ t('alignment.loading') }}</p>
       <p v-else-if="alignmentStatus === 'no_chapter'" class="al-empty">{{ t('alignment.no_chapter') }}</p>
       <p v-else-if="alignmentStatus === 'ipc_unavailable'" class="al-empty">{{ t('alignment.empty_ipc_unavailable') }}</p>
@@ -267,7 +271,10 @@ function onKeydown(event: KeyboardEvent): void {
             </li>
           </template>
         </ul>
+      </template>
+      </div>
 
+      <div v-if="alignmentStatus === 'loaded' && alignmentData !== null" class="al-bottom ui-overlay__foot">
         <p v-if="alignmentActionError !== null" class="al-status al-error" role="alert">
           <!-- aura-allow-text: result of tError() computed in the script. -->
           {{ tError(alignmentActionError) }}
@@ -307,40 +314,25 @@ function onKeydown(event: KeyboardEvent): void {
           </span>
         </div>
         <p class="al-hint">{{ t('alignment.hint_keys') }}</p>
-      </template>
+      </div>
     </section>
   </div>
 </template>
 
 <style scoped>
 .al-scrim {
-  position: fixed;
-  inset: 0;
   z-index: 11; /* aura-allow-z-index: same layer as the other full-screen modal scrims. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
 }
 
-:root[data-platform='mac'] .al-scrim {
-  padding-top: var(--space-titlebar-height);
+.al-bottom {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--space-unit) * 1);
 }
 
-.al-panel {
-  width: 100%;
-  max-width: 959px;
-  max-height: 100%;
-  overflow: auto;
-  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-}
-
-.al-panel:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+.al-bottom .al-status,
+.al-bottom .al-hint {
+  margin: 0;
 }
 
 .al-head {
@@ -349,7 +341,6 @@ function onKeydown(event: KeyboardEvent): void {
   height: 35px;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
 }
 
 .al-head > :last-child {
@@ -393,12 +384,11 @@ function onKeydown(event: KeyboardEvent): void {
   padding: 0;
   display: flex;
   flex-direction: column;
-  max-height: 55vh;
-  overflow: auto;
   border: 1px solid var(--color-outline);
 }
 
 .al-row {
+  scroll-margin-top: calc(var(--font-ui-sm) * var(--leading-ui-sm) + var(--space-panel-block) + var(--space-unit));
   padding: calc(var(--space-unit) * 1) var(--space-panel-inline) 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-md);
@@ -421,7 +411,12 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .al-cols {
-  margin: 0 0 var(--space-panel-block) 0;
+  position: sticky;
+  top: 0;
+  z-index: 1; /* aura-allow-z-index: .al-row-label is positioned and would paint over the sticky column labels. */
+  margin: 0;
+  padding-bottom: var(--space-panel-block);
+  background: var(--color-surface);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

@@ -2417,13 +2417,6 @@ const OVERLAY_FILE_FLOOR = 22
 
 /** Overlay not yet on the frame, with the ticket entry that moves it. */
 const OVERLAY_DEBT = new Map([
-  ['ChapterMergeOverlay', 'entry 4 (Story 17.4)'],
-  ['ChapterSplitOverlay', 'entry 4 (Story 17.4)'],
-  ['LibraryImportOverlay', 'entry 4 (Story 17.4)'],
-  ['ReviewerImportOverlay', 'entry 4 (Story 17.4)'],
-  ['AlignmentOverlay', 'entry 4 (Story 17.4)'],
-  ['SegmentHistoryOverlay', 'entry 4 (Story 17.4)'],
-  ['ProofreadMemoryOverlay', 'entry 4 (Story 17.4)'],
 ])
 /** Popups that hug their content: exempt from R1 and R4. */
 const OVERLAY_POPUP_EXEMPT = new Map([
