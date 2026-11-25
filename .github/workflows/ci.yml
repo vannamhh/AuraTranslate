@@ -66,8 +66,8 @@ on:
   # ⚠️ GitHub **bỏ qua** `schedule` trên nhánh không phải nhánh mặc định, và **tự tắt** lịch
   # sau 60 ngày repo không hoạt động. Một bảng nightly im lặng nghĩa là "chưa chạy", KHÔNG
   # phải "chạy và xanh" — đọc `gh run list --workflow=CI` trước khi tin nó xanh.
-  schedule:
-    - cron: '0 18 * * *'
+  # schedule:
+  #   - cron: '0 18 * * *'
 
 # Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ". Lọc đường dẫn là đúng chỗ
 # một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`. Bước `changes` chỉ
